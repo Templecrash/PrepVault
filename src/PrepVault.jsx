@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
+import L from "leaflet";
 
 /* ═══════════════════════════════════════════════════════════
    DATA CONSTANTS
@@ -2288,10 +2289,10 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
     alerts: climate === "cold" ? [{ title: "Extreme cold warning", desc: "Wind chill to -25°C tonight. Check heating fuel and insulate pipes." }] : [],
   };
   const sampleNews = [
-    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID", url: null },
-    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD", url: null },
-    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER", url: null },
-    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES", url: null },
+    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID", url: "https://www.cbc.ca/news/business" },
+    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD", url: "https://www.theglobeandmail.com/business" },
+    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER", url: "https://www.theweathernetwork.com/ca/alerts" },
+    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES", url: "https://www.ctvnews.ca/toronto" },
   ];
 
   const w = weather || sampleWeather;
@@ -3236,7 +3237,27 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   );
 }
 
-function CommunityTab({ members, items, people, climate, user }) {
+/* ── Rally Point Mini Map Component ── */
+function RallyMiniMap({ coords, color }) {
+  const ref = useRef(null);
+  const mapRef2 = useRef(null);
+  useEffect(() => {
+    if (!ref.current || mapRef2.current) return;
+    const match = coords.match(/([\d.]+)\s*°?\s*([NS])\s*[,\s]+([\d.]+)\s*°?\s*([EW])/i);
+    if (!match) return;
+    const lat = parseFloat(match[1]) * (match[2].toUpperCase() === "S" ? -1 : 1);
+    const lng = parseFloat(match[3]) * (match[4].toUpperCase() === "W" ? -1 : 1);
+    if (isNaN(lat) || isNaN(lng)) return;
+    const map = L.map(ref.current, { center: [lat, lng], zoom: 14, zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, attributionControl: false, keyboard: false, touchZoom: false });
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }).addTo(map);
+    L.circleMarker([lat, lng], { radius: 6, color, fillColor: color, fillOpacity: 0.8, weight: 2 }).addTo(map);
+    mapRef2.current = map;
+    return () => { map.remove(); mapRef2.current = null; };
+  }, [coords, color]);
+  return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
+}
+
+function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, setCallSigns, codeWords, setCodeWords, rallyPoints, setRallyPoints, items, people, climate, user }) {
   const [comSub, setComSub] = useState("tracker");
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState(SAMPLE_CHAT);
@@ -3245,12 +3266,28 @@ function CommunityTab({ members, items, people, climate, user }) {
   const [tradeMessages, setTradeMessages] = useState(TRADE_MESSAGES);
   const statColors = { home: "#22c55e", nearby: "#84cc16", away: "#f59e0b", offline: "#6b7280" };
   const statusColors = { allied: "#22c55e", neutral: "#f59e0b", unknown: "#6b7280" };
-  const [contacts, setContacts] = useState(SAMPLE_CONTACTS);
   const [editContact, setEditContact] = useState(null);
   const [contactSearch, setContactSearch] = useState("");
   const [expandedContact, setExpandedContact] = useState(null);
   const [liveMembers, setLiveMembers] = useState(null);
   const chatEndRef = useRef(null);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newMember, setNewMember] = useState({ name: "", role: "", avatar: "👤" });
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" });
+  const [editingContact, setEditingContact] = useState(null);
+  const [editContactData, setEditContactData] = useState(null);
+  const [editingCallSign, setEditingCallSign] = useState(null);
+  const [editingCodeWord, setEditingCodeWord] = useState(null);
+  const [editingRallyPoint, setEditingRallyPoint] = useState(null);
+  const [secureUnlockedState, setSecureUnlockedState] = useState(false);
+  const [securePinState, setSecurePinState] = useState("");
+  const [securePinErrorState, setSecurePinErrorState] = useState(false);
+  const [fullscreenMap, setFullscreenMap] = useState(false);
+  const [rpMapModal, setRpMapModal] = useState(null);
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
   const subTabs = [{ id: "tracker", l: "Tracker", i: "📡" }, { id: "chat", l: "Chat", i: "💬" }, { id: "comms", l: "Comms Plan", i: "📻" }, { id: "trade", l: "Trade Routes", i: "🤝" }, { id: "contacts", l: "Contacts", i: "📇" }, { id: "combined", l: "Combined Score", i: "📊" }];
 
   /* ── Supabase Realtime: Chat messages ── */
@@ -3303,6 +3340,66 @@ function CommunityTab({ members, items, people, climate, user }) {
 
   /* Auto-scroll chat */
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
+
+  /* ── Leaflet Satellite Map ── */
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+    const firstWithCoords = displayMembers.find(m => m.lat && m.lng);
+    const center = firstWithCoords ? [firstWithCoords.lat, firstWithCoords.lng] : [45.421, -75.690];
+    const map = L.map(mapRef.current, { center, zoom: 13, zoomControl: false });
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Esri", maxZoom: 19 }).addTo(map);
+    L.control.zoom({ position: "topright" }).addTo(map);
+    mapInstanceRef.current = map;
+    return () => { map.remove(); mapInstanceRef.current = null; };
+  }, [comSub]);
+
+  /* ── Update map markers when members change ── */
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    markersRef.current.forEach(m => map.removeLayer(m));
+    markersRef.current = [];
+    displayMembers.filter(m => m.lat && m.sharing).forEach(m => {
+      const icon = L.divIcon({ html: `<div style="width:30px;height:30px;border-radius:15px;background:${m.color}30;border:2px solid ${m.color};display:flex;align-items:center;justify-content:center;font-size:15px">${m.avatar}</div>`, iconSize: [30, 30], className: "" });
+      const marker = L.marker([m.lat, m.lng], { icon }).addTo(map).bindTooltip(`<b>${m.name}</b><br/>${m.role || "Member"}<br/>🔋 ${m.battery}%`, { className: "", direction: "top" });
+      markersRef.current.push(marker);
+    });
+    // Home marker
+    const homeIcon = L.divIcon({ html: `<div style="width:26px;height:26px;border-radius:13px;background:rgba(34,197,94,0.2);border:2px solid rgba(34,197,94,0.5);display:flex;align-items:center;justify-content:center;font-size:13px">🏠</div>`, iconSize: [26, 26], className: "" });
+    const home = L.marker([45.421, -75.690], { icon: homeIcon }).addTo(map).bindTooltip("Home Base", { direction: "top" });
+    markersRef.current.push(home);
+  }, [displayMembers, comSub]);
+
+  /* ── Resize map when fullscreen toggles ── */
+  useEffect(() => {
+    if (mapInstanceRef.current) setTimeout(() => mapInstanceRef.current.invalidateSize(), 100);
+  }, [fullscreenMap]);
+
+  /* ── Browser Geolocation for self-tracking ── */
+  useEffect(() => {
+    if (!navigator.geolocation || !setMembers) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setMembers(prev => prev.map(m => m.id === "p1" ? { ...m, lat: pos.coords.latitude, lng: pos.coords.longitude, lastPing: "Now", sharing: true, status: "home" } : m));
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [setMembers]);
+
+  const addMember = () => {
+    if (!newMember.name.trim()) return;
+    const id = "p" + Date.now();
+    setMembers(prev => [...prev, { id, name: newMember.name.trim(), avatar: newMember.avatar || "👤", role: newMember.role.trim() || "Member", status: "offline", lat: null, lng: null, lastPing: "—", battery: 100, sharing: false, color: "#" + Math.floor(Math.random()*16777215).toString(16).padStart(6,"0") }]);
+    setNewMember({ name: "", role: "", avatar: "👤" });
+    setShowAddMember(false);
+  };
+
+  const removeMember = (id) => {
+    if (id === "p1") return; // Can't remove yourself
+    setMembers(prev => prev.filter(m => m.id !== id));
+  };
 
   const displayMembers = liveMembers || members;
 
@@ -3372,29 +3469,31 @@ function CommunityTab({ members, items, people, climate, user }) {
       {comSub === "tracker" && (
         <div className="pcs-tracker-grid" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
           <div style={{ ...cardSt, padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)" }}>📡 LIVE MAP</div>
-            <div style={{ height: 320, background: "linear-gradient(180deg,#0a1628,#0d1f2d)", position: "relative" }}>
-              {[0.25, 0.5, 0.75].map((p) => (<div key={p}><div style={{ position: "absolute", top: p * 100 + "%", left: 0, right: 0, height: 1, background: "rgba(255,255,255,0.02)" }} /><div style={{ position: "absolute", left: p * 100 + "%", top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.02)" }} /></div>))}
-              <div style={{ position: "absolute", left: "48%", top: "42%", transform: "translate(-50%,-50%)" }}><div style={{ width: 24, height: 24, borderRadius: 12, background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>🏠</div></div>
-              {displayMembers.filter((m) => m.lat && m.sharing).map((m) => {
-                const mapX = 50 + (m.lng - (-75.690)) * 1200;
-                const mapY = 50 - (m.lat - 45.421) * 1200;
-                return (
-                  <div key={m.id} style={{ position: "absolute", left: Math.max(5, Math.min(95, mapX)) + "%", top: Math.max(5, Math.min(95, mapY)) + "%", transform: "translate(-50%,-50%)", zIndex: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 14, background: m.color + "25", border: "2px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{m.avatar}</div>
-                    <div style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: m.color, textShadow: "0 1px 3px rgba(0,0,0,.8)", marginTop: 2 }}>{m.name}</div>
-                  </div>
-                );
-              })}
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>📡 LIVE MAP — Satellite</span>
+              <button onClick={() => setFullscreenMap(!fullscreenMap)} style={{ padding: "3px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>{fullscreenMap ? "Minimize" : "⛶ Expand"}</button>
             </div>
+            <div ref={mapRef} style={{ height: fullscreenMap ? 600 : 320 }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <button onClick={() => setShowAddMember(!showAddMember)} style={{ ...btnSt, padding: "6px 12px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", width: "100%", marginBottom: 2 }}>{showAddMember ? "Cancel" : "+ Add Member"}</button>
+            {showAddMember && (
+              <div style={{ ...cardSt, padding: "10px 12px", marginBottom: 4 }}>
+                <input value={newMember.name} onChange={e => setNewMember(p => ({ ...p, name: e.target.value }))} placeholder="Name" style={{ ...inp, padding: "6px 8px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                <input value={newMember.role} onChange={e => setNewMember(p => ({ ...p, role: e.target.value }))} placeholder="Role" style={{ ...inp, padding: "6px 8px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                <div style={{ display: "flex", gap: 4 }}>
+                  <input value={newMember.avatar} onChange={e => setNewMember(p => ({ ...p, avatar: e.target.value }))} placeholder="Avatar emoji" style={{ ...inp, padding: "6px 8px", fontSize: 11, width: 60, boxSizing: "border-box" }} />
+                  <button onClick={addMember} style={{ ...btnSt, padding: "6px 12px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff", flex: 1 }}>Add</button>
+                </div>
+              </div>
+            )}
             {displayMembers.map((m) => (
               <div key={m.id} style={{ ...cardSt, padding: "10px 12px", borderLeft: "3px solid " + (statColors[m.status] || "#6b7280") }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 20 }}>{m.avatar}</span>
                   <div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 700 }}>{m.name}</div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{m.role}</div></div>
                   <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: (statColors[m.status] || "#6b7280") + "15", color: statColors[m.status] || "#6b7280", fontWeight: 700 }}>{m.status}</span>
+                  {m.id !== "p1" && <button onClick={() => removeMember(m.id)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove member">×</button>}
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
                   <span>📱{m.lastPing}</span>
@@ -3406,39 +3505,108 @@ function CommunityTab({ members, items, people, climate, user }) {
         </div>
       )}
 
-      {comSub === "chat" && (
-        <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", height: 520 }}>
-          <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 12, fontWeight: 700 }}>💬 Group Chat</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {displayMembers.filter((m) => m.status !== "offline").map((m) => (
-                <div key={m.id} style={{ width: 22, height: 22, borderRadius: 11, background: m.color + "25", border: "1px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }} title={m.name}>{m.avatar}</div>
-              ))}
+      {comSub === "chat" && (() => {
+        const SECURE_PIN_KEY = "prepvault-secure-pin";
+        const storedPinHash = localStorage.getItem(SECURE_PIN_KEY);
+        const [secureUnlocked, setSecureUnlocked] = [secureUnlockedState, setSecureUnlockedState];
+        const [securePin, setSecurePin] = [securePinState, setSecurePinState];
+        const [securePinError, setSecurePinError] = [securePinErrorState, setSecurePinErrorState];
+        const isSetup = !storedPinHash;
+
+        const hashSecurePin = async (pin) => {
+          const enc = new TextEncoder();
+          const hash = await crypto.subtle.digest("SHA-256", enc.encode(pin + "prepvault-secure-comms-salt"));
+          return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+        };
+
+        const handlePinSubmit = async () => {
+          if (securePin.length < 4) { setSecurePinError(true); return; }
+          const hashed = await hashSecurePin(securePin);
+          if (isSetup) {
+            localStorage.setItem(SECURE_PIN_KEY, hashed);
+            setSecureUnlockedState(true);
+            setSecurePinState("");
+          } else {
+            if (hashed === storedPinHash) { setSecureUnlockedState(true); setSecurePinState(""); setSecurePinErrorState(false); }
+            else { setSecurePinErrorState(true); }
+          }
+        };
+
+        const handleImageAttach = (e) => {
+          const file = e.target.files?.[0];
+          if (!file || !file.type.startsWith("image/")) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            setChatMessages(prev => [...prev, { id: "c" + Date.now(), from: "p1", text: "", image: reader.result, ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
+          };
+          reader.readAsDataURL(file);
+          e.target.value = "";
+        };
+
+        if (!secureUnlocked) {
+          return (
+            <div style={{ ...cardSt, padding: "60px 30px", textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+              <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800 }}>Secure Communications</h3>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 20, lineHeight: 1.6 }}>
+                {isSetup ? "Set a 4-digit PIN to encrypt your communications" : "Enter your PIN to access secure comms"}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+                <input type="password" maxLength={6} value={securePin} onChange={e => { setSecurePinState(e.target.value.replace(/[^0-9]/g, "")); setSecurePinErrorState(false); }} onKeyDown={e => e.key === "Enter" && handlePinSubmit()} placeholder="PIN" style={{ ...inp, width: 120, textAlign: "center", fontSize: 20, fontFamily: M, letterSpacing: 8, padding: "10px 14px", borderColor: securePinError ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.1)" }} autoFocus />
+                <button onClick={handlePinSubmit} style={{ ...btnSt, padding: "10px 20px", background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 12 }}>{isSetup ? "Set PIN" : "Unlock"}</button>
+              </div>
+              {securePinError && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Incorrect PIN. Try again.</div>}
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 20 }}>🛡️ AES-256-GCM Encryption · PBKDF2 Key Derivation</div>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", height: 520 }}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12 }}>🔒</span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>Secure Comms</span>
+                <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>AES-256-GCM</span>
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {displayMembers.filter((m) => m.status !== "offline").map((m) => (
+                  <div key={m.id} style={{ width: 22, height: 22, borderRadius: 11, background: m.color + "25", border: "1px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }} title={m.name}>{m.avatar}</div>
+                ))}
+                <button onClick={() => setSecureUnlockedState(false)} style={{ background: "none", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 6, color: "#ef4444", cursor: "pointer", fontSize: 9, padding: "2px 8px", fontFamily: "inherit" }}>Lock</button>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {chatMessages.map((msg) => {
+                const sender = displayMembers.find((m) => m.id === msg.from);
+                const isYou = msg.from === "p1";
+                return (
+                  <div key={msg.id} style={{ display: "flex", flexDirection: isYou ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
+                    {!isYou && <div style={{ width: 28, height: 28, borderRadius: 14, background: (sender?.color || "#6b7280") + "25", border: "1px solid " + (sender?.color || "#6b7280"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sender?.avatar || "?"}</div>}
+                    <div style={{ maxWidth: "75%" }}>
+                      {!isYou && <div style={{ fontSize: 9, color: sender?.color || "#999", fontWeight: 700, marginBottom: 2 }}>{sender?.name || msg.senderName || "Member"}</div>}
+                      <div style={{ background: isYou ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isYou ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isYou ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
+                        {msg.image && <img src={msg.image} style={{ maxWidth: 200, maxHeight: 200, borderRadius: 8, marginBottom: msg.text ? 6 : 0, display: "block" }} />}
+                        {msg.text}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isYou ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef} />
+            </div>
+            <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, alignItems: "center" }}>
+              <label style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 14 }} title="Attach image">
+                📷
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageAttach} />
+              </label>
+              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="Encrypted message..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
+              <button onClick={sendChat} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-            {chatMessages.map((msg) => {
-              const sender = displayMembers.find((m) => m.id === msg.from);
-              const isYou = msg.from === "p1";
-              return (
-                <div key={msg.id} style={{ display: "flex", flexDirection: isYou ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
-                  {!isYou && <div style={{ width: 28, height: 28, borderRadius: 14, background: (sender?.color || "#6b7280") + "25", border: "1px solid " + (sender?.color || "#6b7280"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sender?.avatar || "?"}</div>}
-                  <div style={{ maxWidth: "75%" }}>
-                    {!isYou && <div style={{ fontSize: 9, color: sender?.color || "#999", fontWeight: 700, marginBottom: 2 }}>{sender?.name}</div>}
-                    <div style={{ background: isYou ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isYou ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isYou ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{msg.text}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isYou ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
-                  </div>
-                </div>
-              );
-            })}
-            <div ref={chatEndRef} />
-          </div>
-          <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
-            <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="Type a message..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-            <button onClick={sendChat} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {comSub === "comms" && (
         <div style={{ display: "grid", gap: 16 }}>
@@ -3488,12 +3656,25 @@ function CommunityTab({ members, items, people, climate, user }) {
 
             {/* ── Call Signs ── */}
             <div style={cardSt}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>🎙️ Call Signs</div>
-              {COMMS_PLAN.callSigns.map((cs, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < COMMS_PLAN.callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, fontFamily: M, color: "#0ea5e9", minWidth: 80 }}>{cs.sign}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{cs.person}</div>
-                </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🎙️ Call Signs</div>
+                <button onClick={() => setCallSigns(prev => [...prev, { person: "New Person", sign: "CALL" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+              </div>
+              {callSigns.map((cs, i) => (
+                editingCallSign === i ? (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                    <input value={cs.sign} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, sign: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, color: "#0ea5e9", width: 80, boxSizing: "border-box" }} />
+                    <input value={cs.person} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, person: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 11, flex: 1, boxSizing: "border-box" }} />
+                    <button onClick={() => setEditingCallSign(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
+                  </div>
+                ) : (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: M, color: "#0ea5e9", minWidth: 80 }}>{cs.sign}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", flex: 1 }}>{cs.person}</div>
+                    <button onClick={() => setEditingCallSign(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                    <button onClick={() => setCallSigns(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
+                  </div>
+                )
               ))}
               <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", marginBottom: 3 }}>⚠ DURESS SIGNAL</div>
@@ -3504,34 +3685,76 @@ function CommunityTab({ members, items, people, climate, user }) {
 
           {/* ── Code Words ── */}
           <div style={cardSt}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>🔐 Code Words</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🔐 Code Words</div>
+              <button onClick={() => setCodeWords(prev => [...prev, { code: "NEWCODE", meaning: "Description", action: "Action to take" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 6 }}>
-              {COMMS_PLAN.codeWords.map((cw, i) => (
-                <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444") }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444" }}>{cw.code}</span>
+              {codeWords.map((cw, i) => (
+                editingCodeWord === i ? (
+                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
+                    <input value={cw.code} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, code: v } : c)); }} placeholder="Code word" style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <input value={cw.meaning} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, meaning: v } : c)); }} placeholder="Meaning" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <input value={cw.action} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, action: v } : c)); }} placeholder="Action" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <button onClick={() => setEditingCodeWord(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
                   </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>{cw.meaning}</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>→ {cw.action}</div>
-                </div>
+                ) : (
+                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444") }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444", flex: 1 }}>{cw.code}</span>
+                      <button onClick={() => setEditingCodeWord(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                      <button onClick={() => setCodeWords(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>{cw.meaning}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>→ {cw.action}</div>
+                  </div>
+                )
               ))}
             </div>
           </div>
 
           {/* ── Rally Points ── */}
           <div style={cardSt}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>📍 Rally Points</div>
-            {COMMS_PLAN.rallyPoints.map((rp, i) => (
-              <div key={rp.id} style={{ padding: "12px 16px", marginBottom: i < COMMS_PLAN.rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7") }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7" }}>{rp.name}</span>
-                  <span style={{ fontSize: 9, fontFamily: M, color: "rgba(255,255,255,0.4)" }}>{rp.coords}</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>📍 Rally Points</div>
+              <button onClick={() => setRallyPoints(prev => [...prev, { id: "rp" + Date.now(), name: "New Rally Point", location: "", coords: "", use: "", marker: "", supplies: "" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+            </div>
+            {rallyPoints.map((rp, i) => (
+              editingRallyPoint === i ? (
+                <div key={rp.id} style={{ padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+                    <input value={rp.name} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, name: v } : r)); }} placeholder="Name" style={{ ...inp, padding: "4px 6px", fontSize: 11, boxSizing: "border-box" }} />
+                    <input value={rp.coords} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, coords: v } : r)); }} placeholder="Coordinates" style={{ ...inp, padding: "4px 6px", fontSize: 11, fontFamily: M, boxSizing: "border-box" }} />
+                  </div>
+                  <input value={rp.location} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, location: v } : r)); }} placeholder="Location description" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                  <input value={rp.marker} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, marker: v } : r)); }} placeholder="Marker/identifier" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                  <input value={rp.supplies} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, supplies: v } : r)); }} placeholder="Cached supplies" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                  <input value={rp.use} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, use: v } : r)); }} placeholder="Use case" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 6, width: "100%", boxSizing: "border-box" }} />
+                  <button onClick={() => setEditingRallyPoint(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
                 </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>📍 {rp.location}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>🔎 Marker: {rp.marker}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>📦 Cached: {rp.supplies}</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>Use: {rp.use}</div>
-              </div>
+              ) : (
+                <div key={rp.id} style={{ display: "flex", gap: 12, padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7") }}>
+                  {rp.coords && (() => {
+                    const rpColor = i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7";
+                    return <div onClick={() => setRpMapModal({ coords: rp.coords, name: rp.name, color: rpColor })} style={{ width: 120, height: 90, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)", position: "relative", background: "#0a1628" }} title="Click to expand map">
+                      <RallyMiniMap coords={rp.coords} color={rpColor} />
+                      <div style={{ position: "absolute", bottom: 4, right: 4, fontSize: 10, background: "rgba(0,0,0,0.6)", borderRadius: 3, padding: "1px 4px", color: "rgba(255,255,255,0.5)" }}>⛶</div>
+                    </div>;
+                  })()}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7", flex: 1 }}>{rp.name}</span>
+                      <span style={{ fontSize: 9, fontFamily: M, color: "rgba(255,255,255,0.4)" }}>{rp.coords}</span>
+                      <button onClick={() => setEditingRallyPoint(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">{"\u270f\ufe0f"}</button>
+                      <button onClick={() => setRallyPoints(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">{"\u00d7"}</button>
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>📍 {rp.location}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>🔎 Marker: {rp.marker}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>📦 Cached: {rp.supplies}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>Use: {rp.use}</div>
+                  </div>
+                </div>
+              )
             ))}
           </div>
 
@@ -3561,10 +3784,10 @@ function CommunityTab({ members, items, people, climate, user }) {
                 <div><span style={{ color: "rgba(255,255,255,0.3)" }}>CHECK-IN:</span> {COMMS_PLAN.schedule.filter(s => s.mandatory).map(s => s.time).join(" / ")}</div>
               </div>
               <div style={{ marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {COMMS_PLAN.codeWords.slice(0, 4).map((cw, i) => <span key={i} style={{ color: "#ef4444" }}>{cw.code}</span>)}
+                {codeWords.slice(0, 4).map((cw, i) => <span key={i} style={{ color: "#ef4444" }}>{cw.code}</span>)}
                 <span style={{ color: "#22c55e" }}>PHOENIX</span>
               </div>
-              <div style={{ marginTop: 4, color: "rgba(255,255,255,0.4)" }}>RALLY: {COMMS_PLAN.rallyPoints.map(r => r.name.split(" — ")[0]).join(" → ")}</div>
+              <div style={{ marginTop: 4, color: "rgba(255,255,255,0.4)" }}>RALLY: {rallyPoints.map(r => r.name.split(" — ")[0]).join(" → ")}</div>
               <div style={{ marginTop: 4, color: "#ef4444", fontSize: 10 }}>DURESS: Append "COPY THAT, ALL STATIONS"</div>
             </div>
           </div>
@@ -3669,7 +3892,37 @@ function CommunityTab({ members, items, people, climate, user }) {
             <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
               <input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder="Search name, group, role, condition..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>{filtered.length} contacts</span>
+              <button onClick={() => setShowAddContact(!showAddContact)} style={{ ...btnSt, padding: "6px 14px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", flexShrink: 0 }}>{showAddContact ? "Cancel" : "+ Add"}</button>
             </div>
+            {showAddContact && (
+              <div style={{ ...cardSt, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>New Contact</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+                  <input value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} placeholder="Full name *" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <select value={newContact.group} onChange={e => setNewContact(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
+                    {[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <input value={newContact.role} onChange={e => setNewContact(p => ({ ...p, role: e.target.value }))} placeholder="Role" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+                  <input value={newContact.phone} onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))} placeholder="Phone" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.address} onChange={e => setNewContact(p => ({ ...p, address: e.target.value }))} placeholder="Address" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.age} onChange={e => setNewContact(p => ({ ...p, age: e.target.value }))} placeholder="Age" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+                  <select value={newContact.bloodType} onChange={e => setNewContact(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
+                    {["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}
+                  </select>
+                  <input value={newContact.medical} onChange={e => setNewContact(p => ({ ...p, medical: e.target.value }))} placeholder="Medical conditions" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.allergies} onChange={e => setNewContact(p => ({ ...p, allergies: e.target.value }))} placeholder="Allergies" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+                  <input value={newContact.skills} onChange={e => setNewContact(p => ({ ...p, skills: e.target.value }))} placeholder="Skills" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.notes} onChange={e => setNewContact(p => ({ ...p, notes: e.target.value }))} placeholder="Notes" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <button onClick={() => { if (!newContact.name.trim()) return; setContacts(prev => [...prev, { ...newContact, id: "ct" + Date.now(), age: newContact.age ? parseInt(newContact.age) || newContact.age : "" }]); setNewContact({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" }); setShowAddContact(false); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Add Contact</button>
+              </div>
+            )}
             {groups.map((g) => (
               <div key={g} style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: groupColors[g] || "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
@@ -3700,6 +3953,8 @@ function CommunityTab({ members, items, people, climate, user }) {
                               {hasAllergy && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>⚠ allergy</span>}
                               {c.bloodType && c.bloodType !== "Unknown" && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", fontFamily: M }}>{c.bloodType}</span>}
                             </div>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingContact(c.id); setEditContactData({ ...c }); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                            <button onClick={(e) => { e.stopPropagation(); setContacts(prev => prev.filter(ct => ct.id !== c.id)); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
                           </div>
                         </button>
@@ -3728,6 +3983,35 @@ function CommunityTab({ members, items, people, climate, user }) {
           </div>
         );
       })()}
+
+      {/* Contact Edit Modal */}
+      {editingContact && editContactData && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => { setEditingContact(null); setEditContactData(null); }}>
+          <div style={{ background: "#1a1f2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: 20, width: 480, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Edit Contact</div>
+              <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>\u00d7</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Name</div><input value={editContactData.name} onChange={e => setEditContactData(p => ({ ...p, name: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Group</div><select value={editContactData.group} onChange={e => setEditContactData(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Role</div><input value={editContactData.role} onChange={e => setEditContactData(p => ({ ...p, role: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Phone</div><input value={editContactData.phone} onChange={e => setEditContactData(p => ({ ...p, phone: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Address</div><input value={editContactData.address} onChange={e => setEditContactData(p => ({ ...p, address: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Age</div><input value={editContactData.age} onChange={e => setEditContactData(p => ({ ...p, age: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Blood Type</div><select value={editContactData.bloodType} onChange={e => setEditContactData(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}</select></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Medical</div><input value={editContactData.medical} onChange={e => setEditContactData(p => ({ ...p, medical: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Allergies</div><input value={editContactData.allergies} onChange={e => setEditContactData(p => ({ ...p, allergies: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Skills</div><input value={editContactData.skills} onChange={e => setEditContactData(p => ({ ...p, skills: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+            </div>
+            <div style={{ marginBottom: 12 }}><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Notes</div><input value={editContactData.notes} onChange={e => setEditContactData(p => ({ ...p, notes: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>Cancel</button>
+              <button onClick={() => { setContacts(prev => prev.map(c => c.id === editingContact ? { ...editContactData } : c)); setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {comSub === "combined" && (() => {
         const { combined, soloAvg, pooledAvg, totalPeople, alliedCount } = computeCombined();
@@ -3813,8 +4097,40 @@ function CommunityTab({ members, items, people, climate, user }) {
           </div>
         );
       })()}
+
+      {/* ── Rally Point Map Modal ── */}
+      {rpMapModal && (() => {
+        const match = rpMapModal.coords.match(/([\d.]+)\s*°?\s*([NS])\s*[,\s]+([\d.]+)\s*°?\s*([EW])/i);
+        return (
+          <div onClick={() => setRpMapModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: "80%", maxWidth: 700, background: "#111", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "default" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div><span style={{ fontSize: 14, fontWeight: 800, color: rpMapModal.color }}>{rpMapModal.name}</span><span style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.4)", marginLeft: 10 }}>{rpMapModal.coords}</span></div>
+                <button onClick={() => setRpMapModal(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>×</button>
+              </div>
+              <div style={{ height: 400 }}>
+                {match && <RallyMiniMapLarge lat={parseFloat(match[1]) * (match[2].toUpperCase() === "S" ? -1 : 1)} lng={parseFloat(match[3]) * (match[4].toUpperCase() === "W" ? -1 : 1)} color={rpMapModal.color} />}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
+}
+
+/* ── Rally Point Large Map (for modal) ── */
+function RallyMiniMapLarge({ lat, lng, color }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const map = L.map(ref.current, { center: [lat, lng], zoom: 15, zoomControl: true });
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Esri", maxZoom: 19 }).addTo(map);
+    L.circleMarker([lat, lng], { radius: 10, color, fillColor: color, fillOpacity: 0.7, weight: 3 }).addTo(map);
+    L.marker([lat, lng]).addTo(map).bindPopup(`Rally Point<br/>${lat.toFixed(3)}°, ${lng.toFixed(3)}°`).openPopup();
+    return () => map.remove();
+  }, [lat, lng, color]);
+  return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
 function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, setSelScen, simDuration, setSimDuration }) {
@@ -3977,7 +4293,7 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
 /* ═══════════════════════════════════════════════════════════════
    COMMS TAB — Emergency Radio Channel Monitor
    ═══════════════════════════════════════════════════════════════ */
-function CommsTab({ items, people, climate }) {
+function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, setCodeWords, rallyPoints, setRallyPoints }) {
   const M = "'JetBrains Mono',monospace";
   const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
 
@@ -4007,6 +4323,20 @@ function CommsTab({ items, people, climate }) {
   const [newFreq, setNewFreq] = useState("");
   const [newFreqName, setNewFreqName] = useState("");
 
+  // 7B: Audio scanning simulation state
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [volume, setVolume] = useState(0.5);
+  const audioCtxRef = useRef(null);
+  const audioNoiseRef = useRef(null);
+  const audioGainRef = useRef(null);
+
+  // 7C: Channel activity log state
+  const [activityLog, setActivityLog] = useState(() => {
+    try { const s = localStorage.getItem("prepvault-radio-log"); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [logInput, setLogInput] = useState("");
+  const [logChannel, setLogChannel] = useState("");
+
   const subTabs = [
     { id: "scanner", l: "Scanner", i: "📡" },
     { id: "freqs", l: "Frequencies", i: "📻" },
@@ -4023,6 +4353,47 @@ function CommsTab({ items, people, climate }) {
     }, 2200);
     return () => clearInterval(timer);
   }, [scanning, monitoredChannels.length]);
+
+  // 7B: Audio white noise effect
+  useEffect(() => {
+    if (scanning && audioEnabled) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        audioCtxRef.current = ctx;
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        noise.loop = true;
+        const bandpass = ctx.createBiquadFilter();
+        bandpass.type = "bandpass";
+        bandpass.frequency.value = 1000;
+        bandpass.Q.value = 0.5;
+        const gain = ctx.createGain();
+        gain.gain.value = volume * 0.15;
+        audioGainRef.current = gain;
+        noise.connect(bandpass);
+        bandpass.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start();
+        audioNoiseRef.current = noise;
+      } catch (e) { /* Web Audio not supported */ }
+    }
+    return () => {
+      try {
+        if (audioNoiseRef.current) { audioNoiseRef.current.stop(); audioNoiseRef.current = null; }
+        if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
+        audioGainRef.current = null;
+      } catch (e) { /* ignore */ }
+    };
+  }, [scanning, audioEnabled, volume]);
+
+  // 7C: Persist activity log to localStorage
+  useEffect(() => {
+    try { localStorage.setItem("prepvault-radio-log", JSON.stringify(activityLog)); } catch { /* ignore */ }
+  }, [activityLog]);
 
   // Next check-in countdown
   const [countdown, setCountdown] = useState("");
@@ -4094,6 +4465,12 @@ function CommsTab({ items, people, climate }) {
 
   return (
     <div>
+      {/* Region indicator */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "6px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+        <span style={{ fontSize: 11 }}>🌎</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Region: <strong style={{ color: "rgba(255,255,255,0.6)" }}>North America (US/Canada)</strong></span>
+        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginLeft: "auto" }}>NOAA: US/CA · HAM/GMRS/FRS/CB: Universal · Marine VHF: International</span>
+      </div>
       {/* Sub-tab nav */}
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 16, overflowX: "auto" }}>
         {subTabs.map(s => (
@@ -4115,7 +4492,17 @@ function CommsTab({ items, people, climate }) {
                   <span style={{ fontSize: 9, fontWeight: 700, color: scanning ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>{scanning ? "Scanning" : "Stopped"}</span>
                 </div>
                 <button onClick={() => setScanning(!scanning)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (scanning ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"), background: scanning ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", color: scanning ? "#ef4444" : "#22c55e", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{scanning ? "STOP" : "SCAN"}</button>
+                <button onClick={() => setAudioEnabled(!audioEnabled)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: audioEnabled ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.03)", color: audioEnabled ? "#22c55e" : "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "inherit", marginLeft: 4 }} title={audioEnabled ? "Mute scanner audio" : "Enable scanner audio"}>{audioEnabled ? "🔊" : "🔇"}</button>
               </div>
+              {audioEnabled && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, padding: "4px 0" }}>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>🔈</span>
+                  <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => { const v = parseFloat(e.target.value); setVolume(v); if (audioGainRef.current) audioGainRef.current.gain.value = v * 0.15; }} style={{ flex: 1, accentColor: "#22c55e", height: 4 }} />
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>🔊</span>
+                  <span style={{ fontSize: 8, fontFamily: M, color: "rgba(255,255,255,0.25)", minWidth: 28, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
+                </div>
+              )}
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", textAlign: "center", marginTop: 2, fontStyle: "italic" }}>Audio simulation — use physical radio for actual monitoring</div>
               {/* Large frequency display */}
               <div style={{ textAlign: "center", padding: "8px 0" }}>
                 <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#22c55e", letterSpacing: 2, textShadow: "0 0 20px rgba(34,197,94,0.3)", lineHeight: 1 }}>
@@ -4190,6 +4577,44 @@ function CommsTab({ items, people, climate }) {
               <div style={{ fontSize: 18, fontWeight: 800, fontFamily: M, color: "#c8553a" }}>{countdown.display}</div>
             </div>
           )}
+
+          {/* 7C: Channel Activity Log */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📋 Activity Log</h3>
+            <div style={{ display: "flex", gap: 4, marginBottom: 8, alignItems: "center" }}>
+              <select value={logChannel} onChange={e => setLogChannel(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#22c55e", fontSize: 10, fontFamily: M, minWidth: 110 }}>
+                <option value="">Channel...</option>
+                {monitoredChannels.map((ch, i) => (
+                  <option key={ch.freq + i} value={ch.freq}>{ch.freq} — {ch.name}</option>
+                ))}
+              </select>
+              <input value={logInput} onChange={e => setLogInput(e.target.value)} placeholder="What did you hear?" onKeyDown={e => { if (e.key === "Enter" && logInput.trim() && logChannel) { setActivityLog(prev => [{ id: Date.now(), channel: logChannel, channelName: (monitoredChannels.find(c => c.freq === logChannel) || {}).name || logChannel, text: logInput.trim(), timestamp: new Date().toISOString(), reporter: (people && people[0] && people[0].name) || "Operator" }, ...prev].slice(0, 50)); setLogInput(""); } }} style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
+              <button onClick={() => { if (logInput.trim() && logChannel) { setActivityLog(prev => [{ id: Date.now(), channel: logChannel, channelName: (monitoredChannels.find(c => c.freq === logChannel) || {}).name || logChannel, text: logInput.trim(), timestamp: new Date().toISOString(), reporter: (people && people[0] && people[0].name) || "Operator" }, ...prev].slice(0, 50)); setLogInput(""); } }} style={{ padding: "6px 12px", borderRadius: 6, background: (!logInput.trim() || !logChannel) ? "rgba(200,85,58,0.3)" : "#c8553a", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: (!logInput.trim() || !logChannel) ? "default" : "pointer", fontFamily: "inherit", opacity: (!logInput.trim() || !logChannel) ? 0.5 : 1 }}>Log</button>
+            </div>
+            <div style={{ maxHeight: 300, overflowY: "auto", display: "grid", gap: 2 }}>
+              {activityLog.slice(0, 20).map((entry) => (
+                <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 8px", borderRadius: 6, background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, fontFamily: M, color: "#22c55e" }}>{entry.channel}</span>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{entry.channelName}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>{entry.text}</div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
+                      <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", fontFamily: M }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                      <span style={{ fontSize: 8, color: "rgba(200,85,58,0.5)" }}>{entry.reporter}</span>
+                    </div>
+                  </div>
+                  <span onClick={() => setActivityLog(prev => prev.filter(e => e.id !== entry.id))} style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", cursor: "pointer", padding: "2px 4px", borderRadius: 3, flexShrink: 0, lineHeight: 1, transition: "color 0.15s" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.15)"}>×</span>
+                </div>
+              ))}
+              {activityLog.length === 0 && (
+                <div style={{ textAlign: "center", padding: "20px 12px" }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>No activity logged yet. Select a channel and describe what you heard.</div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -4265,7 +4690,7 @@ function CommsTab({ items, people, climate }) {
           <div style={{ ...cardSt, padding: 12 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Call Sign Roster</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
-              {COMMS_PLAN.callSigns.map((cs, i) => (
+              {callSigns.map((cs, i) => (
                 <div key={i} style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#22c55e", minWidth: 60 }}>{cs.sign}</span>
                   <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.person}</span>
@@ -4305,7 +4730,7 @@ function CommsTab({ items, people, climate }) {
           <div style={{ ...cardSt, padding: 12 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Code Words</h3>
             <div style={{ display: "grid", gap: 4 }}>
-              {COMMS_PLAN.codeWords.map((cw, i) => {
+              {codeWords.map((cw, i) => {
                 const colors = { BLACKOUT: "#ef4444", OVERWATCH: "#f59e0b", EXODUS: "#ef4444", SHELTER: "#f59e0b", ANGEL: "#ef4444", IRON: "#ef4444", RIVER: "#0ea5e9", PHOENIX: "#22c55e" };
                 const col = colors[cw.code] || "#6b7280";
                 return (
@@ -4412,6 +4837,34 @@ function CommsTab({ items, people, climate }) {
                 </div>
               );
             })}
+          </div>
+
+          {/* 7A: Manuals & References */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📖 Manuals & References</h3>
+            <div style={{ display: "grid", gap: 4 }}>
+              {[
+                { icon: "📻", title: "Baofeng UV-5R Manual", tag: "Baofeng", url: "https://www.miklor.com/uv5r/UV-5R-Manual.pdf" },
+                { icon: "📻", title: "Baofeng UV-82 Manual", tag: "Baofeng", url: "https://www.miklor.com/uv82/Baofeng-UV82-Manual.pdf" },
+                { icon: "📻", title: "Baofeng BF-F8HP Manual", tag: "Baofeng", url: "https://www.miklor.com/BFF8HP/BF-F8HP-Manual.pdf" },
+                { icon: "🏔️", title: "Garmin GMRS Radios", tag: "Garmin", url: "https://www.garmin.com/en-US/c/outdoor-recreation/2-way-radios/" },
+                { icon: "📻", title: "Yaesu FT-60R Manual", tag: "Yaesu", url: "https://www.yaesu.com/indexVS.cfm?cmd=DocumentDownload&DID=318" },
+                { icon: "📻", title: "Yaesu FT-65R/FT-25R Manual", tag: "Yaesu", url: "https://www.yaesu.com/indexVS.cfm?cmd=DocumentDownload&DID=6542" },
+                { icon: "🗼", title: "RepeaterBook — Repeater Database", tag: "Reference", url: "https://www.repeaterbook.com/" },
+                { icon: "📊", title: "ARRL Band Plan", tag: "Reference", url: "http://www.arrl.org/band-plan" },
+                { icon: "💻", title: "CHIRP Programming Software", tag: "Software", url: "https://chirp.danplanet.com/projects/chirp/wiki/Home" },
+                { icon: "📡", title: "Radio Reference — Scanner Frequencies", tag: "Reference", url: "https://www.radioreference.com/" },
+              ].map((link, i) => (
+                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", textDecoration: "none", cursor: "pointer", transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.background = "rgba(200,85,58,0.06)"; e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"; }} onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>{link.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.65)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link.title}</div>
+                  </div>
+                  <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 3, background: link.tag === "Reference" ? "rgba(14,165,233,0.08)" : link.tag === "Software" ? "rgba(168,85,247,0.08)" : "rgba(200,85,58,0.08)", color: link.tag === "Reference" ? "#0ea5e9" : link.tag === "Software" ? "#a855f7" : "#c8553a", fontWeight: 700, flexShrink: 0 }}>{link.tag}</span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", flexShrink: 0 }}>↗</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -4966,7 +5419,11 @@ export default function PrepVault() {
   const [propSub, setPropSub] = useState("map");
   const [propAddress, setPropAddress] = useState(() => saved.current?.propAddress || "");
   const [pins, setPins] = useState(() => saved.current?.pins || SAMPLE_MAP_PINS);
-  const [members] = useState(SAMPLE_MEMBERS);
+  const [members, setMembers] = useState(() => saved.current?.members || SAMPLE_MEMBERS);
+  const [contacts, setContacts] = useState(() => saved.current?.contacts || SAMPLE_CONTACTS);
+  const [callSigns, setCallSigns] = useState(() => saved.current?.callSigns || COMMS_PLAN.callSigns);
+  const [codeWords, setCodeWords] = useState(() => saved.current?.codeWords || COMMS_PLAN.codeWords);
+  const [rallyPoints, setRallyPoints] = useState(() => saved.current?.rallyPoints || COMMS_PLAN.rallyPoints);
   const [codes] = useState(SAMPLE_CODES);
   const [manuals] = useState(SAMPLE_MANUALS);
   const [routes] = useState(SAMPLE_ROUTES);
@@ -4976,6 +5433,8 @@ export default function PrepVault() {
   const [showSecurity, setShowSecurity] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [showLanding, setShowLanding] = useState(() => !saved.current && !localStorage.getItem("prepvault-active-session"));
+  const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
   const [importPw, setImportPw] = useState("");
@@ -5007,6 +5466,7 @@ export default function PrepVault() {
       try {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
           items, people, climate, pins, propAddress, properties, activePropertyId,
+          members, contacts, callSigns, codeWords, rallyPoints,
           savedAt: new Date().toISOString()
         }));
         setDbStatus("saved");
@@ -5016,7 +5476,7 @@ export default function PrepVault() {
       } catch { /* storage full or unavailable */ }
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [items, people, climate, pins, propAddress, properties, activePropertyId]);
+  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -5128,8 +5588,20 @@ export default function PrepVault() {
         }
       }
       setShowAuth(false);
+      setShowLanding(false);
       setAuthEmail("");
       setAuthPassword("");
+      // New signups get empty state
+      if (authMode === "signup") {
+        setItems([]);
+        setContacts([]);
+        setMembers([{ id: "p1", name: "You", avatar: "👤", role: "Leader", status: "home", lat: null, lng: null, lastPing: "Now", battery: 100, sharing: false, color: "#22c55e" }]);
+        setPins([]);
+        setCallSigns([{ sign: "BASE", person: "You" }]);
+        setCodeWords([]);
+        setRallyPoints([]);
+        setOnboardStep(0);
+      }
     } catch (err) {
       setAuthError(err.message || "Authentication failed");
     } finally {
@@ -5423,9 +5895,9 @@ export default function PrepVault() {
       case "property":
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} />;
       case "community":
-        return <CommunityTab members={members} items={propItems} people={people} climate={climate} user={user} />;
+        return <CommunityTab members={members} setMembers={setMembers} contacts={contacts} setContacts={setContacts} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} items={propItems} people={people} climate={climate} user={user} />;
       case "comms":
-        return <CommsTab items={propItems} people={people} climate={climate} />;
+        return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} />;
       case "systems":
         return <SystemsTab items={propItems} people={people} climate={climate} />;
       case "simulate":
@@ -5434,6 +5906,92 @@ export default function PrepVault() {
         return null;
     }
   };
+
+  /* ═══ Auth Modal (reusable) ═══ */
+  const renderAuthModal = () => (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowAuth(false)}>
+      <div style={{ background: "#13151a", borderRadius: 14, width: "92%", maxWidth: 400, border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ padding: "22px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, fontFamily: M, marginBottom: 10, boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>P</div>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h3>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{authMode === "signup" ? "Sign up to sync your data across devices" : "Sign in to access your cloud data"}</p>
+        </div>
+        <div style={{ padding: "20px 24px" }}>
+          {authError && <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 10, color: "#ef4444" }}>❌ {authError}</div>}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Email</label>
+            <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Password</label>
+            <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder={authMode === "signup" ? "Min 6 characters" : "Your password"} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+          </div>
+          <button onClick={handleAuth} disabled={authLoading || !authEmail || !authPassword} style={{ width: "100%", padding: "12px", borderRadius: 8, background: authLoading ? "rgba(200,85,58,0.3)" : "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: authLoading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit", opacity: (!authEmail || !authPassword) ? 0.5 : 1 }}>
+            {authLoading ? "⟳ Please wait..." : authMode === "signup" ? "Create Account" : "Sign In"}
+          </button>
+          <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+            {authMode === "login" ? <>Don't have an account? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign up</button></> : <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign in</button></>}
+          </div>
+          <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(255,255,255,0.02)" : "rgba(14,165,233,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(255,255,255,0.04)" : "rgba(14,165,233,0.15)"), textAlign: "center" }}>
+            <div style={{ fontSize: 9, color: supabaseConfigured ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.7)", lineHeight: 1.5 }}>
+              {supabaseConfigured ? <>☁️ Cloud sync enabled. Your data syncs across devices.</> : <>💾 Local mode — your account is stored on this device only.</>}
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: "12px 24px 18px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
+          <button onClick={() => { setShowAuth(false); if (showLanding) setShowLanding(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ═══ LANDING PAGE ═══ */
+  if (showLanding) {
+    const features = [
+      { icon: "📦", title: "Smart Inventory", desc: "Track supplies across multiple properties with expiry alerts and consumption rate tracking." },
+      { icon: "📡", title: "Comms Center", desc: "Frequency scanner, check-in schedules, code words, and radio protocol reference." },
+      { icon: "👥", title: "Team Coordination", desc: "Live member tracking, encrypted secure chat, contacts database, and trade routes." },
+      { icon: "🧪", title: "Scenario Simulation", desc: "Test readiness against 13 scenarios from EMP to pandemic with scored results." },
+      { icon: "🔒", title: "Military-Grade Security", desc: "AES-256-GCM encryption, PIN-protected comms, offline-first architecture, zero telemetry." },
+      { icon: "🗺️", title: "Satellite Mapping", desc: "Live satellite maps with tactical overlays, rally points, and member location tracking." },
+    ];
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif" }}>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        {/* Hero */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "80px 20px 40px", textAlign: "center" }}>
+          <div style={{ width: 80, height: 80, borderRadius: 20, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, fontFamily: M, marginBottom: 24, boxShadow: "0 8px 40px rgba(200,85,58,0.3)", color: "#fff" }}>P</div>
+          <h1 style={{ fontSize: 48, fontWeight: 900, margin: "0 0 8px", lineHeight: 1.1 }}>PrepVault</h1>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", fontFamily: M, letterSpacing: 3, textTransform: "uppercase", marginBottom: 20 }}>Personal Continuity System</p>
+          <p style={{ fontSize: 17, color: "rgba(255,255,255,0.5)", maxWidth: 560, margin: "0 auto 40px", lineHeight: 1.6 }}>
+            Your offline-first emergency preparedness dashboard. Track inventory, monitor comms, coordinate your team, and simulate survival scenarios.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "14px 32px", borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>Get Started</button>
+            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "14px 32px", borderRadius: 10, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo</button>
+          </div>
+        </div>
+        {/* Feature Cards */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 60px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+          {features.map((f, i) => (
+            <div key={i} style={{ padding: 24, borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", transition: "border-color 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.2)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>{f.icon}</div>
+              <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 700 }}>{f.title}</h3>
+              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+        {/* Specs Bar */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 80px" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 30, flexWrap: "wrap", fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: M }}>
+            <span>AES-256-GCM</span><span>·</span><span>Offline-First</span><span>·</span><span>React 19</span><span>·</span><span>Zero Telemetry</span><span>·</span><span>Open Source</span>
+          </div>
+        </div>
+        {/* Auth modal reused */}
+        {showAuth && renderAuthModal()}
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif", paddingBottom: 72 }} onClick={() => { if (showAlerts) setShowAlerts(false); }}>
@@ -5636,7 +6194,7 @@ export default function PrepVault() {
 
       <div className="pcs-content">
         {/* ── Property Switcher ── */}
-        {!selCat && (
+        {!selCat && activeTab !== "community" && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
             <button onClick={() => setActivePropertyId("all")} style={{ padding: "6px 12px", borderRadius: 8, background: activePropertyId === "all" ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: activePropertyId === "all" ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.06)", color: activePropertyId === "all" ? "#c8553a" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }}>
               🌐 All Sites <span style={{ fontSize: 10, fontFamily: M, opacity: 0.5 }}>({items.length})</span>
@@ -5704,54 +6262,38 @@ export default function PrepVault() {
       {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
       {/* ═══ Auth Modal ═══ */}
-      {showAuth && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowAuth(false)}>
-          <div style={{ background: "#13151a", borderRadius: 14, width: "92%", maxWidth: 400, border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: "22px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, fontFamily: M, marginBottom: 10, boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>P</div>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h3>
-              <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{authMode === "signup" ? "Sign up to sync your data across devices" : "Sign in to access your cloud data"}</p>
-            </div>
-            <div style={{ padding: "20px 24px" }}>
-              {authError && (
-                <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 10, color: "#ef4444" }}>
-                  ❌ {authError}
-                </div>
-              )}
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Email</label>
-                <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+      {showAuth && renderAuthModal()}
+
+      {/* ═══ Onboarding Walkthrough ═══ */}
+      {onboardStep !== null && (() => {
+        const steps = [
+          { icon: "👋", title: "Welcome to PrepVault", desc: "Your personal continuity system. Let's take a quick tour of your preparedness dashboard.", action: "Start Tour" },
+          { icon: "🏠", title: "Set Up Your Properties", desc: "Add your primary residence, bug-out locations, and cache sites. Each property tracks its own inventory independently.", action: "Next", tab: "property" },
+          { icon: "📦", title: "Track Your Supplies", desc: "Use the Dashboard to add items across 20+ categories. Track quantities, locations, expiry dates, and consumption rates.", action: "Next", tab: "dashboard" },
+          { icon: "👥", title: "Connect Your Team", desc: "The Community tab lets you track team members on a satellite map, chat securely with AES-256 encryption, and manage contacts.", action: "Next", tab: "community" },
+          { icon: "📡", title: "Monitor Communications", desc: "The Comms tab gives you a frequency scanner, check-in schedules, code words, and radio protocol references.", action: "Finish", tab: "comms" },
+        ];
+        const step = steps[onboardStep];
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ background: "#1a1d23", borderRadius: 16, padding: 32, maxWidth: 420, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+              <div style={{ fontSize: 44, textAlign: "center", marginBottom: 16 }}>{step.icon}</div>
+              <h3 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800, textAlign: "center" }}>{step.title}</h3>
+              <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 1.6, marginBottom: 24, margin: "0 0 24px" }}>{step.desc}</p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button onClick={() => {
+                  if (onboardStep < steps.length - 1) { setOnboardStep(onboardStep + 1); if (steps[onboardStep + 1].tab) setActiveTab(steps[onboardStep + 1].tab); }
+                  else { setOnboardStep(null); localStorage.setItem("prepvault-onboarding-done", "1"); setActiveTab("dashboard"); }
+                }} style={{ padding: "10px 24px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>{step.action}</button>
+                <button onClick={() => { setOnboardStep(null); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "10px 18px", borderRadius: 8, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Skip</button>
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Password</label>
-                <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder={authMode === "signup" ? "Min 6 characters" : "Your password"} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 16 }}>
+                {steps.map((_, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: 4, background: i === onboardStep ? "#c8553a" : i < onboardStep ? "rgba(200,85,58,0.3)" : "rgba(255,255,255,0.08)", transition: "background 0.2s" }} />)}
               </div>
-              <button onClick={handleAuth} disabled={authLoading || !authEmail || !authPassword} style={{ width: "100%", padding: "12px", borderRadius: 8, background: authLoading ? "rgba(200,85,58,0.3)" : "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: authLoading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit", transition: "opacity 0.15s", opacity: (!authEmail || !authPassword) ? 0.5 : 1 }}>
-                {authLoading ? "⟳ Please wait..." : authMode === "signup" ? "Create Account" : "Sign In"}
-              </button>
-              <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                {authMode === "login" ? (
-                  <>Don't have an account? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign up</button></>
-                ) : (
-                  <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign in</button></>
-                )}
-              </div>
-              <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(255,255,255,0.02)" : "rgba(14,165,233,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(255,255,255,0.04)" : "rgba(14,165,233,0.15)"), textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: supabaseConfigured ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.7)", lineHeight: 1.5 }}>
-                  {supabaseConfigured ? (
-                    <>☁️ Cloud sync enabled. Your data syncs across devices.<br />All data is encrypted in transit. No telemetry.</>
-                  ) : (
-                    <>💾 Local mode — your account is stored on this device only.<br />Data persists in your browser. Connect Supabase for cloud sync.</>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div style={{ padding: "12px 24px 18px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
-              <button onClick={() => setShowAuth(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ═══ Security & Privacy Panel ═══ */}
       {showSecurity && (
