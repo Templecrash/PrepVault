@@ -973,10 +973,10 @@ const SAMPLE_ITEMS = [
 ];
 
 const SAMPLE_CODES = [
-  { id: "c1", type: "gate", label: "Front Gate", code: "4782#", location: "Main entrance", notes: "Press # after" },
-  { id: "c2", type: "safe", label: "Gun Safe", code: "24-8-16-32", location: "Master closet", notes: "Dial left first" },
-  { id: "c3", type: "alarm", label: "Alarm", code: "7391", location: "Garage panel", notes: "Duress: 9173" },
-  { id: "c4", type: "wifi", label: "WiFi", code: "PrepNet/S3cur3!", location: "Office", notes: "" },
+  { id: "c1", type: "gate", label: "Front Gate", code: "4782#", location: "Main entrance", notes: "Press # after", access: ["You", "Sarah", "Dave"], lastChanged: "2025-12-15" },
+  { id: "c2", type: "safe", label: "Gun Safe", code: "24-8-16-32", location: "Master closet", notes: "Dial left first", access: ["You", "Sarah"], lastChanged: "2026-01-20" },
+  { id: "c3", type: "alarm", label: "Alarm", code: "7391", location: "Garage panel", notes: "Duress: 9173", access: ["You", "Sarah", "Dave", "Mike"], lastChanged: "2026-02-01" },
+  { id: "c4", type: "wifi", label: "WiFi", code: "PrepNet/S3cur3!", location: "Office", notes: "", access: ["You", "Sarah", "Dave", "Mike", "Lisa", "Tom"], lastChanged: "2025-11-10" },
 ];
 const SAMPLE_MANUALS = [
   { id: "sm1", cat: "plumbing", title: "Water Heater Reset", desc: "Restart after power loss, flush tank.", file: "water-heater.pdf", priority: "high" },
@@ -2186,7 +2186,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
 /* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts }) {
   const M = "'JetBrains Mono',monospace";
 
   /* ── Live Weather State ── */
@@ -2583,11 +2583,11 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
       {/* ── Action Bar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, padding: "4px 0" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ position: "relative" }}>
-          <button onClick={() => setShowAlerts(!showAlerts)} style={{ ...btnSt, background: allAlerts.length > 0 ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.04)", color: allAlerts.length > 0 ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: allAlerts.length > 0 ? "1px solid rgba(239,68,68,0.15)" : "1px solid rgba(255,255,255,0.06)", position: "relative" }} title={allAlerts.length + " alerts"}>
+          <button onClick={() => setShowAlerts(!showAlerts)} style={{ ...btnSt, background: (allAlerts.length > 0 && !alertsDismissed) ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.04)", color: (allAlerts.length > 0 && !alertsDismissed) ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: (allAlerts.length > 0 && !alertsDismissed) ? "1px solid rgba(239,68,68,0.15)" : "1px solid rgba(255,255,255,0.06)", position: "relative", opacity: alertsDismissed ? 0.5 : 1 }} title={alertsDismissed ? `Alerts dismissed — returns in ${Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h` : allAlerts.length + " alerts"}>
             🔔
-            {allAlerts.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, padding: "0 3px", boxShadow: "0 2px 6px rgba(239,68,68,0.4)" }}>{allAlerts.length}</span>}
+            {allAlerts.length > 0 && !alertsDismissed && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, padding: "0 3px", boxShadow: "0 2px 6px rgba(239,68,68,0.4)" }}>{allAlerts.length}</span>}
           </button>
-          {showAlerts && allAlerts.length > 0 && (
+          {showAlerts && allAlerts.length > 0 && !alertsDismissed && (
             <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 400, overflowY: "auto", background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: 6 }}>
               <div style={{ padding: "8px 12px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>⚠ {allAlerts.length} Alerts</span>
@@ -2602,6 +2602,16 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
                   </div>
                 </div>
               ))}
+              <div style={{ padding: "6px 12px 8px", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 4 }}>
+                <button onClick={() => { onDismissAlerts(); setShowAlerts(false); }} style={{ ...btnSt, width: "100%", padding: "6px 0", fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+                  Dismiss all for 24h
+                </button>
+              </div>
+            </div>
+          )}
+          {showAlerts && alertsDismissed && (
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 240, background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: "12px 16px" }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>🔕 Alerts dismissed · returns in {Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h</div>
             </div>
           )}
         </div>
@@ -2787,11 +2797,144 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   );
 }
 
-function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, manuals, routes, amenities, revealedCodes, setRevealedCodes, user }) {
+/* ── AuthPanel — Moved outside PropertyTab to prevent re-mount on each render ── */
+function AuthPanel({ title, icon, color, auth, setAuth, provider, helpUrl, providerId, onAuth, onDisconnect }) {
+  const [focusField, setFocusField] = useState(null);
+  if (auth.connected) {
+    return (
+      <div style={{ ...cardSt, padding: "14px 18px", marginBottom: 16, borderLeft: "3px solid " + color, background: color + "06" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22 }}>{icon}</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{provider}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                <div style={{ width: 7, height: 7, borderRadius: 4, background: color, animation: "pulse 2s infinite" }} />
+                <span style={{ fontSize: 10, color: color, fontWeight: 600 }}>Connected as {auth.email}</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={() => onDisconnect(setAuth, providerId)} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)" }}>Disconnect</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ ...cardSt, padding: "20px 24px", marginBottom: 16, borderLeft: "3px solid " + color }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span style={{ fontSize: 22 }}>{icon}</span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Sign in with your {provider} account to enable live feeds</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 10 }}>
+        <div>
+          <label style={labelSt}>Email / Username</label>
+          <input style={{ ...inp, border: focusField === "email" ? `1px solid ${color}` : inp.border, boxShadow: focusField === "email" ? `0 0 0 2px ${color}33` : "none" }} type="email" value={auth.email} onChange={(e) => setAuth((p) => ({ ...p, email: e.target.value, error: "" }))} onFocus={() => setFocusField("email")} onBlur={() => setFocusField(null)} placeholder="user@email.com" />
+        </div>
+        <div>
+          <label style={labelSt}>Password</label>
+          <div style={{ position: "relative" }}>
+            <input style={{ ...inp, paddingRight: 36, border: focusField === "password" ? `1px solid ${color}` : inp.border, boxShadow: focusField === "password" ? `0 0 0 2px ${color}33` : "none" }} type={auth.showPw ? "text" : "password"} value={auth.password} onChange={(e) => setAuth((p) => ({ ...p, password: e.target.value, error: "" }))} onFocus={() => setFocusField("password")} onBlur={() => setFocusField(null)} placeholder="••••••••" />
+            <button onClick={() => setAuth((p) => ({ ...p, showPw: !p.showPw }))} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "rgba(255,255,255,0.3)", padding: 0 }}>{auth.showPw ? "🙈" : "👁️"}</button>
+          </div>
+        </div>
+      </div>
+      {auth.error && <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 8 }}>{auth.error}</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button onClick={() => onAuth(setAuth, auth, providerId)} disabled={auth.loading} style={{ ...btnSt, padding: "8px 20px", fontSize: 12, background: auth.loading ? "rgba(255,255,255,0.06)" : color, color: "#fff", fontWeight: 700, opacity: auth.loading ? 0.6 : 1 }}>
+          {auth.loading ? "Connecting..." : "Connect"}
+        </button>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Credentials are stored locally behind your PIN</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── CameraFeedCanvas — Renders simulated trail camera feed ── */
+function CameraFeedCanvas({ cam, expanded }) {
+  const canvasRef = useRef(null);
+  const height = expanded ? 200 : 120;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const w = canvas.width = canvas.parentElement?.offsetWidth || 280;
+    const h = canvas.height = height;
+    const ctx = canvas.getContext("2d");
+
+    // Base gradient — night-vision green/brown tint per camera
+    const hue = (cam.id.charCodeAt(cam.id.length - 1) * 37) % 60 + 90;
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, `hsl(${hue}, 15%, 8%)`);
+    grad.addColorStop(0.5, `hsl(${hue}, 20%, 12%)`);
+    grad.addColorStop(1, `hsl(${hue}, 10%, 6%)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // IR noise grain
+    const imageData = ctx.getImageData(0, 0, w, h);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const noise = (Math.random() - 0.5) * 25;
+      imageData.data[i] += noise;
+      imageData.data[i + 1] += noise;
+      imageData.data[i + 2] += noise;
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    // Vignette
+    const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.2, w / 2, h / 2, w * 0.7);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.5)");
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, w, h);
+
+    // HUD overlay
+    ctx.font = "bold 9px JetBrains Mono, monospace";
+    ctx.fillStyle = "rgba(34,197,94,0.7)";
+    ctx.fillText(cam.name.toUpperCase(), 8, 14);
+
+    const ts = new Date().toLocaleString("en-US", { hour12: false });
+    const tsW = ctx.measureText(ts).width;
+    ctx.fillText(ts, w - tsW - 8, 14);
+
+    // REC dot
+    ctx.fillStyle = "rgba(239,68,68,0.8)";
+    ctx.beginPath();
+    ctx.arc(14, h - 12, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "bold 9px JetBrains Mono, monospace";
+    ctx.fillText("REC", 22, h - 8);
+
+    // Model + location bottom-right
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    const locText = `${cam.model} | ${cam.location}`;
+    const locW = ctx.measureText(locText).width;
+    ctx.fillText(locText, w - locW - 8, h - 8);
+
+    // Crosshair center (subtle)
+    ctx.strokeStyle = "rgba(34,197,94,0.15)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 20, h / 2);
+    ctx.lineTo(w / 2 + 20, h / 2);
+    ctx.moveTo(w / 2, h / 2 - 20);
+    ctx.lineTo(w / 2, h / 2 + 20);
+    ctx.stroke();
+
+  }, [cam.id, cam.name, cam.model, cam.location, height, expanded]);
+
+  return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
+}
+
+function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, amenities, revealedCodes, setRevealedCodes, user }) {
   const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [expandedCam, setExpandedCam] = useState(null);
+  const [accessDropdown, setAccessDropdown] = useState(null);
   const [liveCameras, setLiveCameras] = useState(null);
   const [liveAlarm, setLiveAlarm] = useState(null);
   const [liveNestDevices, setLiveNestDevices] = useState(null);
@@ -2886,58 +3029,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
     return <div style={{ display: "flex", alignItems: "flex-end", gap: 1 }}>{bars}</div>;
   };
 
-  const AuthPanel = ({ title, icon, color, auth, setAuth, provider, helpUrl, providerId }) => {
-    if (auth.connected) {
-      return (
-        <div style={{ ...cardSt, padding: "14px 18px", marginBottom: 16, borderLeft: "3px solid " + color, background: color + "06" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }}>{icon}</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{provider}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: 4, background: color, animation: "pulse 2s infinite" }} />
-                  <span style={{ fontSize: 10, color: color, fontWeight: 600 }}>Connected as {auth.email}</span>
-                </div>
-              </div>
-            </div>
-            <button onClick={() => handleDisconnect(setAuth, providerId)} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)" }}>Disconnect</button>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div style={{ ...cardSt, padding: "20px 24px", marginBottom: 16, borderLeft: "3px solid " + color }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <span style={{ fontSize: 22 }}>{icon}</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Sign in with your {provider} account to enable live feeds</div>
-          </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-          <div>
-            <label style={labelSt}>Email / Username</label>
-            <input style={inp} type="email" value={auth.email} onChange={(e) => setAuth((p) => ({ ...p, email: e.target.value, error: "" }))} placeholder="user@email.com" />
-          </div>
-          <div>
-            <label style={labelSt}>Password</label>
-            <div style={{ position: "relative" }}>
-              <input style={{ ...inp, paddingRight: 36 }} type={auth.showPw ? "text" : "password"} value={auth.password} onChange={(e) => setAuth((p) => ({ ...p, password: e.target.value, error: "" }))} placeholder="••••••••" />
-              <button onClick={() => setAuth((p) => ({ ...p, showPw: !p.showPw }))} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "rgba(255,255,255,0.3)", padding: 0 }}>{auth.showPw ? "🙈" : "👁️"}</button>
-            </div>
-          </div>
-        </div>
-        {auth.error && <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 8 }}>{auth.error}</div>}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => handleAuth(setAuth, auth, providerId)} disabled={auth.loading} style={{ ...btnSt, padding: "8px 20px", fontSize: 12, background: auth.loading ? "rgba(255,255,255,0.06)" : color, color: "#fff", fontWeight: 700, opacity: auth.loading ? 0.6 : 1 }}>
-            {auth.loading ? "Connecting..." : "Connect"}
-          </button>
-          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Credentials are stored locally behind your PIN</span>
-        </div>
-      </div>
-    );
-  };
+  /* AuthPanel moved outside PropertyTab — see above */
 
   return (
     <div>
@@ -2952,7 +3044,62 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
 
       {propSub === "map" && <PropertyMap pins={pins} setPins={setPins} propAddress={propAddress} setPropAddress={setPropAddress} />}
 
-      {propSub === "codes" && <div>{codes.map((c) => (<div key={c.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, display: "flex", alignItems: "center", gap: 12, borderLeft: "3px solid #1e3a5f" }}><span style={{ fontSize: 20 }}>{CODE_ICONS[c.type] || "🔑"}</span><div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{c.label}</div><div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}><div style={{ fontFamily: M, fontSize: 15, fontWeight: 700, color: revealedCodes[c.id] ? "#22c55e" : "rgba(255,255,255,0.1)", background: revealedCodes[c.id] ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.03)", padding: "5px 10px", borderRadius: 6, userSelect: revealedCodes[c.id] ? "text" : "none" }}>{revealedCodes[c.id] ? c.code : "••••••"}</div><button onClick={() => setRevealedCodes((p) => ({ ...p, [c.id]: !p[c.id] }))} style={{ ...btnSt, padding: "5px 8px", fontSize: 12, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>{revealedCodes[c.id] ? "🙈" : "👁️"}</button></div>{c.notes && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>{c.location} · {c.notes}</div>}</div></div>))}</div>}
+      {propSub === "codes" && (
+        <div>
+          {codes.map((c) => {
+            const daysSinceChange = c.lastChanged ? Math.floor((Date.now() - new Date(c.lastChanged).getTime()) / 864e5) : null;
+            const rotationOverdue = daysSinceChange !== null && daysSinceChange > 30;
+            const rotationWarning = daysSinceChange !== null && daysSinceChange > 25;
+            return (
+              <div key={c.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 12, borderLeft: `3px solid ${rotationOverdue ? "#ef4444" : "#1e3a5f"}` }}>
+                <span style={{ fontSize: 20, marginTop: 2 }}>{CODE_ICONS[c.type] || "🔑"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{c.label}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <div style={{ fontFamily: M, fontSize: 15, fontWeight: 700, color: revealedCodes[c.id] ? "#22c55e" : "rgba(255,255,255,0.1)", background: revealedCodes[c.id] ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.03)", padding: "5px 10px", borderRadius: 6, userSelect: revealedCodes[c.id] ? "text" : "none" }}>
+                      {revealedCodes[c.id] ? c.code : "••••••"}
+                    </div>
+                    <button onClick={() => setRevealedCodes((p) => ({ ...p, [c.id]: !p[c.id] }))} style={{ ...btnSt, padding: "5px 8px", fontSize: 12, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>
+                      {revealedCodes[c.id] ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  {c.notes && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>{c.location} · {c.notes}</div>}
+                  {daysSinceChange !== null && (
+                    <div style={{ fontSize: 9, fontFamily: M, marginTop: 5, color: rotationOverdue ? "#ef4444" : rotationWarning ? "#f59e0b" : "rgba(255,255,255,0.3)", fontWeight: rotationOverdue ? 700 : 400 }}>
+                      {rotationOverdue ? `⚠ ${daysSinceChange}d since change — ROTATE` : `Changed ${daysSinceChange}d ago · rotate in ${30 - daysSinceChange}d`}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0, minWidth: 90 }}>
+                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Access</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "flex-end", maxWidth: 200 }}>
+                    {(c.access || []).map((person) => (
+                      <span key={person} style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 6px", borderRadius: 10, fontSize: 9, fontWeight: 600, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        {(members || []).find(m => m.name === person)?.avatar || "👤"} {person}
+                        <button onClick={() => setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: (cd.access || []).filter(a => a !== person) } : cd))} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.6)", cursor: "pointer", padding: 0, fontSize: 9, marginLeft: 1, lineHeight: 1 }}>×</button>
+                      </span>
+                    ))}
+                    <div style={{ position: "relative" }}>
+                      <button onClick={() => setAccessDropdown(accessDropdown === c.id ? null : c.id)} style={{ padding: "2px 6px", borderRadius: 10, fontSize: 9, fontWeight: 700, background: "rgba(200,85,58,0.1)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", cursor: "pointer" }}>+</button>
+                      {accessDropdown === c.id && (
+                        <div style={{ position: "absolute", top: "100%", right: 0, background: "#13151a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: 4, zIndex: 50, minWidth: 120, marginTop: 4, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                          {(members || []).filter(m => !(c.access || []).includes(m.name)).length === 0 ? (
+                            <div style={{ padding: "6px 8px", fontSize: 10, color: "rgba(255,255,255,0.3)" }}>All members added</div>
+                          ) : (members || []).filter(m => !(c.access || []).includes(m.name)).map(m => (
+                            <button key={m.id} onClick={() => { setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: [...(cd.access || []), m.name] } : cd)); setAccessDropdown(null); }} style={{ display: "block", width: "100%", padding: "5px 8px", background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 10, cursor: "pointer", textAlign: "left", borderRadius: 4 }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                              {m.avatar} {m.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 10, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
 
@@ -2962,7 +3109,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
 
       {propSub === "cameras" && (
         <div>
-          <AuthPanel title="Reveal Camera Login" icon="📷" color="#22c55e" auth={revealAuth} setAuth={setRevealAuth} provider="Tactacam Reveal" providerId="tactacam" helpUrl="https://www.reveal.tactacam.com" />
+          <AuthPanel title="Reveal Camera Login" icon="📷" color="#22c55e" auth={revealAuth} setAuth={setRevealAuth} provider="Tactacam Reveal" providerId="tactacam" helpUrl="https://www.reveal.tactacam.com" onAuth={handleAuth} onDisconnect={handleDisconnect} />
           {!revealAuth.connected ? (
             <div style={{ ...cardSt, padding: "40px 20px", textAlign: "center", borderStyle: "dashed" }}>
               <div style={{ fontSize: 36, marginBottom: 10, opacity: 0.3 }}>📷</div>
@@ -2981,29 +3128,15 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                   const isExpanded = expandedCam === cam.id;
                   return (
                     <div key={cam.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderTop: "3px solid " + (isOnline ? "#22c55e" : "#ef4444") }}>
-                      <div onClick={() => isOnline && setExpandedCam(isExpanded ? null : cam.id)} style={{ height: isExpanded ? 200 : 120, background: isOnline ? "linear-gradient(135deg,#0a1a0a,#0d2818 40%,#0a1a0a)" : "linear-gradient(135deg,#1a0a0a,#200d0d)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", cursor: isOnline ? "pointer" : "default", transition: "height 0.3s" }}>
+                      <div onClick={() => isOnline && setExpandedCam(isExpanded ? null : cam.id)} style={{ height: isExpanded ? 200 : 120, position: "relative", cursor: isOnline ? "pointer" : "default", transition: "height 0.3s", overflow: "hidden", background: isOnline ? "transparent" : "linear-gradient(135deg,#1a0a0a,#200d0d)" }}>
                         {isOnline ? (
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                            <div style={{ fontSize: 28, opacity: 0.4 }}>🎥</div>
-                            <div style={{ fontSize: 9, color: "rgba(34,197,94,0.5)", fontFamily: M }}>LIVE FEED</div>
-                            {isExpanded && (
-                              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)" }}>
-                                <div style={{ width: "90%", height: "80%", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)" }}>
-                                  <div style={{ textAlign: "center" }}>
-                                    <div style={{ fontSize: 11, color: "rgba(34,197,94,0.6)", fontWeight: 700, marginBottom: 4 }}>📡 Streaming from {cam.model}</div>
-                                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Last motion: {cam.last}</div>
-                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.12)", marginTop: 4, fontFamily: M }}>
-                                      {cam.location} · {new Date().toLocaleTimeString()}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                          <CameraFeedCanvas cam={cam} expanded={isExpanded} />
                         ) : (
-                          <div style={{ textAlign: "center" }}>
-                            <div style={{ fontSize: 20, opacity: 0.3 }}>📷</div>
-                            <div style={{ fontSize: 9, color: "rgba(239,68,68,0.5)", marginTop: 4 }}>OFFLINE</div>
+                          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <div style={{ textAlign: "center" }}>
+                              <div style={{ fontSize: 20, opacity: 0.3 }}>📷</div>
+                              <div style={{ fontSize: 9, color: "rgba(239,68,68,0.5)", marginTop: 4 }}>OFFLINE</div>
+                            </div>
                           </div>
                         )}
                         <div style={{ position: "absolute", top: 6, left: 8, display: "flex", alignItems: "center", gap: 4 }}>
@@ -3040,7 +3173,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
       {propSub === "systems" && (
         <div>
           {/* EyezOn Alarm Auth */}
-          <AuthPanel title="EyezOn Alarm Login" icon="🚨" color="#f59e0b" auth={eyezonAuth} setAuth={setEyezonAuth} provider="EyezOn EnvisaLink" providerId="eyezon" />
+          <AuthPanel title="EyezOn Alarm Login" icon="🚨" color="#f59e0b" auth={eyezonAuth} setAuth={setEyezonAuth} provider="EyezOn EnvisaLink" providerId="eyezon" onAuth={handleAuth} onDisconnect={handleDisconnect} />
           {eyezonAuth.connected ? (
             <div style={{ ...cardSt, marginBottom: 16, borderLeft: "3px solid #22c55e" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -3071,7 +3204,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           )}
 
           {/* Nest Auth */}
-          <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" />
+          <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" onAuth={handleAuth} onDisconnect={handleDisconnect} />
           {nestAuth.connected ? (
             <div style={{ ...cardSt, borderLeft: "3px solid #06b6d4" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -5424,7 +5557,7 @@ export default function PrepVault() {
   const [callSigns, setCallSigns] = useState(() => saved.current?.callSigns || COMMS_PLAN.callSigns);
   const [codeWords, setCodeWords] = useState(() => saved.current?.codeWords || COMMS_PLAN.codeWords);
   const [rallyPoints, setRallyPoints] = useState(() => saved.current?.rallyPoints || COMMS_PLAN.rallyPoints);
-  const [codes] = useState(SAMPLE_CODES);
+  const [codes, setCodes] = useState(() => saved.current?.codes || SAMPLE_CODES);
   const [manuals] = useState(SAMPLE_MANUALS);
   const [routes] = useState(SAMPLE_ROUTES);
   const [amenities] = useState(SAMPLE_AMENITIES);
@@ -5432,6 +5565,9 @@ export default function PrepVault() {
   const [showScanner, setShowScanner] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
+  const [alertsDismissedUntil, setAlertsDismissedUntil] = useState(() => {
+    try { const s = localStorage.getItem("prepvault-alerts-dismissed-until"); if (s && parseInt(s, 10) > Date.now()) return parseInt(s, 10); } catch {} return null;
+  });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [showLanding, setShowLanding] = useState(() => !saved.current && !localStorage.getItem("prepvault-active-session"));
   const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
@@ -5466,7 +5602,7 @@ export default function PrepVault() {
       try {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
           items, people, climate, pins, propAddress, properties, activePropertyId,
-          members, contacts, callSigns, codeWords, rallyPoints,
+          members, contacts, callSigns, codeWords, rallyPoints, codes,
           savedAt: new Date().toISOString()
         }));
         setDbStatus("saved");
@@ -5476,7 +5612,7 @@ export default function PrepVault() {
       } catch { /* storage full or unavailable */ }
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints]);
+  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -5484,6 +5620,20 @@ export default function PrepVault() {
   }, [toast]);
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  /* ── Alert Dismissal Persistence + Auto-Expire ── */
+  const alertsDismissed = alertsDismissedUntil !== null && alertsDismissedUntil > Date.now();
+  useEffect(() => {
+    if (alertsDismissedUntil) localStorage.setItem("prepvault-alerts-dismissed-until", String(alertsDismissedUntil));
+    else localStorage.removeItem("prepvault-alerts-dismissed-until");
+  }, [alertsDismissedUntil]);
+  useEffect(() => {
+    if (!alertsDismissedUntil) return;
+    const remaining = alertsDismissedUntil - Date.now();
+    if (remaining <= 0) { setAlertsDismissedUntil(null); return; }
+    const timer = setTimeout(() => setAlertsDismissedUntil(null), remaining);
+    return () => clearTimeout(timer);
+  }, [alertsDismissedUntil]);
 
   /* ── Offline Detection ── */
   useEffect(() => {
@@ -5880,8 +6030,16 @@ export default function PrepVault() {
       }
     }
 
+    /* Code rotation alerts */
+    codes.forEach((c) => {
+      if (c.lastChanged) {
+        const daysSince = Math.floor((now - new Date(c.lastChanged)) / 864e5);
+        if (daysSince > 30) alerts.push({ category: "property", name: `🔑 ${c.label} — code rotation overdue`, al: `${daysSince}d since last change`, ac: daysSince > 45 ? "#ef4444" : "#f59e0b" });
+      }
+    });
+
     return alerts;
-  }, [items, climate]);
+  }, [items, climate, codes]);
 
   const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
 
@@ -5891,9 +6049,9 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} />;
+        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} />;
       case "property":
-        return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} />;
+        return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} />;
       case "community":
         return <CommunityTab members={members} setMembers={setMembers} contacts={contacts} setContacts={setContacts} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} items={propItems} people={people} climate={climate} user={user} />;
       case "comms":
