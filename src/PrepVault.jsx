@@ -788,6 +788,50 @@ const EMERGENCY_FREQUENCIES = [
   { freq: "156.650", name: "Marine Ch 13 — Bridge", mode: "FM 1W", use: "Bridge-to-bridge navigation safety", license: "marine", band: "marine", priority: "med" },
 ];
 
+/* ── Live Scanner Feed Catalog (Broadcastify CDN streams) ── */
+const LIVE_SCANNER_FEEDS = [
+  // Police / Fire / EMS
+  { id: "32189", name: "Chicago Police Zone 6", type: "police", region: "Chicago, IL", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/32189" },
+  { id: "6173", name: "LAPD Dispatch", type: "police", region: "Los Angeles, CA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/6173" },
+  { id: "30083", name: "NYPD Citywide 1", type: "police", region: "New York, NY", bands: ["police"], url: "https://broadcastify.cdnstream1.com/30083" },
+  { id: "26422", name: "FDNY Dispatch", type: "fire", region: "New York, NY", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/26422" },
+  { id: "15614", name: "Denver Police/Fire", type: "police", region: "Denver, CO", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/15614" },
+  { id: "13533", name: "Houston Police Dispatch", type: "police", region: "Houston, TX", bands: ["police"], url: "https://broadcastify.cdnstream1.com/13533" },
+  { id: "31215", name: "San Francisco Police/Fire", type: "police", region: "San Francisco, CA", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/31215" },
+  { id: "17437", name: "Atlanta Police Zone 5", type: "police", region: "Atlanta, GA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/17437" },
+  { id: "33216", name: "Seattle Police Dispatch", type: "police", region: "Seattle, WA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/33216" },
+  { id: "14439", name: "Dallas Police/Fire", type: "police", region: "Dallas, TX", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/14439" },
+  { id: "36403", name: "Las Vegas Metro Police", type: "police", region: "Las Vegas, NV", bands: ["police"], url: "https://broadcastify.cdnstream1.com/36403" },
+  { id: "25489", name: "Miami-Dade Police", type: "police", region: "Miami, FL", bands: ["police"], url: "https://broadcastify.cdnstream1.com/25489" },
+  // Weather
+  { id: "14580", name: "NOAA Weather Radio (KEC49)", type: "weather", region: "National", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/14580" },
+  { id: "37498", name: "NWS Weather (Tampa)", type: "weather", region: "Tampa, FL", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/37498" },
+  // EMS / Fire
+  { id: "18493", name: "Boston Fire Dispatch", type: "fire", region: "Boston, MA", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/18493" },
+  { id: "22698", name: "Phoenix Fire/EMS", type: "ems", region: "Phoenix, AZ", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/22698" },
+  // HAM / Amateur Radio
+  { id: "20367", name: "W5SRC 2m Repeater", type: "ham", region: "Dallas, TX", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/20367" },
+  { id: "29948", name: "HAM 2m Repeater (SoCal)", type: "ham", region: "Southern CA", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/29948" },
+  // Marine / Coast Guard
+  { id: "27014", name: "USCG Sector Houston", type: "marine", region: "Houston, TX", bands: ["marine"], url: "https://broadcastify.cdnstream1.com/27014" },
+  // Railroad
+  { id: "14752", name: "BNSF Rail Dispatch", type: "railroad", region: "Midwest", bands: ["railroad"], url: "https://broadcastify.cdnstream1.com/14752" },
+  // Air Traffic
+  { id: "16867", name: "LAX Tower/Ground", type: "aviation", region: "Los Angeles, CA", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/16867" },
+  { id: "19990", name: "ORD Tower (Chicago)", type: "aviation", region: "Chicago, IL", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/19990" },
+];
+
+const FEED_TYPE_META = {
+  police: { icon: "🚔", color: "#3b82f6", label: "Police" },
+  fire: { icon: "🚒", color: "#ef4444", label: "Fire" },
+  ems: { icon: "🚑", color: "#f59e0b", label: "EMS" },
+  weather: { icon: "🌦️", color: "#06b6d4", label: "Weather" },
+  ham: { icon: "📻", color: "#a855f7", label: "HAM Radio" },
+  marine: { icon: "⚓", color: "#0ea5e9", label: "Marine" },
+  railroad: { icon: "🚂", color: "#84cc16", label: "Railroad" },
+  aviation: { icon: "✈️", color: "#ec4899", label: "Aviation" },
+};
+
 const NATO_PHONETIC = [
   { letter: "A", word: "Alpha" }, { letter: "B", word: "Bravo" }, { letter: "C", word: "Charlie" },
   { letter: "D", word: "Delta" }, { letter: "E", word: "Echo" }, { letter: "F", word: "Foxtrot" },
@@ -4456,9 +4500,18 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   const [newFreq, setNewFreq] = useState("");
   const [newFreqName, setNewFreqName] = useState("");
 
-  // 7B: Audio scanning simulation state
+  // Live scanner audio state
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [volume, setVolume] = useState(0.5);
+  const [selectedFeedId, setSelectedFeedId] = useState(() => {
+    try { return localStorage.getItem("prepvault-scanner-feed") || LIVE_SCANNER_FEEDS[0].id; } catch { return LIVE_SCANNER_FEEDS[0].id; }
+  });
+  const [liveStreamActive, setLiveStreamActive] = useState(false);
+  const [streamError, setStreamError] = useState(null);
+  const [feedFilter, setFeedFilter] = useState("all");
+  const [customStreamUrl, setCustomStreamUrl] = useState("");
+  const [showFeedBrowser, setShowFeedBrowser] = useState(false);
+  const liveAudioRef = useRef(null);
   const audioCtxRef = useRef(null);
   const audioNoiseRef = useRef(null);
   const audioGainRef = useRef(null);
@@ -4487,41 +4540,72 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     return () => clearInterval(timer);
   }, [scanning, monitoredChannels.length]);
 
-  // 7B: Audio white noise effect
+  // Persist selected feed
   useEffect(() => {
-    if (scanning && audioEnabled) {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        audioCtxRef.current = ctx;
-        const bufferSize = ctx.sampleRate * 2;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
-        noise.loop = true;
-        const bandpass = ctx.createBiquadFilter();
-        bandpass.type = "bandpass";
-        bandpass.frequency.value = 1000;
-        bandpass.Q.value = 0.5;
-        const gain = ctx.createGain();
-        gain.gain.value = volume * 0.15;
-        audioGainRef.current = gain;
-        noise.connect(bandpass);
-        bandpass.connect(gain);
-        gain.connect(ctx.destination);
-        noise.start();
-        audioNoiseRef.current = noise;
-      } catch (e) { /* Web Audio not supported */ }
+    try { localStorage.setItem("prepvault-scanner-feed", selectedFeedId); } catch { /* ignore */ }
+  }, [selectedFeedId]);
+
+  // Live scanner audio stream
+  useEffect(() => {
+    if (!audioEnabled) {
+      // Stop everything when audio disabled
+      if (liveAudioRef.current) { liveAudioRef.current.pause(); liveAudioRef.current.src = ""; liveAudioRef.current = null; }
+      setLiveStreamActive(false);
+      setStreamError(null);
+      return;
     }
+    const feed = LIVE_SCANNER_FEEDS.find(f => f.id === selectedFeedId);
+    if (!feed) { setStreamError("No feed selected"); return; }
+
+    // Create or reuse Audio element
+    let audio = liveAudioRef.current;
+    if (!audio) {
+      audio = new Audio();
+      audio.crossOrigin = "anonymous";
+      liveAudioRef.current = audio;
+    }
+
+    // Set up event handlers
+    const onPlaying = () => { setLiveStreamActive(true); setStreamError(null); };
+    const onError = () => { setLiveStreamActive(false); setStreamError("Stream unavailable — try another feed"); };
+    const onWaiting = () => { setStreamError("Buffering..."); };
+    const onStalled = () => { setStreamError("Stream stalled — reconnecting..."); };
+
+    audio.addEventListener("playing", onPlaying);
+    audio.addEventListener("error", onError);
+    audio.addEventListener("waiting", onWaiting);
+    audio.addEventListener("stalled", onStalled);
+
+    // Start streaming
+    audio.src = feed.url;
+    audio.volume = volume;
+    audio.play().catch(() => {
+      setStreamError("Click anywhere to start audio (browser autoplay policy)");
+      // Add one-time click handler to resume
+      const resumeAudio = () => {
+        if (liveAudioRef.current) liveAudioRef.current.play().catch(() => {});
+        document.removeEventListener("click", resumeAudio);
+      };
+      document.addEventListener("click", resumeAudio);
+    });
+
     return () => {
-      try {
-        if (audioNoiseRef.current) { audioNoiseRef.current.stop(); audioNoiseRef.current = null; }
-        if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
-        audioGainRef.current = null;
-      } catch (e) { /* ignore */ }
+      audio.removeEventListener("playing", onPlaying);
+      audio.removeEventListener("error", onError);
+      audio.removeEventListener("waiting", onWaiting);
+      audio.removeEventListener("stalled", onStalled);
+      audio.pause();
+      audio.src = "";
     };
-  }, [scanning, audioEnabled, volume]);
+  }, [audioEnabled, selectedFeedId]);
+
+  // Update volume on live stream
+  useEffect(() => {
+    if (liveAudioRef.current) liveAudioRef.current.volume = volume;
+  }, [volume]);
+
+  const selectedFeed = LIVE_SCANNER_FEEDS.find(f => f.id === selectedFeedId);
+  const feedMeta = selectedFeed ? (FEED_TYPE_META[selectedFeed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" }) : null;
 
   // 7C: Persist activity log to localStorage
   useEffect(() => {
@@ -4616,26 +4700,68 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
       {/* ═══ SCANNER ═══ */}
       {commsSub === "scanner" && (
         <div style={{ display: "grid", gap: 12 }}>
-          {/* Scanner Display */}
-          <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(34,197,94,0.15)" }}>
+          {/* Live Scanner Display */}
+          <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "rgba(0,0,0,0.4)", border: liveStreamActive ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(34,197,94,0.15)" }}>
             <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(34,197,94,0.08)" }}>
+              {/* Top bar: status + controls */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 4, background: scanning ? "#22c55e" : "#ef4444", boxShadow: scanning ? "0 0 8px rgba(34,197,94,0.5)" : "none", animation: scanning ? "pulse 1.5s infinite" : "none" }} />
-                  <span style={{ fontSize: 9, fontWeight: 700, color: scanning ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>{scanning ? "Scanning" : "Stopped"}</span>
+                  {liveStreamActive && audioEnabled ? (
+                    <>
+                      <div style={{ width: 8, height: 8, borderRadius: 4, background: "#ef4444", boxShadow: "0 0 10px rgba(239,68,68,0.6)", animation: "pulse 1s infinite" }} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>LIVE</span>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ width: 8, height: 8, borderRadius: 4, background: scanning ? "#22c55e" : "#ef4444", boxShadow: scanning ? "0 0 8px rgba(34,197,94,0.5)" : "none", animation: scanning ? "pulse 1.5s infinite" : "none" }} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: scanning ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>{scanning ? "Scanning" : "Stopped"}</span>
+                    </>
+                  )}
                 </div>
-                <button onClick={() => setScanning(!scanning)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (scanning ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"), background: scanning ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", color: scanning ? "#ef4444" : "#22c55e", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{scanning ? "STOP" : "SCAN"}</button>
-                <button onClick={() => setAudioEnabled(!audioEnabled)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: audioEnabled ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.03)", color: audioEnabled ? "#22c55e" : "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "inherit", marginLeft: 4 }} title={audioEnabled ? "Mute scanner audio" : "Enable scanner audio"}>{audioEnabled ? "🔊" : "🔇"}</button>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <button onClick={() => setScanning(!scanning)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (scanning ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"), background: scanning ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", color: scanning ? "#ef4444" : "#22c55e", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{scanning ? "STOP" : "SCAN"}</button>
+                  <button onClick={() => setAudioEnabled(!audioEnabled)} style={{ padding: "4px 10px", borderRadius: 6, border: audioEnabled ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(255,255,255,0.1)", background: audioEnabled ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)", color: audioEnabled ? "#ef4444" : "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }} title={audioEnabled ? "Stop live audio" : "Start live audio"}>{audioEnabled ? "🔴" : "🔇"}</button>
+                </div>
               </div>
+
+              {/* Live feed source indicator */}
+              {audioEnabled && selectedFeed && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 10, borderRadius: 8, background: liveStreamActive ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: liveStreamActive ? "1px solid rgba(239,68,68,0.12)" : "1px solid rgba(255,255,255,0.04)" }}>
+                  <span style={{ fontSize: 14 }}>{feedMeta?.icon || "📡"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: liveStreamActive ? "#fff" : "rgba(255,255,255,0.5)" }}>{selectedFeed.name}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{selectedFeed.region} · {feedMeta?.label || selectedFeed.type}</div>
+                  </div>
+                  {liveStreamActive && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                      {[1,2,3,4].map(n => (
+                        <div key={n} style={{ width: 2, height: 6 + Math.random() * 10, background: "#ef4444", borderRadius: 1, animation: `pulse ${0.3 + n * 0.15}s infinite alternate` }} />
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
+                </div>
+              )}
+
+              {/* Stream error/status */}
+              {audioEnabled && streamError && (
+                <div style={{ fontSize: 9, color: "#f59e0b", textAlign: "center", padding: "4px 8px", marginBottom: 6, background: "rgba(245,158,11,0.06)", borderRadius: 6, border: "1px solid rgba(245,158,11,0.1)" }}>{streamError}</div>
+              )}
+
+              {/* Volume control */}
               {audioEnabled && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, padding: "4px 0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2, padding: "4px 0" }}>
                   <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>🔈</span>
-                  <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => { const v = parseFloat(e.target.value); setVolume(v); if (audioGainRef.current) audioGainRef.current.gain.value = v * 0.15; }} style={{ flex: 1, accentColor: "#22c55e", height: 4 }} />
+                  <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} style={{ flex: 1, accentColor: liveStreamActive ? "#ef4444" : "#22c55e", height: 4 }} />
                   <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>🔊</span>
                   <span style={{ fontSize: 8, fontFamily: M, color: "rgba(255,255,255,0.25)", minWidth: 28, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
                 </div>
               )}
-              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", textAlign: "center", marginTop: 2, fontStyle: "italic" }}>Audio simulation — use physical radio for actual monitoring</div>
+
+              {!audioEnabled && (
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textAlign: "center", marginTop: 2, fontStyle: "italic" }}>Tap the audio button to stream live scanner feeds via Broadcastify</div>
+              )}
+
               {/* Large frequency display */}
               <div style={{ textAlign: "center", padding: "8px 0" }}>
                 <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#22c55e", letterSpacing: 2, textShadow: "0 0 20px rgba(34,197,94,0.3)", lineHeight: 1 }}>
@@ -4654,11 +4780,57 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
             </div>
           </div>
 
+          {/* ── Live Feed Browser ── */}
+          {showFeedBrowser && (
+            <div style={{ ...cardSt, padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Live Scanner Feeds</h3>
+                <button onClick={() => setShowFeedBrowser(false)} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+              </div>
+              {/* Feed type filters */}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
+                {[{ id: "all", l: "All" }, ...Object.entries(FEED_TYPE_META).map(([k, v]) => ({ id: k, l: v.label, icon: v.icon }))].map(f => (
+                  <button key={f.id} onClick={() => setFeedFilter(f.id)} style={{ padding: "3px 8px", borderRadius: 5, border: feedFilter === f.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: feedFilter === f.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: feedFilter === f.id ? "#c8553a" : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{f.icon ? f.icon + " " : ""}{f.l}</button>
+                ))}
+              </div>
+              {/* Feed list */}
+              <div style={{ display: "grid", gap: 3, maxHeight: 280, overflowY: "auto" }}>
+                {LIVE_SCANNER_FEEDS.filter(f => feedFilter === "all" || f.type === feedFilter).map(feed => {
+                  const meta = FEED_TYPE_META[feed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" };
+                  const isActive = feed.id === selectedFeedId;
+                  return (
+                    <div key={feed.id} onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.01)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "all 0.15s" }}>
+                      <span style={{ fontSize: 16 }}>{meta.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{feed.region}</div>
+                      </div>
+                      <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: meta.color + "15", color: meta.color, fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{meta.label}</span>
+                      {isActive && liveStreamActive && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.5)", animation: "pulse 1s infinite" }} />}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Custom stream URL */}
+              <div style={{ marginTop: 10, padding: "10px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Custom Stream URL</div>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <input value={customStreamUrl} onChange={e => setCustomStreamUrl(e.target.value)} placeholder="https://broadcastify.cdnstream1.com/FEED_ID" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 10, fontFamily: M }} />
+                  <button onClick={() => { if (customStreamUrl.trim()) { const customId = "custom-" + Date.now(); LIVE_SCANNER_FEEDS.push({ id: customId, name: "Custom Feed", type: "police", region: "Custom", bands: [], url: customStreamUrl.trim() }); setSelectedFeedId(customId); if (!audioEnabled) setAudioEnabled(true); setCustomStreamUrl(""); } }} style={{ padding: "6px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
+                </div>
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", marginTop: 4 }}>Paste any Broadcastify or Icecast MP3 stream URL. Find feeds at broadcastify.com</div>
+              </div>
+            </div>
+          )}
+
           {/* Monitored Channels List */}
           <div style={{ ...cardSt, padding: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Monitored Channels ({monitoredChannels.length})</h3>
-              <button onClick={() => setShowAddFreq(!showAddFreq)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.35)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>+ Add</button>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.04)", color: "rgba(239,68,68,0.6)", fontSize: 9, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Live Feeds</button>
+                <button onClick={() => setShowAddFreq(!showAddFreq)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.35)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>+ Add</button>
+              </div>
             </div>
             {showAddFreq && (
               <div style={{ display: "flex", gap: 4, marginBottom: 10, alignItems: "center" }}>
