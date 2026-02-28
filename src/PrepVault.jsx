@@ -1198,7 +1198,7 @@ function PinLock({ onUnlock }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,68px)", gap: 8 }}>
         {keys.map((d, i) => d === null ? <div key={i} /> : (
           <button key={i} onClick={() => d === "del" ? setPin((p) => p.slice(0, -1)) : handleDigit(String(d))}
-            style={{ width: 68, height: 52, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: d === "del" ? "rgba(255,255,255,0.4)" : "#fff", fontSize: d === "del" ? 14 : 20, fontWeight: 600, cursor: "pointer", fontFamily: d === "del" ? "inherit" : M }}>
+            style={{ width: 68, height: 52, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: d === "del" ? "rgba(255,255,255,0.4)" : "#fff", fontSize: d === "del" ? 14 : 20, fontWeight: 600, cursor: "pointer", fontFamily: d === "del" ? "inherit" : M, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, textAlign: "center" }}>
             {d === "del" ? "⌫" : d}
           </button>
         ))}
@@ -2154,13 +2154,20 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  /* ── Fetch News ── */
+  /* ── Fetch News (with geolocation) ── */
   useEffect(() => {
     let cancelled = false;
     async function fetchNews() {
       try {
+        // Get user's location for local news
+        let locationParams = "";
+        try {
+          const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000, maximumAge: 600000 }));
+          locationParams = `&lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`;
+        } catch { /* geolocation unavailable, use defaults */ }
+
         const apiBase = import.meta.env.VITE_API_URL || "";
-        const res = await fetch(`${apiBase}/api/news/feed`);
+        const res = await fetch(`${apiBase}/api/news/feed?${locationParams}`);
         if (!res.ok) throw new Error("News API " + res.status);
         const data = await res.json();
         if (!cancelled && data.articles?.length > 0) {
@@ -2193,10 +2200,10 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
     alerts: climate === "cold" ? [{ title: "Extreme cold warning", desc: "Wind chill to -25°C tonight. Check heating fuel and insulate pipes." }] : [],
   };
   const sampleNews = [
-    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID" },
-    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD" },
-    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER" },
-    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES" },
+    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID", url: null },
+    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD", url: null },
+    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER", url: null },
+    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES", url: null },
   ];
 
   const w = weather || sampleWeather;
@@ -2427,13 +2434,15 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
               {newsItems.slice(0, 6).map((n, i) => {
                 const sevColors = { critical: "#ef4444", amber: "#f59e0b", info: "#0ea5e9", green: "#22c55e" };
                 const col = sevColors[n.severity] || "#6b7280";
+                const isClickable = !!n.url;
                 return (
-                  <div key={i} style={{ display: "flex", gap: 10, padding: "5px 10px", borderRadius: 8, background: "rgba(255,255,255,0.015)", borderLeft: "2px solid " + col + "40", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}>
+                  <div key={i} onClick={() => isClickable && window.open(n.url, "_blank", "noopener,noreferrer")} style={{ display: "flex", gap: 10, padding: "5px 10px", borderRadius: 8, background: "rgba(255,255,255,0.015)", borderLeft: "2px solid " + col + "40", transition: "background 0.15s", cursor: isClickable ? "pointer" : "default" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{n.title}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: isClickable ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{n.title}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
                         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>{n.source}</span>
                         <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: M }}>{n.time}</span>
+                        {isClickable && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>↗</span>}
                       </div>
                     </div>
                     <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 4, background: col + "10", color: col, fontWeight: 700, alignSelf: "flex-start", flexShrink: 0, letterSpacing: 0.5 }}>{n.tag}</span>
@@ -4492,15 +4501,29 @@ export default function PrepVault() {
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
   }, []);
 
-  /* ── Supabase Auth ── */
+  /* ── Auth Session Restore ── */
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-    return () => subscription.unsubscribe();
+    if (supabaseConfigured) {
+      // Cloud auth via Supabase
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user || null);
+      });
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user || null);
+      });
+      return () => subscription.unsubscribe();
+    } else {
+      // Restore local session from localStorage
+      try {
+        const saved = localStorage.getItem("prepvault-active-session");
+        if (saved) {
+          const session = JSON.parse(saved);
+          if (session?.id && session?.email) {
+            setUser({ id: session.id, email: session.email, isLocal: true });
+          }
+        }
+      } catch { /* ignore parse errors */ }
+    }
   }, []);
 
   /* ── Sync Engine ── */
@@ -4521,34 +4544,73 @@ export default function PrepVault() {
   }, [user]);
 
   /* ── Auth Handlers ── */
+  // Local auth helpers (when Supabase isn't configured)
+  const localAuthStore = useCallback(() => {
+    try { return JSON.parse(localStorage.getItem("prepvault-local-accounts") || "{}"); } catch { return {}; }
+  }, []);
+  const hashPassword = useCallback(async (pwd) => {
+    const enc = new TextEncoder();
+    const hash = await crypto.subtle.digest("SHA-256", enc.encode(pwd + "prepvault-salt-2024"));
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }, []);
+
   const handleAuth = useCallback(async () => {
     setAuthLoading(true);
     setAuthError("");
     try {
-      if (authMode === "signup") {
-        const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-        if (error) throw error;
-        showToast("Account created! Check email for verification.", "success");
-        setShowAuth(false);
-        setAuthEmail("");
-        setAuthPassword("");
+      if (supabaseConfigured) {
+        // Cloud auth via Supabase
+        if (authMode === "signup") {
+          const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+          if (error) throw error;
+          showToast("Account created! Check email for verification.", "success");
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+          if (error) throw error;
+          showToast("Logged in ✓", "success");
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
-        if (error) throw error;
-        showToast("Logged in ✓", "success");
-        setShowAuth(false);
-        setAuthEmail("");
-        setAuthPassword("");
+        // Local-only auth (works without Supabase)
+        if (!authEmail || !authPassword) throw new Error("Email and password required");
+        if (authPassword.length < 4) throw new Error("Password must be at least 4 characters");
+        const pwHash = await hashPassword(authPassword);
+        const accounts = localAuthStore();
+        const emailKey = authEmail.toLowerCase().trim();
+
+        if (authMode === "signup") {
+          if (accounts[emailKey]) throw new Error("Account already exists. Try signing in.");
+          const localUser = { id: "local-" + crypto.randomUUID(), email: emailKey, pwHash, createdAt: new Date().toISOString() };
+          accounts[emailKey] = localUser;
+          localStorage.setItem("prepvault-local-accounts", JSON.stringify(accounts));
+          setUser({ id: localUser.id, email: emailKey, isLocal: true });
+          localStorage.setItem("prepvault-active-session", JSON.stringify({ id: localUser.id, email: emailKey, isLocal: true }));
+          showToast("Account created (local mode)", "success");
+        } else {
+          const account = accounts[emailKey];
+          if (!account) throw new Error("No account found. Try signing up first.");
+          if (account.pwHash !== pwHash) throw new Error("Incorrect password");
+          setUser({ id: account.id, email: emailKey, isLocal: true });
+          localStorage.setItem("prepvault-active-session", JSON.stringify({ id: account.id, email: emailKey, isLocal: true }));
+          showToast("Logged in ✓ (local mode)", "success");
+        }
       }
+      setShowAuth(false);
+      setAuthEmail("");
+      setAuthPassword("");
     } catch (err) {
       setAuthError(err.message || "Authentication failed");
     } finally {
       setAuthLoading(false);
     }
-  }, [authMode, authEmail, authPassword]);
+  }, [authMode, authEmail, authPassword, localAuthStore, hashPassword]);
 
   const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
+    if (supabaseConfigured) {
+      await supabase.auth.signOut();
+    } else {
+      setUser(null);
+      localStorage.removeItem("prepvault-active-session");
+    }
     setSyncStatus("local");
     showToast("Logged out", "success");
   }, []);
@@ -5049,8 +5111,8 @@ export default function PrepVault() {
               return (
                 <button key={p.id} onClick={() => setActivePropertyId(p.id)} style={{ padding: "6px 12px", borderRadius: 8, background: activePropertyId === p.id ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: activePropertyId === p.id ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.06)", color: activePropertyId === p.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", position: "relative" }}>
                   {p.icon} {p.name} <span style={{ fontSize: 10, fontFamily: M, opacity: 0.5 }}>{count}</span>
-                  {p.id !== "prop1" && activePropertyId === p.id && (
-                    <span onClick={(e) => { e.stopPropagation(); if (confirm("Remove " + p.name + " and all its items?")) removeProperty(p.id); }} style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer", marginLeft: 2, lineHeight: 1 }} title="Remove property">×</span>
+                  {p.id !== "prop1" && (
+                    <span onClick={(e) => { e.stopPropagation(); if (confirm("Remove '" + p.name + "' and all its items? This cannot be undone.")) removeProperty(p.id); }} style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", cursor: "pointer", marginLeft: 4, lineHeight: 1, width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 4, transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "rgba(239,68,68,0.1)"; }} onMouseOut={e => { e.currentTarget.style.color = "rgba(255,255,255,0.25)"; e.currentTarget.style.background = "transparent"; }} title="Remove property">×</span>
                   )}
                 </button>
               );
@@ -5139,12 +5201,12 @@ export default function PrepVault() {
                   <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign in</button></>
                 )}
               </div>
-              <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(255,255,255,0.02)" : "rgba(245,158,11,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(255,255,255,0.04)" : "rgba(245,158,11,0.15)"), textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: supabaseConfigured ? "rgba(255,255,255,0.3)" : "rgba(245,158,11,0.7)", lineHeight: 1.5 }}>
+              <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(255,255,255,0.02)" : "rgba(14,165,233,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(255,255,255,0.04)" : "rgba(14,165,233,0.15)"), textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: supabaseConfigured ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.7)", lineHeight: 1.5 }}>
                   {supabaseConfigured ? (
-                    <>☁️ Cloud sync is optional. Your data always works offline first.<br />All data is encrypted in transit. No telemetry.</>
+                    <>☁️ Cloud sync enabled. Your data syncs across devices.<br />All data is encrypted in transit. No telemetry.</>
                   ) : (
-                    <>⚠️ Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local to enable cloud features.</>
+                    <>💾 Local mode — your account is stored on this device only.<br />Data persists in your browser. Connect Supabase for cloud sync.</>
                   )}
                 </div>
               </div>

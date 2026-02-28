@@ -32,6 +32,40 @@ function timeAgo(dateStr) {
   return `${days}d ago`;
 }
 
+/**
+ * Reverse geocode lat/lng to a city/region name using OpenWeatherMap's free geocoding API
+ * Falls back to country-level search if geocoding fails
+ */
+async function reverseGeocode(lat, lng) {
+  try {
+    const owmKey = process.env.OPENWEATHERMAP_API_KEY;
+    if (!owmKey) return null;
+    const res = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${owmKey}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const loc = data[0];
+      // Return city + state/region for US/CA, city + country otherwise
+      const parts = [loc.name];
+      if (loc.state) parts.push(loc.state);
+      return { city: parts.join(', '), country: (loc.country || 'us').toLowerCase() };
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
+/**
+ * Detect country code from lat/lng roughly (for GNews country param)
+ */
+function guessCountry(lat, lng) {
+  // Rough bounding boxes for common countries
+  if (lat >= 24.5 && lat <= 49.5 && lng >= -125 && lng <= -66) return 'us';
+  if (lat >= 41.5 && lat <= 83.5 && lng >= -141 && lng <= -52) return 'ca';
+  if (lat >= 49 && lat <= 61 && lng >= -11 && lng <= 2) return 'gb';
+  if (lat >= -44 && lat <= -10 && lng >= 112 && lng <= 154) return 'au';
+  return 'us'; // default
+}
+
 export default async function handler(req, res) {
   if (handleCors(req, res)) return;
 
@@ -40,9 +74,27 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'News API key not configured' });
   }
 
-  const { q, country = 'ca' } = req.query;
-  const query = q || 'infrastructure OR weather OR supply chain OR power grid OR emergency';
-  const cacheKey = `news_${country}_${query.slice(0, 30)}`;
+  const { q, lat, lng, country: countryParam } = req.query;
+
+  // Determine location context
+  let locationQuery = '';
+  let country = countryParam || 'us';
+
+  if (lat && lng) {
+    const geo = await reverseGeocode(parseFloat(lat), parseFloat(lng));
+    if (geo) {
+      locationQuery = geo.city;
+      country = geo.country;
+    } else {
+      country = guessCountry(parseFloat(lat), parseFloat(lng));
+    }
+  }
+
+  // Build search query: combine location with preparedness topics
+  const baseTopics = 'weather OR emergency OR power OR infrastructure OR safety';
+  const query = q || (locationQuery ? `(${locationQuery}) AND (${baseTopics})` : baseTopics);
+
+  const cacheKey = `news_${country}_${query.slice(0, 50)}`;
   const cached = getCached(cacheKey, 30 * 60 * 1000);
   if (cached) {
     res.setHeader('X-Cache', 'HIT');
@@ -50,15 +102,37 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&country=${country}&max=8&apikey=${apiKey}`;
+    // Try location-specific search first
+    let articles = [];
+
+    const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&country=${country}&max=8&sortby=publishedAt&apikey=${apiKey}`;
     const response = await fetch(url);
 
-    if (!response.ok) throw new Error(`GNews API error: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      articles = data.articles || [];
+    }
 
-    const data = await response.json();
+    // If location search returned too few results, supplement with general preparedness news
+    if (articles.length < 4 && locationQuery) {
+      try {
+        const fallbackUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(baseTopics)}&lang=en&country=${country}&max=6&sortby=publishedAt&apikey=${apiKey}`;
+        const fallbackRes = await fetch(fallbackUrl);
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          const existingUrls = new Set(articles.map(a => a.url));
+          const newArticles = (fallbackData.articles || []).filter(a => !existingUrls.has(a.url));
+          articles = [...articles, ...newArticles].slice(0, 8);
+        }
+      } catch { /* ignore fallback errors */ }
+    }
+
+    if (!response.ok && articles.length === 0) {
+      throw new Error(`GNews API error: ${response.status}`);
+    }
 
     const result = {
-      articles: (data.articles || []).map(a => ({
+      articles: articles.map(a => ({
         title: a.title,
         source: a.source?.name || 'Unknown',
         time: timeAgo(a.publishedAt),
@@ -66,6 +140,8 @@ export default async function handler(req, res) {
         severity: classifySeverity(a.title),
         tag: classifyTag(a.title),
       })),
+      location: locationQuery || null,
+      country,
       source: 'gnews',
       fetchedAt: new Date().toISOString(),
     };
