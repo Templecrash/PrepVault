@@ -5569,7 +5569,7 @@ export default function PrepVault() {
     try { const s = localStorage.getItem("prepvault-alerts-dismissed-until"); if (s && parseInt(s, 10) > Date.now()) return parseInt(s, 10); } catch {} return null;
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [showLanding, setShowLanding] = useState(() => !saved.current && !localStorage.getItem("prepvault-active-session"));
+  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session"));
   const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
@@ -6106,46 +6106,116 @@ export default function PrepVault() {
   /* ═══ LANDING PAGE ═══ */
   if (showLanding) {
     const features = [
-      { icon: "📦", title: "Smart Inventory", desc: "Track supplies across multiple properties with expiry alerts and consumption rate tracking." },
-      { icon: "📡", title: "Comms Center", desc: "Frequency scanner, check-in schedules, code words, and radio protocol reference." },
-      { icon: "👥", title: "Team Coordination", desc: "Live member tracking, encrypted secure chat, contacts database, and trade routes." },
-      { icon: "🧪", title: "Scenario Simulation", desc: "Test readiness against 13 scenarios from EMP to pandemic with scored results." },
-      { icon: "🔒", title: "Military-Grade Security", desc: "AES-256-GCM encryption, PIN-protected comms, offline-first architecture, zero telemetry." },
-      { icon: "🗺️", title: "Satellite Mapping", desc: "Live satellite maps with tactical overlays, rally points, and member location tracking." },
+      { icon: "📦", title: "Smart Inventory", desc: "Track supplies across multiple properties with expiry alerts, consumption rate tracking, and auto-rotation reminders." },
+      { icon: "📡", title: "Comms Center", desc: "HAM/GMRS frequency scanner, check-in schedules, encrypted code words, and radio protocol reference with audio simulation." },
+      { icon: "👥", title: "Team Coordination", desc: "Live satellite tracking, AES-256 encrypted chat, contacts database, call signs, and rally point mapping." },
+      { icon: "🧪", title: "Crisis Simulation", desc: "Test readiness against 13 real-world scenarios from grid failure to pandemic with scored results and gap analysis." },
+      { icon: "🏠", title: "Property Intelligence", desc: "Multi-site management with security cameras, access codes, evacuation routes, and resource mapping." },
+      { icon: "🗺️", title: "Satellite Mapping", desc: "Esri World Imagery maps with member overlays, geolocation tracking, rally point thumbnails, and tactical planning." },
+    ];
+    const stats = [
+      { val: "22", label: "Supply Categories" },
+      { val: "13", label: "Crisis Scenarios" },
+      { val: "AES-256", label: "Encryption" },
+      { val: "100%", label: "Offline Capable" },
     ];
     return (
       <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-        {/* Hero */}
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "80px 20px 40px", textAlign: "center" }}>
-          <div style={{ width: 80, height: 80, borderRadius: 20, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, fontFamily: M, marginBottom: 24, boxShadow: "0 8px 40px rgba(200,85,58,0.3)", color: "#fff" }}>P</div>
-          <h1 style={{ fontSize: 48, fontWeight: 900, margin: "0 0 8px", lineHeight: 1.1 }}>PrepVault</h1>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", fontFamily: M, letterSpacing: 3, textTransform: "uppercase", marginBottom: 20 }}>Personal Continuity System</p>
-          <p style={{ fontSize: 17, color: "rgba(255,255,255,0.5)", maxWidth: 560, margin: "0 auto 40px", lineHeight: 1.6 }}>
-            Your offline-first emergency preparedness dashboard. Track inventory, monitor comms, coordinate your team, and simulate survival scenarios.
+        <style>{`@keyframes fadeUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}} @keyframes glow{0%,100%{box-shadow:0 0 30px rgba(200,85,58,0.2)}50%{box-shadow:0 0 60px rgba(200,85,58,0.35)}}`}</style>
+
+        {/* ── Nav Bar ── */}
+        <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: "rgba(10,12,16,0.8)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: M, color: "#fff" }}>P</div>
+            <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: -0.5 }}>PrepVault</span>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: M, marginLeft: 4 }}>v3.0</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => { setShowAuth(true); setAuthMode("login"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
+            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Get Started</button>
+          </div>
+        </nav>
+
+        {/* ── Hero Section ── */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "100px 20px 60px", textAlign: "center", animation: "fadeUp 0.6s ease-out" }}>
+          <div style={{ display: "inline-block", padding: "6px 14px", borderRadius: 20, background: "rgba(200,85,58,0.08)", border: "1px solid rgba(200,85,58,0.15)", fontSize: 11, color: "#c8553a", fontWeight: 700, fontFamily: M, marginBottom: 28, letterSpacing: 1 }}>PERSONAL CONTINUITY SYSTEM</div>
+          <h1 style={{ fontSize: "clamp(36px, 6vw, 60px)", fontWeight: 900, margin: "0 0 16px", lineHeight: 1.05, letterSpacing: -1 }}>
+            Your survival plan,<br />
+            <span style={{ background: "linear-gradient(135deg,#c8553a,#e8724a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>encrypted & offline-ready</span>
+          </h1>
+          <p style={{ fontSize: "clamp(14px, 2vw, 18px)", color: "rgba(255,255,255,0.45)", maxWidth: 600, margin: "0 auto 44px", lineHeight: 1.7 }}>
+            Track inventory, coordinate your team, monitor comms, and simulate crisis scenarios — all behind military-grade encryption with zero cloud dependency.
           </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "14px 32px", borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>Get Started</button>
-            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "14px 32px", borderRadius: 10, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo</button>
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
+            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Create Free Account</button>
+            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>No credit card · Works offline · Your data stays yours</div>
+        </div>
+
+        {/* ── Stats Bar ── */}
+        <div style={{ maxWidth: 700, margin: "0 auto 60px", padding: "0 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+            {stats.map((s, i) => (
+              <div key={i} style={{ padding: "20px 12px", textAlign: "center", background: "#0a0c10" }}>
+                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: M, color: "#c8553a", marginBottom: 4 }}>{s.val}</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
-        {/* Feature Cards */}
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 60px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-          {features.map((f, i) => (
-            <div key={i} style={{ padding: 24, borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", transition: "border-color 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.2)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>{f.icon}</div>
-              <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 700 }}>{f.title}</h3>
-              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-        {/* Specs Bar */}
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 80px" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: 30, flexWrap: "wrap", fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: M }}>
-            <span>AES-256-GCM</span><span>·</span><span>Offline-First</span><span>·</span><span>React 19</span><span>·</span><span>Zero Telemetry</span><span>·</span><span>Open Source</span>
+
+        {/* ── Feature Cards ── */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 40px" }}>
+          <h2 style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 3, fontWeight: 700, marginBottom: 24 }}>Everything you need</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+            {features.map((f, i) => (
+              <div key={i} style={{ padding: "22px 24px", borderRadius: 14, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", transition: "all 0.2s" }} onMouseOver={e => { e.currentTarget.style.borderColor = "rgba(200,85,58,0.2)"; e.currentTarget.style.background = "rgba(200,85,58,0.02)"; }} onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; e.currentTarget.style.background = "rgba(255,255,255,0.015)"; }}>
+                <div style={{ fontSize: 26, marginBottom: 10 }}>{f.icon}</div>
+                <h3 style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700 }}>{f.title}</h3>
+                <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
-        {/* Auth modal reused */}
+
+        {/* ── How It Works ── */}
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px 60px" }}>
+          <h2 style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 3, fontWeight: 700, marginBottom: 24 }}>Get started in 3 steps</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+            {[
+              { n: "01", t: "Set Up Properties", d: "Add your locations — home, bug-out cabin, cache sites — with maps and access codes." },
+              { n: "02", t: "Log Your Supplies", d: "Inventory everything across 22 categories. Expiry alerts and consumption tracking keep you current." },
+              { n: "03", t: "Coordinate & Test", d: "Add team members, set up comms, and run crisis simulations to find your gaps." },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 28, fontWeight: 900, fontFamily: M, color: "rgba(200,85,58,0.3)", marginBottom: 8 }}>{s.n}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{s.t}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{s.d}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Final CTA ── */}
+        <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px 60px", textAlign: "center" }}>
+          <div style={{ padding: "40px 32px", borderRadius: 16, background: "rgba(200,85,58,0.04)", border: "1px solid rgba(200,85,58,0.12)" }}>
+            <h2 style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800 }}>Ready to start?</h2>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 24px", lineHeight: 1.6 }}>Create your account in seconds. Everything runs locally — your data never leaves your device unless you choose cloud sync.</p>
+            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "14px 36px", borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>Create Free Account</button>
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+            <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
+          </div>
+        </div>
+
+        {/* Auth modal */}
         {showAuth && renderAuthModal()}
       </div>
     );
