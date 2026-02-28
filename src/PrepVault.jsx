@@ -395,6 +395,112 @@ const CLIMATES = {
   coastal: { label: "Coastal", firewoodMod: 0.5, fuelMod: 0.8, waterMod: 1.1, icon: "🌊" },
 };
 
+/* ── Growing Zones — frost dates + season length per climate ── */
+const GROWING_ZONES = {
+  arctic:    { lastFrostMonth: 5, lastFrostDay: 31, firstFrostMonth: 8,  firstFrostDay: 15, seasonWeeks: 10 },
+  cold:      { lastFrostMonth: 4, lastFrostDay: 25, firstFrostMonth: 9,  firstFrostDay: 25, seasonWeeks: 20 },
+  temperate: { lastFrostMonth: 3, lastFrostDay: 25, firstFrostMonth: 10, firstFrostDay: 25, seasonWeeks: 28 },
+  hot_dry:   { lastFrostMonth: 2, lastFrostDay: 15, firstFrostMonth: 11, firstFrostDay: 15, seasonWeeks: 36 },
+  tropical:  { lastFrostMonth: 0, lastFrostDay: 0,  firstFrostMonth: 0,  firstFrostDay: 0,  seasonWeeks: 52 },
+  coastal:   { lastFrostMonth: 2, lastFrostDay: 28, firstFrostMonth: 11, firstFrostDay: 10, seasonWeeks: 34 },
+};
+
+/* ── Crop Database — ~30 crops with per-zone growing data ── */
+const CROP_DATABASE = [
+  { id: "tomato", name: "Tomato", icon: "🍅", cat: "vegetable", spacingSqFt: 4, companions: ["basil","carrot","pepper","onion"], avoid: ["cabbage","fennel","corn"],
+    zones: { arctic: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 85, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 6, storageLife: 14 }, cold: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 75, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 10, storageLife: 14 }, temperate: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 70, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 12, storageLife: 14 }, hot_dry: { indoorWeeks: 4, directSowWeeks: null, daysToHarvest: 65, waterFreq: "2x daily", fertSchedule: "every 2 weeks", yieldPerPlant: 10, storageLife: 10 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 60, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 14, storageLife: 7 }, coastal: { indoorWeeks: 5, directSowWeeks: null, daysToHarvest: 70, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 11, storageLife: 12 } },
+    pestInfo: "Hornworms, aphids, blight. Use BT spray for hornworms, neem oil for aphids. Rotate beds yearly.", harvestTip: "Firm, fully colored, slight give when squeezed. Pick before first frost." },
+  { id: "lettuce", name: "Lettuce", icon: "🥬", cat: "vegetable", spacingSqFt: 1, companions: ["carrot","radish","strawberry","onion"], avoid: ["celery"],
+    zones: { arctic: { indoorWeeks: 6, directSowWeeks: 0, daysToHarvest: 55, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 10 }, cold: { indoorWeeks: 4, directSowWeeks: -2, daysToHarvest: 50, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 10 }, temperate: { indoorWeeks: 3, directSowWeeks: -3, daysToHarvest: 45, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 10 }, hot_dry: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 40, waterFreq: "2x daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.4, storageLife: 7 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 35, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.4, storageLife: 5 }, coastal: { indoorWeeks: 3, directSowWeeks: -2, daysToHarvest: 45, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 10 } },
+    pestInfo: "Slugs, aphids. Use diatomaceous earth for slugs, companion plant with chives.", harvestTip: "Cut outer leaves when 4-6 inches. Harvest head types when firm." },
+  { id: "carrot", name: "Carrot", icon: "🥕", cat: "root", spacingSqFt: 1, companions: ["tomato","lettuce","onion","peas","rosemary"], avoid: ["dill"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 80, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.25, storageLife: 120 }, cold: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 75, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 120 }, temperate: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 70, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 120 }, hot_dry: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 65, waterFreq: "daily", fertSchedule: "monthly", yieldPerPlant: 0.25, storageLife: 90 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 60, waterFreq: "daily", fertSchedule: "monthly", yieldPerPlant: 0.2, storageLife: 60 }, coastal: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 70, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 120 } },
+    pestInfo: "Carrot fly, wireworms. Use row covers. Companion plant with onions to deter flies.", harvestTip: "Shoulders visible above soil, 1/2-3/4 inch diameter. Twist and pull gently." },
+  { id: "potato", name: "Potato", icon: "🥔", cat: "root", spacingSqFt: 4, companions: ["beans","corn","cabbage","horseradish"], avoid: ["tomato","squash"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 100, waterFreq: "2x week", fertSchedule: "at planting + midseason", yieldPerPlant: 3, storageLife: 180 }, cold: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 90, waterFreq: "2x week", fertSchedule: "at planting + midseason", yieldPerPlant: 4, storageLife: 180 }, temperate: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 85, waterFreq: "2x week", fertSchedule: "at planting + midseason", yieldPerPlant: 5, storageLife: 180 }, hot_dry: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 80, waterFreq: "3x week", fertSchedule: "at planting + midseason", yieldPerPlant: 3, storageLife: 120 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 75, waterFreq: "2x week", fertSchedule: "at planting + midseason", yieldPerPlant: 3, storageLife: 90 }, coastal: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 85, waterFreq: "2x week", fertSchedule: "at planting + midseason", yieldPerPlant: 4, storageLife: 150 } },
+    pestInfo: "Colorado potato beetle, blight. Rotate yearly. Hill soil as plants grow.", harvestTip: "Harvest 2-3 weeks after foliage dies. Cure in dark, cool place for 2 weeks." },
+  { id: "beans", name: "Beans", icon: "🫘", cat: "vegetable", spacingSqFt: 1, companions: ["corn","squash","carrot","cucumber"], avoid: ["onion","garlic","pepper"],
+    zones: { arctic: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 65, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.5, storageLife: 365 }, cold: { indoorWeeks: null, directSowWeeks: 1, daysToHarvest: 60, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.5, storageLife: 365 }, temperate: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.5, storageLife: 365 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 50, waterFreq: "3x week", fertSchedule: "at planting only", yieldPerPlant: 0.4, storageLife: 365 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 50, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.5, storageLife: 365 }, coastal: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.5, storageLife: 365 } },
+    pestInfo: "Bean beetles, aphids. Handpick beetles. Beans fix nitrogen — minimal fertilizer needed.", harvestTip: "Bush: pick when pods snap cleanly. Pole: harvest regularly to keep producing." },
+  { id: "peas", name: "Peas", icon: "🟢", cat: "vegetable", spacingSqFt: 1, companions: ["carrot","radish","beans","corn"], avoid: ["onion","garlic"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 65, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.3, storageLife: 365 }, cold: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 60, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.3, storageLife: 365 }, temperate: { indoorWeeks: null, directSowWeeks: -6, daysToHarvest: 58, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.3, storageLife: 365 }, hot_dry: { indoorWeeks: null, directSowWeeks: -6, daysToHarvest: 55, waterFreq: "3x week", fertSchedule: "at planting only", yieldPerPlant: 0.2, storageLife: 365 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.2, storageLife: 365 }, coastal: { indoorWeeks: null, directSowWeeks: -5, daysToHarvest: 58, waterFreq: "2x week", fertSchedule: "at planting only", yieldPerPlant: 0.3, storageLife: 365 } },
+    pestInfo: "Aphids, powdery mildew. Good air circulation. Peas fix nitrogen in soil.", harvestTip: "Snap peas: pick when plump. Shell peas: pods rounded and firm. Pick often to keep producing." },
+  { id: "pepper", name: "Pepper", icon: "🌶️", cat: "vegetable", spacingSqFt: 2, companions: ["tomato","basil","carrot","onion"], avoid: ["fennel","beans"],
+    zones: { arctic: { indoorWeeks: 12, directSowWeeks: null, daysToHarvest: 80, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 4, storageLife: 14 }, cold: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 75, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 5, storageLife: 14 }, temperate: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 68, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 6, storageLife: 14 }, hot_dry: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 65, waterFreq: "2x daily", fertSchedule: "every 2 weeks", yieldPerPlant: 5, storageLife: 10 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 60, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 8, storageLife: 10 }, coastal: { indoorWeeks: 7, directSowWeeks: null, daysToHarvest: 68, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 6, storageLife: 14 } },
+    pestInfo: "Aphids, hornworms, blossom end rot. Consistent watering prevents end rot. Use calcium if needed.", harvestTip: "Green when firm and full-sized. Color peppers: wait for full color change." },
+  { id: "cucumber", name: "Cucumber", icon: "🥒", cat: "vegetable", spacingSqFt: 4, companions: ["beans","peas","corn","radish"], avoid: ["potato","melon"],
+    zones: { arctic: { indoorWeeks: 6, directSowWeeks: 2, daysToHarvest: 60, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 5, storageLife: 10 }, cold: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 55, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 6, storageLife: 10 }, temperate: { indoorWeeks: 3, directSowWeeks: 1, daysToHarvest: 55, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 8, storageLife: 10 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 50, waterFreq: "2x daily", fertSchedule: "every 2 weeks", yieldPerPlant: 6, storageLife: 7 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 45, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 8, storageLife: 7 }, coastal: { indoorWeeks: 3, directSowWeeks: 1, daysToHarvest: 55, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 7, storageLife: 10 } },
+    pestInfo: "Cucumber beetles, powdery mildew. Use row covers early. Spray neem for beetles.", harvestTip: "Pick at 6-8 inches for slicing, 2-4 for pickling. Don't let them get yellow." },
+  { id: "zucchini", name: "Zucchini", icon: "🥒", cat: "vegetable", spacingSqFt: 4, companions: ["corn","beans","radish","peas"], avoid: ["potato"],
+    zones: { arctic: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 55, waterFreq: "3x week", fertSchedule: "every 2 weeks", yieldPerPlant: 8, storageLife: 14 }, cold: { indoorWeeks: 3, directSowWeeks: 1, daysToHarvest: 50, waterFreq: "3x week", fertSchedule: "every 2 weeks", yieldPerPlant: 10, storageLife: 14 }, temperate: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 48, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 12, storageLife: 14 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 45, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 10, storageLife: 10 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 42, waterFreq: "3x week", fertSchedule: "every 2 weeks", yieldPerPlant: 14, storageLife: 7 }, coastal: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 48, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 11, storageLife: 14 } },
+    pestInfo: "Squash vine borers, squash bugs, powdery mildew. Check stems for borers weekly.", harvestTip: "Pick at 6-8 inches for best flavor. Check daily — they grow fast!" },
+  { id: "winter_squash", name: "Winter Squash", icon: "🎃", cat: "vegetable", spacingSqFt: 9, companions: ["corn","beans","radish"], avoid: ["potato"],
+    zones: { arctic: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 110, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 6, storageLife: 180 }, cold: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 100, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 8, storageLife: 180 }, temperate: { indoorWeeks: 3, directSowWeeks: 1, daysToHarvest: 95, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 10, storageLife: 180 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 90, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 8, storageLife: 150 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 85, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 10, storageLife: 120 }, coastal: { indoorWeeks: 3, directSowWeeks: 1, daysToHarvest: 95, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 9, storageLife: 180 } },
+    pestInfo: "Squash vine borers, squash bugs. Wrap stems with foil. Check for eggs under leaves.", harvestTip: "Rind hard, stem dry and corky. Cure in sun 1-2 weeks before storage." },
+  { id: "corn", name: "Corn", icon: "🌽", cat: "vegetable", spacingSqFt: 1, companions: ["beans","squash","peas","cucumber"], avoid: ["tomato"],
+    zones: { arctic: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 85, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1, storageLife: 7 }, cold: { indoorWeeks: null, directSowWeeks: 1, daysToHarvest: 80, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1, storageLife: 7 }, temperate: { indoorWeeks: null, directSowWeeks: 1, daysToHarvest: 75, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 7 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 70, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1, storageLife: 5 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 65, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 5 }, coastal: { indoorWeeks: null, directSowWeeks: 1, daysToHarvest: 75, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 7 } },
+    pestInfo: "Corn earworm, armyworm. Apply mineral oil to silk tips. Plant in blocks for pollination.", harvestTip: "Silk brown and dry, kernels milky when punctured. Eat within hours for best sweetness." },
+  { id: "beet", name: "Beet", icon: "🟣", cat: "root", spacingSqFt: 1, companions: ["onion","lettuce","cabbage"], avoid: ["beans"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 60, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.25, storageLife: 120 }, cold: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 120 }, temperate: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 120 }, hot_dry: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 50, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.25, storageLife: 90 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 50, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.2, storageLife: 60 }, coastal: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 120 } },
+    pestInfo: "Leaf miners, flea beetles. Row covers help. Greens are also edible and nutritious.", harvestTip: "Golf ball to tennis ball size. Smaller = sweeter. Greens harvested separately." },
+  { id: "radish", name: "Radish", icon: "🔴", cat: "root", spacingSqFt: 1, companions: ["lettuce","peas","cucumber","carrot"], avoid: [],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 30, waterFreq: "3x week", fertSchedule: "none", yieldPerPlant: 0.1, storageLife: 30 }, cold: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 28, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.1, storageLife: 30 }, temperate: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 25, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.1, storageLife: 30 }, hot_dry: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 22, waterFreq: "daily", fertSchedule: "none", yieldPerPlant: 0.08, storageLife: 21 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 22, waterFreq: "daily", fertSchedule: "none", yieldPerPlant: 0.08, storageLife: 14 }, coastal: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 25, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.1, storageLife: 30 } },
+    pestInfo: "Flea beetles. Use row covers. Fast grower — great for succession planting every 2 weeks.", harvestTip: "Pull when shoulders are 1 inch across. Don't let them get woody." },
+  { id: "onion", name: "Onion", icon: "🧅", cat: "root", spacingSqFt: 1, companions: ["carrot","beet","lettuce","tomato","pepper"], avoid: ["beans","peas"],
+    zones: { arctic: { indoorWeeks: 12, directSowWeeks: null, daysToHarvest: 110, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 180 }, cold: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 100, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 180 }, temperate: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 100, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 180 }, hot_dry: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 90, waterFreq: "3x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 120 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 85, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.4, storageLife: 90 }, coastal: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 100, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 150 } },
+    pestInfo: "Onion maggots, thrips. Rotate beds. Use row covers against maggots.", harvestTip: "Tops fall over naturally. Pull, cure in dry shade for 2-4 weeks before storage." },
+  { id: "garlic", name: "Garlic", icon: "🧄", cat: "root", spacingSqFt: 1, companions: ["tomato","pepper","beet","carrot"], avoid: ["beans","peas"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: -8, daysToHarvest: 240, waterFreq: "weekly", fertSchedule: "early spring + midseason", yieldPerPlant: 0.15, storageLife: 270 }, cold: { indoorWeeks: null, directSowWeeks: -8, daysToHarvest: 240, waterFreq: "weekly", fertSchedule: "early spring + midseason", yieldPerPlant: 0.15, storageLife: 270 }, temperate: { indoorWeeks: null, directSowWeeks: -8, daysToHarvest: 210, waterFreq: "weekly", fertSchedule: "early spring + midseason", yieldPerPlant: 0.15, storageLife: 270 }, hot_dry: { indoorWeeks: null, directSowWeeks: -6, daysToHarvest: 180, waterFreq: "weekly", fertSchedule: "early spring + midseason", yieldPerPlant: 0.12, storageLife: 180 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 150, waterFreq: "weekly", fertSchedule: "early spring + midseason", yieldPerPlant: 0.1, storageLife: 120 }, coastal: { indoorWeeks: null, directSowWeeks: -7, daysToHarvest: 210, waterFreq: "weekly", fertSchedule: "early spring + midseason", yieldPerPlant: 0.15, storageLife: 240 } },
+    pestInfo: "Few pests. Excellent companion plant. Plant fall for spring harvest.", harvestTip: "Lower 3-4 leaves brown. Cure hanging in dry, airy location for 3-4 weeks." },
+  { id: "spinach", name: "Spinach", icon: "🥬", cat: "vegetable", spacingSqFt: 1, companions: ["strawberry","peas","beans","onion"], avoid: [],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: -1, daysToHarvest: 45, waterFreq: "3x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.3, storageLife: 10 }, cold: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 42, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.3, storageLife: 10 }, temperate: { indoorWeeks: null, directSowWeeks: -5, daysToHarvest: 40, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.3, storageLife: 10 }, hot_dry: { indoorWeeks: null, directSowWeeks: -6, daysToHarvest: 35, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.2, storageLife: 7 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 35, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.2, storageLife: 5 }, coastal: { indoorWeeks: null, directSowWeeks: -5, daysToHarvest: 40, waterFreq: "2x week", fertSchedule: "every 3 weeks", yieldPerPlant: 0.3, storageLife: 10 } },
+    pestInfo: "Leaf miners, downy mildew. Bolts in heat — grow as spring/fall cool-season crop.", harvestTip: "Harvest outer leaves when 3-4 inches. Cut whole plant before bolting." },
+  { id: "kale", name: "Kale", icon: "🥗", cat: "vegetable", spacingSqFt: 2, companions: ["beet","onion","potato","celery"], avoid: ["strawberry"],
+    zones: { arctic: { indoorWeeks: 4, directSowWeeks: 0, daysToHarvest: 60, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 1, storageLife: 14 }, cold: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 1, storageLife: 14 }, temperate: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 1.5, storageLife: 14 }, hot_dry: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 50, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.8, storageLife: 10 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 50, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.8, storageLife: 7 }, coastal: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 55, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 1.2, storageLife: 14 } },
+    pestInfo: "Cabbage worms, aphids. BT spray for worms. Frost improves sweetness.", harvestTip: "Pick lower leaves first, leave center to keep growing. Sweetens after light frost." },
+  { id: "broccoli", name: "Broccoli", icon: "🥦", cat: "vegetable", spacingSqFt: 4, companions: ["onion","celery","potato","beet"], avoid: ["tomato","strawberry"],
+    zones: { arctic: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 70, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1, storageLife: 14 }, cold: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 65, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1, storageLife: 14 }, temperate: { indoorWeeks: 5, directSowWeeks: null, daysToHarvest: 60, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 14 }, hot_dry: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 55, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 0.8, storageLife: 10 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 50, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 0.8, storageLife: 7 }, coastal: { indoorWeeks: 5, directSowWeeks: null, daysToHarvest: 60, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 1.2, storageLife: 14 } },
+    pestInfo: "Cabbage worms, aphids, clubroot. Use BT spray. Rotate brassicas yearly.", harvestTip: "Cut main head when buds tight and dark green, before flowering. Side shoots follow." },
+  { id: "cabbage", name: "Cabbage", icon: "🥬", cat: "vegetable", spacingSqFt: 4, companions: ["onion","celery","potato","beet"], avoid: ["strawberry","tomato"],
+    zones: { arctic: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 80, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 3, storageLife: 120 }, cold: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 75, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 3, storageLife: 120 }, temperate: { indoorWeeks: 5, directSowWeeks: null, daysToHarvest: 70, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 4, storageLife: 120 }, hot_dry: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 65, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 2, storageLife: 60 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 60, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 2, storageLife: 30 }, coastal: { indoorWeeks: 5, directSowWeeks: null, daysToHarvest: 70, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 3.5, storageLife: 90 } },
+    pestInfo: "Cabbage worms, slugs, clubroot. BT spray for worms. Rotate beds. Excellent for fermenting.", harvestTip: "Head firm when squeezed. Cut at base. Can store whole heads in cold root cellar." },
+  { id: "eggplant", name: "Eggplant", icon: "🍆", cat: "vegetable", spacingSqFt: 4, companions: ["pepper","tomato","basil","beans"], avoid: ["fennel"],
+    zones: { arctic: null, cold: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 80, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 4, storageLife: 10 }, temperate: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 75, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 5, storageLife: 10 }, hot_dry: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 70, waterFreq: "2x daily", fertSchedule: "every 2 weeks", yieldPerPlant: 6, storageLife: 7 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 65, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 8, storageLife: 7 }, coastal: { indoorWeeks: 7, directSowWeeks: null, daysToHarvest: 75, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 5, storageLife: 10 } },
+    pestInfo: "Flea beetles, Colorado potato beetle. Use row covers. Needs very warm soil.", harvestTip: "Glossy, firm skin, bounces back when pressed. Dull skin = overripe and bitter." },
+  { id: "watermelon", name: "Watermelon", icon: "🍉", cat: "fruit", spacingSqFt: 16, companions: ["corn","radish","beans"], avoid: ["potato"],
+    zones: { arctic: null, cold: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 90, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 15, storageLife: 21 }, temperate: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 85, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 20, storageLife: 21 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 80, waterFreq: "3x week", fertSchedule: "every 2 weeks", yieldPerPlant: 18, storageLife: 14 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 75, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 22, storageLife: 14 }, coastal: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 85, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 18, storageLife: 21 } },
+    pestInfo: "Cucumber beetles, vine borers, fusarium wilt. Mulch heavily. Use row covers until flowering.", harvestTip: "Ground spot turns yellow, tendril nearest fruit turns brown, hollow sound when thumped." },
+  { id: "strawberry", name: "Strawberry", icon: "🍓", cat: "fruit", spacingSqFt: 1, companions: ["lettuce","spinach","onion","beans"], avoid: ["cabbage","broccoli"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 90, waterFreq: "3x week", fertSchedule: "early spring + after harvest", yieldPerPlant: 0.5, storageLife: 5 }, cold: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 60, waterFreq: "3x week", fertSchedule: "early spring + after harvest", yieldPerPlant: 0.75, storageLife: 5 }, temperate: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 60, waterFreq: "3x week", fertSchedule: "early spring + after harvest", yieldPerPlant: 1, storageLife: 5 }, hot_dry: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 50, waterFreq: "daily", fertSchedule: "early spring + after harvest", yieldPerPlant: 0.75, storageLife: 3 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 45, waterFreq: "daily", fertSchedule: "monthly", yieldPerPlant: 0.5, storageLife: 3 }, coastal: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 55, waterFreq: "3x week", fertSchedule: "early spring + after harvest", yieldPerPlant: 0.8, storageLife: 5 } },
+    pestInfo: "Slugs, birds, gray mold. Use straw mulch. Net for birds. Avoid overhead watering.", harvestTip: "Fully red with no white. Pick with cap attached. Best eaten same day." },
+  { id: "basil", name: "Basil", icon: "🌿", cat: "herb", spacingSqFt: 1, companions: ["tomato","pepper","oregano"], avoid: ["sage"],
+    zones: { arctic: { indoorWeeks: 8, directSowWeeks: 2, daysToHarvest: 30, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 5 }, cold: { indoorWeeks: 6, directSowWeeks: 1, daysToHarvest: 28, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 5 }, temperate: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 25, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 5 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 22, waterFreq: "2x daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.4, storageLife: 3 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 20, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 3 }, coastal: { indoorWeeks: 4, directSowWeeks: 1, daysToHarvest: 25, waterFreq: "daily", fertSchedule: "every 3 weeks", yieldPerPlant: 0.5, storageLife: 5 } },
+    pestInfo: "Aphids, fusarium wilt. Pinch flowers to extend harvest. Loves heat and sun.", harvestTip: "Pinch above leaf nodes for bushier growth. Harvest before flowering for best flavor." },
+  { id: "cilantro", name: "Cilantro", icon: "🌿", cat: "herb", spacingSqFt: 1, companions: ["tomato","beans","peas"], avoid: ["fennel"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 30, waterFreq: "3x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 7 }, cold: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 28, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 7 }, temperate: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 25, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 7 }, hot_dry: { indoorWeeks: null, directSowWeeks: -4, daysToHarvest: 22, waterFreq: "daily", fertSchedule: "none", yieldPerPlant: 0.15, storageLife: 5 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 20, waterFreq: "daily", fertSchedule: "none", yieldPerPlant: 0.15, storageLife: 5 }, coastal: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 25, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 7 } },
+    pestInfo: "Few pests. Bolts quickly in heat — succession sow every 3 weeks. Let some bolt for coriander seed.", harvestTip: "Cut outer stems at base. Harvest before bolt. Seeds (coriander) harvested when brown." },
+  { id: "parsley", name: "Parsley", icon: "🌿", cat: "herb", spacingSqFt: 1, companions: ["tomato","carrot","onion"], avoid: ["lettuce"],
+    zones: { arctic: { indoorWeeks: 10, directSowWeeks: 0, daysToHarvest: 40, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 14 }, cold: { indoorWeeks: 8, directSowWeeks: -2, daysToHarvest: 35, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 14 }, temperate: { indoorWeeks: 6, directSowWeeks: -3, daysToHarvest: 30, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 14 }, hot_dry: { indoorWeeks: 4, directSowWeeks: -3, daysToHarvest: 28, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.25, storageLife: 10 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 25, waterFreq: "daily", fertSchedule: "monthly", yieldPerPlant: 0.2, storageLife: 7 }, coastal: { indoorWeeks: 6, directSowWeeks: -3, daysToHarvest: 30, waterFreq: "2x week", fertSchedule: "monthly", yieldPerPlant: 0.3, storageLife: 14 } },
+    pestInfo: "Parsley worm (swallowtail caterpillar). Consider sharing — they become butterflies.", harvestTip: "Cut outer stems at base. Biennial — bolts in second year." },
+  { id: "dill", name: "Dill", icon: "🌿", cat: "herb", spacingSqFt: 1, companions: ["cabbage","onion","lettuce","cucumber"], avoid: ["carrot"],
+    zones: { arctic: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 40, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 10 }, cold: { indoorWeeks: null, directSowWeeks: -1, daysToHarvest: 35, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 10 }, temperate: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 30, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 10 }, hot_dry: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 28, waterFreq: "3x week", fertSchedule: "none", yieldPerPlant: 0.15, storageLife: 7 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 25, waterFreq: "daily", fertSchedule: "none", yieldPerPlant: 0.15, storageLife: 7 }, coastal: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 30, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.2, storageLife: 10 } },
+    pestInfo: "Attracts beneficial insects. Self-seeds readily. Bolts in heat.", harvestTip: "Snip fronds as needed. Harvest seeds when flower heads turn brown." },
+  { id: "mint", name: "Mint", icon: "🌿", cat: "herb", spacingSqFt: 2, companions: ["cabbage","tomato","peas"], avoid: ["parsley"],
+    zones: { arctic: { indoorWeeks: 6, directSowWeeks: 0, daysToHarvest: 30, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.5, storageLife: 7 }, cold: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 28, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.5, storageLife: 7 }, temperate: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 25, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.5, storageLife: 7 }, hot_dry: { indoorWeeks: null, directSowWeeks: -2, daysToHarvest: 25, waterFreq: "daily", fertSchedule: "monthly", yieldPerPlant: 0.4, storageLife: 5 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 20, waterFreq: "daily", fertSchedule: "monthly", yieldPerPlant: 0.5, storageLife: 5 }, coastal: { indoorWeeks: null, directSowWeeks: -3, daysToHarvest: 25, waterFreq: "3x week", fertSchedule: "monthly", yieldPerPlant: 0.5, storageLife: 7 } },
+    pestInfo: "Very few pests. VERY invasive — always grow in containers or it will take over.", harvestTip: "Cut stems above first set of leaves. Cut regularly to prevent flowering." },
+  { id: "rosemary", name: "Rosemary", icon: "🌿", cat: "herb", spacingSqFt: 4, companions: ["beans","cabbage","carrot","sage"], avoid: [],
+    zones: { arctic: null, cold: { indoorWeeks: 14, directSowWeeks: null, daysToHarvest: 90, waterFreq: "weekly", fertSchedule: "none", yieldPerPlant: 0.3, storageLife: 21 }, temperate: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 80, waterFreq: "weekly", fertSchedule: "none", yieldPerPlant: 0.5, storageLife: 21 }, hot_dry: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 70, waterFreq: "weekly", fertSchedule: "none", yieldPerPlant: 0.5, storageLife: 21 }, tropical: { indoorWeeks: null, directSowWeeks: 0, daysToHarvest: 60, waterFreq: "2x week", fertSchedule: "none", yieldPerPlant: 0.5, storageLife: 14 }, coastal: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 80, waterFreq: "weekly", fertSchedule: "none", yieldPerPlant: 0.5, storageLife: 21 } },
+    pestInfo: "Very pest-resistant. Overwater is the main enemy. Needs good drainage.", harvestTip: "Snip 4-6 inch sprigs. Never cut more than 1/3 of the plant. Perennial in zones 7+." },
+  { id: "cauliflower", name: "Cauliflower", icon: "🤍", cat: "vegetable", spacingSqFt: 4, companions: ["onion","celery","beet"], avoid: ["tomato","strawberry"],
+    zones: { arctic: { indoorWeeks: 8, directSowWeeks: null, daysToHarvest: 75, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 2, storageLife: 14 }, cold: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 70, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 2, storageLife: 14 }, temperate: { indoorWeeks: 5, directSowWeeks: null, daysToHarvest: 65, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 2.5, storageLife: 14 }, hot_dry: { indoorWeeks: 6, directSowWeeks: null, daysToHarvest: 60, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 10 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 55, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 7 }, coastal: { indoorWeeks: 5, directSowWeeks: null, daysToHarvest: 65, waterFreq: "2x week", fertSchedule: "every 2 weeks", yieldPerPlant: 2, storageLife: 14 } },
+    pestInfo: "Same as broccoli — cabbage worms, aphids. Blanch curds by tying leaves over head.", harvestTip: "Head tight and white (6-8 inches). Cut before florets separate." },
+  { id: "celery", name: "Celery", icon: "🥬", cat: "vegetable", spacingSqFt: 1, companions: ["onion","cabbage","tomato","beans"], avoid: ["carrot","parsley"],
+    zones: { arctic: null, cold: { indoorWeeks: 12, directSowWeeks: null, daysToHarvest: 120, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 21 }, temperate: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 110, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 2, storageLife: 21 }, hot_dry: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 100, waterFreq: "2x daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1, storageLife: 14 }, tropical: { indoorWeeks: 0, directSowWeeks: 0, daysToHarvest: 90, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 14 }, coastal: { indoorWeeks: 10, directSowWeeks: null, daysToHarvest: 110, waterFreq: "daily", fertSchedule: "every 2 weeks", yieldPerPlant: 1.5, storageLife: 21 } },
+    pestInfo: "Celery leaf tier, slugs. Heavy feeder — needs rich soil and constant moisture.", harvestTip: "Cut individual outer stalks at base, or harvest whole plant. Blanch by mounding soil." },
+];
+
+const CALORIES_PER_LB = { tomato: 82, lettuce: 65, carrot: 186, potato: 354, beans: 556, peas: 364, pepper: 90, cucumber: 68, zucchini: 77, winter_squash: 196, corn: 390, beet: 196, radish: 73, onion: 182, garlic: 677, spinach: 104, kale: 225, broccoli: 154, cauliflower: 113, cabbage: 113, eggplant: 113, watermelon: 136, strawberry: 145, basil: 100, cilantro: 104, parsley: 163, dill: 195, mint: 318, rosemary: 131, celery: 64 };
+
 const FIELD_META = {
   depth: { label: "Depth", type: "text", placeholder: "120 ft" }, gpm: { label: "GPM", type: "number", placeholder: "5" },
   hasPump: { label: "Pump", type: "select", options: ["Manual", "Electric", "Solar", "None"] },
@@ -790,35 +896,40 @@ const EMERGENCY_FREQUENCIES = [
 
 /* ── Live Scanner Feed Catalog (Broadcastify CDN streams) ── */
 const LIVE_SCANNER_FEEDS = [
-  // Police / Fire / EMS
-  { id: "32189", name: "Chicago Police Zone 6", type: "police", region: "Chicago, IL", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/32189" },
-  { id: "6173", name: "LAPD Dispatch", type: "police", region: "Los Angeles, CA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/6173" },
-  { id: "30083", name: "NYPD Citywide 1", type: "police", region: "New York, NY", bands: ["police"], url: "https://broadcastify.cdnstream1.com/30083" },
-  { id: "26422", name: "FDNY Dispatch", type: "fire", region: "New York, NY", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/26422" },
-  { id: "15614", name: "Denver Police/Fire", type: "police", region: "Denver, CO", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/15614" },
-  { id: "13533", name: "Houston Police Dispatch", type: "police", region: "Houston, TX", bands: ["police"], url: "https://broadcastify.cdnstream1.com/13533" },
-  { id: "31215", name: "San Francisco Police/Fire", type: "police", region: "San Francisco, CA", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/31215" },
-  { id: "17437", name: "Atlanta Police Zone 5", type: "police", region: "Atlanta, GA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/17437" },
-  { id: "33216", name: "Seattle Police Dispatch", type: "police", region: "Seattle, WA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/33216" },
-  { id: "14439", name: "Dallas Police/Fire", type: "police", region: "Dallas, TX", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/14439" },
-  { id: "36403", name: "Las Vegas Metro Police", type: "police", region: "Las Vegas, NV", bands: ["police"], url: "https://broadcastify.cdnstream1.com/36403" },
-  { id: "25489", name: "Miami-Dade Police", type: "police", region: "Miami, FL", bands: ["police"], url: "https://broadcastify.cdnstream1.com/25489" },
-  // Weather
-  { id: "14580", name: "NOAA Weather Radio (KEC49)", type: "weather", region: "National", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/14580" },
-  { id: "37498", name: "NWS Weather (Tampa)", type: "weather", region: "Tampa, FL", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/37498" },
-  // EMS / Fire
-  { id: "18493", name: "Boston Fire Dispatch", type: "fire", region: "Boston, MA", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/18493" },
-  { id: "22698", name: "Phoenix Fire/EMS", type: "ems", region: "Phoenix, AZ", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/22698" },
-  // HAM / Amateur Radio
-  { id: "20367", name: "W5SRC 2m Repeater", type: "ham", region: "Dallas, TX", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/20367" },
-  { id: "29948", name: "HAM 2m Repeater (SoCal)", type: "ham", region: "Southern CA", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/29948" },
-  // Marine / Coast Guard
-  { id: "27014", name: "USCG Sector Houston", type: "marine", region: "Houston, TX", bands: ["marine"], url: "https://broadcastify.cdnstream1.com/27014" },
-  // Railroad
-  { id: "14752", name: "BNSF Rail Dispatch", type: "railroad", region: "Midwest", bands: ["railroad"], url: "https://broadcastify.cdnstream1.com/14752" },
-  // Air Traffic
-  { id: "16867", name: "LAX Tower/Ground", type: "aviation", region: "Los Angeles, CA", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/16867" },
-  { id: "19990", name: "ORD Tower (Chicago)", type: "aviation", region: "Chicago, IL", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/19990" },
+  // ── United States ──
+  { id: "32189", name: "Chicago Police Zone 6", type: "police", region: "Chicago, IL", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/32189", country: "US" },
+  { id: "6173", name: "LAPD Dispatch", type: "police", region: "Los Angeles, CA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/6173", country: "US" },
+  { id: "30083", name: "NYPD Citywide 1", type: "police", region: "New York, NY", bands: ["police"], url: "https://broadcastify.cdnstream1.com/30083", country: "US" },
+  { id: "26422", name: "FDNY Dispatch", type: "fire", region: "New York, NY", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/26422", country: "US" },
+  { id: "15614", name: "Denver Police/Fire", type: "police", region: "Denver, CO", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/15614", country: "US" },
+  { id: "13533", name: "Houston Police Dispatch", type: "police", region: "Houston, TX", bands: ["police"], url: "https://broadcastify.cdnstream1.com/13533", country: "US" },
+  { id: "31215", name: "San Francisco Police/Fire", type: "police", region: "San Francisco, CA", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/31215", country: "US" },
+  { id: "17437", name: "Atlanta Police Zone 5", type: "police", region: "Atlanta, GA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/17437", country: "US" },
+  { id: "33216", name: "Seattle Police Dispatch", type: "police", region: "Seattle, WA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/33216", country: "US" },
+  { id: "14439", name: "Dallas Police/Fire", type: "police", region: "Dallas, TX", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/14439", country: "US" },
+  { id: "36403", name: "Las Vegas Metro Police", type: "police", region: "Las Vegas, NV", bands: ["police"], url: "https://broadcastify.cdnstream1.com/36403", country: "US" },
+  { id: "25489", name: "Miami-Dade Police", type: "police", region: "Miami, FL", bands: ["police"], url: "https://broadcastify.cdnstream1.com/25489", country: "US" },
+  { id: "14580", name: "NOAA Weather Radio (KEC49)", type: "weather", region: "National", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/14580", country: "US" },
+  { id: "37498", name: "NWS Weather (Tampa)", type: "weather", region: "Tampa, FL", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/37498", country: "US" },
+  { id: "18493", name: "Boston Fire Dispatch", type: "fire", region: "Boston, MA", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/18493", country: "US" },
+  { id: "22698", name: "Phoenix Fire/EMS", type: "ems", region: "Phoenix, AZ", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/22698", country: "US" },
+  { id: "20367", name: "W5SRC 2m Repeater", type: "ham", region: "Dallas, TX", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/20367", country: "US" },
+  { id: "29948", name: "HAM 2m Repeater (SoCal)", type: "ham", region: "Southern CA", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/29948", country: "US" },
+  { id: "27014", name: "USCG Sector Houston", type: "marine", region: "Houston, TX", bands: ["marine"], url: "https://broadcastify.cdnstream1.com/27014", country: "US" },
+  { id: "14752", name: "BNSF Rail Dispatch", type: "railroad", region: "Midwest", bands: ["railroad"], url: "https://broadcastify.cdnstream1.com/14752", country: "US" },
+  { id: "16867", name: "LAX Tower/Ground", type: "aviation", region: "Los Angeles, CA", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/16867", country: "US" },
+  { id: "19990", name: "ORD Tower (Chicago)", type: "aviation", region: "Chicago, IL", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/19990", country: "US" },
+  // ── Canada ──
+  { id: "ca-tor-police", name: "Toronto Police Dispatch", type: "police", region: "Toronto, ON", bands: ["police"], url: "https://broadcastify.cdnstream1.com/26498", country: "CA" },
+  { id: "ca-van-fire", name: "Vancouver Fire/Rescue", type: "fire", region: "Vancouver, BC", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/19396", country: "CA" },
+  { id: "ca-mtl-ems", name: "Montreal EMS (Urgences-santé)", type: "ems", region: "Montreal, QC", bands: ["ems"], url: "https://broadcastify.cdnstream1.com/28442", country: "CA" },
+  { id: "ca-cal-police", name: "Calgary Police Service", type: "police", region: "Calgary, AB", bands: ["police"], url: "https://broadcastify.cdnstream1.com/24210", country: "CA" },
+  { id: "ca-ott-fire", name: "Ottawa Fire/EMS", type: "fire", region: "Ottawa, ON", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/30218", country: "CA" },
+  { id: "ca-edm-police", name: "Edmonton Police Service", type: "police", region: "Edmonton, AB", bands: ["police"], url: "https://broadcastify.cdnstream1.com/21453", country: "CA" },
+  { id: "ca-wpg-fire", name: "Winnipeg Fire/Paramedic", type: "fire", region: "Winnipeg, MB", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/18290", country: "CA" },
+  { id: "ca-hfx-police", name: "Halifax Regional Police", type: "police", region: "Halifax, NS", bands: ["police"], url: "https://broadcastify.cdnstream1.com/27163", country: "CA" },
+  { id: "ca-vic-fire", name: "Victoria Fire Dispatch", type: "fire", region: "Victoria, BC", bands: ["fire"], url: "https://broadcastify.cdnstream1.com/22847", country: "CA" },
+  { id: "ca-ham-ems", name: "Hamilton Paramedic Service", type: "ems", region: "Hamilton, ON", bands: ["ems"], url: "https://broadcastify.cdnstream1.com/25571", country: "CA" },
 ];
 
 const FEED_TYPE_META = {
@@ -831,6 +942,17 @@ const FEED_TYPE_META = {
   railroad: { icon: "🚂", color: "#84cc16", label: "Railroad" },
   aviation: { icon: "✈️", color: "#ec4899", label: "Aviation" },
 };
+
+const CRISIS_TYPES = [
+  { id: "natural_disaster", name: "Natural Disaster", icon: "🌪️", color: "#0ea5e9", actions: ["Shelter in place or evacuate per local guidance", "Fill all water containers immediately", "Charge all devices and batteries now", "Move critical supplies to ground level (flood) or interior room (tornado/hurricane)", "Activate weather radio monitoring on all NOAA channels"] },
+  { id: "grid_failure", name: "Grid Failure / Blackout", icon: "⚡", color: "#f59e0b", actions: ["Start generator — load-shed to essentials only", "Minimize fridge/freezer openings (stays cold 24-48h sealed)", "Switch to wood/propane heat if available", "Conserve water — well pump requires power", "Activate HAM radio check-in schedule with contacts"] },
+  { id: "civil_unrest", name: "Civil Unrest", icon: "🚨", color: "#ef4444", actions: ["Lock down property perimeter immediately", "Account for all family members — establish check-in", "Avoid travel on main roads and through urban areas", "Monitor police/fire scanner frequencies continuously", "Stage bug-out bags at door in case evacuation needed"] },
+  { id: "pandemic", name: "Pandemic / Quarantine", icon: "🦠", color: "#a855f7", actions: ["Activate quarantine protocols — limit outside contact", "Inventory all medical supplies and PPE immediately", "Set up decontamination zone at entry points", "Establish daily communication schedule with allies", "Begin water and food rationing plan for extended duration"] },
+  { id: "economic", name: "Economic Collapse", icon: "📉", color: "#f97316", actions: ["Secure cash reserves — ATMs and banks may go offline", "Inventory all barter-worthy supplies (fuel, ammo, food)", "Accelerate any pending critical supply purchases now", "Coordinate with community trade network", "Lock down fuel storage — prices spike first in crisis"] },
+  { id: "nuclear_chemical", name: "Nuclear / Chemical / NBC", icon: "☢️", color: "#eab308", actions: ["Shelter in place — DO NOT go outside under any circumstances", "Seal all windows and doors with plastic sheeting and tape", "Take potassium iodide if nuclear (130mg adult dose)", "Activate NBC air filtration system if available", "Monitor official emergency channels for all-clear signal"] },
+  { id: "cyber_attack", name: "Cyber Attack / Infrastructure", icon: "💻", color: "#6366f1", actions: ["Disconnect from internet — air-gap all critical devices", "Switch to offline comms immediately (HAM radio, satellite)", "Verify banking and financial accounts if still accessible", "Activate manual overrides for any smart-home systems", "Assume all digital infrastructure is compromised"] },
+  { id: "supply_chain", name: "Supply Chain Disruption", icon: "🚚", color: "#14b8a6", actions: ["Inventory all consumables — begin rationing plan immediately", "Prioritize acquiring fuel before shortages worsen", "Activate community mutual aid and resource sharing", "Begin garden production if growing season permits", "Identify local alternative supply sources and barter options"] },
+];
 
 const NATO_PHONETIC = [
   { letter: "A", word: "Alpha" }, { letter: "B", word: "Bravo" }, { letter: "C", word: "Charlie" },
@@ -906,6 +1028,14 @@ const SAMPLE_ITEMS = [
   { id: "fm7", category: "farm", subType: "soil", name: "Pro-Mix potting soil", quantity: 8, location: "Greenhouse", fields: { soilType: "Potting mix", weightLbs: "30" }, addedDate: "2025-03-01" },
   { id: "fm8", category: "farm", subType: "fertilizer", name: "Worm castings", quantity: 4, location: "Barn", fields: { fertilizerType: "Worm castings", weightLbs: "25" }, addedDate: "2025-03-01" },
   { id: "fm9", category: "farm", subType: "irrigation", name: "Drip system — beds", quantity: 1, location: "Backyard", fields: { irrigationType: "Drip" }, addedDate: "2025-04-01" },
+  { id: "fm10", category: "farm", subType: "seedPacket", name: "Carrot — Nantes", quantity: 4, location: "Greenhouse", fields: { cropName: "Carrot", seedVariety: "Nantes", plantMonth: "Apr", harvestMonth: "Aug", daysToHarvest: "75" }, addedDate: "2025-02-01" },
+  { id: "fm11", category: "farm", subType: "seedPacket", name: "Basil — Genovese", quantity: 3, location: "Greenhouse", fields: { cropName: "Basil", seedVariety: "Genovese", plantMonth: "May", harvestMonth: "Sep", daysToHarvest: "28" }, addedDate: "2025-02-01" },
+  { id: "fm12", category: "farm", subType: "seedPacket", name: "Pepper — Jalapeño", quantity: 2, location: "Greenhouse", fields: { cropName: "Pepper", seedVariety: "Jalapeño", plantMonth: "May", harvestMonth: "Aug", daysToHarvest: "75" }, addedDate: "2025-02-15" },
+  { id: "fm13", category: "farm", subType: "seedPacket", name: "Cucumber — Marketmore", quantity: 3, location: "Greenhouse", fields: { cropName: "Cucumber", seedVariety: "Marketmore", plantMonth: "May", harvestMonth: "Aug", daysToHarvest: "55" }, addedDate: "2025-02-15" },
+  { id: "fm14", category: "farm", subType: "seedPacket", name: "Zucchini — Black Beauty", quantity: 2, location: "Greenhouse", fields: { cropName: "Zucchini", seedVariety: "Black Beauty", plantMonth: "May", harvestMonth: "Aug", daysToHarvest: "50" }, addedDate: "2025-02-15" },
+  { id: "fm15", category: "farm", subType: "seedPacket", name: "Kale — Lacinato", quantity: 4, location: "Greenhouse", fields: { cropName: "Kale", seedVariety: "Lacinato", plantMonth: "Apr", harvestMonth: "Nov", daysToHarvest: "55" }, addedDate: "2025-02-01" },
+  { id: "fm16", category: "farm", subType: "seedPacket", name: "Radish — Cherry Belle", quantity: 5, location: "Greenhouse", fields: { cropName: "Radish", seedVariety: "Cherry Belle", plantMonth: "Apr", harvestMonth: "May", daysToHarvest: "28" }, addedDate: "2025-02-01" },
+  { id: "fm17", category: "farm", subType: "seedPacket", name: "Spinach — Bloomsdale", quantity: 3, location: "Greenhouse", fields: { cropName: "Spinach", seedVariety: "Bloomsdale", plantMonth: "Mar", harvestMonth: "Jun", daysToHarvest: "42" }, addedDate: "2025-02-01" },
   { id: "c1i", category: "comms", subType: "hamRadio", name: "Baofeng x2", quantity: 2, location: "Office", fields: { licensed: "Tech", bands: "2m,70cm" }, addedDate: "2025-02-20" },
   { id: "p1i", category: "power", subType: "solarPanel", name: "200W panels", quantity: 2, location: "Garage", fields: { watts: "200", inverter: "Separate" }, addedDate: "2025-02-20" },
   { id: "p2i", category: "power", subType: "generator", name: "Honda EU2200i", quantity: 1, location: "Garage", fields: { watts: "2200", fuelType: "Gas" }, addedDate: "2025-01-15" },
@@ -2230,7 +2360,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
 /* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog }) {
   const M = "'JetBrains Mono',monospace";
 
   /* ── Live Weather State ── */
@@ -2238,6 +2368,8 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState(null);
   const [weatherSource, setWeatherSource] = useState("sample"); // 'sample' | 'live' | 'cached'
+
+  const [showActHistory, setShowActHistory] = useState(false);
 
   /* ── Live News State ── */
   const [news, setNews] = useState(null);
@@ -2492,14 +2624,75 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         </div>
       </div>
 
-      {/* ── Farm Calendar ── */}
-      {(plantNow.length > 0 || harvestNow.length > 0) && (
-        <div style={{ ...cardSt, background: "rgba(101,163,13,0.04)", border: "1px solid rgba(101,163,13,0.1)", padding: 14 }}>
-          <h3 style={{ margin: "0 0 6px", fontSize: 10, color: "#65a30d", textTransform: "uppercase", letterSpacing: 2 }}>🌾 {currentMonth} Farm Calendar</h3>
-          {plantNow.length > 0 && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>🌱 <strong style={{ color: "#22c55e" }}>Plant now:</strong> {plantNow.map((s) => s.fields?.cropName || s.name).join(", ")}</div>}
-          {harvestNow.length > 0 && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>🍅 <strong style={{ color: "#f59e0b" }}>Harvest now:</strong> {harvestNow.map((s) => s.fields?.cropName || s.name).join(", ")}</div>}
-        </div>
-      )}
+      {/* ── Action Items Center ── */}
+      {(() => {
+        const now = new Date();
+        const tasks = [];
+        // Expiring items
+        items.forEach(i => { if (!i.fields?.expiryDate) return; const exp = new Date(i.fields.expiryDate); const d = Math.ceil((exp - now) / 864e5); if (d < 0) tasks.push({ id: "exp-" + i.id, icon: "⏰", desc: i.name + " expired " + Math.abs(d) + "d ago — rotate/replace", priority: "critical", assignee: null }); else if (d <= 90) tasks.push({ id: "exp-" + i.id, icon: "⏰", desc: i.name + " expires in " + d + "d", priority: d <= 30 ? "warning" : "info", assignee: null }); });
+        // Code rotation
+        (codes || []).forEach(c => { if (!c.lastChanged) return; const d = Math.floor((now - new Date(c.lastChanged)) / 864e5); if (d > 30) tasks.push({ id: "code-" + (c.id || c.label), icon: "🔑", desc: c.label + " code rotation overdue (" + d + "d)", priority: d > 45 ? "critical" : "warning", assignee: null }); });
+        // Vehicle service
+        items.filter(i => i.fields?.nextService).forEach(i => { const d = Math.ceil((new Date(i.fields.nextService) - now) / 864e5); if (d < 0) tasks.push({ id: "svc-" + i.id, icon: "🚗", desc: i.name + " service overdue " + Math.abs(d) + "d", priority: "critical", assignee: null }); else if (d <= 30) tasks.push({ id: "svc-" + i.id, icon: "🚗", desc: i.name + " service in " + d + "d", priority: "warning", assignee: null }); });
+        // Equipment maintenance
+        items.filter(i => i.subType === "chainsaw" && i.fields?.lastService).forEach(i => { const d = Math.ceil((now - new Date(i.fields.lastService)) / 864e5); if (d > 180) tasks.push({ id: "chain-" + i.id, icon: "⛓️", desc: i.name + " service overdue (" + d + "d)", priority: "warning", assignee: null }); });
+        // Bug-out bag audit
+        items.filter(i => i.subType === "bag" && i.fields?.lastAudited).forEach(i => { const d = Math.ceil((now - new Date(i.fields.lastAudited)) / 864e5); if (d > 90) tasks.push({ id: "bob-" + i.id, icon: "🎒", desc: i.name + " audit overdue (" + d + "d)" + (i.fields?.bagOwner ? " — " + i.fields.bagOwner : ""), priority: d > 180 ? "critical" : "warning", assignee: i.fields?.bagOwner || null }); });
+        // Water refresh
+        items.filter(i => i.fields?.lastRefreshed).forEach(i => { const d = Math.ceil((now - new Date(i.fields.lastRefreshed)) / 864e5); if (d > 150) tasks.push({ id: "water-" + i.id, icon: "💧", desc: i.name + " refresh " + (d > 180 ? "overdue" : "due soon") + " (" + d + "d)", priority: d > 180 ? "critical" : "warning", assignee: null }); });
+        // Gas stabilization
+        items.filter(i => i.category === "fuel" && i.subType === "gasoline").forEach(i => { if (!i.fields?.lastRotated && !i.addedDate) return; const d = Math.ceil((now - new Date(i.fields?.lastRotated || i.addedDate)) / 864e5); if (d > 180) tasks.push({ id: "fuel-" + i.id, icon: "⛽", desc: "Stabilize/rotate gas — " + i.name + " (" + d + "d old)", priority: "warning", assignee: null }); });
+        // Air filter (HVAC) — check every 90d if any power/electronics items exist
+        if (items.some(i => i.category === "power")) tasks.push({ id: "maint-airfilter", icon: "🌬️", desc: "Check/change HVAC air filters (quarterly)", priority: "info", assignee: null });
+        // Crisis-active tasks
+        if (crisisMode) { tasks.push({ id: "crisis-comms", icon: "📡", desc: "Comms check-in — verify all channels operational", priority: "critical", assignee: null }); tasks.push({ id: "crisis-headcount", icon: "👥", desc: "Headcount — confirm all members accounted for", priority: "critical", assignee: null }); }
+        // Planting tasks from farm calendar
+        if (plantNow.length > 0) tasks.push({ id: "farm-plant", icon: "🌱", desc: "Plant now: " + plantNow.map(s => s.fields?.cropName || s.name).join(", "), priority: "info", assignee: null });
+        if (harvestNow.length > 0) tasks.push({ id: "farm-harvest", icon: "🍅", desc: "Harvest now: " + harvestNow.map(s => s.fields?.cropName || s.name).join(", "), priority: "warning", assignee: null });
+        // Sort by priority
+        const po = { critical: 0, warning: 1, info: 2 }; tasks.sort((a, b) => (po[a.priority] ?? 2) - (po[b.priority] ?? 2));
+        const pending = tasks.filter(t => !(actionLog || []).some(l => l.taskId === t.id));
+        const pColor = { critical: "#ef4444", warning: "#f59e0b", info: "#22c55e" };
+        return (
+          <div style={{ ...cardSt, padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Action Items ({pending.length})</h3>
+              {(actionLog || []).length > 0 && <button onClick={() => setShowActHistory(h => !h)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(255,255,255,0.08)", background: "none", color: "rgba(255,255,255,0.3)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{showActHistory ? "Hide" : "Show"} History ({(actionLog || []).length})</button>}
+            </div>
+            {pending.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 20, color: "rgba(255,255,255,0.2)", fontSize: 11 }}>All caught up — no pending action items</div>
+            ) : (
+              <div style={{ display: "grid", gap: 4 }}>
+                {pending.map(task => (
+                  <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.04)", borderLeft: "3px solid " + (pColor[task.priority] || "#22c55e") }}>
+                    <input type="checkbox" onChange={() => { const by = (members || [])[0]?.name || "You"; setActionLog(prev => [...(prev || []), { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), taskId: task.id, desc: task.desc, completedBy: by, completedAt: new Date().toISOString() }]); }} style={{ accentColor: pColor[task.priority] || "#22c55e", cursor: "pointer" }} />
+                    <span style={{ fontSize: 14, flexShrink: 0 }}>{task.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{task.desc}</div>
+                      {task.assignee && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>Assigned: {task.assignee}</div>}
+                    </div>
+                    <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: (pColor[task.priority] || "#22c55e") + "15", color: pColor[task.priority] || "#22c55e", fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{task.priority}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showActHistory && (actionLog || []).length > 0 && (
+              <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 10 }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Completed History</div>
+                {(actionLog || []).slice().reverse().map(log => (
+                  <div key={log.id} style={{ display: "flex", gap: 8, padding: "4px 0", fontSize: 10, color: "rgba(255,255,255,0.3)", borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
+                    <span style={{ color: "#22c55e" }}>✓</span>
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.desc}</span>
+                    <span style={{ flexShrink: 0, fontWeight: 600 }}>{log.completedBy}</span>
+                    <span style={{ flexShrink: 0, fontFamily: M }}>{new Date(log.completedAt).toLocaleDateString()}</span>
+                  </div>
+                ))}
+                <button onClick={() => { if (confirm("Clear all completed history?")) setActionLog([]); }} style={{ marginTop: 8, padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(239,68,68,0.1)", background: "none", color: "rgba(239,68,68,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Clear History</button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Weather & Local News ── */}
       <div className="pcs-weather-news" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -2736,8 +2929,10 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
               const pfd = ci.filter((i) => i.subType === "lifeJacket").reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: vessels, unit: pfd >= p ? "PFDs ✓" : pfd + "/" + p + " PFDs", color: vessels > 0 && pfd >= p ? "#22c55e" : vessels > 0 ? "#f59e0b" : "#ef4444" };
             } else if (k === "farm") {
-              const crops = new Set(ci.filter((i) => i.subType === "seedPacket").map((i) => i.fields?.cropName)).size;
-              metric = { val: crops, unit: "crops", color: crops >= 5 ? "#22c55e" : crops >= 2 ? "#f59e0b" : "#ef4444" };
+              const seeds = ci.filter(i => i.subType === "seedPacket").reduce((s, i) => s + (i.quantity || 0), 0);
+              const varieties = new Set(ci.filter(i => i.subType === "seedPacket").map(i => i.fields?.cropName)).size;
+              const beds = ci.filter(i => i.subType === "raisedBed").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: varieties, unit: seeds + " packs · " + beds + " beds", color: varieties >= 5 ? "#22c55e" : varieties >= 2 ? "#f59e0b" : "#ef4444" };
             } else if (k === "bugout") {
               const bags = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: bags, unit: bags >= p ? "ready" : bags + "/" + p + " packed", color: bags >= p ? "#22c55e" : bags > 0 ? "#f59e0b" : "#ef4444" };
@@ -4509,8 +4704,11 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   const [liveStreamActive, setLiveStreamActive] = useState(false);
   const [streamError, setStreamError] = useState(null);
   const [feedFilter, setFeedFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [customStreamUrl, setCustomStreamUrl] = useState("");
   const [showFeedBrowser, setShowFeedBrowser] = useState(false);
+  const [userChannels, setUserChannels] = useState(() => { try { const r = localStorage.getItem("prepvault-user-channels"); return r ? JSON.parse(r) : []; } catch { return []; } });
+  useEffect(() => { try { localStorage.setItem("prepvault-user-channels", JSON.stringify(userChannels)); } catch {} }, [userChannels]);
   const liveAudioRef = useRef(null);
   const audioCtxRef = useRef(null);
   const audioNoiseRef = useRef(null);
@@ -4787,24 +4985,55 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                 <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Live Scanner Feeds</h3>
                 <button onClick={() => setShowFeedBrowser(false)} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
               </div>
+              {/* Country filter */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                {[{ id: "all", l: "All", flag: "🌎" }, { id: "US", l: "United States", flag: "🇺🇸" }, { id: "CA", l: "Canada", flag: "🇨🇦" }].map(c => (
+                  <button key={c.id} onClick={() => setCountryFilter(c.id)} style={{ padding: "3px 8px", borderRadius: 5, border: countryFilter === c.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: countryFilter === c.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: countryFilter === c.id ? "#c8553a" : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{c.flag} {c.l}</button>
+                ))}
+              </div>
               {/* Feed type filters */}
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
                 {[{ id: "all", l: "All" }, ...Object.entries(FEED_TYPE_META).map(([k, v]) => ({ id: k, l: v.label, icon: v.icon }))].map(f => (
                   <button key={f.id} onClick={() => setFeedFilter(f.id)} style={{ padding: "3px 8px", borderRadius: 5, border: feedFilter === f.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: feedFilter === f.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: feedFilter === f.id ? "#c8553a" : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{f.icon ? f.icon + " " : ""}{f.l}</button>
                 ))}
               </div>
+              {/* My Channels */}
+              {userChannels.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>My Saved Channels ({userChannels.length})</div>
+                  <div style={{ display: "grid", gap: 2 }}>
+                    {userChannels.map(feed => {
+                      const meta = FEED_TYPE_META[feed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" };
+                      const isActive = feed.id === selectedFeedId;
+                      return (
+                        <div key={feed.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(200,85,58,0.03)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(200,85,58,0.08)", cursor: "pointer" }}
+                          onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }}>
+                          <span style={{ fontSize: 14 }}>{meta.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
+                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); setUserChannels(prev => prev.filter(f => f.id !== feed.id)); }} style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(239,68,68,0.15)", background: "none", color: "#ef4444", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {/* Feed list */}
               <div style={{ display: "grid", gap: 3, maxHeight: 280, overflowY: "auto" }}>
-                {LIVE_SCANNER_FEEDS.filter(f => feedFilter === "all" || f.type === feedFilter).map(feed => {
+                {LIVE_SCANNER_FEEDS.filter(f => (feedFilter === "all" || f.type === feedFilter) && (countryFilter === "all" || f.country === countryFilter)).map(feed => {
                   const meta = FEED_TYPE_META[feed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" };
                   const isActive = feed.id === selectedFeedId;
+                  const isSaved = userChannels.some(uc => uc.id === feed.id);
                   return (
                     <div key={feed.id} onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.01)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "all 0.15s" }}>
                       <span style={{ fontSize: 16 }}>{meta.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{feed.region}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
                       </div>
+                      <button onClick={(e) => { e.stopPropagation(); if (isSaved) { setUserChannels(prev => prev.filter(uc => uc.id !== feed.id)); } else { setUserChannels(prev => [...prev, feed]); } }} style={{ padding: "2px 6px", borderRadius: 4, border: isSaved ? "1px solid rgba(234,179,8,0.2)" : "1px solid rgba(34,197,94,0.15)", background: "none", color: isSaved ? "#eab308" : "#22c55e", fontSize: 8, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{isSaved ? "★ Saved" : "+ Save"}</button>
                       <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: meta.color + "15", color: meta.color, fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{meta.label}</span>
                       {isActive && liveStreamActive && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.5)", animation: "pulse 1s infinite" }} />}
                     </div>
@@ -4816,7 +5045,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Custom Stream URL</div>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                   <input value={customStreamUrl} onChange={e => setCustomStreamUrl(e.target.value)} placeholder="https://broadcastify.cdnstream1.com/FEED_ID" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 10, fontFamily: M }} />
-                  <button onClick={() => { if (customStreamUrl.trim()) { const customId = "custom-" + Date.now(); LIVE_SCANNER_FEEDS.push({ id: customId, name: "Custom Feed", type: "police", region: "Custom", bands: [], url: customStreamUrl.trim() }); setSelectedFeedId(customId); if (!audioEnabled) setAudioEnabled(true); setCustomStreamUrl(""); } }} style={{ padding: "6px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
+                  <button onClick={() => { if (customStreamUrl.trim()) { const customFeed = { id: "custom-" + Date.now(), name: "Custom Feed", type: "police", region: "Custom", bands: [], url: customStreamUrl.trim(), country: "US" }; setUserChannels(prev => [...prev, customFeed]); setSelectedFeedId(customFeed.id); if (!audioEnabled) setAudioEnabled(true); setCustomStreamUrl(""); } }} style={{ padding: "6px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
                 </div>
                 <div style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", marginTop: 4 }}>Paste any Broadcastify or Icecast MP3 stream URL. Find feeds at broadcastify.com</div>
               </div>
@@ -5183,13 +5412,13 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
 function SystemsTab({ items, people, climate }) {
   const M = "'JetBrains Mono',monospace";
   const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
-  const [sysSub, setSysSub] = useState("convert");
+  const [sysSub, setSysSub] = useState("stock");
   const [divertFrom, setDivertFrom] = useState("power");
   const [divertTo, setDivertTo] = useState("heat");
   const [divertPct, setDivertPct] = useState(25);
   const [expandedDep, setExpandedDep] = useState(null);
 
-  const subs = [{ id: "convert", l: "Conversions", i: "⚡" }, { id: "tradeoff", l: "Trade-offs", i: "⚖️" }, { id: "graph", l: "System Map", i: "🔗" }, { id: "deps", l: "Dependencies", i: "🔌" }];
+  const subs = [{ id: "stock", l: "Resources", i: "📊" }, { id: "convert", l: "Conversions", i: "⚡" }, { id: "tradeoff", l: "Trade-offs", i: "⚖️" }, { id: "graph", l: "System Map", i: "🔗" }, { id: "deps", l: "Dependencies", i: "🔌" }];
 
   /* ── Hidden Dependency Map ── */
   const DEPENDENCY_TREE = useMemo(() => {
@@ -5397,6 +5626,65 @@ function SystemsTab({ items, people, climate }) {
           </button>
         ))}
       </div>
+
+      {/* ═══ Resource Stock Levels ═══ */}
+      {sysSub === "stock" && (() => {
+        const p = people || 4;
+        const waterGal = items.filter(i => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
+        const totalCals = items.filter(i => i.category === "food").reduce((s, i) => { const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0); const serv = parseFloat(i.fields?.servings || 1); return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1); }, 0);
+        const fuelGal = items.filter(i => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
+        const propTanks = items.filter(i => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
+        const medItems = items.filter(i => i.category === "medical").reduce((s, i) => s + (i.quantity || 0), 0);
+        const ammoRds = items.filter(i => i.category === "firearms" && i.subType === "ammo").reduce((s, i) => s + (i.quantity || 0), 0);
+        const batteries = items.filter(i => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
+        const solarPanels = items.filter(i => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
+        const powerHrs = fuelGal * 5.5 + batteries * 0.3 + solarPanels * 5;
+        const cords = items.filter(i => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+        const _clim = CLIMATES[climate] || CLIMATES.temperate;
+        const resources = [
+          { icon: "💧", name: "Water", qty: waterGal, unit: "gal", days: waterGal / Math.max(p * 1, 0.1), target: 14, color: "#0ea5e9", detail: p + " gal/day for " + p + " people" },
+          { icon: "🥫", name: "Food", qty: Math.round(totalCals).toLocaleString() + " cal", days: totalCals / Math.max(p * 2000, 1), target: 30, color: "#f59e0b", detail: (p * 2000).toLocaleString() + " cal/day for " + p + " people" },
+          { icon: "⛽", name: "Fuel (Gas)", qty: fuelGal.toFixed(1), unit: "gal", days: fuelGal > 0 ? fuelGal * 5.5 / 24 : 0, target: 7, color: "#f97316", detail: fuelGal.toFixed(0) + " gal = " + (fuelGal * 5.5).toFixed(0) + "h generator runtime" },
+          { icon: "🔥", name: "Propane", qty: propTanks, unit: "tanks", days: propTanks * 3, target: 14, color: "#ef4444", detail: propTanks + " tanks (" + (propTanks * 20).toFixed(0) + " lbs)" },
+          { icon: "⚡", name: "Power Reserve", qty: powerHrs.toFixed(1), unit: "hrs", days: powerHrs / 24, target: 3, color: "#eab308", detail: "Gen " + (fuelGal * 5.5).toFixed(0) + "h + Batt " + (batteries * 0.3).toFixed(1) + "h + Solar " + (solarPanels * 5) + "h" },
+          { icon: "🪵", name: "Firewood", qty: cords.toFixed(1), unit: "cords", days: cords * 30, target: 120, color: "#a16207", detail: (cords * 30).toFixed(0) + " days heating at " + (_clim.firewoodMod || 1).toFixed(1) + "x burn rate" },
+          { icon: "💊", name: "Medical", qty: medItems, unit: "items", days: null, target: null, color: "#ef4444", detail: medItems + " medical supply items" },
+          { icon: "🎯", name: "Ammunition", qty: ammoRds.toLocaleString(), unit: "rds", days: null, target: null, color: "#6b7280", detail: ammoRds.toLocaleString() + " rounds total" },
+        ];
+        return (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>📊 Resource Stock Levels</h3>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Current supplies and autonomy for {p} people ({_clim.label} climate)</div>
+            </div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {resources.map((r, i) => {
+                const pct = r.target && r.days !== null ? Math.min(r.days / r.target * 100, 100) : null;
+                const sc = r.days !== null ? (r.days >= (r.target || 14) ? "#22c55e" : r.days >= (r.target || 14) * 0.5 ? "#f59e0b" : "#ef4444") : "rgba(255,255,255,0.3)";
+                return (
+                  <div key={i} style={{ ...cardSt, padding: "12px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 20 }}>{r.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{r.name}</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: sc }}>{r.days !== null ? r.days.toFixed(1) + " days" : r.qty + " " + (r.unit || "")}</span>
+                        </div>
+                        {pct !== null && (
+                          <div style={{ height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 2 }}>
+                            <div style={{ height: "100%", width: pct + "%", background: sc, borderRadius: 2, transition: "width 0.5s" }} />
+                          </div>
+                        )}
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 3 }}>{r.detail}{r.target && r.days !== null ? " · Target: " + r.target + "d" : ""}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ═══ Resource Conversions ═══ */}
       {sysSub === "convert" && (
@@ -5689,6 +5977,582 @@ function SystemsTab({ items, people, climate }) {
   );
 }
 
+/* ═══════════════════════════════════════════ */
+/* ═══ FARMING TAB ═══                       */
+/* ═══════════════════════════════════════════ */
+function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds }) {
+  const M = "'JetBrains Mono',monospace";
+  const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
+  const accent = "#65a30d";
+
+  const [farmSub, setFarmSub] = useState("fdash");
+  const [selectedBed, setSelectedBed] = useState(null);
+  const [showAddBed, setShowAddBed] = useState(false);
+  const [newBedName, setNewBedName] = useState("Bed A");
+  const [newBedW, setNewBedW] = useState(4);
+  const [newBedH, setNewBedH] = useState(8);
+  const [newBedLoc, setNewBedLoc] = useState("Backyard");
+  const [selectedCrop, setSelectedCrop] = useState(null);
+  const [guideFilter, setGuideFilter] = useState("inventory");
+  const [guideCatFilter, setGuideCatFilter] = useState("all");
+  const [expandedCrop, setExpandedCrop] = useState(null);
+
+  const subTabs = [
+    { id: "fdash", l: "Dashboard", i: "📊" },
+    { id: "seeds", l: "Seeds", i: "🌱" },
+    { id: "calendar", l: "Calendar", i: "📅" },
+    { id: "garden", l: "Garden", i: "🟩" },
+    { id: "guide", l: "Guide", i: "📖" },
+  ];
+
+  // Climate-aware date calculations
+  const zone = GROWING_ZONES[climate] || GROWING_ZONES.temperate;
+  const now = new Date();
+  const year = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const isTropical = zone.lastFrostMonth === 0;
+  const lastFrostDate = isTropical ? null : new Date(year, zone.lastFrostMonth - 1, zone.lastFrostDay);
+  const firstFrostDate = isTropical ? null : new Date(year, zone.firstFrostMonth - 1, zone.firstFrostDay);
+
+  const getPlantDate = (crop) => {
+    const zd = crop.zones[climate] || crop.zones.temperate;
+    if (!zd) return null;
+    if (isTropical) return { indoorStart: null, sowDate: new Date(year, currentMonth, 1), harvestDate: new Date(year, currentMonth, 1 + zd.daysToHarvest), zd };
+    let sowDate = null;
+    let indoorStart = null;
+    if (zd.indoorWeeks && zd.indoorWeeks > 0) indoorStart = new Date(lastFrostDate.getTime() - zd.indoorWeeks * 7 * 864e5);
+    if (zd.directSowWeeks !== null && zd.directSowWeeks !== undefined) {
+      sowDate = new Date(lastFrostDate.getTime() + zd.directSowWeeks * 7 * 864e5);
+    } else {
+      sowDate = new Date(lastFrostDate);
+    }
+    const harvestDate = new Date(sowDate.getTime() + zd.daysToHarvest * 864e5);
+    return { indoorStart, sowDate, harvestDate, zd };
+  };
+
+  const getStatus = (dates) => {
+    if (!dates) return { label: "Unknown", color: "rgba(255,255,255,0.25)" };
+    const diffDays = (d) => Math.round((d - now) / 864e5);
+    if (dates.indoorStart) {
+      const dToIndoor = diffDays(dates.indoorStart);
+      if (dToIndoor >= -7 && dToIndoor <= 14) return { label: "Start Indoors Now", color: "#3b82f6" };
+      if (dToIndoor > 14 && dToIndoor <= 42) return { label: "Indoor Soon", color: "#0ea5e9" };
+    }
+    const dToSow = diffDays(dates.sowDate);
+    if (dToSow >= -7 && dToSow <= 14) return { label: "Plant Now", color: "#22c55e" };
+    if (dToSow > 14 && dToSow <= 42) return { label: "Plant Soon", color: "#f59e0b" };
+    const dToHarvest = diffDays(dates.harvestDate);
+    if (dToHarvest >= -14 && dToHarvest <= 21) return { label: "Harvest Time", color: "#f97316" };
+    if (now >= dates.sowDate && now <= dates.harvestDate) return { label: "Growing", color: "#22c55e" };
+    return { label: "Off Season", color: "rgba(255,255,255,0.2)" };
+  };
+
+  const fmtDate = (d) => d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  // Seed items from inventory
+  const seedItems = items.filter(i => i.category === "farm" && (i.subType === "seedPacket" || i.subType === "seedling"));
+  const enrichedSeeds = seedItems.map(item => {
+    const cropName = (item.fields?.cropName || "").toLowerCase();
+    const crop = CROP_DATABASE.find(c => c.name.toLowerCase() === cropName || cropName.includes(c.name.toLowerCase()));
+    const dates = crop ? getPlantDate(crop) : null;
+    const status = getStatus(dates);
+    return { item, crop, dates, status };
+  }).sort((a, b) => {
+    const order = { "Start Indoors Now": 0, "Plant Now": 1, "Indoor Soon": 2, "Plant Soon": 3, "Harvest Time": 4, "Growing": 5, "Off Season": 6, "Unknown": 7 };
+    return (order[a.status.label] || 7) - (order[b.status.label] || 7);
+  });
+
+  // Group by status
+  const statusGroups = {};
+  enrichedSeeds.forEach(s => {
+    const key = s.status.label;
+    if (!statusGroups[key]) statusGroups[key] = [];
+    statusGroups[key].push(s);
+  });
+
+  const totalSeeds = seedItems.reduce((s, i) => s + (i.quantity || 0), 0);
+  const totalVarieties = new Set(seedItems.map(i => i.fields?.cropName)).size;
+
+  // Garden helpers
+  const addBed = () => {
+    const bed = { id: "bed-" + Date.now(), name: newBedName, width: Math.min(12, Math.max(1, newBedW)), height: Math.min(12, Math.max(1, newBedH)), cells: [], location: newBedLoc };
+    setGardenBeds(prev => [...prev, bed]);
+    setSelectedBed(bed.id);
+    setShowAddBed(false);
+    setNewBedName("Bed " + String.fromCharCode(65 + gardenBeds.length + 1));
+  };
+
+  const removeBed = (id) => {
+    setGardenBeds(prev => prev.filter(b => b.id !== id));
+    if (selectedBed === id) setSelectedBed(null);
+  };
+
+  const toggleCell = (bedId, x, y) => {
+    setGardenBeds(prev => prev.map(b => {
+      if (b.id !== bedId) return b;
+      const existing = b.cells.find(c => c.x === x && c.y === y);
+      if (existing) return { ...b, cells: b.cells.filter(c => !(c.x === x && c.y === y)) };
+      if (!selectedCrop) return b;
+      return { ...b, cells: [...b.cells, { x, y, cropId: selectedCrop, plantedDate: new Date().toISOString().split("T")[0] }] };
+    }));
+  };
+
+  const getCompanionStatus = (bedId, x, y, cropId) => {
+    const bed = gardenBeds.find(b => b.id === bedId);
+    if (!bed) return null;
+    const crop = CROP_DATABASE.find(c => c.id === cropId);
+    if (!crop) return null;
+    const neighbors = bed.cells.filter(c => Math.abs(c.x - x) <= 1 && Math.abs(c.y - y) <= 1 && !(c.x === x && c.y === y));
+    let hasConflict = false;
+    neighbors.forEach(n => {
+      const nc = CROP_DATABASE.find(c => c.id === n.cropId);
+      if (nc && crop.avoid.includes(nc.id)) hasConflict = true;
+    });
+    return hasConflict ? "conflict" : null;
+  };
+
+  const climateLabel = (CLIMATES[climate] || CLIMATES.temperate).label;
+
+  return (
+    <div>
+      {/* Climate/Zone indicator */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "6px 12px", borderRadius: 8, background: "rgba(101,163,13,0.04)", border: "1px solid rgba(101,163,13,0.1)" }}>
+        <span style={{ fontSize: 11 }}>🌱</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Climate: <strong style={{ color: accent }}>{climateLabel}</strong></span>
+        {!isTropical && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginLeft: "auto" }}>Last frost: {fmtDate(lastFrostDate)} · First frost: {fmtDate(firstFrostDate)} · Season: {zone.seasonWeeks}wk</span>}
+        {isTropical && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginLeft: "auto" }}>Year-round growing season · No frost</span>}
+      </div>
+
+      {/* Sub-tab nav */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 16, overflowX: "auto" }}>
+        {subTabs.map(s => (
+          <button key={s.id} onClick={() => setFarmSub(s.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: farmSub === s.id ? "2px solid " + accent : "2px solid transparent", color: farmSub === s.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 13 }}>{s.i}</span>{s.l}
+          </button>
+        ))}
+      </div>
+
+      {/* ═══ FARMING DASHBOARD ═══ */}
+      {farmSub === "fdash" && (() => {
+        const p = people || 4;
+        const cropCounts = {};
+        gardenBeds.forEach(bed => { (bed.cells || []).forEach(cell => { if (cell.cropId) cropCounts[cell.cropId] = (cropCounts[cell.cropId] || 0) + 1; }); });
+        const seedItems = items.filter(i => i.category === "farm" && (i.subType === "seedPacket" || i.subType === "seedling"));
+        // Also estimate from seed inventory if no garden beds planted
+        if (Object.keys(cropCounts).length === 0) {
+          seedItems.forEach(si => {
+            const cn = (si.fields?.cropName || si.name || "").toLowerCase().split(/[—–\-]/)[0].trim();
+            const match = CROP_DATABASE.find(c => cn.includes(c.id) || cn.includes(c.name.toLowerCase()));
+            if (match) cropCounts[match.id] = (cropCounts[match.id] || 0) + (si.quantity || 1);
+          });
+        }
+        let totalLbs = 0, totalCals = 0;
+        const breakdown = [];
+        Object.entries(cropCounts).forEach(([cropId, cnt]) => {
+          const crop = CROP_DATABASE.find(c => c.id === cropId);
+          if (!crop) return;
+          const zd = crop.zones[climate] || crop.zones.temperate;
+          if (!zd) return;
+          const yld = cnt * (zd.yieldPerPlant || 0);
+          const calPer = CALORIES_PER_LB[cropId] || 150;
+          const cals = yld * calPer;
+          totalLbs += yld; totalCals += cals;
+          const dates = getPlantDate(crop);
+          breakdown.push({ crop, cnt, yld, cals, calPer, harvestDate: dates?.harvestDate, harvestMonth: dates?.harvestDate ? dates.harvestDate.toLocaleDateString("en-US", { month: "short" }) : "—" });
+        });
+        breakdown.sort((a, b) => (a.harvestDate || new Date(9999, 0)) - (b.harvestDate || new Date(9999, 0)));
+        const peopleFedDays = totalCals > 0 ? totalCals / (2000 * p) : 0;
+        const hasData = breakdown.length > 0;
+        return (
+          <div>
+            <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.8)" }}>📊 Food Output Dashboard</h3>
+            {!hasData ? (
+              <div style={{ ...cardSt, padding: 40, textAlign: "center" }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🌱</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>No crops planted yet</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Add seed packets to your inventory or plant crops in garden beds to see food output projections</div>
+              </div>
+            ) : (<>
+              {/* Summary cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+                {[
+                  { icon: "⚖️", label: "Total Yield", value: totalLbs.toFixed(1) + " lbs", color: accent },
+                  { icon: "🔥", label: "Total Calories", value: Math.round(totalCals).toLocaleString(), color: "#f59e0b" },
+                  { icon: "👥", label: "Feeds " + p + " People", value: peopleFedDays.toFixed(1) + " days", color: "#0ea5e9" },
+                  { icon: "📅", label: "Next Harvest", value: breakdown[0]?.harvestMonth || "—", color: "#22c55e" },
+                ].map((s, i) => (
+                  <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center" }}>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Per-crop breakdown */}
+              <div style={{ ...cardSt, overflow: "hidden" }}>
+                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>Crop Breakdown ({breakdown.length} crops)</span>
+                </div>
+                {/* Header */}
+                <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 9, color: "rgba(255,255,255,0.25)", fontWeight: 700, textTransform: "uppercase", background: "rgba(255,255,255,0.02)" }}>
+                  {["", "Crop", "Plants", "Yield", "Calories", "Harvest"].map((h, i) => <div key={i} style={{ padding: "6px 10px" }}>{h}</div>)}
+                </div>
+                {/* Rows */}
+                {breakdown.map((row, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 11, borderTop: "1px solid rgba(255,255,255,0.03)" }}>
+                    <div style={{ padding: "8px 10px", fontSize: 16 }}>{row.crop.icon}</div>
+                    <div style={{ padding: "8px 10px", color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>{row.crop.name}</div>
+                    <div style={{ padding: "8px 10px", fontFamily: M, color: "rgba(255,255,255,0.5)", textAlign: "right" }}>{row.cnt}</div>
+                    <div style={{ padding: "8px 10px", fontFamily: M, color: accent, textAlign: "right" }}>{row.yld.toFixed(1)} lbs</div>
+                    <div style={{ padding: "8px 10px", fontFamily: M, color: "#f59e0b", textAlign: "right" }}>{Math.round(row.cals).toLocaleString()}</div>
+                    <div style={{ padding: "8px 10px", color: "rgba(255,255,255,0.4)", textAlign: "center" }}>{row.harvestMonth}</div>
+                  </div>
+                ))}
+                {/* Totals row */}
+                <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 11, borderTop: "2px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)", fontWeight: 700 }}>
+                  <div style={{ padding: "8px 10px" }}></div>
+                  <div style={{ padding: "8px 10px", color: "rgba(255,255,255,0.5)" }}>Total</div>
+                  <div style={{ padding: "8px 10px", fontFamily: M, color: "rgba(255,255,255,0.5)", textAlign: "right" }}>{Object.values(cropCounts).reduce((a, b) => a + b, 0)}</div>
+                  <div style={{ padding: "8px 10px", fontFamily: M, color: accent, textAlign: "right" }}>{totalLbs.toFixed(1)} lbs</div>
+                  <div style={{ padding: "8px 10px", fontFamily: M, color: "#f59e0b", textAlign: "right" }}>{Math.round(totalCals).toLocaleString()}</div>
+                  <div style={{ padding: "8px 10px" }}></div>
+                </div>
+              </div>
+              {/* Feeding capacity note */}
+              <div style={{ ...cardSt, padding: 12, marginTop: 8, background: "rgba(14,165,233,0.04)", borderColor: "rgba(14,165,233,0.1)" }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                  <strong style={{ color: "#0ea5e9" }}>{totalLbs.toFixed(1)} lbs</strong> of food producing <strong style={{ color: "#f59e0b" }}>{Math.round(totalCals).toLocaleString()} calories</strong> — enough to feed <strong style={{ color: "#22c55e" }}>{p} people for {peopleFedDays.toFixed(1)} days</strong> at 2,000 cal/person/day.
+                  {peopleFedDays < 7 && <span style={{ color: "#ef4444" }}> Consider expanding your garden for greater food security.</span>}
+                </div>
+              </div>
+            </>)}
+          </div>
+        );
+      })()}
+
+      {/* ═══ SEEDS ═══ */}
+      {farmSub === "seeds" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {/* Summary */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+            <div style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: accent }}>{totalSeeds}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Seed Packs</div>
+            </div>
+            <div style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: accent }}>{totalVarieties}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Varieties</div>
+            </div>
+            <div style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: accent }}>{zone.seasonWeeks}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Season Weeks</div>
+            </div>
+          </div>
+
+          {/* Seed groups by status */}
+          {Object.entries(statusGroups).map(([label, seeds]) => (
+            <div key={label}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 4, background: seeds[0].status.color }} />
+                <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, color: seeds[0].status.color, textTransform: "uppercase", letterSpacing: 1 }}>{label}</h3>
+                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>({seeds.length})</span>
+              </div>
+              <div style={{ display: "grid", gap: 4 }}>
+                {seeds.map(({ item, crop, dates, status }) => (
+                  <div key={item.id} style={{ ...cardSt, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, borderLeft: "3px solid " + status.color }}>
+                    <span style={{ fontSize: 22 }}>{crop?.icon || "🌱"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{item.name}</div>
+                      <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+                        {dates?.indoorStart && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🏠 Indoor: <strong style={{ color: "#3b82f6" }}>{fmtDate(dates.indoorStart)}</strong></span>}
+                        {dates?.sowDate && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🌿 Plant: <strong style={{ color: "#22c55e" }}>{fmtDate(dates.sowDate)}</strong></span>}
+                        {dates?.harvestDate && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🍅 Harvest: <strong style={{ color: "#f97316" }}>{fmtDate(dates.harvestDate)}</strong></span>}
+                        {dates?.zd && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>⏱ {dates.zd.daysToHarvest}d</span>}
+                      </div>
+                      {crop && dates?.zd && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>💧 {dates.zd.waterFreq}</span>
+                          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>🧪 {dates.zd.fertSchedule}</span>
+                          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>📦 Stores {dates.zd.storageLife}d</span>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: accent }}>{item.quantity}</div>
+                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>packs</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {seedItems.length === 0 && (
+            <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>🌱</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>No seeds in inventory yet</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Add seed packets via the Dashboard → Farm category</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ CALENDAR ═══ */}
+      {farmSub === "calendar" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ ...cardSt, padding: 14, overflow: "hidden" }}>
+            <h3 style={{ margin: "0 0 12px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Growing Calendar — {climateLabel}</h3>
+            {/* Month headers */}
+            <div style={{ display: "grid", gridTemplateColumns: "120px repeat(12, 1fr)", gap: 0, marginBottom: 2 }}>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", padding: "2px 4px" }}>Crop</div>
+              {monthNames.map((m, i) => (
+                <div key={m} style={{ fontSize: 8, color: i === currentMonth ? accent : "rgba(255,255,255,0.3)", fontWeight: i === currentMonth ? 800 : 400, textAlign: "center", padding: "2px 0", borderBottom: i === currentMonth ? "2px solid " + accent : "1px solid rgba(255,255,255,0.04)", background: i === currentMonth ? "rgba(101,163,13,0.04)" : "transparent" }}>{m}</div>
+              ))}
+            </div>
+            {/* Frost markers */}
+            {!isTropical && (
+              <div style={{ display: "grid", gridTemplateColumns: "120px repeat(12, 1fr)", gap: 0, marginBottom: 2 }}>
+                <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", padding: "1px 4px" }}>Frost</div>
+                {monthNames.map((m, i) => {
+                  const isLastFrost = i === zone.lastFrostMonth - 1;
+                  const isFirstFrost = i === zone.firstFrostMonth - 1;
+                  return <div key={m + "f"} style={{ height: 4, background: isLastFrost ? "rgba(59,130,246,0.4)" : isFirstFrost ? "rgba(239,68,68,0.4)" : "transparent", borderRadius: 2 }} />;
+                })}
+              </div>
+            )}
+            {/* Crop rows */}
+            <div style={{ display: "grid", gap: 1, maxHeight: 400, overflowY: "auto" }}>
+              {enrichedSeeds.map(({ item, crop, dates }) => {
+                if (!crop || !dates) return null;
+                const indoorMonth = dates.indoorStart ? dates.indoorStart.getMonth() : -1;
+                const sowMonth = dates.sowDate ? dates.sowDate.getMonth() : -1;
+                const harvestMonth = dates.harvestDate ? dates.harvestDate.getMonth() : -1;
+                const harvestEndMonth = dates.zd ? Math.min(11, harvestMonth + Math.ceil(dates.zd.storageLife / 30)) : harvestMonth;
+                return (
+                  <div key={item.id} style={{ display: "grid", gridTemplateColumns: "120px repeat(12, 1fr)", gap: 0, alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 4px", overflow: "hidden" }}>
+                      <span style={{ fontSize: 12 }}>{crop.icon}</span>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{crop.name}</span>
+                    </div>
+                    {monthNames.map((m, mi) => {
+                      let bg = "transparent";
+                      let borderR = "0";
+                      let borderL = "0";
+                      if (mi === indoorMonth || (dates.indoorStart && mi === indoorMonth + 1)) { bg = "rgba(59,130,246,0.25)"; }
+                      else if (mi >= sowMonth && mi <= sowMonth + 1) { bg = "rgba(34,197,94,0.25)"; }
+                      if (mi >= harvestMonth && mi <= harvestEndMonth) { bg = "rgba(249,115,22,0.3)"; }
+                      if (mi === indoorMonth) borderL = "2px solid #3b82f6";
+                      if (mi === sowMonth) borderL = "2px solid #22c55e";
+                      if (mi === harvestMonth) borderL = "2px solid #f97316";
+                      return <div key={m} style={{ height: 18, background: bg, borderLeft: borderL, borderRadius: 1, transition: "background 0.2s" }} />;
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Legend */}
+            <div style={{ display: "flex", gap: 16, marginTop: 12, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(59,130,246,0.25)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Indoor Start</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(34,197,94,0.25)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Transplant / Sow</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(249,115,22,0.3)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Harvest Window</span></div>
+              {!isTropical && <>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 4, background: "rgba(59,130,246,0.4)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Last Frost</span></div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 4, background: "rgba(239,68,68,0.4)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>First Frost</span></div>
+              </>}
+            </div>
+          </div>
+          {seedItems.length === 0 && (
+            <div style={{ ...cardSt, padding: "20px", textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Add seeds to your inventory to see the growing calendar</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ GARDEN PLANNER ═══ */}
+      {farmSub === "garden" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {/* Bed list */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Garden Beds ({gardenBeds.length})</h3>
+              <button onClick={() => setShowAddBed(!showAddBed)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(101,163,13,0.3)", background: "none", color: accent, fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>+ New Bed</button>
+            </div>
+            {showAddBed && (
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 2fr auto", gap: 4, marginBottom: 10, alignItems: "center" }}>
+                <input value={newBedName} onChange={e => setNewBedName(e.target.value)} placeholder="Name" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
+                <input type="number" value={newBedW} onChange={e => setNewBedW(parseInt(e.target.value) || 1)} min="1" max="12" placeholder="W" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: accent, fontSize: 11, fontFamily: M, textAlign: "center" }} />
+                <input type="number" value={newBedH} onChange={e => setNewBedH(parseInt(e.target.value) || 1)} min="1" max="12" placeholder="H" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: accent, fontSize: 11, fontFamily: M, textAlign: "center" }} />
+                <input value={newBedLoc} onChange={e => setNewBedLoc(e.target.value)} placeholder="Location" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
+                <button onClick={addBed} style={{ padding: "6px 10px", borderRadius: 6, background: accent, border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Create</button>
+              </div>
+            )}
+            <div style={{ display: "grid", gap: 4 }}>
+              {gardenBeds.map(bed => {
+                const planted = bed.cells.length;
+                const total = bed.width * bed.height;
+                const isActive = selectedBed === bed.id;
+                return (
+                  <div key={bed.id} onClick={() => setSelectedBed(isActive ? null : bed.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: isActive ? "rgba(101,163,13,0.06)" : "rgba(255,255,255,0.01)", border: isActive ? "1px solid rgba(101,163,13,0.2)" : "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "all 0.15s" }}>
+                    <span style={{ fontSize: 16 }}>🟫</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? "#fff" : "rgba(255,255,255,0.6)" }}>{bed.name}</div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{bed.width}×{bed.height} ft · {bed.location} · {planted}/{total} planted</div>
+                    </div>
+                    <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                      <div style={{ width: (planted / total * 100) + "%", height: "100%", background: accent, borderRadius: 2 }} />
+                    </div>
+                    <span onClick={(e) => { e.stopPropagation(); removeBed(bed.id); }} style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", cursor: "pointer", padding: "2px 4px" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.15)"}>×</span>
+                  </div>
+                );
+              })}
+              {gardenBeds.length === 0 && (
+                <div style={{ textAlign: "center", padding: "20px 12px" }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>No garden beds yet. Create one to start planning your layout.</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Grid view */}
+          {selectedBed && (() => {
+            const bed = gardenBeds.find(b => b.id === selectedBed);
+            if (!bed) return null;
+            const totalYield = bed.cells.reduce((s, c) => {
+              const crop = CROP_DATABASE.find(cr => cr.id === c.cropId);
+              const zd = crop?.zones[climate] || crop?.zones.temperate;
+              return s + (zd?.yieldPerPlant || 0);
+            }, 0);
+            return (
+              <div style={{ ...cardSt, padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#fff" }}>🟫 {bed.name} <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>{bed.width}×{bed.height} ft</span></h3>
+                  <div style={{ fontSize: 9, color: accent }}>Est. yield: {totalYield.toFixed(1)} lbs</div>
+                </div>
+                {/* Crop palette */}
+                <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 12, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <button onClick={() => setSelectedCrop(null)} style={{ padding: "3px 8px", borderRadius: 5, border: !selectedCrop ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(255,255,255,0.06)", background: !selectedCrop ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.02)", color: !selectedCrop ? "#ef4444" : "rgba(255,255,255,0.3)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>🧹 Erase</button>
+                  {CROP_DATABASE.filter(c => c.zones[climate] !== null).slice(0, 20).map(c => (
+                    <button key={c.id} onClick={() => setSelectedCrop(c.id)} style={{ padding: "3px 8px", borderRadius: 5, border: selectedCrop === c.id ? "1px solid " + accent : "1px solid rgba(255,255,255,0.06)", background: selectedCrop === c.id ? "rgba(101,163,13,0.08)" : "rgba(255,255,255,0.02)", color: selectedCrop === c.id ? accent : "rgba(255,255,255,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{c.icon} {c.name}</button>
+                  ))}
+                </div>
+                {/* Grid */}
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${bed.width}, 44px)`, gap: 2, justifyContent: "center", marginBottom: 10 }}>
+                  {Array.from({ length: bed.height }).map((_, y) =>
+                    Array.from({ length: bed.width }).map((_, x) => {
+                      const cell = bed.cells.find(c => c.x === x && c.y === y);
+                      const crop = cell ? CROP_DATABASE.find(c => c.id === cell.cropId) : null;
+                      const conflict = cell ? getCompanionStatus(bed.id, x, y, cell.cropId) : null;
+                      return (
+                        <div key={x + "-" + y} onClick={() => toggleCell(bed.id, x, y)} style={{ width: 44, height: 44, borderRadius: 6, border: conflict ? "2px solid rgba(239,68,68,0.5)" : cell ? "1px solid rgba(101,163,13,0.2)" : "1px dashed rgba(255,255,255,0.08)", background: cell ? "rgba(101,163,13,0.06)" : "rgba(255,255,255,0.01)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: crop ? 20 : 10, color: "rgba(255,255,255,0.1)", transition: "all 0.15s", position: "relative" }} title={crop ? crop.name + (conflict ? " ⚠ Companion conflict!" : "") : "Empty"}>
+                          {crop ? crop.icon : "·"}
+                          {conflict && <div style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#ef4444", fontSize: 6, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>!</div>}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>Click a crop above, then click cells to plant. Click planted cells to remove. Red borders = companion conflicts.</div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ═══ GUIDE ═══ */}
+      {farmSub === "guide" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {/* Filter controls */}
+          <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={() => setGuideFilter("inventory")} style={{ padding: "4px 10px", borderRadius: 6, border: guideFilter === "inventory" ? "1px solid " + accent : "1px solid rgba(255,255,255,0.06)", background: guideFilter === "inventory" ? "rgba(101,163,13,0.08)" : "rgba(255,255,255,0.02)", color: guideFilter === "inventory" ? accent : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌱 My Seeds</button>
+            <button onClick={() => setGuideFilter("all")} style={{ padding: "4px 10px", borderRadius: 6, border: guideFilter === "all" ? "1px solid " + accent : "1px solid rgba(255,255,255,0.06)", background: guideFilter === "all" ? "rgba(101,163,13,0.08)" : "rgba(255,255,255,0.02)", color: guideFilter === "all" ? accent : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📚 All Crops</button>
+            <div style={{ marginLeft: 8, display: "flex", gap: 4 }}>
+              {["all","vegetable","fruit","herb","root"].map(cat => (
+                <button key={cat} onClick={() => setGuideCatFilter(cat)} style={{ padding: "3px 8px", borderRadius: 5, border: guideCatFilter === cat ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: guideCatFilter === cat ? "rgba(200,85,58,0.08)" : "rgba(255,255,255,0.02)", color: guideCatFilter === cat ? "#c8553a" : "rgba(255,255,255,0.3)", fontSize: 8, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>{cat === "all" ? "All" : cat}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 8, color: accent, padding: "4px 8px", background: "rgba(101,163,13,0.04)", borderRadius: 6, border: "1px solid rgba(101,163,13,0.08)" }}>Growing data for <strong>{climateLabel}</strong> climate{!isTropical && <> · Last frost: {fmtDate(lastFrostDate)} · First frost: {fmtDate(firstFrostDate)}</>}</div>
+
+          {/* Crop cards */}
+          <div style={{ display: "grid", gap: 4 }}>
+            {CROP_DATABASE.filter(c => {
+              if (c.zones[climate] === null || c.zones[climate] === undefined) return false;
+              if (guideCatFilter !== "all" && c.cat !== guideCatFilter) return false;
+              if (guideFilter === "inventory") {
+                return seedItems.some(i => (i.fields?.cropName || "").toLowerCase().includes(c.name.toLowerCase()));
+              }
+              return true;
+            }).map(crop => {
+              const zd = crop.zones[climate] || crop.zones.temperate;
+              if (!zd) return null;
+              const dates = getPlantDate(crop);
+              const isExpanded = expandedCrop === crop.id;
+              return (
+                <div key={crop.id} onClick={() => setExpandedCrop(isExpanded ? null : crop.id)} style={{ ...cardSt, padding: "10px 14px", cursor: "pointer", transition: "all 0.15s", borderLeft: "3px solid " + accent }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 22 }}>{crop.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{crop.name}</span>
+                        <span style={{ fontSize: 7, padding: "1px 5px", borderRadius: 3, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>{crop.cat}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>💧 {zd.waterFreq}</span>
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🧪 {zd.fertSchedule}</span>
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>⏱ {zd.daysToHarvest}d</span>
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>📦 {zd.storageLife}d</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+                  </div>
+                  {isExpanded && (
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", display: "grid", gap: 8 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Watering</div><div style={{ fontSize: 11, color: "#0ea5e9", fontWeight: 600 }}>{zd.waterFreq}</div></div>
+                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Fertilizer</div><div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>{zd.fertSchedule}</div></div>
+                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Days to Harvest</div><div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>{zd.daysToHarvest} days</div></div>
+                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Yield / Plant</div><div style={{ fontSize: 11, color: accent, fontWeight: 600 }}>{zd.yieldPerPlant} lbs</div></div>
+                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Storage Life</div><div style={{ fontSize: 11, color: "#f97316", fontWeight: 600 }}>{zd.storageLife} days</div></div>
+                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Spacing</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>{crop.spacingSqFt} sq ft</div></div>
+                      </div>
+                      {dates && (
+                        <div style={{ display: "flex", gap: 12, padding: "6px 0", flexWrap: "wrap" }}>
+                          {dates.indoorStart && <span style={{ fontSize: 9, color: "#3b82f6" }}>🏠 Start indoors: {fmtDate(dates.indoorStart)}</span>}
+                          <span style={{ fontSize: 9, color: "#22c55e" }}>🌿 Plant outdoors: {fmtDate(dates.sowDate)}</span>
+                          <span style={{ fontSize: 9, color: "#f97316" }}>🍅 Harvest: {fmtDate(dates.harvestDate)}</span>
+                        </div>
+                      )}
+                      <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Pests & Problems</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>{crop.pestInfo}</div></div>
+                      <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Harvest Indicator</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>{crop.harvestTip}</div></div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ flex: 1, minWidth: 120 }}>
+                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Companions ✓</div>
+                          <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                            {crop.companions.map(c => { const cc = CROP_DATABASE.find(cr => cr.id === c); return <span key={c} style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.15)" }}>{cc?.icon || "🌱"} {cc?.name || c}</span>; })}
+                          </div>
+                        </div>
+                        {crop.avoid.length > 0 && (
+                          <div style={{ flex: 1, minWidth: 120 }}>
+                            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Avoid ✗</div>
+                            <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                              {crop.avoid.map(c => { const cc = CROP_DATABASE.find(cr => cr.id === c); return <span key={c} style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.12)" }}>{cc?.icon || "⚠"} {cc?.name || c}</span>; })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── localStorage helpers ── */
 const PV_STORAGE_KEY = "prepvault-db";
 function loadSaved() {
@@ -5715,6 +6579,8 @@ export default function PrepVault() {
   const [newPropType, setNewPropType] = useState("cabin");
   const [crisisMode, setCrisisMode] = useState(false);
   const [crisisStart, setCrisisStart] = useState(null);
+  const [crisisType, setCrisisType] = useState(null);
+  const [showCrisisSelector, setShowCrisisSelector] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addCat, setAddCat] = useState(null);
   const [editItem, setEditItem] = useState(null);
@@ -5730,6 +6596,8 @@ export default function PrepVault() {
   const [codeWords, setCodeWords] = useState(() => saved.current?.codeWords || COMMS_PLAN.codeWords);
   const [rallyPoints, setRallyPoints] = useState(() => saved.current?.rallyPoints || COMMS_PLAN.rallyPoints);
   const [codes, setCodes] = useState(() => saved.current?.codes || SAMPLE_CODES);
+  const [gardenBeds, setGardenBeds] = useState(() => saved.current?.gardenBeds || []);
+  const [actionLog, setActionLog] = useState(() => saved.current?.actionLog || []);
   const [manuals] = useState(SAMPLE_MANUALS);
   const [routes] = useState(SAMPLE_ROUTES);
   const [amenities] = useState(SAMPLE_AMENITIES);
@@ -5762,6 +6630,8 @@ export default function PrepVault() {
   const [authPassword, setAuthPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
   const [syncStatus, setSyncStatus] = useState("local"); // 'local' | 'syncing' | 'synced' | 'error' | 'offline'
   const syncEngineRef = useRef(null);
 
@@ -5774,7 +6644,7 @@ export default function PrepVault() {
       try {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
           items, people, climate, pins, propAddress, properties, activePropertyId,
-          members, contacts, callSigns, codeWords, rallyPoints, codes,
+          members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
           savedAt: new Date().toISOString()
         }));
         setDbStatus("saved");
@@ -5784,7 +6654,7 @@ export default function PrepVault() {
       } catch { /* storage full or unavailable */ }
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes]);
+  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -5878,7 +6748,10 @@ export default function PrepVault() {
         if (authMode === "signup") {
           const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
           if (error) throw error;
-          showToast("Account created! Check email for verification.", "success");
+          setVerificationEmail(authEmail);
+          setShowVerification(true);
+          setAuthLoading(false);
+          return;
         } else {
           const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
           if (error) throw error;
@@ -5922,6 +6795,7 @@ export default function PrepVault() {
         setCallSigns([{ sign: "BASE", person: "You" }]);
         setCodeWords([]);
         setRallyPoints([]);
+        setCodes([]);
         setOnboardStep(0);
       }
     } catch (err) {
@@ -6213,7 +7087,7 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate, codes]);
 
-  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
+  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
 
   const renderContent = () => {
     if (selCat) {
@@ -6221,13 +7095,15 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} />;
+        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} />;
       case "property":
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} />;
       case "community":
         return <CommunityTab members={members} setMembers={setMembers} contacts={contacts} setContacts={setContacts} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} items={propItems} people={people} climate={climate} user={user} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} />;
+      case "farming":
+        return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} />;
       case "systems":
         return <SystemsTab items={propItems} people={people} climate={climate} />;
       case "simulate":
@@ -6247,6 +7123,23 @@ export default function PrepVault() {
           <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{authMode === "signup" ? "Sign up to sync your data across devices" : "Sign in to access your cloud data"}</p>
         </div>
         <div style={{ padding: "20px 24px" }}>
+          {showVerification ? (
+            <div style={{ textAlign: "center", padding: "10px 0" }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>📧</div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: "0 0 8px" }}>Check Your Email</h3>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", margin: "0 0 6px", lineHeight: 1.5 }}>We sent a verification link to</p>
+              <p style={{ fontSize: 13, color: "#c8553a", fontWeight: 700, fontFamily: M, margin: "0 0 16px" }}>{verificationEmail}</p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "0 0 20px", lineHeight: 1.5 }}>Click the link in the email to verify your account, then sign in.</p>
+              <button onClick={() => { setShowVerification(false); setShowAuth(false); setAuthMode("login"); setAuthEmail(""); setAuthPassword(""); }}
+                style={{ width: "100%", padding: "12px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>
+                OK, I'll Check My Email
+              </button>
+              <button onClick={async () => { try { await supabase.auth.resend({ type: "signup", email: verificationEmail }); showToast("Verification email resent", "success"); } catch { showToast("Failed to resend", "error"); } }}
+                style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>
+                Resend verification email
+              </button>
+            </div>
+          ) : (<>
           {authError && <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 10, color: "#ef4444" }}>❌ {authError}</div>}
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Email</label>
@@ -6264,9 +7157,10 @@ export default function PrepVault() {
           </div>
           <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(255,255,255,0.02)" : "rgba(14,165,233,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(255,255,255,0.04)" : "rgba(14,165,233,0.15)"), textAlign: "center" }}>
             <div style={{ fontSize: 9, color: supabaseConfigured ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.7)", lineHeight: 1.5 }}>
-              {supabaseConfigured ? <>☁️ Cloud sync enabled. Your data syncs across devices.</> : <>💾 Local mode — your account is stored on this device only.</>}
+              {supabaseConfigured ? <>☁️ Cloud sync enabled. Your data syncs across devices.</> : <>💾 Local mode — your account is stored on this device only.{authMode === "signup" ? " Email verification requires cloud mode." : ""}</>}
             </div>
           </div>
+          </>)}
         </div>
         <div style={{ padding: "12px 24px 18px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
           <button onClick={() => { setShowAuth(false); if (showLanding) setShowLanding(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
@@ -6465,7 +7359,7 @@ export default function PrepVault() {
             </div>
           )}
           <button onClick={() => setShowSecurity(true)} style={{ ...btnSt, background: encryptedDb ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)", color: encryptedDb ? "#22c55e" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: encryptedDb ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(255,255,255,0.06)" }} title="Security & Privacy">🔒</button>
-          <button onClick={() => { if (!crisisMode) { setCrisisMode(true); setCrisisStart(new Date()); } else { setCrisisMode(false); setCrisisStart(null); } }} style={{ ...btnSt, background: crisisMode ? "#ef4444" : "rgba(239,68,68,0.06)", color: crisisMode ? "#fff" : "#ef4444", fontWeight: 800, fontSize: 10, padding: "8px 14px", border: crisisMode ? "1px solid #ef4444" : "1px solid rgba(239,68,68,0.15)", letterSpacing: 1, textTransform: "uppercase", animation: crisisMode ? "pulse 2s infinite" : "none" }}>{crisisMode ? "⚡ ACTIVE" : "⚡ ACTIVATE"}</button>
+          <button onClick={() => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } }} style={{ ...btnSt, background: crisisMode ? "#ef4444" : "rgba(239,68,68,0.06)", color: crisisMode ? "#fff" : "#ef4444", fontWeight: 800, fontSize: 10, padding: "8px 14px", border: crisisMode ? "1px solid #ef4444" : "1px solid rgba(239,68,68,0.15)", letterSpacing: 1, textTransform: "uppercase", animation: crisisMode ? "pulse 2s infinite" : "none" }}>{crisisMode ? "⚡ ACTIVE" : "⚡ ACTIVATE"}</button>
           {isOffline && <div style={{ padding: "4px 8px", borderRadius: 8, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", fontSize: 9, color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>OFFLINE</div>}
           {/* Auth Button */}
           {user ? (
@@ -6486,7 +7380,6 @@ export default function PrepVault() {
             <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}
               style={{ padding: "11px 18px", background: "none", border: "none", borderBottom: activeTab === tab.id ? "2px solid #c8553a" : "2px solid transparent", color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, fontFamily: "inherit", transition: "color 0.15s" }}>
               <span style={{ fontSize: 14 }}>{tab.i}</span> {tab.l}
-              {tab.id === "property" && !propUnlocked && <span style={{ fontSize: 9 }}>🔒</span>}
               {tab.id === "community" && <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 8, background: "rgba(34,197,94,0.12)", color: "#22c55e", fontWeight: 700 }}>{members.filter((m) => m.sharing).length}</span>}
             </button>
           ))}
@@ -6545,8 +7438,29 @@ export default function PrepVault() {
                 <div style={{ width: 8, height: 8, borderRadius: 4, background: "#ef4444", animation: "pulse 1s infinite" }} />
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>Crisis Mode Active</div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: M }}>Elapsed: {elapsed}h</div>
-                <button onClick={() => { setCrisisMode(false); setCrisisStart(null); }} style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 9, fontWeight: 600, fontFamily: "inherit" }}>Deactivate</button>
+                <button onClick={() => { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); }} style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 9, fontWeight: 600, fontFamily: "inherit" }}>Deactivate</button>
               </div>
+
+              {/* Immediate Actions for Crisis Type */}
+              {crisisType && (() => {
+                const ct = CRISIS_TYPES.find(c => c.id === crisisType);
+                if (!ct) return null;
+                return (
+                  <div style={{ padding: 14, marginBottom: 12, borderRadius: 10, borderLeft: "4px solid " + ct.color, background: ct.color + "08", border: "1px solid " + ct.color + "20" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 20 }}>{ct.icon}</span>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: ct.color, fontFamily: M }}>{ct.name}</div>
+                    </div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Immediate Actions</div>
+                    {ct.actions.map((a, i) => (
+                      <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                        <span style={{ color: ct.color, fontWeight: 800, fontSize: 12, flexShrink: 0, fontFamily: M }}>{i + 1}.</span>
+                        <span>{a}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Resource countdown */}
               <div className="pcs-crisis-grid">
@@ -6694,6 +7608,29 @@ export default function PrepVault() {
           </div>
         );
       })()}
+
+      {/* ═══ Crisis Type Selector Modal ═══ */}
+      {showCrisisSelector && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowCrisisSelector(false)}>
+          <div style={{ background: "#1a1a1a", borderRadius: 16, border: "2px solid rgba(239,68,68,0.3)", maxWidth: 480, width: "100%", padding: 24, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#ef4444", fontFamily: M }}>⚡ Activate Crisis Mode</h2>
+            <p style={{ margin: "0 0 16px", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Select the type of crisis to receive targeted immediate action steps.</p>
+            <div style={{ display: "grid", gap: 6 }}>
+              {CRISIS_TYPES.map(ct => (
+                <button key={ct.id} onClick={() => { setCrisisType(ct.id); setCrisisMode(true); setCrisisStart(new Date()); setShowCrisisSelector(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10, border: "1px solid " + ct.color + "30", background: ct.color + "08", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#fff" }}>
+                  <span style={{ fontSize: 24 }}>{ct.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: ct.color }}>{ct.name}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{ct.actions[0]}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowCrisisSelector(false)} style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* ═══ Security & Privacy Panel ═══ */}
       {showSecurity && (
