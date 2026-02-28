@@ -727,6 +727,94 @@ const COMMS_PLAN = {
   duress: "If captured or under duress, append 'COPY THAT, ALL STATIONS' to any transmission — this phrase is NEVER used in normal comms and signals distress.",
 };
 
+/* ── Emergency Frequency Database ── */
+const EMERGENCY_FREQUENCIES = [
+  // NOAA Weather Radio
+  { freq: "162.400", name: "NOAA Weather 1 (WX1)", mode: "NFM", use: "Continuous weather broadcasts & alerts", license: "none", band: "noaa", priority: "high" },
+  { freq: "162.425", name: "NOAA Weather 2 (WX2)", mode: "NFM", use: "Continuous weather broadcasts & alerts", license: "none", band: "noaa", priority: "high" },
+  { freq: "162.450", name: "NOAA Weather 3 (WX3)", mode: "NFM", use: "Continuous weather broadcasts & alerts", license: "none", band: "noaa", priority: "high" },
+  { freq: "162.475", name: "NOAA Weather 4 (WX4)", mode: "NFM", use: "Continuous weather broadcasts & alerts", license: "none", band: "noaa", priority: "med" },
+  { freq: "162.500", name: "NOAA Weather 5 (WX5)", mode: "NFM", use: "Continuous weather broadcasts & alerts", license: "none", band: "noaa", priority: "med" },
+  { freq: "162.525", name: "NOAA Weather 6 (WX6)", mode: "NFM", use: "Continuous weather broadcasts & alerts", license: "none", band: "noaa", priority: "med" },
+  { freq: "162.550", name: "NOAA Weather 7 (WX7)", mode: "NFM", use: "Continuous weather broadcasts & alerts", license: "none", band: "noaa", priority: "med" },
+  // HAM 2-Meter Band
+  { freq: "146.520", name: "2m National Calling", mode: "FM Simplex", use: "National simplex calling frequency", license: "ham", band: "ham2m", priority: "high" },
+  { freq: "146.550", name: "2m Simplex Emergency", mode: "FM Simplex", use: "Emergency simplex traffic", license: "ham", band: "ham2m", priority: "emergency" },
+  { freq: "146.580", name: "2m Simplex", mode: "FM Simplex", use: "General simplex communications", license: "ham", band: "ham2m", priority: "low" },
+  { freq: "147.000", name: "2m Repeater Output", mode: "FM Repeater", use: "Common repeater output frequency", license: "ham", band: "ham2m", priority: "med" },
+  { freq: "147.360", name: "2m Repeater Output", mode: "FM Repeater", use: "Local area repeater", license: "ham", band: "ham2m", priority: "med" },
+  { freq: "145.050", name: "2m Packet/APRS", mode: "Digital", use: "Packet radio / APRS tracking", license: "ham", band: "ham2m", priority: "low" },
+  { freq: "144.200", name: "2m SSB Calling", mode: "USB", use: "SSB calling frequency — weak signal", license: "ham", band: "ham2m", priority: "low" },
+  // HAM 70cm Band
+  { freq: "446.000", name: "70cm National Calling", mode: "FM Simplex", use: "UHF simplex calling frequency", license: "ham", band: "ham70cm", priority: "med" },
+  { freq: "446.500", name: "70cm Simplex", mode: "FM Simplex", use: "General UHF simplex", license: "ham", band: "ham70cm", priority: "low" },
+  { freq: "449.950", name: "70cm Repeater", mode: "FM Repeater", use: "UHF repeater output", license: "ham", band: "ham70cm", priority: "low" },
+  // HAM HF Bands
+  { freq: "7.200", name: "40m Phone Net", mode: "LSB", use: "Regional nets, ARES/RACES traffic", license: "ham", band: "hamhf", priority: "med" },
+  { freq: "3.860", name: "75m Phone Net", mode: "LSB", use: "Regional emergency nets (night)", license: "ham", band: "hamhf", priority: "med" },
+  { freq: "14.300", name: "20m Emergency", mode: "USB", use: "Intl. emergency / SATERN / Hurricane Net", license: "ham", band: "hamhf", priority: "high" },
+  { freq: "7.030", name: "40m CW QRP", mode: "CW", use: "Low-power CW calling", license: "ham", band: "hamhf", priority: "low" },
+  // GMRS
+  { freq: "462.5625", name: "GMRS Ch 1", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "med" },
+  { freq: "462.5875", name: "GMRS Ch 2", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "low" },
+  { freq: "462.6125", name: "GMRS Ch 3", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "low" },
+  { freq: "462.6375", name: "GMRS Ch 4", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "low" },
+  { freq: "462.6625", name: "GMRS Ch 5", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "low" },
+  { freq: "462.6875", name: "GMRS Ch 6", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "low" },
+  { freq: "462.7125", name: "GMRS Ch 7", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "low" },
+  { freq: "462.7375", name: "GMRS Ch 8", mode: "NFM", use: "General communications", license: "gmrs", band: "gmrs", priority: "low" },
+  { freq: "462.5500", name: "GMRS Repeater 15R", mode: "NFM Rpt", use: "GMRS repeater pair — extended range", license: "gmrs", band: "gmrs", priority: "med" },
+  { freq: "462.5750", name: "GMRS Emergency Ch 20", mode: "NFM", use: "Recognized GMRS emergency channel", license: "gmrs", band: "gmrs", priority: "high" },
+  // FRS
+  { freq: "462.5625", name: "FRS Ch 1", mode: "NFM 12.5kHz", use: "Family/group — shared with GMRS", license: "none", band: "frs", priority: "med" },
+  { freq: "467.5625", name: "FRS Ch 8", mode: "NFM 12.5kHz", use: "FRS only channel (0.5W limit)", license: "none", band: "frs", priority: "low" },
+  { freq: "462.5625", name: "FRS/GMRS Ch 1", mode: "NFM", use: "Most common FRS channel", license: "none", band: "frs", priority: "med" },
+  // MURS
+  { freq: "151.820", name: "MURS Ch 1", mode: "NFM 11.25kHz", use: "License-free VHF — business/personal", license: "none", band: "murs", priority: "med" },
+  { freq: "151.880", name: "MURS Ch 2", mode: "NFM 11.25kHz", use: "License-free VHF — business/personal", license: "none", band: "murs", priority: "low" },
+  { freq: "151.940", name: "MURS Ch 3", mode: "NFM 11.25kHz", use: "License-free VHF — business/personal", license: "none", band: "murs", priority: "low" },
+  { freq: "154.570", name: "MURS Ch 4", mode: "FM 20kHz", use: "License-free VHF (wider bandwidth)", license: "none", band: "murs", priority: "low" },
+  { freq: "154.600", name: "MURS Ch 5", mode: "FM 20kHz", use: "License-free VHF (wider bandwidth)", license: "none", band: "murs", priority: "low" },
+  // CB
+  { freq: "27.065", name: "CB Ch 9 — Emergency", mode: "AM", use: "Official CB emergency channel", license: "none", band: "cb", priority: "emergency" },
+  { freq: "27.185", name: "CB Ch 19 — Highway", mode: "AM", use: "Trucker/highway info channel", license: "none", band: "cb", priority: "high" },
+  { freq: "27.025", name: "CB Ch 4", mode: "AM", use: "Road conditions / local traffic", license: "none", band: "cb", priority: "low" },
+  { freq: "27.255", name: "CB Ch 23", mode: "AM", use: "General communications", license: "none", band: "cb", priority: "low" },
+  // Marine VHF
+  { freq: "156.800", name: "Marine Ch 16 — Distress", mode: "FM", use: "International distress & calling", license: "marine", band: "marine", priority: "emergency" },
+  { freq: "156.450", name: "Marine Ch 9 — Alt Calling", mode: "FM", use: "Non-commercial calling channel", license: "marine", band: "marine", priority: "med" },
+  { freq: "157.100", name: "Marine Ch 22A — Coast Guard", mode: "FM", use: "US Coast Guard liaison", license: "marine", band: "marine", priority: "high" },
+  { freq: "156.650", name: "Marine Ch 13 — Bridge", mode: "FM 1W", use: "Bridge-to-bridge navigation safety", license: "marine", band: "marine", priority: "med" },
+];
+
+const NATO_PHONETIC = [
+  { letter: "A", word: "Alpha" }, { letter: "B", word: "Bravo" }, { letter: "C", word: "Charlie" },
+  { letter: "D", word: "Delta" }, { letter: "E", word: "Echo" }, { letter: "F", word: "Foxtrot" },
+  { letter: "G", word: "Golf" }, { letter: "H", word: "Hotel" }, { letter: "I", word: "India" },
+  { letter: "J", word: "Juliet" }, { letter: "K", word: "Kilo" }, { letter: "L", word: "Lima" },
+  { letter: "M", word: "Mike" }, { letter: "N", word: "November" }, { letter: "O", word: "Oscar" },
+  { letter: "P", word: "Papa" }, { letter: "Q", word: "Quebec" }, { letter: "R", word: "Romeo" },
+  { letter: "S", word: "Sierra" }, { letter: "T", word: "Tango" }, { letter: "U", word: "Uniform" },
+  { letter: "V", word: "Victor" }, { letter: "W", word: "Whiskey" }, { letter: "X", word: "X-ray" },
+  { letter: "Y", word: "Yankee" }, { letter: "Z", word: "Zulu" },
+];
+
+const PROWORDS = [
+  { word: "MAYDAY", meaning: "Grave and imminent danger — life at risk", use: "Say 3 times, then your call sign and situation", severity: "critical" },
+  { word: "PAN-PAN", meaning: "Urgent situation — no immediate danger to life", use: "Say 3 times, then describe situation", severity: "amber" },
+  { word: "SECURITE", meaning: "Safety message — weather or navigation hazard", use: "Say 3 times before broadcasting safety info", severity: "info" },
+  { word: "ROGER", meaning: "Message received and understood", use: "Acknowledge receipt only — does NOT mean yes", severity: "info" },
+  { word: "WILCO", meaning: "Will comply with instructions", use: "Acknowledges AND confirms you will act", severity: "info" },
+  { word: "SAY AGAIN", meaning: "Repeat your last transmission", use: "Never say 'repeat' — it means fire again in military", severity: "info" },
+  { word: "BREAK", meaning: "Pause between portions of a message", use: "Used when message is long or changing topics", severity: "info" },
+  { word: "OUT", meaning: "End of transmission, no reply expected", use: "Final word of conversation. Never say 'over and out'", severity: "info" },
+  { word: "OVER", meaning: "End of my turn, expecting reply", use: "Signals you are done talking, awaiting response", severity: "info" },
+  { word: "RADIO CHECK", meaning: "How do you read my signal?", use: "Used to verify radio is working and signal strength", severity: "info" },
+  { word: "COPY", meaning: "I have received and understood", use: "Similar to Roger — confirms comprehension", severity: "info" },
+  { word: "AFFIRMATIVE", meaning: "Yes", use: "Use instead of 'yes' for clarity", severity: "info" },
+  { word: "NEGATIVE", meaning: "No", use: "Use instead of 'no' for clarity", severity: "info" },
+];
+
 /* ── Multi-Property ── */
 const DEFAULT_PROPERTIES = [
   { id: "prop1", name: "Primary Residence", type: "home", icon: "🏠", active: true },
@@ -3887,6 +3975,451 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
    MAIN APP
    ═══════════════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════════
+   COMMS TAB — Emergency Radio Channel Monitor
+   ═══════════════════════════════════════════════════════════════ */
+function CommsTab({ items, people, climate }) {
+  const M = "'JetBrains Mono',monospace";
+  const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
+
+  const [commsSub, setCommsSub] = useState("scanner");
+  const [scanning, setScanning] = useState(true);
+  const [scanIdx, setScanIdx] = useState(0);
+  const [bandFilter, setBandFilter] = useState("all");
+  const [freqSearch, setFreqSearch] = useState("");
+  const [monitoredChannels, setMonitoredChannels] = useState(() => {
+    // Default monitored channels
+    return [
+      { freq: "162.400", name: "NOAA WX1", status: "active", signal: 4, lastHeard: "2m ago", band: "noaa" },
+      { freq: "146.520", name: "2m Calling", status: "monitoring", signal: 2, lastHeard: "18m ago", band: "ham2m" },
+      { freq: "146.550", name: "Emergency Simplex", status: "quiet", signal: 0, lastHeard: "—", band: "ham2m" },
+      { freq: "462.5625", name: "GMRS Ch 1", status: "monitoring", signal: 1, lastHeard: "45m ago", band: "gmrs" },
+      { freq: "462.5750", name: "GMRS Emergency", status: "quiet", signal: 0, lastHeard: "—", band: "gmrs" },
+      { freq: "27.065", name: "CB Ch 9 Emergency", status: "quiet", signal: 0, lastHeard: "—", band: "cb" },
+      { freq: "27.185", name: "CB Ch 19 Highway", status: "active", signal: 3, lastHeard: "6m ago", band: "cb" },
+      { freq: "156.800", name: "Marine Ch 16", status: "monitoring", signal: 1, lastHeard: "1h ago", band: "marine" },
+      { freq: "151.820", name: "MURS Ch 1", status: "quiet", signal: 0, lastHeard: "—", band: "murs" },
+      { freq: "14.300", name: "20m Emergency", status: "monitoring", signal: 2, lastHeard: "32m ago", band: "hamhf" },
+      { freq: "7.200", name: "40m Phone Net", status: "quiet", signal: 0, lastHeard: "3h ago", band: "hamhf" },
+      { freq: "147.000", name: "Local Repeater", status: "active", signal: 5, lastHeard: "just now", band: "ham2m" },
+    ];
+  });
+  const [showAddFreq, setShowAddFreq] = useState(false);
+  const [newFreq, setNewFreq] = useState("");
+  const [newFreqName, setNewFreqName] = useState("");
+
+  const subTabs = [
+    { id: "scanner", l: "Scanner", i: "📡" },
+    { id: "freqs", l: "Frequencies", i: "📻" },
+    { id: "schedule", l: "Schedule", i: "🕐" },
+    { id: "codes", l: "Codes", i: "🔐" },
+    { id: "equipment", l: "Equipment", i: "🔧" },
+  ];
+
+  // Scanner animation — cycle through channels
+  useEffect(() => {
+    if (!scanning) return;
+    const timer = setInterval(() => {
+      setScanIdx(i => (i + 1) % monitoredChannels.length);
+    }, 2200);
+    return () => clearInterval(timer);
+  }, [scanning, monitoredChannels.length]);
+
+  // Next check-in countdown
+  const [countdown, setCountdown] = useState("");
+  useEffect(() => {
+    function calcCountdown() {
+      const now = new Date();
+      const times = COMMS_PLAN.schedule.map(s => {
+        const [h, m] = s.time.split(":").map(Number);
+        const t = new Date(now);
+        t.setHours(h, m, 0, 0);
+        if (t <= now) t.setDate(t.getDate() + 1);
+        return { ...s, date: t, diff: t - now };
+      });
+      times.sort((a, b) => a.diff - b.diff);
+      const next = times[0];
+      const mins = Math.floor(next.diff / 60000);
+      const hrs = Math.floor(mins / 60);
+      const remMins = mins % 60;
+      setCountdown({ label: next.desc, time: next.time, display: hrs > 0 ? `${hrs}h ${remMins}m` : `${remMins}m`, mandatory: next.mandatory });
+    }
+    calcCountdown();
+    const iv = setInterval(calcCountdown, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const currentChannel = monitoredChannels[scanIdx] || monitoredChannels[0];
+
+  // Band filter for frequency database
+  const bands = [
+    { id: "all", l: "All" }, { id: "noaa", l: "NOAA" }, { id: "ham2m", l: "2m" }, { id: "ham70cm", l: "70cm" },
+    { id: "hamhf", l: "HF" }, { id: "gmrs", l: "GMRS" }, { id: "frs", l: "FRS" }, { id: "murs", l: "MURS" },
+    { id: "cb", l: "CB" }, { id: "marine", l: "Marine" },
+  ];
+
+  const filteredFreqs = EMERGENCY_FREQUENCIES.filter(f => {
+    if (bandFilter !== "all" && f.band !== bandFilter) return false;
+    if (freqSearch && !f.name.toLowerCase().includes(freqSearch.toLowerCase()) && !f.freq.includes(freqSearch)) return false;
+    return true;
+  });
+
+  // Equipment from inventory
+  const commsEquip = items.filter(i => i.category === "comms");
+
+  const statusColor = (s) => s === "active" ? "#22c55e" : s === "monitoring" ? "#f59e0b" : "rgba(255,255,255,0.15)";
+  const priorityColor = (p) => p === "emergency" ? "#ef4444" : p === "high" ? "#f59e0b" : p === "med" ? "#0ea5e9" : "rgba(255,255,255,0.25)";
+  const licenseLabel = (l) => l === "ham" ? "HAM License" : l === "gmrs" ? "GMRS License" : l === "marine" ? "Marine License" : l === "none" ? "License-Free" : l;
+
+  const addMonitoredFreq = () => {
+    if (!newFreq.trim()) return;
+    setMonitoredChannels(prev => [...prev, { freq: newFreq.trim(), name: newFreqName.trim() || newFreq.trim() + " MHz", status: "quiet", signal: 0, lastHeard: "—", band: "custom" }]);
+    setNewFreq("");
+    setNewFreqName("");
+    setShowAddFreq(false);
+  };
+
+  const removeMonitoredFreq = (freq) => {
+    setMonitoredChannels(prev => prev.filter(c => c.freq !== freq));
+  };
+
+  const signalBars = (level) => {
+    return (
+      <div style={{ display: "flex", gap: 1, alignItems: "flex-end", height: 14 }}>
+        {[1, 2, 3, 4, 5].map(n => (
+          <div key={n} style={{ width: 3, height: 3 + n * 2, borderRadius: 1, background: n <= level ? "#22c55e" : "rgba(255,255,255,0.08)", transition: "background 0.3s" }} />
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* Sub-tab nav */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 16, overflowX: "auto" }}>
+        {subTabs.map(s => (
+          <button key={s.id} onClick={() => setCommsSub(s.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: commsSub === s.id ? "2px solid #c8553a" : "2px solid transparent", color: commsSub === s.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 13 }}>{s.i}</span>{s.l}
+          </button>
+        ))}
+      </div>
+
+      {/* ═══ SCANNER ═══ */}
+      {commsSub === "scanner" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {/* Scanner Display */}
+          <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(34,197,94,0.15)" }}>
+            <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(34,197,94,0.08)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 4, background: scanning ? "#22c55e" : "#ef4444", boxShadow: scanning ? "0 0 8px rgba(34,197,94,0.5)" : "none", animation: scanning ? "pulse 1.5s infinite" : "none" }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: scanning ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>{scanning ? "Scanning" : "Stopped"}</span>
+                </div>
+                <button onClick={() => setScanning(!scanning)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (scanning ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"), background: scanning ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", color: scanning ? "#ef4444" : "#22c55e", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{scanning ? "STOP" : "SCAN"}</button>
+              </div>
+              {/* Large frequency display */}
+              <div style={{ textAlign: "center", padding: "8px 0" }}>
+                <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#22c55e", letterSpacing: 2, textShadow: "0 0 20px rgba(34,197,94,0.3)", lineHeight: 1 }}>
+                  {currentChannel.freq}<span style={{ fontSize: 14, marginLeft: 4, color: "rgba(34,197,94,0.5)" }}>MHz</span>
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(34,197,94,0.6)", marginTop: 6, fontWeight: 600 }}>{currentChannel.name}</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 }}>
+                  <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 4, background: statusColor(currentChannel.status) + "15", color: statusColor(currentChannel.status), fontWeight: 700, textTransform: "uppercase" }}>{currentChannel.status}</span>
+                  {signalBars(currentChannel.signal)}
+                </div>
+              </div>
+              {/* Scan progress bar */}
+              <div style={{ height: 2, background: "rgba(34,197,94,0.08)", borderRadius: 1, marginTop: 10, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: ((scanIdx + 1) / monitoredChannels.length * 100) + "%", background: "linear-gradient(90deg, #22c55e, rgba(34,197,94,0.3))", transition: "width 0.5s ease", borderRadius: 1 }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Monitored Channels List */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Monitored Channels ({monitoredChannels.length})</h3>
+              <button onClick={() => setShowAddFreq(!showAddFreq)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.35)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>+ Add</button>
+            </div>
+            {showAddFreq && (
+              <div style={{ display: "flex", gap: 4, marginBottom: 10, alignItems: "center" }}>
+                <input value={newFreq} onChange={e => setNewFreq(e.target.value)} placeholder="Freq (MHz)" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#22c55e", fontSize: 11, fontFamily: M }} />
+                <input value={newFreqName} onChange={e => setNewFreqName(e.target.value)} placeholder="Name" onKeyDown={e => e.key === "Enter" && addMonitoredFreq()} style={{ flex: 1.5, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
+                <button onClick={addMonitoredFreq} style={{ padding: "6px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
+              </div>
+            )}
+            <div style={{ display: "grid", gap: 2 }}>
+              {monitoredChannels.map((ch, i) => (
+                <div key={ch.freq + i} onClick={() => { setScanIdx(i); setScanning(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 6, background: scanIdx === i ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.01)", border: scanIdx === i ? "1px solid rgba(34,197,94,0.15)" : "1px solid transparent", cursor: "pointer", transition: "all 0.15s" }}>
+                  <div style={{ width: 6, height: 6, borderRadius: 3, background: statusColor(ch.status), boxShadow: ch.status === "active" ? `0 0 6px ${statusColor(ch.status)}50` : "none", flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: M, color: scanIdx === i ? "#22c55e" : "rgba(255,255,255,0.6)" }}>{ch.freq}</span>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.name}</span>
+                    </div>
+                  </div>
+                  {signalBars(ch.signal)}
+                  <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", fontFamily: M, flexShrink: 0, width: 45, textAlign: "right" }}>{ch.lastHeard}</span>
+                  <span onClick={(e) => { e.stopPropagation(); removeMonitoredFreq(ch.freq); }} style={{ fontSize: 11, color: "rgba(255,255,255,0.15)", cursor: "pointer", padding: "2px 4px", borderRadius: 3, transition: "color 0.15s" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.15)"}>×</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+            {[
+              { label: "Active", value: monitoredChannels.filter(c => c.status === "active").length, color: "#22c55e" },
+              { label: "Monitoring", value: monitoredChannels.filter(c => c.status === "monitoring").length, color: "#f59e0b" },
+              { label: "Quiet", value: monitoredChannels.filter(c => c.status === "quiet").length, color: "rgba(255,255,255,0.25)" },
+            ].map((s, i) => (
+              <div key={i} style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Next Check-in */}
+          {countdown && (
+            <div style={{ ...cardSt, padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: countdown.mandatory ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.03)", border: "1px solid " + (countdown.mandatory ? "rgba(200,85,58,0.2)" : "rgba(255,255,255,0.06)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🕐</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>Next Check-in</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{countdown.label} — {countdown.time}</div>
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: M, color: "#c8553a" }}>{countdown.display}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ FREQUENCIES ═══ */}
+      {commsSub === "freqs" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {/* Search + Filters */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <input value={freqSearch} onChange={e => setFreqSearch(e.target.value)} placeholder="Search frequencies or names..." style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 12, fontFamily: "inherit", boxSizing: "border-box", marginBottom: 10 }} />
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {bands.map(b => (
+                <button key={b.id} onClick={() => setBandFilter(b.id)} style={{ padding: "4px 10px", borderRadius: 6, border: bandFilter === b.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: bandFilter === b.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: bandFilter === b.id ? "#c8553a" : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{b.l}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textAlign: "right" }}>{filteredFreqs.length} frequencies</div>
+          {/* Frequency cards */}
+          <div style={{ display: "grid", gap: 4 }}>
+            {filteredFreqs.map((f, i) => (
+              <div key={f.freq + f.name + i} style={{ ...cardSt, padding: "8px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 4, height: 28, borderRadius: 2, background: priorityColor(f.priority), flexShrink: 0 }} />
+                <div style={{ minWidth: 80, flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: "#fff", letterSpacing: 0.5 }}>{f.freq}</div>
+                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", marginTop: 1 }}>{f.mode}</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.use}</div>
+                </div>
+                <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 3, background: f.license === "none" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: f.license === "none" ? "#22c55e" : "#f59e0b", fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>{licenseLabel(f.license)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SCHEDULE ═══ */}
+      {commsSub === "schedule" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {/* Countdown */}
+          {countdown && (
+            <div style={{ ...cardSt, padding: 16, textAlign: "center", background: "rgba(200,85,58,0.03)", border: "1px solid rgba(200,85,58,0.1)" }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2, marginBottom: 6 }}>Next Check-in</div>
+              <div style={{ fontSize: 32, fontWeight: 800, fontFamily: M, color: "#c8553a" }}>{countdown.display}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{countdown.label} at {countdown.time}{countdown.mandatory && <span style={{ color: "#ef4444", marginLeft: 6 }}>MANDATORY</span>}</div>
+            </div>
+          )}
+
+          {/* Schedule Timeline */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Daily Check-in Schedule</h3>
+            <div style={{ display: "grid", gap: 4 }}>
+              {COMMS_PLAN.schedule.map((s, i) => {
+                const now = new Date();
+                const [h, m] = s.time.split(":").map(Number);
+                const isPast = now.getHours() > h || (now.getHours() === h && now.getMinutes() > m);
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: isPast ? "rgba(255,255,255,0.01)" : "rgba(200,85,58,0.03)", border: "1px solid " + (isPast ? "rgba(255,255,255,0.03)" : "rgba(200,85,58,0.08)"), opacity: isPast ? 0.5 : 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: s.mandatory ? "#c8553a" : "rgba(255,255,255,0.5)", minWidth: 52 }}>{s.time}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{s.desc}</div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{s.duration} · {s.mandatory ? "Mandatory" : "Optional"}</div>
+                    </div>
+                    {s.mandatory && <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 3, background: "rgba(239,68,68,0.08)", color: "#ef4444", fontWeight: 700 }}>REQ</span>}
+                    {isPast && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>✓</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Call Signs */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Call Sign Roster</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
+              {COMMS_PLAN.callSigns.map((cs, i) => (
+                <div key={i} style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#22c55e", minWidth: 60 }}>{cs.sign}</span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.person}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Designated Frequencies */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Designated Frequencies</h3>
+            <div style={{ display: "grid", gap: 6 }}>
+              {[COMMS_PLAN.primaryFreq, COMMS_PLAN.emergencyFreq, ...COMMS_PLAN.altFreqs].map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 6, background: i === 1 ? "rgba(239,68,68,0.03)" : "rgba(255,255,255,0.01)", border: "1px solid " + (i === 1 ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.04)") }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: i === 1 ? "#ef4444" : "#22c55e", minWidth: 95 }}>{f.freq}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.6)" }}>{f.name} · {f.mode}</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)" }}>{f.use} — {f.power}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Duress Signal */}
+          <div style={{ ...cardSt, padding: 12, background: "rgba(239,68,68,0.02)", border: "1px solid rgba(239,68,68,0.1)" }}>
+            <h3 style={{ margin: "0 0 6px", fontSize: 10, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>⚠ Duress Signal</h3>
+            <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>{COMMS_PLAN.duress}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ CODES ═══ */}
+      {commsSub === "codes" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {/* Code Words */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Code Words</h3>
+            <div style={{ display: "grid", gap: 4 }}>
+              {COMMS_PLAN.codeWords.map((cw, i) => {
+                const colors = { BLACKOUT: "#ef4444", OVERWATCH: "#f59e0b", EXODUS: "#ef4444", SHELTER: "#f59e0b", ANGEL: "#ef4444", IRON: "#ef4444", RIVER: "#0ea5e9", PHOENIX: "#22c55e" };
+                const col = colors[cw.code] || "#6b7280";
+                return (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.01)", borderLeft: `3px solid ${col}` }}>
+                    <div style={{ minWidth: 85 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: col }}>{cw.code}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.6)" }}>{cw.meaning}</div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{cw.action}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Distress Signals / Prowords */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Radio Prowords & Distress Signals</h3>
+            <div style={{ display: "grid", gap: 4 }}>
+              {PROWORDS.map((pw, i) => {
+                const col = pw.severity === "critical" ? "#ef4444" : pw.severity === "amber" ? "#f59e0b" : "rgba(255,255,255,0.5)";
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 6, background: pw.severity === "critical" ? "rgba(239,68,68,0.03)" : "rgba(255,255,255,0.01)", border: pw.severity === "critical" ? "1px solid rgba(239,68,68,0.08)" : "1px solid rgba(255,255,255,0.03)" }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, fontFamily: M, color: col, minWidth: 85 }}>{pw.word}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>{pw.meaning}</div>
+                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>{pw.use}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* NATO Phonetic Alphabet */}
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>NATO Phonetic Alphabet</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(95px, 1fr))", gap: 3 }}>
+              {NATO_PHONETIC.map((np, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 4, background: "rgba(255,255,255,0.015)" }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: "#c8553a", width: 16, textAlign: "center" }}>{np.letter}</span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{np.word}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ EQUIPMENT ═══ */}
+      {commsSub === "equipment" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ ...cardSt, padding: 12 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Communications Equipment ({commsEquip.length})</h3>
+            {commsEquip.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📻</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>No comms equipment in inventory</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Add radios, walkie-talkies, and sat phones in the Inventory tab</div>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                {commsEquip.map((item, i) => {
+                  const subInfo = CATEGORIES.comms?.subTypes?.[item.subType];
+                  return (
+                    <div key={item.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{subInfo?.icon || "📡"}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{item.name}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+                          {subInfo?.label || item.subType}{item.quantity > 1 && ` × ${item.quantity}`}
+                          {item.location && ` · ${item.location}`}
+                        </div>
+                        {item.fields && Object.keys(item.fields).length > 0 && (
+                          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                            {Object.entries(item.fields).map(([k, v]) => v && (
+                              <span key={k} style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(16,185,129,0.06)", color: "rgba(16,185,129,0.7)", fontWeight: 600 }}>{k}: {v}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: "#10b981" }}>{item.quantity}</div>
+                        <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)" }}>{subInfo?.unit || "units"}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Equipment Summary Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
+            {Object.entries(CATEGORIES.comms?.subTypes || {}).map(([key, sub]) => {
+              const count = commsEquip.filter(i => i.subType === key).reduce((sum, i) => sum + (i.quantity || 1), 0);
+              return (
+                <div key={key} style={{ ...cardSt, padding: "10px 12px", textAlign: "center", opacity: count > 0 ? 1 : 0.4 }}>
+                  <div style={{ fontSize: 16, marginBottom: 4 }}>{sub.icon}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: count > 0 ? "#10b981" : "rgba(255,255,255,0.2)" }}>{count}</div>
+                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{sub.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SYSTEMS TAB — Resource Conversion, Trade-offs, Dependency Graphs
    ═══════════════════════════════════════════════════════════════ */
 function SystemsTab({ items, people, climate }) {
@@ -4878,7 +5411,7 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate]);
 
-  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
+  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
 
   const renderContent = () => {
     if (selCat) {
@@ -4891,6 +5424,8 @@ export default function PrepVault() {
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} />;
       case "community":
         return <CommunityTab members={members} items={propItems} people={people} climate={climate} user={user} />;
+      case "comms":
+        return <CommsTab items={propItems} people={people} climate={climate} />;
       case "systems":
         return <SystemsTab items={propItems} people={people} climate={climate} />;
       case "simulate":
