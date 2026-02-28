@@ -3474,6 +3474,8 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
   /* Auto-scroll chat */
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
+  const displayMembers = liveMembers || members;
+
   /* ── Leaflet Satellite Map ── */
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -3533,8 +3535,6 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
     if (id === "p1") return; // Can't remove yourself
     setMembers(prev => prev.filter(m => m.id !== id));
   };
-
-  const displayMembers = liveMembers || members;
 
   const sendChat = () => {
     if (!chatInput.trim()) return;
