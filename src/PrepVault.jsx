@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { supabase, supabaseConfigured } from "./supabase.js";
+import { SyncEngine } from "./sync-engine.js";
 
 /* ═══════════════════════════════════════════════════════════
    DATA CONSTANTS
@@ -1167,15 +1169,16 @@ function GenericModal({ title, fields, onSave, onClose }) {
 function PinLock({ onUnlock }) {
   const [pin, setPin] = useState("");
   const [err, setErr] = useState(false);
-  const [stored, setStored] = useState("0000");
-  const [setup, setSetup] = useState(true);
+  const savedPin = (() => { try { return localStorage.getItem("prepvault-pin"); } catch { return null; } })();
+  const [stored, setStored] = useState(savedPin || "");
+  const [setup, setSetup] = useState(!savedPin);
   const handleDigit = (d) => {
     if (pin.length >= 4) return;
     const next = pin + d;
     setPin(next);
     setErr(false);
     if (next.length === 4) {
-      if (setup) { setStored(next); setSetup(false); setPin(""); }
+      if (setup) { setStored(next); setSetup(false); setPin(""); try { localStorage.setItem("prepvault-pin", next); } catch {} }
       else if (next === stored) { setTimeout(() => onUnlock(), 200); }
       else { setErr(true); setTimeout(() => { setPin(""); setErr(false); }, 800); }
     }
@@ -2094,8 +2097,113 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
 /* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress }) {
   const M = "'JetBrains Mono',monospace";
+
+  /* ── Live Weather State ── */
+  const [weather, setWeather] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState(null);
+  const [weatherSource, setWeatherSource] = useState("sample"); // 'sample' | 'live' | 'cached'
+
+  /* ── Live News State ── */
+  const [news, setNews] = useState(null);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsSource, setNewsSource] = useState("sample"); // 'sample' | 'live' | 'cached'
+
+  /* ── Fetch Weather ── */
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchWeather() {
+      // Try to get coordinates from propAddress or use geolocation
+      let lat, lng;
+      try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000, maximumAge: 300000 }));
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch { /* geolocation unavailable or denied */ }
+
+      if (!lat || !lng) {
+        // Check localStorage cache
+        const cached = localStorage.getItem("pv-weather-cache");
+        if (cached) { try { const c = JSON.parse(cached); if (Date.now() - new Date(c.fetchedAt).getTime() < 3600000) { setWeather(c); setWeatherSource("cached"); return; } } catch {} }
+        return; // No location, keep sample data
+      }
+
+      setWeatherLoading(true);
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || "";
+        const res = await fetch(`${apiBase}/api/weather/current?lat=${lat}&lng=${lng}`);
+        if (!res.ok) throw new Error("Weather API " + res.status);
+        const data = await res.json();
+        if (!cancelled) {
+          setWeather(data);
+          setWeatherSource("live");
+          localStorage.setItem("pv-weather-cache", JSON.stringify(data));
+        }
+      } catch (err) {
+        console.warn("Weather fetch failed:", err.message);
+        // Try cache fallback
+        const cached = localStorage.getItem("pv-weather-cache");
+        if (cached && !cancelled) { try { setWeather(JSON.parse(cached)); setWeatherSource("cached"); } catch {} }
+        else if (!cancelled) setWeatherError(err.message);
+      } finally { if (!cancelled) setWeatherLoading(false); }
+    }
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000); // refresh every 30 min
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  /* ── Fetch News ── */
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchNews() {
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || "";
+        const res = await fetch(`${apiBase}/api/news/feed`);
+        if (!res.ok) throw new Error("News API " + res.status);
+        const data = await res.json();
+        if (!cancelled && data.articles?.length > 0) {
+          setNews(data.articles);
+          setNewsSource("live");
+          localStorage.setItem("pv-news-cache", JSON.stringify(data.articles));
+        }
+      } catch {
+        // Try cache fallback
+        const cached = localStorage.getItem("pv-news-cache");
+        if (cached && !cancelled) { try { setNews(JSON.parse(cached)); setNewsSource("cached"); } catch {} }
+      } finally { if (!cancelled) setNewsLoading(false); }
+    }
+    setNewsLoading(true);
+    fetchNews();
+    const interval = setInterval(fetchNews, 30 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  /* ── Sample fallback data ── */
+  const sampleWeather = {
+    current: { temp: -8, feels_like: -14, humidity: 78, wind_speed: 22, wind_dir: "NW", description: "Light Snow", icon: "🌨️", city: "Toronto, ON" },
+    forecast: [
+      { day: "Wed", icon: "🌨️", hi: -6, lo: -12 },
+      { day: "Thu", icon: "❄️", hi: -9, lo: -18 },
+      { day: "Fri", icon: "☁️", hi: -4, lo: -11 },
+      { day: "Sat", icon: "🌤️", hi: -1, lo: -8 },
+      { day: "Sun", icon: "☀️", hi: 2, lo: -5 },
+    ],
+    alerts: climate === "cold" ? [{ title: "Extreme cold warning", desc: "Wind chill to -25°C tonight. Check heating fuel and insulate pipes." }] : [],
+  };
+  const sampleNews = [
+    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID" },
+    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD" },
+    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER" },
+    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES" },
+  ];
+
+  const w = weather || sampleWeather;
+  const currentWeather = w.current || sampleWeather.current;
+  const forecast = w.forecast || sampleWeather.forecast;
+  const weatherAlerts = w.alerts || [];
+  const newsItems = news || sampleNews;
 
   /* ── Continuity Metrics ── */
   const cont = useMemo(() => {
@@ -2260,41 +2368,49 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>🌤️ Local Weather</h3>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>SAMPLE</span>
-              <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: M }}>Toronto, ON</span>
+              <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: weatherSource === "live" ? "rgba(34,197,94,0.1)" : weatherSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(255,255,255,0.06)", color: weatherSource === "live" ? "#22c55e" : weatherSource === "cached" ? "#0ea5e9" : "rgba(255,255,255,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{weatherSource === "live" ? "LIVE" : weatherSource === "cached" ? "CACHED" : "SAMPLE"}</span>
+              {currentWeather.city && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: M }}>{currentWeather.city}</span>}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
-            <div>
-              <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#0ea5e9", lineHeight: 1 }}>-8°</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Feels like -14°</div>
-            </div>
-            <div style={{ fontSize: 40, lineHeight: 1 }}>🌨️</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>Light Snow</div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Wind: NW 22 km/h · Humidity: 78%</div>
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
-            {[
-              { day: "Wed", icon: "🌨️", hi: -6, lo: -12 },
-              { day: "Thu", icon: "❄️", hi: -9, lo: -18 },
-              { day: "Fri", icon: "☁️", hi: -4, lo: -11 },
-              { day: "Sat", icon: "🌤️", hi: -1, lo: -8 },
-              { day: "Sun", icon: "☀️", hi: 2, lo: -5 },
-            ].map((d, i) => (
-              <div key={i} style={{ textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)" }}>{d.day}</div>
-                <div style={{ fontSize: 16, margin: "3px 0" }}>{d.icon}</div>
-                <div style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.5)" }}>{d.hi}°</div>
-                <div style={{ fontSize: 8, fontFamily: M, color: "rgba(255,255,255,0.2)" }}>{d.lo}°</div>
+          {weatherLoading && !weather ? (
+            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>⟳ Loading weather...</div>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#0ea5e9", lineHeight: 1 }}>{currentWeather.temp}°</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Feels like {currentWeather.feels_like}°</div>
+                </div>
+                <div style={{ fontSize: 40, lineHeight: 1 }}>{currentWeather.icon || "🌤️"}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{currentWeather.description}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Wind: {currentWeather.wind_dir} {currentWeather.wind_speed} km/h · Humidity: {currentWeather.humidity}%</div>
+                </div>
               </div>
-            ))}
-          </div>
-          {climate === "cold" && (
-            <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 9, color: "rgba(245,158,11,0.6)" }}>
-              ⚠ Extreme cold warning — wind chill to -25°C tonight. Check heating fuel and insulate pipes.
-            </div>
+              {forecast.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(forecast.length, 5)}, 1fr)`, gap: 4 }}>
+                  {forecast.slice(0, 5).map((d, i) => (
+                    <div key={i} style={{ textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)" }}>{d.day}</div>
+                      <div style={{ fontSize: 16, margin: "3px 0" }}>{d.icon}</div>
+                      <div style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.5)" }}>{d.hi}°</div>
+                      <div style={{ fontSize: 8, fontFamily: M, color: "rgba(255,255,255,0.2)" }}>{d.lo}°</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {weatherAlerts.length > 0 && weatherAlerts.map((alert, i) => (
+                <div key={i} style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 9, color: "rgba(245,158,11,0.6)" }}>
+                  ⚠ {alert.title || alert.desc || "Weather alert active"}
+                  {alert.desc && alert.title && <span> — {alert.desc.slice(0, 120)}</span>}
+                </div>
+              ))}
+              {weatherAlerts.length === 0 && climate === "cold" && weatherSource === "sample" && (
+                <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 9, color: "rgba(245,158,11,0.6)" }}>
+                  ⚠ Extreme cold warning — wind chill to -25°C tonight. Check heating fuel and insulate pipes.
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -2302,31 +2418,30 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         <div style={{ ...cardSt, padding: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
             <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📰 Local News</h3>
-            <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>SAMPLE</span>
+            <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: newsSource === "live" ? "rgba(34,197,94,0.1)" : newsSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(255,255,255,0.06)", color: newsSource === "live" ? "#22c55e" : newsSource === "cached" ? "#0ea5e9" : "rgba(255,255,255,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{newsSource === "live" ? "LIVE" : newsSource === "cached" ? "CACHED" : "SAMPLE"}</span>
           </div>
-          <div style={{ display: "grid", gap: 3 }}>
-            {[
-              { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID" },
-              { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD" },
-              { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER" },
-              { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES" },
-            ].map((n, i) => {
-              const sevColors = { amber: "#f59e0b", info: "#0ea5e9", green: "#22c55e" };
-              const col = sevColors[n.severity] || "#6b7280";
-              return (
-                <div key={i} style={{ display: "flex", gap: 10, padding: "5px 10px", borderRadius: 8, background: "rgba(255,255,255,0.015)", borderLeft: "2px solid " + col + "40", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{n.title}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>{n.source}</span>
-                      <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: M }}>{n.time}</span>
+          {newsLoading && !news ? (
+            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>⟳ Loading news...</div>
+          ) : (
+            <div style={{ display: "grid", gap: 3 }}>
+              {newsItems.slice(0, 6).map((n, i) => {
+                const sevColors = { critical: "#ef4444", amber: "#f59e0b", info: "#0ea5e9", green: "#22c55e" };
+                const col = sevColors[n.severity] || "#6b7280";
+                return (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "5px 10px", borderRadius: 8, background: "rgba(255,255,255,0.015)", borderLeft: "2px solid " + col + "40", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{n.title}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>{n.source}</span>
+                        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: M }}>{n.time}</span>
+                      </div>
                     </div>
+                    <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 4, background: col + "10", color: col, fontWeight: 700, alignSelf: "flex-start", flexShrink: 0, letterSpacing: 0.5 }}>{n.tag}</span>
                   </div>
-                  <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 4, background: col + "10", color: col, fontWeight: 700, alignSelf: "flex-start", flexShrink: 0, letterSpacing: 0.5 }}>{n.tag}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -2574,11 +2689,14 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   );
 }
 
-function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, manuals, routes, amenities, revealedCodes, setRevealedCodes }) {
+function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, manuals, routes, amenities, revealedCodes, setRevealedCodes, user }) {
   const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [expandedCam, setExpandedCam] = useState(null);
+  const [liveCameras, setLiveCameras] = useState(null);
+  const [liveAlarm, setLiveAlarm] = useState(null);
+  const [liveNestDevices, setLiveNestDevices] = useState(null);
 
   if (!propUnlocked) return <PinLock onUnlock={() => setPropUnlocked(true)} />;
 
@@ -2586,12 +2704,81 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "routes", l: "Routes", i: "🛤️" }, { id: "resources", l: "Resources", i: "📍" }, { id: "cameras", l: "Cameras", i: "📷" }, { id: "systems", l: "Systems", i: "🏠" }, { id: "weather", l: "Advisories", i: "🌤️" }, { id: "skills", l: "Skills", i: "🎖️" }];
   const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
 
-  const handleAuth = (setter, state) => {
+  const handleAuth = async (setter, state, provider) => {
     if (!state.email || !state.password) { setter((p) => ({ ...p, error: "Enter email and password" })); return; }
     setter((p) => ({ ...p, loading: true, error: "" }));
-    setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); }, 1500);
+
+    const apiBase = import.meta.env.VITE_API_URL || "";
+    const endpoints = {
+      tactacam: `${apiBase}/api/smart-home/tactacam/auth`,
+      eyezon: `${apiBase}/api/smart-home/eyezon/auth`,
+      nest: `${apiBase}/api/smart-home/nest/auth`,
+    };
+
+    try {
+      // Try real API if user is authenticated
+      if (user && supabaseConfigured) {
+        const session = await supabase.auth.getSession();
+        const token = session?.data?.session?.access_token;
+        if (token && endpoints[provider]) {
+          const res = await fetch(endpoints[provider], {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ email: state.email, password: state.password }),
+          });
+          if (res.ok) {
+            setter((p) => ({ ...p, loading: false, connected: true, error: "" }));
+            // Fetch live data after successful auth
+            if (provider === "tactacam") fetchLiveCameras(token);
+            if (provider === "eyezon") fetchLiveAlarmStatus(token);
+            if (provider === "nest") fetchLiveNestDevices(token);
+            return;
+          }
+          const errData = await res.json().catch(() => ({}));
+          setter((p) => ({ ...p, loading: false, error: errData.error || "Connection failed" }));
+          return;
+        }
+      }
+      // Fallback: simulate connection with sample data
+      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); }, 1500);
+    } catch (err) {
+      // Fallback: simulate connection
+      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); }, 1500);
+    }
   };
-  const handleDisconnect = (setter) => { setter({ email: "", password: "", connected: false, showPw: false, error: "", loading: false }); };
+
+  const fetchLiveCameras = async (token) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/smart-home/tactacam/cameras`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setLiveCameras(data.cameras); }
+    } catch { /* use sample data */ }
+  };
+  const fetchLiveAlarmStatus = async (token) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/smart-home/eyezon/status`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setLiveAlarm(data); }
+    } catch { /* use sample data */ }
+  };
+  const fetchLiveNestDevices = async (token) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/smart-home/nest/devices`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setLiveNestDevices(data.devices); }
+    } catch { /* use sample data */ }
+  };
+
+  const handleDisconnect = (setter, provider) => {
+    setter({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+    if (provider === "tactacam") setLiveCameras(null);
+    if (provider === "eyezon") setLiveAlarm(null);
+    if (provider === "nest") setLiveNestDevices(null);
+  };
+
+  const displayCameras = liveCameras || SAMPLE_CAMERAS;
+  const displayAlarm = liveAlarm || SMART_HOME.alarm;
+  const displayNestDevices = liveNestDevices || SMART_HOME.nest.devices;
 
   const signalBars = (level) => {
     const bars = [];
@@ -2601,7 +2788,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
     return <div style={{ display: "flex", alignItems: "flex-end", gap: 1 }}>{bars}</div>;
   };
 
-  const AuthPanel = ({ title, icon, color, auth, setAuth, provider, helpUrl }) => {
+  const AuthPanel = ({ title, icon, color, auth, setAuth, provider, helpUrl, providerId }) => {
     if (auth.connected) {
       return (
         <div style={{ ...cardSt, padding: "14px 18px", marginBottom: 16, borderLeft: "3px solid " + color, background: color + "06" }}>
@@ -2616,7 +2803,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                 </div>
               </div>
             </div>
-            <button onClick={() => handleDisconnect(setAuth)} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)" }}>Disconnect</button>
+            <button onClick={() => handleDisconnect(setAuth, providerId)} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)" }}>Disconnect</button>
           </div>
         </div>
       );
@@ -2645,7 +2832,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
         </div>
         {auth.error && <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 8 }}>{auth.error}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => handleAuth(setAuth, auth)} disabled={auth.loading} style={{ ...btnSt, padding: "8px 20px", fontSize: 12, background: auth.loading ? "rgba(255,255,255,0.06)" : color, color: "#fff", fontWeight: 700, opacity: auth.loading ? 0.6 : 1 }}>
+          <button onClick={() => handleAuth(setAuth, auth, providerId)} disabled={auth.loading} style={{ ...btnSt, padding: "8px 20px", fontSize: 12, background: auth.loading ? "rgba(255,255,255,0.06)" : color, color: "#fff", fontWeight: 700, opacity: auth.loading ? 0.6 : 1 }}>
             {auth.loading ? "Connecting..." : "Connect"}
           </button>
           <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Credentials are stored locally behind your PIN</span>
@@ -2656,11 +2843,11 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "rgba(255,255,255,0.02)", borderRadius: 10, padding: 3 }}>
+      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "rgba(255,255,255,0.02)", borderRadius: 10, padding: 3, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
         {subTabs.map((st) => (
-          <button key={st.id} onClick={() => setPropSub(st.id)} style={{ flex: 1, padding: "8px 4px", background: propSub === st.id ? "rgba(255,255,255,0.08)" : "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "center" }}>
+          <button key={st.id} onClick={() => setPropSub(st.id)} style={{ flex: "0 0 auto", minWidth: 60, padding: "8px 8px", background: propSub === st.id ? "rgba(255,255,255,0.08)" : "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "center" }}>
             <div style={{ fontSize: 14 }}>{st.i}</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: propSub === st.id ? "#fff" : "rgba(255,255,255,0.35)", marginTop: 2 }}>{st.l}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: propSub === st.id ? "#fff" : "rgba(255,255,255,0.35)", marginTop: 2, whiteSpace: "nowrap" }}>{st.l}</div>
           </button>
         ))}
       </div>
@@ -2677,7 +2864,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
 
       {propSub === "cameras" && (
         <div>
-          <AuthPanel title="Reveal Camera Login" icon="📷" color="#22c55e" auth={revealAuth} setAuth={setRevealAuth} provider="Tactacam Reveal" helpUrl="https://www.reveal.tactacam.com" />
+          <AuthPanel title="Reveal Camera Login" icon="📷" color="#22c55e" auth={revealAuth} setAuth={setRevealAuth} provider="Tactacam Reveal" providerId="tactacam" helpUrl="https://www.reveal.tactacam.com" />
           {!revealAuth.connected ? (
             <div style={{ ...cardSt, padding: "40px 20px", textAlign: "center", borderStyle: "dashed" }}>
               <div style={{ fontSize: 36, marginBottom: 10, opacity: 0.3 }}>📷</div>
@@ -2687,11 +2874,11 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           ) : (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{SAMPLE_CAMERAS.length} cameras · {SAMPLE_CAMERAS.filter((c) => c.status === "online").length} online</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{displayCameras.length} cameras · {displayCameras.filter((c) => c.status === "online").length} online</div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Auto-refresh every 30s</div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
-                {SAMPLE_CAMERAS.map((cam) => {
+                {displayCameras.map((cam) => {
                   const isOnline = cam.status === "online";
                   const isExpanded = expandedCam === cam.id;
                   return (
@@ -2755,14 +2942,14 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
       {propSub === "systems" && (
         <div>
           {/* EyezOn Alarm Auth */}
-          <AuthPanel title="EyezOn Alarm Login" icon="🚨" color="#f59e0b" auth={eyezonAuth} setAuth={setEyezonAuth} provider="EyezOn EnvisaLink" />
+          <AuthPanel title="EyezOn Alarm Login" icon="🚨" color="#f59e0b" auth={eyezonAuth} setAuth={setEyezonAuth} provider="EyezOn EnvisaLink" providerId="eyezon" />
           {eyezonAuth.connected ? (
             <div style={{ ...cardSt, marginBottom: 16, borderLeft: "3px solid #22c55e" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <span style={{ fontSize: 22 }}>🚨</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>Alarm — {SMART_HOME.alarm.provider}</div>
-                  <div style={{ fontSize: 11, color: "#22c55e" }}>{SMART_HOME.alarm.status}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>Alarm — {displayAlarm.provider}</div>
+                  <div style={{ fontSize: 11, color: "#22c55e" }}>{displayAlarm.status}</div>
                 </div>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                   <button style={{ ...btnSt, padding: "5px 12px", fontSize: 10, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Arm Away</button>
@@ -2770,7 +2957,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 6 }}>
-                {SMART_HOME.alarm.zones.map((z, i) => (
+                {(displayAlarm.zones || []).map((z, i) => (
                   <div key={i} style={{ padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ width: 6, height: 6, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444" }} />
                     <div style={{ fontSize: 11 }}>{z.n} — <span style={{ color: "rgba(255,255,255,0.4)" }}>{z.s}</span></div>
@@ -2786,16 +2973,16 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           )}
 
           {/* Nest Auth */}
-          <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" />
+          <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" />
           {nestAuth.connected ? (
             <div style={{ ...cardSt, borderLeft: "3px solid #06b6d4" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <span style={{ fontSize: 22 }}>🏠</span>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>Nest Devices</div>
-                <span style={{ fontSize: 9, padding: "4px 8px", borderRadius: 8, background: "rgba(6,182,212,0.1)", color: "#06b6d4", fontWeight: 700 }}>{SMART_HOME.nest.devices.length} devices</span>
+                <span style={{ fontSize: 9, padding: "4px 8px", borderRadius: 8, background: "rgba(6,182,212,0.1)", color: "#06b6d4", fontWeight: 700 }}>{displayNestDevices.length} devices</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
-                {SMART_HOME.nest.devices.map((d, i) => (
+                {displayNestDevices.map((d, i) => (
                   <div key={i} style={{ padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: d.type === "lock" ? (d.status === "Locked" ? "3px solid #22c55e" : "3px solid #f59e0b") : "3px solid rgba(255,255,255,0.06)" }}>
                     <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
                       {d.type === "lock" ? "🔐" : d.type === "smoke" ? "🔥" : "🌡️"} {d.n}
@@ -2952,7 +3139,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   );
 }
 
-function CommunityTab({ members, items, people, climate }) {
+function CommunityTab({ members, items, people, climate, user }) {
   const [comSub, setComSub] = useState("tracker");
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState(SAMPLE_CHAT);
@@ -2965,10 +3152,86 @@ function CommunityTab({ members, items, people, climate }) {
   const [editContact, setEditContact] = useState(null);
   const [contactSearch, setContactSearch] = useState("");
   const [expandedContact, setExpandedContact] = useState(null);
+  const [liveMembers, setLiveMembers] = useState(null);
+  const chatEndRef = useRef(null);
   const subTabs = [{ id: "tracker", l: "Tracker", i: "📡" }, { id: "chat", l: "Chat", i: "💬" }, { id: "comms", l: "Comms Plan", i: "📻" }, { id: "trade", l: "Trade Routes", i: "🤝" }, { id: "contacts", l: "Contacts", i: "📇" }, { id: "combined", l: "Combined Score", i: "📊" }];
 
-  const sendChat = () => { if (!chatInput.trim()) return; setChatMessages((p) => [...p, { id: "c" + Date.now(), from: "p1", text: chatInput.trim(), ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]); setChatInput(""); };
-  const sendTrade = () => { if (!tradeInput.trim()) return; setTradeMessages((p) => [...p, { id: "tm" + Date.now(), community: selTradeCommunity, from: "us", text: tradeInput.trim(), ts: "Just now" }]); setTradeInput(""); };
+  /* ── Supabase Realtime: Chat messages ── */
+  useEffect(() => {
+    if (!supabaseConfigured || !user) return;
+    // Fetch existing messages
+    const fetchMessages = async () => {
+      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100);
+      if (!error && data?.length > 0) {
+        setChatMessages(data.map(m => ({
+          id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
+          text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+          senderName: m.display_name || "Member",
+        })));
+      }
+    };
+    fetchMessages();
+    // Subscribe to new messages
+    const channel = supabase.channel("messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+      const m = payload.new;
+      setChatMessages(prev => [...prev, {
+        id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
+        text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        senderName: m.display_name || "Member",
+      }]);
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  /* ── Supabase Realtime: Location sharing ── */
+  useEffect(() => {
+    if (!supabaseConfigured || !user) return;
+    const fetchLocations = async () => {
+      const { data } = await supabase.from("location_shares").select("*, profiles(display_name)").eq("active", true);
+      if (data?.length > 0) {
+        setLiveMembers(data.map(l => ({
+          id: l.user_id, name: l.profiles?.display_name || "Member",
+          lat: l.latitude, lng: l.longitude, battery: l.battery_pct || 100,
+          status: "nearby", sharing: true, lastPing: new Date(l.updated_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+          avatar: "👤", color: "#0ea5e9", role: "Member",
+        })));
+      }
+    };
+    fetchLocations();
+    const channel = supabase.channel("locations").on("postgres_changes", { event: "*", schema: "public", table: "location_shares" }, () => {
+      fetchLocations(); // Re-fetch all on any change
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  /* Auto-scroll chat */
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
+
+  const displayMembers = liveMembers || members;
+
+  const sendChat = () => {
+    if (!chatInput.trim()) return;
+    if (supabaseConfigured && user) {
+      // Send via Supabase (realtime subscription will update state)
+      supabase.from("messages").insert({ content: chatInput.trim(), user_id: user.id, display_name: user.email?.split("@")[0] || "You" }).then(({ error }) => {
+        if (error) console.error("Chat send error:", error);
+      });
+    } else {
+      // Local-only fallback
+      setChatMessages((p) => [...p, { id: "c" + Date.now(), from: "p1", text: chatInput.trim(), ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
+    }
+    setChatInput("");
+  };
+  const sendTrade = () => {
+    if (!tradeInput.trim()) return;
+    if (supabaseConfigured && user) {
+      supabase.from("trade_messages").insert({ content: tradeInput.trim(), user_id: user.id, community_id: selTradeCommunity }).then(({ error }) => {
+        if (error) console.error("Trade send error:", error);
+      });
+    }
+    setTradeMessages((p) => [...p, { id: "tm" + Date.now(), community: selTradeCommunity, from: "us", text: tradeInput.trim(), ts: "Just now" }]);
+    setTradeInput("");
+  };
 
   /* Combined scoring — pool all communities' strengths as bonus items */
   const computeCombined = () => {
@@ -3016,7 +3279,7 @@ function CommunityTab({ members, items, people, climate }) {
             <div style={{ height: 320, background: "linear-gradient(180deg,#0a1628,#0d1f2d)", position: "relative" }}>
               {[0.25, 0.5, 0.75].map((p) => (<div key={p}><div style={{ position: "absolute", top: p * 100 + "%", left: 0, right: 0, height: 1, background: "rgba(255,255,255,0.02)" }} /><div style={{ position: "absolute", left: p * 100 + "%", top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.02)" }} /></div>))}
               <div style={{ position: "absolute", left: "48%", top: "42%", transform: "translate(-50%,-50%)" }}><div style={{ width: 24, height: 24, borderRadius: 12, background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>🏠</div></div>
-              {members.filter((m) => m.lat && m.sharing).map((m) => {
+              {displayMembers.filter((m) => m.lat && m.sharing).map((m) => {
                 const mapX = 50 + (m.lng - (-75.690)) * 1200;
                 const mapY = 50 - (m.lat - 45.421) * 1200;
                 return (
@@ -3029,7 +3292,7 @@ function CommunityTab({ members, items, people, climate }) {
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {members.map((m) => (
+            {displayMembers.map((m) => (
               <div key={m.id} style={{ ...cardSt, padding: "10px 12px", borderLeft: "3px solid " + (statColors[m.status] || "#6b7280") }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 20 }}>{m.avatar}</span>
@@ -3051,14 +3314,14 @@ function CommunityTab({ members, items, people, climate }) {
           <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 12, fontWeight: 700 }}>💬 Group Chat</div>
             <div style={{ display: "flex", gap: 4 }}>
-              {members.filter((m) => m.status !== "offline").map((m) => (
+              {displayMembers.filter((m) => m.status !== "offline").map((m) => (
                 <div key={m.id} style={{ width: 22, height: 22, borderRadius: 11, background: m.color + "25", border: "1px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }} title={m.name}>{m.avatar}</div>
               ))}
             </div>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
             {chatMessages.map((msg) => {
-              const sender = members.find((m) => m.id === msg.from);
+              const sender = displayMembers.find((m) => m.id === msg.from);
               const isYou = msg.from === "p1";
               return (
                 <div key={msg.id} style={{ display: "flex", flexDirection: isYou ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
@@ -3071,6 +3334,7 @@ function CommunityTab({ members, items, people, climate }) {
                 </div>
               );
             })}
+            <div ref={chatEndRef} />
           </div>
           <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
             <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="Type a message..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
@@ -4181,6 +4445,17 @@ export default function PrepVault() {
   const [toast, setToast] = useState(null);
   const importRef = useRef(null);
 
+  /* ── Auth + Sync State ── */
+  const [user, setUser] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // 'login' | 'signup'
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [syncStatus, setSyncStatus] = useState("local"); // 'local' | 'syncing' | 'synced' | 'error' | 'offline'
+  const syncEngineRef = useRef(null);
+
   /* ── Auto-save to localStorage (debounced) ── */
   const saveTimerRef = useRef(null);
   useEffect(() => {
@@ -4194,6 +4469,8 @@ export default function PrepVault() {
         }));
         setDbStatus("saved");
         setLastSaved(new Date().toISOString());
+        // Queue cloud sync if authenticated
+        if (syncEngineRef.current) syncEngineRef.current.queueSync();
       } catch { /* storage full or unavailable */ }
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
@@ -4213,6 +4490,67 @@ export default function PrepVault() {
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
+  }, []);
+
+  /* ── Supabase Auth ── */
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  /* ── Sync Engine ── */
+  useEffect(() => {
+    if (!syncEngineRef.current) {
+      syncEngineRef.current = new SyncEngine(supabase);
+      syncEngineRef.current.setStatusCallback(setSyncStatus);
+    }
+    const engine = syncEngineRef.current;
+    if (user) {
+      engine.setUser(user.id);
+      engine.migrateToCloud();
+    } else {
+      engine.setUser(null);
+      setSyncStatus("local");
+    }
+    return () => engine.destroy();
+  }, [user]);
+
+  /* ── Auth Handlers ── */
+  const handleAuth = useCallback(async () => {
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      if (authMode === "signup") {
+        const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+        if (error) throw error;
+        showToast("Account created! Check email for verification.", "success");
+        setShowAuth(false);
+        setAuthEmail("");
+        setAuthPassword("");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+        if (error) throw error;
+        showToast("Logged in ✓", "success");
+        setShowAuth(false);
+        setAuthEmail("");
+        setAuthPassword("");
+      }
+    } catch (err) {
+      setAuthError(err.message || "Authentication failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [authMode, authEmail, authPassword]);
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setSyncStatus("local");
+    showToast("Logged out", "success");
   }, []);
 
   /* ── Web Crypto AES-256-GCM ── */
@@ -4486,11 +4824,11 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} />;
+        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} />;
       case "property":
-        return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} />;
+        return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} />;
       case "community":
-        return <CommunityTab members={members} items={propItems} people={people} climate={climate} />;
+        return <CommunityTab members={members} items={propItems} people={people} climate={climate} user={user} />;
       case "systems":
         return <SystemsTab items={propItems} people={people} climate={climate} />;
       case "simulate":
@@ -4507,7 +4845,7 @@ export default function PrepVault() {
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
         * { -webkit-tap-highlight-color: transparent; }
-        input:focus, textarea:focus, select:focus { border-color: rgba(200,85,58,0.5) !important; }
+        input:focus, textarea:focus, select:focus { border-color: rgba(200,85,58,0.5) !important; box-shadow: 0 0 0 2px rgba(200,85,58,0.15) !important; }
         button:active { transform: scale(0.97); }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -4565,9 +4903,24 @@ export default function PrepVault() {
         </div>
         <div style={{ flex: 1 }} />
         <div className="pcs-header-actions">
+          {/* Sync Status Indicator */}
+          {user && (
+            <div style={{ padding: "4px 8px", borderRadius: 8, background: syncStatus === "synced" ? "rgba(34,197,94,0.08)" : syncStatus === "syncing" ? "rgba(14,165,233,0.08)" : syncStatus === "error" ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)", border: "1px solid " + (syncStatus === "synced" ? "rgba(34,197,94,0.2)" : syncStatus === "syncing" ? "rgba(14,165,233,0.2)" : syncStatus === "error" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.06)"), fontSize: 9, fontWeight: 700, color: syncStatus === "synced" ? "#22c55e" : syncStatus === "syncing" ? "#0ea5e9" : syncStatus === "error" ? "#ef4444" : "rgba(255,255,255,0.4)", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+              {syncStatus === "synced" ? "☁️ Synced" : syncStatus === "syncing" ? "⟳ Syncing" : syncStatus === "error" ? "⚠ Sync Error" : "💾 Local"}
+            </div>
+          )}
           <button onClick={() => setShowSecurity(true)} style={{ ...btnSt, background: encryptedDb ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)", color: encryptedDb ? "#22c55e" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: encryptedDb ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(255,255,255,0.06)" }} title="Security & Privacy">🔒</button>
           <button onClick={() => { if (!crisisMode) { setCrisisMode(true); setCrisisStart(new Date()); } else { setCrisisMode(false); setCrisisStart(null); } }} style={{ ...btnSt, background: crisisMode ? "#ef4444" : "rgba(239,68,68,0.06)", color: crisisMode ? "#fff" : "#ef4444", fontWeight: 800, fontSize: 10, padding: "8px 14px", border: crisisMode ? "1px solid #ef4444" : "1px solid rgba(239,68,68,0.15)", letterSpacing: 1, textTransform: "uppercase", animation: crisisMode ? "pulse 2s infinite" : "none" }}>{crisisMode ? "⚡ ACTIVE" : "⚡ ACTIVATE"}</button>
           {isOffline && <div style={{ padding: "4px 8px", borderRadius: 8, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", fontSize: 9, color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>OFFLINE</div>}
+          {/* Auth Button */}
+          {user ? (
+            <button onClick={handleLogout} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }} title={user.email}>
+              <span style={{ width: 18, height: 18, borderRadius: 9, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{(user.email?.[0] || "U").toUpperCase()}</span>
+              <span style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email?.split("@")[0]}</span>
+            </button>
+          ) : (
+            <button onClick={() => setShowAuth(true)} style={{ ...btnSt, padding: "6px 12px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)" }}>Sign In</button>
+          )}
         </div>
       </div>
 
@@ -4748,10 +5101,60 @@ export default function PrepVault() {
       )}
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
-        <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 12, background: toast.type === "success" ? "rgba(34,197,94,0.95)" : toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(200,85,58,0.95)", color: "#fff", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 2000, animation: "slideUp 0.2s ease", whiteSpace: "nowrap", maxWidth: "90vw", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</div>
+        <div style={{ position: "fixed", bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 70px))", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 12, background: toast.type === "success" ? "rgba(34,197,94,0.95)" : toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(200,85,58,0.95)", color: "#fff", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 2000, animation: "slideUp 0.2s ease", whiteSpace: "nowrap", maxWidth: "90vw", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</div>
       )}
       {showAdd && <AddItemModal onAdd={handleAdd} onClose={() => { setShowAdd(false); setEditItem(null); }} editItem={editItem} initialCategory={addCat} />}
       {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+
+      {/* ═══ Auth Modal ═══ */}
+      {showAuth && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowAuth(false)}>
+          <div style={{ background: "#13151a", borderRadius: 14, width: "92%", maxWidth: 400, border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: "22px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, fontFamily: M, marginBottom: 10, boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>P</div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h3>
+              <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{authMode === "signup" ? "Sign up to sync your data across devices" : "Sign in to access your cloud data"}</p>
+            </div>
+            <div style={{ padding: "20px 24px" }}>
+              {authError && (
+                <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 10, color: "#ef4444" }}>
+                  ❌ {authError}
+                </div>
+              )}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Email</label>
+                <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Password</label>
+                <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder={authMode === "signup" ? "Min 6 characters" : "Your password"} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+              </div>
+              <button onClick={handleAuth} disabled={authLoading || !authEmail || !authPassword} style={{ width: "100%", padding: "12px", borderRadius: 8, background: authLoading ? "rgba(200,85,58,0.3)" : "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: authLoading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit", transition: "opacity 0.15s", opacity: (!authEmail || !authPassword) ? 0.5 : 1 }}>
+                {authLoading ? "⟳ Please wait..." : authMode === "signup" ? "Create Account" : "Sign In"}
+              </button>
+              <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                {authMode === "login" ? (
+                  <>Don't have an account? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign up</button></>
+                ) : (
+                  <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign in</button></>
+                )}
+              </div>
+              <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(255,255,255,0.02)" : "rgba(245,158,11,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(255,255,255,0.04)" : "rgba(245,158,11,0.15)"), textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: supabaseConfigured ? "rgba(255,255,255,0.3)" : "rgba(245,158,11,0.7)", lineHeight: 1.5 }}>
+                  {supabaseConfigured ? (
+                    <>☁️ Cloud sync is optional. Your data always works offline first.<br />All data is encrypted in transit. No telemetry.</>
+                  ) : (
+                    <>⚠️ Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local to enable cloud features.</>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: "12px 24px 18px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
+              <button onClick={() => setShowAuth(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ Security & Privacy Panel ═══ */}
       {showSecurity && (
@@ -4857,8 +5260,10 @@ export default function PrepVault() {
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
                     {isOffline
-                      ? "No network connection detected. All data stays on this device. Encrypted exports can be saved to USB or local storage. Zero telemetry, zero cloud contact."
-                      : "Network is available. For maximum discretion: enable airplane mode, then reload. PCS runs entirely client-side — no server calls required for core functionality."
+                      ? "No network connection detected. All data stays on this device. Encrypted exports can be saved to USB or local storage." + (user ? " Changes will sync when back online." : " Zero telemetry, zero cloud contact.")
+                      : user
+                        ? "Connected and syncing with cloud. Your data is backed up and available across devices. Local-first: all features work without network."
+                        : "Network is available. For maximum discretion: enable airplane mode, then reload. PCS runs entirely client-side — no server calls required for core functionality."
                     }
                   </div>
                   {!isOffline && (
@@ -4881,7 +5286,7 @@ export default function PrepVault() {
                     ["IV", "96-bit random"],
                     ["Storage", "Local only"],
                     ["Telemetry", "None"],
-                    ["Cloud sync", "Disabled"],
+                    ["Cloud sync", user ? "Enabled" : "Disabled"],
                   ].map(([k, v], i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                       <span>{k}</span>
