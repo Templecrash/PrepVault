@@ -760,6 +760,10 @@ const NEARBY_COMMUNITIES = [
   { id: "nc2", name: "Cedar Hill Homestead", avatar: "🌲", distance: "7.8 km", members: 5, status: "allied", color: "#0ea5e9", readiness: 48, strengths: ["firewood", "tools", "vehicles"], weaknesses: ["medical", "food", "electronics"], contact: "HAM 146.520", lastContact: "3d ago" },
   { id: "nc3", name: "Lakeside Compound", avatar: "🏕️", distance: "12.1 km", members: 12, status: "neutral", color: "#f59e0b", readiness: 71, strengths: ["boat", "fishing", "defense"], weaknesses: ["farm", "medical", "kids"], contact: "Runner only", lastContact: "2w ago" },
   { id: "nc4", name: "South Valley Farm", avatar: "🌾", distance: "15.6 km", members: 6, status: "allied", color: "#a855f7", readiness: 55, strengths: ["farm", "food", "alcohol"], weaknesses: ["defense", "firearms", "comms"], contact: "HAM 147.000", lastContact: "5d ago" },
+  { id: "nc5", name: "Northern Ridge Collective", avatar: "⛰️", distance: "52 km", members: 15, status: "unknown", color: "#64748b", readiness: 40, strengths: ["mining", "defense", "tools"], weaknesses: ["food", "medical", "water"], contact: "HF 7.200 MHz", lastContact: "Never" },
+  { id: "nc6", name: "River Bend Settlement", avatar: "🏞️", distance: "68 km", members: 20, status: "neutral", color: "#06b6d4", readiness: 58, strengths: ["water", "fishing", "boat"], weaknesses: ["power", "comms", "defense"], contact: "HF 14.300 MHz", lastContact: "Never" },
+  { id: "nc7", name: "Highway 7 Militia", avatar: "🛡️", distance: "85 km", members: 30, status: "unknown", color: "#dc2626", readiness: 75, strengths: ["defense", "firearms", "vehicles"], weaknesses: ["farm", "medical", "food"], contact: "CB Ch 19", lastContact: "Never" },
+  { id: "nc8", name: "Maple Valley Farms", avatar: "🍁", distance: "94 km", members: 10, status: "neutral", color: "#ea580c", readiness: 50, strengths: ["farm", "food", "alcohol"], weaknesses: ["comms", "electronics", "defense"], contact: "HF 7.200 MHz", lastContact: "Never" },
 ];
 
 const TRADE_OFFERS = [
@@ -833,6 +837,34 @@ const COMMS_PLAN = {
   ],
   duress: "If captured or under duress, append 'COPY THAT, ALL STATIONS' to any transmission — this phrase is NEVER used in normal comms and signals distress.",
 };
+
+/* ── Challenge / Response Authentication Pairs ── */
+const CHALLENGE_RESPONSE_PAIRS = [
+  { challenge: "FLASH", response: "THUNDER" },
+  { challenge: "CRIMSON", response: "FALCON" },
+  { challenge: "IRON", response: "FORGE" },
+  { challenge: "CEDAR", response: "RIDGE" },
+  { challenge: "STORM", response: "HARBOR" },
+  { challenge: "PINE", response: "NEEDLE" },
+  { challenge: "WOLF", response: "CANYON" },
+  { challenge: "EMBER", response: "FROST" },
+  { challenge: "RAVEN", response: "SUMMIT" },
+  { challenge: "DELTA", response: "BRIDGE" },
+  { challenge: "COPPER", response: "SHIELD" },
+  { challenge: "SHADOW", response: "LANTERN" },
+  { challenge: "GRANITE", response: "COMPASS" },
+  { challenge: "TIMBER", response: "CREEK" },
+  { challenge: "FLINT", response: "ANVIL" },
+  { challenge: "SCARLET", response: "ARROW" },
+  { challenge: "ATLAS", response: "BEACON" },
+  { challenge: "COBALT", response: "DAGGER" },
+  { challenge: "VIPER", response: "ECHO" },
+  { challenge: "TUNDRA", response: "MOSS" },
+  { challenge: "RAPTOR", response: "SABLE" },
+  { challenge: "MARBLE", response: "DRIFT" },
+  { challenge: "ONYX", response: "RIVER" },
+  { challenge: "BRAVO", response: "STEEL" },
+];
 
 /* ── Emergency Frequency Database ── */
 const EMERGENCY_FREQUENCIES = [
@@ -988,6 +1020,16 @@ const DEFAULT_PROPERTIES = [
   { id: "prop2", name: "Bug-Out Cabin", type: "cabin", icon: "🏕️", active: false },
   { id: "prop3", name: "Cache Site Alpha", type: "cache", icon: "📦", active: false },
 ];
+
+/* ── Property Profile (Quick Start Questionnaire) ── */
+const DEFAULT_PROPERTY_PROFILE = {
+  heatSource: [], powerSource: [], gridStatus: null, hasGenerator: null, generatorFuel: [],
+  waterSource: [], freshwaterAccess: [], sewage: null,
+  populationDensity: null, nearestTownKm: null, propertyAcres: null, geoRisks: [],
+  specialNeeds: [], pets: [],
+  foodStorage: [], medicalTraining: [], commsCapability: [], defensivePosture: [],
+  completedAt: null,
+};
 
 const SAMPLE_ITEMS = [
   { id: "w1", category: "water", subType: "well", name: "Back well", quantity: 1, location: "Backyard", fields: { depth: "85ft", gpm: "6", hasPump: "Electric", pumpType: "Manual" }, addedDate: "2025-01-15" },
@@ -1596,7 +1638,7 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
       {/* ── Map Container ── */}
       <div ref={mapRef} onClick={handleMapClick} style={{ position: "relative", width: "100%", height: 520, borderRadius: 16, overflow: "hidden", cursor: placing ? "crosshair" : "default", border: tacticalMode ? "2px solid rgba(239,68,68,0.2)" : "1px solid rgba(255,255,255,0.06)" }}>
         {/* Google Maps Embed or Fallback */}
-        {propAddress && mapLoaded ? (
+        {propAddress && mapLoaded ? (<>
           <iframe
             title="Property Map"
             src={embedUrl}
@@ -1605,7 +1647,14 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />
-        ) : (
+          {/* Click interceptor overlay — captures clicks for pin placement when placing mode is active */}
+          {placing && (
+            <div
+              onClick={handleMapClick}
+              style={{ position: "absolute", inset: 0, zIndex: 6, cursor: "crosshair", background: "transparent" }}
+            />
+          )}
+        </>) : (
           <div style={{ position: "absolute", inset: 0, background: tacticalMode ? "linear-gradient(180deg,#0a0f0a,#0d160d,#0a120a)" : "linear-gradient(180deg,#0a1628,#0d1f2d 40%,#0f1a14 70%,#0d160d)" }}>
             {!tacticalMode && (
               <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -2358,9 +2407,227 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
 }
 
 /* ═══════════════════════════════════════════════════════════
+   QUICK START WIZARD
+   ═══════════════════════════════════════════════════════════ */
+function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeople, climate, setClimate, propAddress, setPropAddress, onComplete, onSkip }) {
+  const M = "'JetBrains Mono',monospace";
+  const cardSt = { background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" };
+  const labelSt = { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "block" };
+  const inp = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 13, fontFamily: M, outline: "none", boxSizing: "border-box" };
+
+  const upd = (key, val) => setProfile(p => ({ ...p, [key]: val }));
+  const toggleArr = (key, val) => setProfile(p => {
+    const arr = p[key] || [];
+    return { ...p, [key]: arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val] };
+  });
+
+  const Pill = ({ opts, value, field }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+      {opts.map(o => (
+        <button key={o.v} onClick={() => upd(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: value === o.v ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: value === o.v ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: value === o.v ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+          {o.i && <span style={{ marginRight: 6 }}>{o.i}</span>}{o.l}
+        </button>
+      ))}
+    </div>
+  );
+
+  const Multi = ({ opts, values, field }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+      {opts.map(o => {
+        const sel = (values || []).includes(o.v);
+        return (
+          <button key={o.v} onClick={() => toggleArr(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: sel ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: sel ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: sel ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+            {sel ? "✓ " : ""}{o.i && <span style={{ marginRight: 4 }}>{o.i}</span>}{o.l}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const STEPS = [
+    { icon: "🏠", title: "Property Infrastructure", desc: "How is your property powered and heated?" },
+    { icon: "💧", title: "Water Situation", desc: "What are your water sources and access?" },
+    { icon: "📍", title: "Location Context", desc: "Tell us about your property location" },
+    { icon: "👥", title: "Household", desc: "Who lives at this property?" },
+    { icon: "🛡️", title: "Existing Capabilities", desc: "What do you already have in place?" },
+  ];
+
+  const renderStep = () => {
+    switch (step) {
+      case 0: return (<>
+        <label style={labelSt}>Heat Sources (select all that apply)</label>
+        <Multi field="heatSource" values={profile.heatSource} opts={[
+          { v: "gas", l: "Natural Gas", i: "🔥" }, { v: "electric", l: "Electric", i: "⚡" }, { v: "wood", l: "Wood Stove", i: "🪵" },
+          { v: "propane", l: "Propane", i: "🛢️" }, { v: "oil", l: "Oil", i: "🛢️" }, { v: "solar_thermal", l: "Solar Thermal", i: "☀️" }, { v: "none", l: "None", i: "❌" },
+        ]} />
+        <label style={labelSt}>Power Sources (select all that apply)</label>
+        <Multi field="powerSource" values={profile.powerSource} opts={[
+          { v: "grid", l: "Grid Only", i: "🔌" }, { v: "solar", l: "Solar", i: "☀️" }, { v: "wind", l: "Wind", i: "💨" },
+          { v: "generator", l: "Generator", i: "⚡" }, { v: "hybrid", l: "Hybrid", i: "🔄" },
+        ]} />
+        <label style={labelSt}>Grid Status</label>
+        <Pill field="gridStatus" value={profile.gridStatus} opts={[
+          { v: "on_grid", l: "On-Grid", i: "🏘️" }, { v: "off_grid", l: "Off-Grid", i: "🏔️" }, { v: "hybrid", l: "Hybrid", i: "🔄" },
+        ]} />
+        <label style={labelSt}>Backup Generator?</label>
+        <Pill field="hasGenerator" value={profile.hasGenerator} opts={[
+          { v: true, l: "Yes", i: "✅" }, { v: false, l: "No", i: "❌" },
+        ]} />
+        {profile.hasGenerator === true && (<>
+          <label style={{ ...labelSt, marginTop: 4 }}>Generator Fuel Types (select all that apply)</label>
+          <Multi field="generatorFuel" values={profile.generatorFuel} opts={[
+            { v: "gas", l: "Gasoline" }, { v: "diesel", l: "Diesel" }, { v: "propane", l: "Propane" }, { v: "dual_fuel", l: "Dual Fuel" },
+          ]} />
+        </>)}
+      </>);
+      case 1: return (<>
+        <label style={labelSt}>Water Sources (select all that apply)</label>
+        <Multi field="waterSource" values={profile.waterSource} opts={[
+          { v: "municipal", l: "Municipal", i: "🏙️" }, { v: "well", l: "Well", i: "🕳️" }, { v: "spring", l: "Spring", i: "⛲" },
+          { v: "lake_river", l: "Lake / River", i: "🏞️" }, { v: "rain", l: "Rain Collection", i: "🌧️" }, { v: "cistern", l: "Cistern", i: "🪣" },
+        ]} />
+        <label style={labelSt}>Fresh Water Access (select all that apply)</label>
+        <Multi field="freshwaterAccess" values={profile.freshwaterAccess} opts={[
+          { v: "lakefront", l: "Lakefront Property", i: "🏖️" }, { v: "river_adjacent", l: "River Adjacent", i: "🏞️" },
+          { v: "within_1km", l: "Within 1 km", i: "🚶" }, { v: "none", l: "None Nearby", i: "🏜️" },
+        ]} />
+        <label style={labelSt}>Sewage System</label>
+        <Pill field="sewage" value={profile.sewage} opts={[
+          { v: "municipal", l: "Municipal Sewer", i: "🏙️" }, { v: "septic", l: "Septic", i: "🕳️" },
+          { v: "outhouse", l: "Outhouse", i: "🚻" }, { v: "none", l: "None", i: "❌" },
+        ]} />
+      </>);
+      case 2: return (<>
+        <label style={labelSt}>Property Address</label>
+        <input style={{ ...inp, marginBottom: 16 }} type="text" value={propAddress || ""} onChange={e => setPropAddress(e.target.value)} placeholder="123 Rural Route 7, Muskoka, ON" />
+        <label style={labelSt}>Population Density</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16 }}>
+          {[{ v: "urban", l: "Urban", i: "🏙️", d: "City center, high density" }, { v: "suburban", l: "Suburban", i: "🏘️", d: "Residential area" }, { v: "rural", l: "Rural", i: "🌾", d: "Countryside, farms" }, { v: "remote", l: "Remote", i: "🏔️", d: "Isolated, off-road" }].map(o => (
+            <button key={o.v} onClick={() => upd("populationDensity", o.v)} style={{ ...cardSt, padding: "14px 12px", cursor: "pointer", textAlign: "center", background: profile.populationDensity === o.v ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", border: profile.populationDensity === o.v ? "1px solid rgba(200,85,58,0.4)" : "1px solid rgba(255,255,255,0.06)", transition: "all 0.15s" }}>
+              <div style={{ fontSize: 24, marginBottom: 4 }}>{o.i}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: profile.populationDensity === o.v ? "#c8553a" : "#fff" }}>{o.l}</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{o.d}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div>
+            <label style={labelSt}>Property Size (acres)</label>
+            <input style={inp} type="number" min="0" value={profile.propertyAcres || ""} onChange={e => upd("propertyAcres", e.target.value ? Number(e.target.value) : null)} placeholder="e.g. 50" />
+          </div>
+          <div>
+            <label style={labelSt}>Nearest Town (km)</label>
+            <input style={inp} type="number" min="0" value={profile.nearestTownKm || ""} onChange={e => upd("nearestTownKm", e.target.value ? Number(e.target.value) : null)} placeholder="e.g. 15" />
+          </div>
+        </div>
+        <label style={labelSt}>Geographic Risks (select all that apply)</label>
+        <Multi field="geoRisks" values={profile.geoRisks} opts={[
+          { v: "flood", l: "Flood Zone", i: "🌊" }, { v: "wildfire", l: "Wildfire", i: "🔥" }, { v: "tornado", l: "Tornado", i: "🌪️" },
+          { v: "earthquake", l: "Earthquake", i: "🌍" }, { v: "coastal", l: "Coastal Storm", i: "🌊" },
+          { v: "extreme_cold", l: "Extreme Cold", i: "🥶" }, { v: "extreme_heat", l: "Extreme Heat", i: "🥵" },
+        ]} />
+      </>);
+      case 3: return (<>
+        <label style={labelSt}>Number of People</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit" }}>−</button>
+          <span style={{ fontSize: 28, fontWeight: 800, fontFamily: M, minWidth: 36, textAlign: "center" }}>{people}</span>
+          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit" }}>+</button>
+        </div>
+        <label style={labelSt}>Climate Zone</label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {[{ v: "arctic", l: "Arctic", i: "🧊" }, { v: "cold", l: "Cold", i: "❄️" }, { v: "temperate", l: "Temperate", i: "🌿" }, { v: "hot_dry", l: "Hot & Dry", i: "🏜️" }, { v: "tropical", l: "Tropical", i: "🌴" }, { v: "coastal", l: "Coastal", i: "🌊" }].map(o => (
+            <button key={o.v} onClick={() => setClimate(o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: climate === o.v ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: climate === o.v ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: climate === o.v ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+              <span style={{ marginRight: 6 }}>{o.i}</span>{o.l}
+            </button>
+          ))}
+        </div>
+        <label style={labelSt}>Special Needs (select all that apply)</label>
+        <Multi field="specialNeeds" values={profile.specialNeeds} opts={[
+          { v: "elderly", l: "Elderly (65+)", i: "👴" }, { v: "children_under5", l: "Children Under 5", i: "👶" },
+          { v: "children_5to12", l: "Children 5-12", i: "🧒" }, { v: "medical", l: "Medical Conditions", i: "💊" },
+          { v: "mobility", l: "Mobility Impaired", i: "♿" },
+        ]} />
+        <label style={labelSt}>Pets & Livestock</label>
+        <Multi field="pets" values={profile.pets} opts={[
+          { v: "dogs", l: "Dogs", i: "🐕" }, { v: "cats", l: "Cats", i: "🐈" },
+          { v: "livestock_small", l: "Small Livestock", i: "🐑" }, { v: "livestock_large", l: "Large Livestock", i: "🐄" },
+          { v: "poultry", l: "Poultry", i: "🐔" }, { v: "horses", l: "Horses", i: "🐴" },
+        ]} />
+      </>);
+      case 4: return (<>
+        <label style={labelSt}>Food Storage Methods</label>
+        <Multi field="foodStorage" values={profile.foodStorage} opts={[
+          { v: "pantry", l: "Pantry Only", i: "🗄️" }, { v: "root_cellar", l: "Root Cellar", i: "🕳️" },
+          { v: "freeze_dried", l: "Freeze-Dried Stash", i: "📦" }, { v: "garden", l: "Garden", i: "🌱" },
+          { v: "farm", l: "Farm", i: "🌾" }, { v: "greenhouse", l: "Greenhouse", i: "🏡" },
+        ]} />
+        <label style={labelSt}>Medical Training (select all that apply)</label>
+        <Multi field="medicalTraining" values={profile.medicalTraining} opts={[
+          { v: "none", l: "None", i: "❌" }, { v: "first_aid", l: "First Aid", i: "🩹" },
+          { v: "emt", l: "EMT / Paramedic", i: "🚑" }, { v: "nurse_doctor", l: "Nurse / Doctor", i: "🏥" },
+        ]} />
+        <label style={labelSt}>Communication Methods (select all that apply)</label>
+        <Multi field="commsCapability" values={profile.commsCapability} opts={[
+          { v: "cell_only", l: "Cell Only", i: "📱" }, { v: "ham", l: "HAM Radio", i: "📻" },
+          { v: "satellite", l: "Satellite Phone", i: "📡" }, { v: "cb", l: "CB Radio", i: "🔊" },
+          { v: "mesh", l: "Mesh Network", i: "🌐" },
+        ]} />
+        <label style={labelSt}>Defensive Posture (select all that apply)</label>
+        <Multi field="defensivePosture" values={profile.defensivePosture} opts={[
+          { v: "none", l: "None", i: "🚪" }, { v: "basic", l: "Basic Locks", i: "🔒" },
+          { v: "security_system", l: "Security System", i: "📹" }, { v: "fortified", l: "Fortified", i: "🏰" },
+          { v: "armed", l: "Armed", i: "🛡️" },
+        ]} />
+      </>);
+      default: return null;
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onSkip}>
+      <div style={{ background: "#13151a", borderRadius: 16, maxWidth: 540, width: "100%", maxHeight: "85vh", overflow: "auto", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={e => e.stopPropagation()}>
+        {/* Progress bar */}
+        <div style={{ height: 3, background: "rgba(255,255,255,0.04)", borderRadius: "16px 16px 0 0", overflow: "hidden" }}>
+          <div style={{ height: 3, background: "linear-gradient(90deg,#c8553a,#e8724a)", width: ((step + 1) / STEPS.length * 100) + "%", transition: "width 0.3s ease" }} />
+        </div>
+        {/* Header */}
+        <div style={{ padding: "28px 32px 0", textAlign: "center" }}>
+          <div style={{ fontSize: 44, marginBottom: 10 }}>{STEPS[step].icon}</div>
+          <h3 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{STEPS[step].title}</h3>
+          <p style={{ margin: "0 0 24px", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{STEPS[step].desc} · Step {step + 1} of {STEPS.length}</p>
+        </div>
+        {/* Content */}
+        <div style={{ padding: "0 32px 16px" }}>{renderStep()}</div>
+        {/* Navigation */}
+        <div style={{ padding: "12px 32px 20px", display: "flex", justifyContent: "space-between", gap: 8 }}>
+          {step > 0 ? (
+            <button onClick={() => setStep(step - 1)} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
+          ) : (
+            <button onClick={onSkip} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.3)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Skip for now</button>
+          )}
+          <button onClick={() => {
+            if (step < STEPS.length - 1) setStep(step + 1);
+            else onComplete({ ...profile, completedAt: new Date().toISOString() });
+          }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: step < STEPS.length - 1 ? "linear-gradient(135deg,#c8553a,#a3412d)" : "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(200,85,58,0.25)" }}>
+            {step < STEPS.length - 1 ? "Next →" : "✓ Complete Setup"}
+          </button>
+        </div>
+        {/* Step dots */}
+        <div style={{ display: "flex", gap: 6, justifyContent: "center", paddingBottom: 20 }}>
+          {STEPS.map((_, i) => (
+            <div key={i} onClick={() => setStep(i)} style={{ width: 8, height: 8, borderRadius: 4, cursor: "pointer", background: i === step ? "#c8553a" : i < step ? "rgba(200,85,58,0.35)" : "rgba(255,255,255,0.08)", transition: "background 0.2s" }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart }) {
   const M = "'JetBrains Mono',monospace";
 
   /* ── Live Weather State ── */
@@ -2370,6 +2637,7 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   const [weatherSource, setWeatherSource] = useState("sample"); // 'sample' | 'live' | 'cached'
 
   const [showActHistory, setShowActHistory] = useState(false);
+  const [showAllActions, setShowAllActions] = useState(false);
 
   /* ── Live News State ── */
   const [news, setNews] = useState(null);
@@ -2538,8 +2806,38 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
     if (calDays < 7) frag.push({ icon: "🍽️", msg: `Caloric reserve below 7 days (${calDays.toFixed(1)}d).`, sev: "critical" });
     if (powerHrs < 24) frag.push({ icon: "⚡", msg: "Power autonomy under 24 hours.", sev: "warning" });
 
-    return { powerHrs, waterDays, heatDays, calDays, commCount: commCh.size, commChannels: [...commCh], frag };
-  }, [items, people, climate]);
+    // ── Profile-based adjustments ──
+    let adjWater = waterDays, adjPower = powerHrs, adjHeat = heatDays, adjComm = commCh.size;
+    if (propertyProfile?.completedAt) {
+      const toArr = v => Array.isArray(v) ? v : v ? [v] : [];
+      const pWater = toArr(propertyProfile.waterSource);
+      const pFresh = toArr(propertyProfile.freshwaterAccess);
+      const pPower = toArr(propertyProfile.powerSource);
+      const pHeat = toArr(propertyProfile.heatSource);
+      // Water: renewable sources (bonus per source type, not stacking duplicates)
+      if (pWater.some(s => ["well", "spring", "lake_river"].includes(s))) adjWater += 7;
+      if (pWater.includes("rain")) adjWater += 3;
+      if (pFresh.some(s => ["lakefront", "river_adjacent"].includes(s))) adjWater += 5;
+      // Power: renewables & generator infrastructure
+      if (pPower.some(s => ["solar", "wind", "hybrid"].includes(s))) adjPower += 48;
+      if (propertyProfile.hasGenerator) adjPower += 24;
+      // Heat: infrastructure bonus (best applies)
+      if (pHeat.includes("wood")) adjHeat += 10;
+      if (pHeat.some(s => ["propane", "oil", "gas"].includes(s))) adjHeat += 5;
+      // Comms: capability
+      if (propertyProfile.commsCapability?.includes("ham")) adjComm += 1;
+      if (propertyProfile.commsCapability?.includes("satellite")) adjComm += 1;
+      if (propertyProfile.commsCapability?.includes("mesh")) adjComm += 1;
+      // Fragilities from profile
+      if (propertyProfile.populationDensity === "urban") frag.push({ icon: "🏙️", msg: "Urban location — high population risk in prolonged scenarios. Consider relocating to rural property.", sev: "warning" });
+      if (pWater.length === 1 && pWater[0] === "municipal" && (pFresh.length === 0 || (pFresh.length === 1 && pFresh[0] === "none"))) frag.push({ icon: "🚱", msg: "Municipal water with no natural backup — vulnerable to infrastructure failure.", sev: "warning" });
+      if (propertyProfile.gridStatus === "on_grid" && !propertyProfile.hasGenerator) frag.push({ icon: "🔌", msg: "Grid-dependent with no backup generator.", sev: "warning" });
+      if (propertyProfile.geoRisks?.length >= 3) frag.push({ icon: "⚠️", msg: `Multiple geographic risks identified (${propertyProfile.geoRisks.length}).`, sev: "warning" });
+      if (propertyProfile.specialNeeds?.length > 0) frag.push({ icon: "🩺", msg: "Household includes vulnerable members — plan for extended care needs.", sev: "info" });
+    }
+
+    return { powerHrs: adjPower, waterDays: adjWater, heatDays: adjHeat, calDays, commCount: adjComm, commChannels: [...commCh], frag };
+  }, [items, people, climate, propertyProfile]);
 
   /* ── Overall Preparedness Score ── */
   const prepScore = useMemo(() => {
@@ -2604,6 +2902,18 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         )}
       </div>
 
+      {/* ── Quick Start Banner ── */}
+      {!propertyProfile?.completedAt && onOpenQuickStart && (
+        <div onClick={onOpenQuickStart} style={{ ...cardSt, padding: "16px 20px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+          <div style={{ fontSize: 28, flexShrink: 0 }}>🚀</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Complete Your Property Profile</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Answer a few questions about your property infrastructure, water, and location to unlock personalized readiness insights.</div>
+          </div>
+          <div style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>Get Started</div>
+        </div>
+      )}
+
       {/* ── System Quick Status ── */}
       <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
@@ -2663,7 +2973,7 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
               <div style={{ textAlign: "center", padding: 20, color: "rgba(255,255,255,0.2)", fontSize: 11 }}>All caught up — no pending action items</div>
             ) : (
               <div style={{ display: "grid", gap: 4 }}>
-                {pending.map(task => (
+                {(showAllActions ? pending : pending.slice(0, 3)).map(task => (
                   <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.04)", borderLeft: "3px solid " + (pColor[task.priority] || "#22c55e") }}>
                     <input type="checkbox" onChange={() => { const by = (members || [])[0]?.name || "You"; setActionLog(prev => [...(prev || []), { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), taskId: task.id, desc: task.desc, completedBy: by, completedAt: new Date().toISOString() }]); }} style={{ accentColor: pColor[task.priority] || "#22c55e", cursor: "pointer" }} />
                     <span style={{ fontSize: 14, flexShrink: 0 }}>{task.icon}</span>
@@ -2674,6 +2984,11 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
                     <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: (pColor[task.priority] || "#22c55e") + "15", color: pColor[task.priority] || "#22c55e", fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{task.priority}</span>
                   </div>
                 ))}
+                {pending.length > 3 && (
+                  <button onClick={() => setShowAllActions(a => !a)} style={{ padding: "8px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                    {showAllActions ? "Show Less" : `See More (${pending.length - 3} more)`}
+                  </button>
+                )}
               </div>
             )}
             {showActHistory && (actionLog || []).length > 0 && (
@@ -3168,7 +3483,7 @@ function CameraFeedCanvas({ cam, expanded }) {
   return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
 }
 
-function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, amenities, revealedCodes, setRevealedCodes, user }) {
+function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, amenities, revealedCodes, setRevealedCodes, user, items }) {
   const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
@@ -3177,11 +3492,13 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   const [liveCameras, setLiveCameras] = useState(null);
   const [liveAlarm, setLiveAlarm] = useState(null);
   const [liveNestDevices, setLiveNestDevices] = useState(null);
+  const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
+  useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
 
   if (!propUnlocked) return <PinLock onUnlock={() => setPropUnlocked(true)} />;
 
   const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
-  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "routes", l: "Routes", i: "🛤️" }, { id: "resources", l: "Resources", i: "📍" }, { id: "cameras", l: "Cameras", i: "📷" }, { id: "systems", l: "Systems", i: "🏠" }, { id: "weather", l: "Advisories", i: "🌤️" }, { id: "skills", l: "Skills", i: "🎖️" }];
+  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "routes", l: "Routes", i: "🛤️" }, { id: "resources", l: "Resources", i: "📍" }, { id: "cameras", l: "Cameras", i: "📷" }, { id: "systems", l: "Systems", i: "🏠" }, { id: "weather", l: "Advisories", i: "🌤️" }];
   const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
 
   const handleAuth = async (setter, state, provider) => {
@@ -3339,6 +3656,156 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           })}
         </div>
       )}
+
+      {propSub === "defenses" && (() => {
+        const defItems = (items || []).filter(i => i.category === "defense");
+        const defPins = (pins || []).filter(p => p.layer === "defense");
+        const allSubTypes = CATEGORIES.defense.subTypes;
+        const trapTypes = ["tripWire", "roadSpikes", "trap", "barricade"];
+        const trapPinTypes = ["alarm_trip", "obstacle"];
+        const trapItems = defItems.filter(i => trapTypes.includes(i.subType));
+        const trapPins = defPins.filter(p => trapPinTypes.includes(p.type));
+        const positionPins = defPins.filter(p => !trapPinTypes.includes(p.type));
+        const pinTypeMap = {};
+        MAP_PIN_TYPES.defense.forEach(t => { pinTypeMap[t.v] = t; });
+        const activeCount = defItems.length;
+
+        return (
+          <div>
+            {/* Section A: Defense Systems Overview */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>🛡️ Defense Systems Overview</h3>
+                <span style={{ fontSize: 11, color: activeCount > 0 ? "#22c55e" : "rgba(255,255,255,0.3)", fontFamily: M, fontWeight: 700 }}>{activeCount} in inventory</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8 }}>
+                {Object.entries(allSubTypes).map(([key, st]) => {
+                  const matching = defItems.filter(i => i.subType === key);
+                  const has = matching.length > 0;
+                  return (
+                    <div key={key} style={{ ...cardSt, padding: "12px 14px", borderLeft: "3px solid " + (has ? "#22c55e" : "rgba(255,255,255,0.06)"), opacity: has ? 1 : 0.45 }}>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>{st.icon}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: has ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.35)" }}>{st.label}</div>
+                      {has ? matching.map(m => (
+                        <div key={m.id} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
+                          ×{m.quantity} · {m.name}{m.location ? " · 📍 " + m.location : ""}
+                        </div>
+                      )) : (
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 3, fontStyle: "italic" }}>Not in inventory</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Section B: Traps & Obstacles */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>🪤 Traps & Obstacles</h3>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: M, fontWeight: 700 }}>{trapItems.length + trapPins.length} placed</span>
+              </div>
+              {trapItems.length === 0 && trapPins.length === 0 ? (
+                <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed" }}>
+                  <div style={{ fontSize: 28, marginBottom: 6, opacity: 0.3 }}>🪤</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No traps or obstacles placed</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Add trip wires, road spikes, or barricades to inventory, or mark trap pins on the map</div>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {trapItems.map(item => {
+                    const armed = !!trapStatus[item.id];
+                    const st = allSubTypes[item.subType] || {};
+                    return (
+                      <div key={item.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + (armed ? "#22c55e" : "#6b7280") }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{st.icon || "🛡️"} {item.name}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: armed ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)" }}>{armed ? "🟢 ARMED" : "⚪ DISARMED"}</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Qty: {item.quantity}{item.fields?.wireLength ? " · " + item.fields.wireLength + "ft wire" : ""}{item.location ? " · 📍 " + item.location : ""}</div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [item.id]: true }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: armed ? "2px solid #22c55e" : "1px solid rgba(255,255,255,0.08)", background: armed ? "rgba(34,197,94,0.1)" : "transparent", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>🟢 Arm</button>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [item.id]: false }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: !armed ? "2px solid #6b7280" : "1px solid rgba(255,255,255,0.08)", background: !armed ? "rgba(107,114,128,0.1)" : "transparent", color: !armed ? "#9ca3af" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>⚪ Disarm</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {trapPins.map(pin => {
+                    const armed = !!trapStatus[pin.id];
+                    const pt = pinTypeMap[pin.type] || {};
+                    return (
+                      <div key={pin.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + (armed ? "#22c55e" : "#6b7280") }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{pt.i || "📍"} {pin.label}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: armed ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)" }}>{armed ? "🟢 ARMED" : "⚪ DISARMED"}</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>{pin.notes || "Map pin"}{pin.assignee ? " · 👤 " + pin.assignee : ""}</div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [pin.id]: true }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: armed ? "2px solid #22c55e" : "1px solid rgba(255,255,255,0.08)", background: armed ? "rgba(34,197,94,0.1)" : "transparent", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>🟢 Arm</button>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [pin.id]: false }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: !armed ? "2px solid #6b7280" : "1px solid rgba(255,255,255,0.08)", background: !armed ? "rgba(107,114,128,0.1)" : "transparent", color: !armed ? "#9ca3af" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>⚪ Disarm</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Section C: Defensive Positions */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>🎯 Defensive Positions</h3>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: M, fontWeight: 700 }}>{positionPins.length} marked</span>
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginBottom: 12, fontStyle: "italic" }}>Positions are marked on the Property Map — enable Defense layer to view.</div>
+
+              {positionPins.length === 0 && DEFENSE_ROLES.length === 0 ? (
+                <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed" }}>
+                  <div style={{ fontSize: 28, marginBottom: 6, opacity: 0.3 }}>🎯</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No defensive positions marked</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Add defense pins to the Property Map to lay out positions</div>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {positionPins.map(pin => {
+                    const pt = pinTypeMap[pin.type] || {};
+                    const assigned = pin.assignee && pin.assignee.trim();
+                    const needsAttention = pin.notes && /needs|broken|damaged/i.test(pin.notes);
+                    const borderCol = needsAttention ? "#f59e0b" : assigned ? "#22c55e" : "#ef4444";
+                    return (
+                      <div key={pin.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + borderCol }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{pt.i || "📍"} {pin.label}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: assigned ? "#22c55e" : "#ef4444" }}>{assigned ? "👤 " + pin.assignee : "⚠️ Unassigned"}</div>
+                        </div>
+                        {pin.notes && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>{pin.notes}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Defense Roles */}
+              {DEFENSE_ROLES.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.5)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>👥 Assigned Roles</div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {DEFENSE_ROLES.map(r => (
+                      <div key={r.id} style={{ ...cardSt, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, borderLeft: "3px solid #3b82f6" }}>
+                        <div style={{ fontSize: 22 }}>{r.avatar}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700 }}>{r.name} <span style={{ fontSize: 10, color: "#3b82f6", fontWeight: 600 }}>— {r.role}</span></div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>📍 {r.position} · {r.weapon}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 10, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
 
@@ -3523,88 +3990,6 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
         </div>
       )}
 
-      {/* ═══ Skills & Badges ═══ */}
-      {propSub === "skills" && (() => {
-        const [expandedSkill, setExpandedSkill] = useState(null);
-        const [showLesson, setShowLesson] = useState(null);
-        const totalBadges = SKILLS_DATA.reduce((s, sk) => s + sk.badges.filter((b) => b.unlocked).length, 0);
-        const totalPossible = SKILLS_DATA.reduce((s, sk) => s + sk.badges.length, 0);
-
-        return (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>🎖️ Skills & Certifications</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{totalBadges}/{totalPossible} badges</span>
-                <div style={{ width: 80, height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
-                  <div style={{ width: (totalBadges / totalPossible) * 100 + "%", height: "100%", background: "linear-gradient(90deg, #c8553a, #f59e0b)", borderRadius: 3 }} />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, marginBottom: 16 }}>
-              {SKILLS_DATA.map((sk) => (
-                <button key={sk.id} onClick={() => setExpandedSkill(expandedSkill === sk.id ? null : sk.id)} style={{ ...cardSt, padding: 16, cursor: "pointer", textAlign: "center", borderTop: "3px solid " + sk.color, background: expandedSkill === sk.id ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)" }}>
-                  <div style={{ fontSize: 32, marginBottom: 6 }}>{sk.icon}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{sk.label}</div>
-                  <div style={{ display: "flex", justifyContent: "center", gap: 3, marginBottom: 6 }}>
-                    {Array.from({ length: sk.maxLevel }).map((_, i) => (
-                      <div key={i} style={{ width: 10, height: 10, borderRadius: 5, background: i < sk.level ? sk.color : "rgba(255,255,255,0.08)", border: i < sk.level ? "none" : "1px solid rgba(255,255,255,0.06)" }} />
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 9, color: sk.color, fontWeight: 700 }}>Level {sk.level}/{sk.maxLevel}</div>
-                </button>
-              ))}
-            </div>
-
-            {SKILLS_DATA.filter((sk) => expandedSkill === sk.id).map((sk) => (
-              <div key={sk.id}>
-                <div style={{ ...cardSt, padding: 18, borderLeft: "4px solid " + sk.color }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                    <span style={{ fontSize: 28 }}>{sk.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 800 }}>{sk.label}</div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{sk.desc}</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>Badge Track</div>
-                  <div style={{ display: "flex", gap: 0, marginBottom: 18, position: "relative" }}>
-                    <div style={{ position: "absolute", top: 16, left: 24, right: 24, height: 2, background: "rgba(255,255,255,0.06)", zIndex: 0 }} />
-                    <div style={{ position: "absolute", top: 16, left: 24, width: ((sk.level / sk.maxLevel) * 100) + "%", maxWidth: "calc(100% - 48px)", height: 2, background: sk.color, zIndex: 1 }} />
-                    {sk.badges.map((b, i) => (
-                      <div key={i} style={{ flex: 1, textAlign: "center", position: "relative", zIndex: 2 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 17, background: b.unlocked ? sk.color : "rgba(255,255,255,0.04)", border: b.unlocked ? "2px solid " + sk.color : "2px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: b.unlocked ? 14 : 11, color: b.unlocked ? "#fff" : "rgba(255,255,255,0.2)", fontWeight: 800 }}>
-                          {b.unlocked ? "✓" : b.level}
-                        </div>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: b.unlocked ? sk.color : "rgba(255,255,255,0.25)" }}>{b.name}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, lineHeight: 1.3, padding: "0 2px" }}>{b.desc}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Micro Lessons</div>
-                  {sk.lessons.map((lesson, li) => (
-                    <div key={li} style={{ marginBottom: 6 }}>
-                      <button onClick={() => setShowLesson(showLesson === sk.id + "-" + li ? null : sk.id + "-" + li)} style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, cursor: "pointer", textAlign: "left", color: "#fff", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: sk.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sk.icon}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700 }}>{lesson.title}</div>
-                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>⏱️ {lesson.duration} read</div>
-                        </div>
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", transform: showLesson === sk.id + "-" + li ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
-                      </button>
-                      {showLesson === sk.id + "-" + li && (
-                        <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.01)", borderLeft: "2px solid " + sk.color, marginTop: 4, marginLeft: 20, borderRadius: "0 8px 8px 0" }}>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>{lesson.content}</div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
     </div>
   );
 }
@@ -3657,10 +4042,49 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
   const [securePinErrorState, setSecurePinErrorState] = useState(false);
   const [fullscreenMap, setFullscreenMap] = useState(false);
   const [rpMapModal, setRpMapModal] = useState(null);
+  // ── Skills state (moved from PropertyTab) ──
+  const [expandedSkill, setExpandedSkill] = useState(null);
+  const [showLesson, setShowLesson] = useState(null);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
-  const subTabs = [{ id: "tracker", l: "Tracker", i: "📡" }, { id: "chat", l: "Chat", i: "💬" }, { id: "comms", l: "Comms Plan", i: "📻" }, { id: "trade", l: "Trade Routes", i: "🤝" }, { id: "contacts", l: "Contacts", i: "📇" }, { id: "combined", l: "Combined Score", i: "📊" }];
+  // ── Trade Routes: Opt-In & Channel State ──
+  const [tradeOptIn, setTradeOptIn] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trade-optin") || "false"); } catch { return false; } });
+  const [channelStatus, setChannelStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-channels") || "{}"); } catch { return {}; } });
+  const [proximityFilter, setProximityFilter] = useState("all");
+  useEffect(() => { try { localStorage.setItem("prepvault-trade-optin", JSON.stringify(tradeOptIn)); } catch {} }, [tradeOptIn]);
+  useEffect(() => { try { localStorage.setItem("prepvault-channels", JSON.stringify(channelStatus)); } catch {} }, [channelStatus]);
+
+  const openChannel = (communityId) => {
+    setChannelStatus(prev => ({ ...prev, [communityId]: "pending-out" }));
+    // Simulate auto-accept after 3 seconds for demo
+    setTimeout(() => {
+      setChannelStatus(prev => ({ ...prev, [communityId]: "open" }));
+    }, 3000);
+  };
+  const acceptChannel = (communityId) => {
+    setChannelStatus(prev => ({ ...prev, [communityId]: "open" }));
+  };
+  const declineChannel = (communityId) => {
+    setChannelStatus(prev => { const n = { ...prev }; delete n[communityId]; return n; });
+  };
+  const closeChannel = (communityId) => {
+    setChannelStatus(prev => { const n = { ...prev }; delete n[communityId]; return n; });
+  };
+
+  const parseDistance = (d) => parseFloat(d.replace(/[^0-9.]/g, "")) || 0;
+  const filteredCommunities = useMemo(() => {
+    return NEARBY_COMMUNITIES.filter(c => {
+      const km = parseDistance(c.distance);
+      if (km > 100) return false;
+      if (proximityFilter === "close") return km < 25;
+      if (proximityFilter === "mid") return km >= 25 && km < 50;
+      if (proximityFilter === "far") return km >= 50 && km <= 100;
+      return true;
+    });
+  }, [proximityFilter]);
+
+  const subTabs = [{ id: "tracker", l: "Tracker", i: "📡" }, { id: "chat", l: "Chat", i: "💬" }, { id: "comms", l: "Comms Plan", i: "📻" }, { id: "trade", l: "Trade Routes", i: "🤝" }, { id: "contacts", l: "Contacts", i: "📇" }, { id: "skills", l: "Skills", i: "🎖️" }, { id: "combined", l: "Combined Score", i: "📊" }];
 
   /* ── Supabase Realtime: Chat messages ── */
   useEffect(() => {
@@ -4167,85 +4591,167 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
       )}
 
       {comSub === "trade" && (
-        <div className="pcs-trade-grid" style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
-          {/* Community list + trade board */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, padding: "2px 6px" }}>Nearby Communities</div>
-            {NEARBY_COMMUNITIES.map((c) => (
-              <button key={c.id} onClick={() => setSelTradeCommunity(c.id)} style={{ ...cardSt, padding: "10px 12px", borderLeft: "3px solid " + c.color, cursor: "pointer", background: selTradeCommunity === c.id ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)", textAlign: "left" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>{c.avatar}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700 }}>{c.name}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{c.distance} · {c.members} members</div>
+        <div>
+          {/* ── Opt-In Status Card ── */}
+          <div style={{ ...cardSt, padding: 14, marginBottom: 14, borderLeft: "3px solid " + (tradeOptIn ? "#22c55e" : "#6b7280") }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>📡</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>Your Community Status</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+                    {tradeOptIn ? "Discoverable to communities within 100 km" : "Not discoverable — other communities cannot find you"}
                   </div>
-                  <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 4, background: (statusColors[c.status] || "#6b7280") + "15", color: statusColors[c.status] || "#6b7280", fontWeight: 700 }}>{c.status}</span>
                 </div>
-                <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-                  {c.strengths.map((s) => <span key={s} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>{CATEGORIES[s]?.icon} {CATEGORIES[s]?.label}</span>)}
-                </div>
-                <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
-                  {c.weaknesses.slice(0, 2).map((w) => <span key={w} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>needs {CATEGORIES[w]?.label}</span>)}
-                </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📻 {c.contact} · Last: {c.lastContact}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 10, color: tradeOptIn ? "#22c55e" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{tradeOptIn ? "Opt-In" : "Hidden"}</span>
+                <button onClick={() => setTradeOptIn(!tradeOptIn)} style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", position: "relative", background: tradeOptIn ? "#22c55e" : "rgba(255,255,255,0.1)", transition: "background 0.2s" }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 9, background: "#fff", position: "absolute", top: 3, left: tradeOptIn ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Proximity Filter Pills ── */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+            {[{ id: "all", l: "All", count: NEARBY_COMMUNITIES.filter(c => parseDistance(c.distance) <= 100).length },
+              { id: "close", l: "< 25 km", count: NEARBY_COMMUNITIES.filter(c => parseDistance(c.distance) < 25).length },
+              { id: "mid", l: "25–50 km", count: NEARBY_COMMUNITIES.filter(c => { const d = parseDistance(c.distance); return d >= 25 && d < 50; }).length },
+              { id: "far", l: "50–100 km", count: NEARBY_COMMUNITIES.filter(c => { const d = parseDistance(c.distance); return d >= 50 && d <= 100; }).length },
+            ].map(f => (
+              <button key={f.id} onClick={() => setProximityFilter(f.id)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 10, fontWeight: 700, cursor: "pointer", border: proximityFilter === f.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: proximityFilter === f.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: proximityFilter === f.id ? "#c8553a" : "rgba(255,255,255,0.4)", fontFamily: "inherit" }}>
+                {f.l} <span style={{ opacity: 0.5 }}>({f.count})</span>
               </button>
             ))}
-            {/* Open Trade Offers */}
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, padding: "8px 4px 0" }}>Open Trades</div>
-            {TRADE_OFFERS.filter((o) => o.status === "open").map((o) => {
-              const comm = NEARBY_COMMUNITIES.find((c) => c.id === o.from);
-              return (
-                <div key={o.id} style={{ ...cardSt, padding: "8px 12px", borderLeft: "3px solid " + (o.type === "offer" ? "#22c55e" : "#0ea5e9") }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12 }}>{comm?.avatar}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700 }}>{comm?.name}</span>
-                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: o.type === "offer" ? "rgba(34,197,94,0.1)" : "rgba(14,165,233,0.1)", color: o.type === "offer" ? "#22c55e" : "#0ea5e9", fontWeight: 700 }}>{o.type}</span>
-                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginLeft: "auto", fontFamily: M }}>{o.posted}</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>📦 <strong style={{ color: "#22c55e" }}>Has:</strong> {o.have}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>🔄 <strong style={{ color: "#f59e0b" }}>Wants:</strong> {o.want}</div>
-                </div>
-              );
-            })}
           </div>
-          {/* Trade conversation with selected community */}
-          <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 460 }}>
-            {(() => {
-              const comm = NEARBY_COMMUNITIES.find((c) => c.id === selTradeCommunity);
-              const msgs = tradeMessages.filter((m) => m.community === selTradeCommunity);
-              return (<>
-                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 18 }}>{comm?.avatar}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{comm?.name}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{comm?.distance} · {comm?.contact}</div>
-                  </div>
-                  <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: 4, background: statusColors[comm?.status] || "#6b7280" }} />
-                    <span style={{ fontSize: 9, color: statusColors[comm?.status] || "#6b7280", fontWeight: 600 }}>{comm?.status}</span>
-                  </div>
-                </div>
-                <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {msgs.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11, padding: 40 }}>No messages with {comm?.name} yet. Start a trade conversation.</div>}
-                  {msgs.map((msg) => {
-                    const isUs = msg.from === "us";
-                    return (
-                      <div key={msg.id} style={{ display: "flex", flexDirection: isUs ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
-                        {!isUs && <span style={{ fontSize: 18 }}>{comm?.avatar}</span>}
-                        <div style={{ maxWidth: "75%" }}>
-                          <div style={{ background: isUs ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isUs ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isUs ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{msg.text}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isUs ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
-                        </div>
+
+          <div className="pcs-trade-grid" style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
+            {/* Community list + trade board */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, padding: "2px 6px" }}>Nearby Communities ({filteredCommunities.length})</div>
+              {filteredCommunities.map((c) => {
+                const chSt = channelStatus[c.id];
+                const chColor = chSt === "open" ? "#22c55e" : chSt === "pending-out" ? "#f59e0b" : chSt === "pending-in" ? "#3b82f6" : "#6b7280";
+                const chLabel = chSt === "open" ? "Channel Open" : chSt === "pending-out" ? "Pending..." : chSt === "pending-in" ? "Request Received" : "No Channel";
+                return (
+                  <button key={c.id} onClick={() => setSelTradeCommunity(c.id)} style={{ ...cardSt, padding: "10px 12px", borderLeft: "3px solid " + c.color, cursor: "pointer", background: selTradeCommunity === c.id ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)", textAlign: "left" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 20 }}>{c.avatar}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>{c.name}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{c.distance} · {c.members} members</div>
                       </div>
-                    );
-                  })}
-                </div>
-                <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
-                  <input value={tradeInput} onChange={(e) => setTradeInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendTrade()} placeholder={`Message ${comm?.name}...`} style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-                  <button onClick={sendTrade} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
-                </div>
-              </>);
-            })()}
+                      <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 4, background: (statusColors[c.status] || "#6b7280") + "15", color: statusColors[c.status] || "#6b7280", fontWeight: 700 }}>{c.status}</span>
+                    </div>
+                    {/* Channel Status */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: 3, background: chColor, animation: chSt === "pending-in" ? "pulse 1.5s infinite" : "none" }} />
+                      <span style={{ fontSize: 9, color: chColor, fontWeight: 600 }}>{chLabel}</span>
+                      {!chSt && tradeOptIn && (
+                        <button onClick={(e) => { e.stopPropagation(); openChannel(c.id); }} style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(200,85,58,0.1)", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", fontFamily: "inherit" }}>Open Channel</button>
+                      )}
+                      {chSt === "pending-in" && (
+                        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                          <button onClick={(e) => { e.stopPropagation(); acceptChannel(c.id); }} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", fontFamily: "inherit" }}>Accept</button>
+                          <button onClick={(e) => { e.stopPropagation(); declineChannel(c.id); }} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontFamily: "inherit" }}>Decline</button>
+                        </div>
+                      )}
+                      {chSt === "open" && (
+                        <button onClick={(e) => { e.stopPropagation(); if (confirm("Close communication channel with " + c.name + "?")) closeChannel(c.id); }} style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.1)", color: "rgba(239,68,68,0.5)", fontFamily: "inherit" }}>Close</button>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+                      {c.strengths.map((s) => <span key={s} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>{CATEGORIES[s]?.icon} {CATEGORIES[s]?.label}</span>)}
+                    </div>
+                    <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
+                      {c.weaknesses.slice(0, 2).map((w) => <span key={w} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>needs {CATEGORIES[w]?.label}</span>)}
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📻 {c.contact} · Last: {c.lastContact}</div>
+                  </button>
+                );
+              })}
+              {/* Open Trade Offers */}
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, padding: "8px 4px 0" }}>Open Trades</div>
+              {TRADE_OFFERS.filter((o) => o.status === "open").map((o) => {
+                const comm = NEARBY_COMMUNITIES.find((c) => c.id === o.from);
+                return (
+                  <div key={o.id} style={{ ...cardSt, padding: "8px 12px", borderLeft: "3px solid " + (o.type === "offer" ? "#22c55e" : "#0ea5e9") }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12 }}>{comm?.avatar}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700 }}>{comm?.name}</span>
+                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: o.type === "offer" ? "rgba(34,197,94,0.1)" : "rgba(14,165,233,0.1)", color: o.type === "offer" ? "#22c55e" : "#0ea5e9", fontWeight: 700 }}>{o.type}</span>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginLeft: "auto", fontFamily: M }}>{o.posted}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>📦 <strong style={{ color: "#22c55e" }}>Has:</strong> {o.have}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>🔄 <strong style={{ color: "#f59e0b" }}>Wants:</strong> {o.want}</div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Trade conversation with selected community */}
+            <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 460 }}>
+              {(() => {
+                const comm = NEARBY_COMMUNITIES.find((c) => c.id === selTradeCommunity);
+                const chSt = channelStatus[selTradeCommunity];
+                const msgs = tradeMessages.filter((m) => m.community === selTradeCommunity);
+                const canMessage = chSt === "open" || parseDistance(comm?.distance || "0") < 25;
+                return (<>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>{comm?.avatar}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{comm?.name}</div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{comm?.distance} · {comm?.contact}</div>
+                    </div>
+                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                      {chSt && (
+                        <span style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, background: chSt === "open" ? "rgba(34,197,94,0.1)" : "rgba(245,158,11,0.1)", color: chSt === "open" ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>
+                          {chSt === "open" ? "📡 Channel Open" : "⏳ Pending"}
+                        </span>
+                      )}
+                      <div style={{ width: 7, height: 7, borderRadius: 4, background: statusColors[comm?.status] || "#6b7280" }} />
+                      <span style={{ fontSize: 9, color: statusColors[comm?.status] || "#6b7280", fontWeight: 600 }}>{comm?.status}</span>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {!canMessage && msgs.length === 0 && (
+                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11, padding: 40 }}>
+                        <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>📡</div>
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>No communication channel open</div>
+                        <div style={{ fontSize: 10 }}>{tradeOptIn ? "Open a channel to start messaging " + (comm?.name || "") : "Enable opt-in to open channels with communities"}</div>
+                      </div>
+                    )}
+                    {canMessage && msgs.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11, padding: 40 }}>No messages with {comm?.name} yet. Start a trade conversation.</div>}
+                    {msgs.map((msg) => {
+                      const isUs = msg.from === "us";
+                      return (
+                        <div key={msg.id} style={{ display: "flex", flexDirection: isUs ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
+                          {!isUs && <span style={{ fontSize: 18 }}>{comm?.avatar}</span>}
+                          <div style={{ maxWidth: "75%" }}>
+                            <div style={{ background: isUs ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isUs ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isUs ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{msg.text}</div>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isUs ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {canMessage ? (
+                    <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
+                      <input value={tradeInput} onChange={(e) => setTradeInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendTrade()} placeholder={`Message ${comm?.name}...`} style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
+                      <button onClick={sendTrade} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
+                    </div>
+                  ) : (
+                    <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+                      {tradeOptIn ? (
+                        <button onClick={() => openChannel(selTradeCommunity)} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(200,85,58,0.1)", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", fontFamily: "inherit" }}>📡 Open Communication Channel</button>
+                      ) : (
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Enable opt-in above to open channels</span>
+                      )}
+                    </div>
+                  )}
+                </>);
+              })()}
+            </div>
           </div>
         </div>
       )}
@@ -4384,6 +4890,87 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
           </div>
         </div>
       )}
+
+      {/* ═══ Skills & Badges ═══ */}
+      {comSub === "skills" && (() => {
+        const totalBadges = SKILLS_DATA.reduce((s, sk) => s + sk.badges.filter((b) => b.unlocked).length, 0);
+        const totalPossible = SKILLS_DATA.reduce((s, sk) => s + sk.badges.length, 0);
+
+        return (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>🎖️ Skills & Certifications</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{totalBadges}/{totalPossible} badges</span>
+                <div style={{ width: 80, height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
+                  <div style={{ width: (totalBadges / totalPossible) * 100 + "%", height: "100%", background: "linear-gradient(90deg, #c8553a, #f59e0b)", borderRadius: 3 }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, marginBottom: 16 }}>
+              {SKILLS_DATA.map((sk) => (
+                <button key={sk.id} onClick={() => setExpandedSkill(expandedSkill === sk.id ? null : sk.id)} style={{ ...cardSt, padding: 16, cursor: "pointer", textAlign: "center", borderTop: "3px solid " + sk.color, background: expandedSkill === sk.id ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)" }}>
+                  <div style={{ fontSize: 32, marginBottom: 6 }}>{sk.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{sk.label}</div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 3, marginBottom: 6 }}>
+                    {Array.from({ length: sk.maxLevel }).map((_, i) => (
+                      <div key={i} style={{ width: 10, height: 10, borderRadius: 5, background: i < sk.level ? sk.color : "rgba(255,255,255,0.08)", border: i < sk.level ? "none" : "1px solid rgba(255,255,255,0.06)" }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 9, color: sk.color, fontWeight: 700 }}>Level {sk.level}/{sk.maxLevel}</div>
+                </button>
+              ))}
+            </div>
+
+            {SKILLS_DATA.filter((sk) => expandedSkill === sk.id).map((sk) => (
+              <div key={sk.id}>
+                <div style={{ ...cardSt, padding: 18, borderLeft: "4px solid " + sk.color }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                    <span style={{ fontSize: 28 }}>{sk.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 800 }}>{sk.label}</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{sk.desc}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>Badge Track</div>
+                  <div style={{ display: "flex", gap: 0, marginBottom: 18, position: "relative" }}>
+                    <div style={{ position: "absolute", top: 16, left: 24, right: 24, height: 2, background: "rgba(255,255,255,0.06)", zIndex: 0 }} />
+                    <div style={{ position: "absolute", top: 16, left: 24, width: ((sk.level / sk.maxLevel) * 100) + "%", maxWidth: "calc(100% - 48px)", height: 2, background: sk.color, zIndex: 1 }} />
+                    {sk.badges.map((b, i) => (
+                      <div key={i} style={{ flex: 1, textAlign: "center", position: "relative", zIndex: 2 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 17, background: b.unlocked ? sk.color : "rgba(255,255,255,0.04)", border: b.unlocked ? "2px solid " + sk.color : "2px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: b.unlocked ? 14 : 11, color: b.unlocked ? "#fff" : "rgba(255,255,255,0.2)", fontWeight: 800 }}>
+                          {b.unlocked ? "✓" : b.level}
+                        </div>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: b.unlocked ? sk.color : "rgba(255,255,255,0.25)" }}>{b.name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, lineHeight: 1.3, padding: "0 2px" }}>{b.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Micro Lessons</div>
+                  {sk.lessons.map((lesson, li) => (
+                    <div key={li} style={{ marginBottom: 6 }}>
+                      <button onClick={() => setShowLesson(showLesson === sk.id + "-" + li ? null : sk.id + "-" + li)} style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, cursor: "pointer", textAlign: "left", color: "#fff", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: sk.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sk.icon}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700 }}>{lesson.title}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>⏱️ {lesson.duration} read</div>
+                        </div>
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", transform: showLesson === sk.id + "-" + li ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+                      </button>
+                      {showLesson === sk.id + "-" + li && (
+                        <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.01)", borderLeft: "2px solid " + sk.color, marginTop: 4, marginLeft: 20, borderRadius: "0 8px 8px 0" }}>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>{lesson.content}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {comSub === "combined" && (() => {
         const { combined, soloAvg, pooledAvg, totalPeople, alliedCount } = computeCombined();
@@ -4728,6 +5315,54 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     { id: "codes", l: "Codes", i: "🔐" },
     { id: "equipment", l: "Equipment", i: "🔧" },
   ];
+
+  // ── Challenge/Response rotation tick (1s interval) ──
+  const [crTick, setCrTick] = useState(Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setCrTick(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const challengeAssignments = useMemo(() => {
+    const now = new Date(crTick);
+    const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const currentSec = now.getSeconds();
+    const windows = COMMS_PLAN.schedule.map(s => {
+      const [h, m] = s.time.split(":").map(Number);
+      return h * 60 + m;
+    });
+    // Find which window we're in (last passed check-in)
+    let windowIdx = 0;
+    for (let i = windows.length - 1; i >= 0; i--) {
+      if (currentMin >= windows[i]) { windowIdx = i; break; }
+    }
+    // Next window for countdown
+    const nextIdx = (windowIdx + 1) % windows.length;
+    const nextWindowMin = windows[nextIdx];
+    const nextIsNextDay = nextWindowMin <= currentMin;
+    // Countdown in seconds
+    let secsUntilNext;
+    if (nextIsNextDay) {
+      secsUntilNext = (24 * 60 - currentMin) * 60 - currentSec + nextWindowMin * 60;
+    } else {
+      secsUntilNext = (nextWindowMin - currentMin) * 60 - currentSec;
+    }
+    const countdownH = Math.floor(secsUntilNext / 3600);
+    const countdownM = Math.floor((secsUntilNext % 3600) / 60);
+    const countdownS = secsUntilNext % 60;
+    const countdownDisplay = (countdownH > 0 ? countdownH + ":" : "") + String(countdownM).padStart(2, "0") + ":" + String(countdownS).padStart(2, "0");
+
+    // Seed: dayOfYear * numWindows + windowIdx → deterministic per window
+    const seed = dayOfYear * windows.length + windowIdx;
+    const poolSize = CHALLENGE_RESPONSE_PAIRS.length;
+    const assignments = callSigns.map((cs, i) => {
+      const idx = ((seed * 7 + i * 13 + 3) % poolSize + poolSize) % poolSize;
+      return { ...cs, challenge: CHALLENGE_RESPONSE_PAIRS[idx].challenge, response: CHALLENGE_RESPONSE_PAIRS[idx].response };
+    });
+
+    return { assignments, countdownDisplay, secsUntilNext, nextSchedule: COMMS_PLAN.schedule[nextIdx] };
+  }, [callSigns, crTick]);
 
   // Scanner animation — cycle through channels
   useEffect(() => {
@@ -5220,16 +5855,43 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
             </div>
           </div>
 
-          {/* Call Signs */}
-          <div style={{ ...cardSt, padding: 12 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Call Sign Roster</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
-              {callSigns.map((cs, i) => (
-                <div key={i} style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#22c55e", minWidth: 60 }}>{cs.sign}</span>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.person}</span>
+          {/* Challenge / Response Authentication */}
+          <div style={{ ...cardSt, padding: 12, borderTop: "3px solid #f59e0b" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 10, color: "#f59e0b", textTransform: "uppercase", letterSpacing: 2 }}>🔐 Challenge / Response Authentication</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>Rotates each check-in</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6, background: challengeAssignments.secsUntilNext < 300 ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.08)", border: "1px solid " + (challengeAssignments.secsUntilNext < 300 ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.15)") }}>
+                  <span style={{ fontSize: 10, color: challengeAssignments.secsUntilNext < 300 ? "#ef4444" : "#f59e0b" }}>⏱</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: challengeAssignments.secsUntilNext < 300 ? "#ef4444" : "#f59e0b" }}>{challengeAssignments.countdownDisplay}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginBottom: 10 }}>
+              When authenticating, CHALLENGE the person with the word below. They must reply with the correct RESPONSE. Phrases change at each scheduled check-in.
+            </div>
+            <div style={{ display: "grid", gap: 4 }}>
+              {challengeAssignments.assignments.map((cs, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div style={{ minWidth: 75, display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#22c55e" }}>{cs.sign}</span>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.person}</span>
+                  </div>
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: "#f59e0b", padding: "4px 10px", borderRadius: 6, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>{cs.challenge}</span>
+                    <span style={{ fontSize: 14, color: "rgba(255,255,255,0.2)" }}>→</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: "#22c55e", padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>{cs.response}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 60, justifyContent: "flex-end" }}>
+                    <span style={{ fontSize: 9, color: challengeAssignments.secsUntilNext < 300 ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.2)" }}>⏱</span>
+                    <span style={{ fontSize: 10, fontFamily: M, color: challengeAssignments.secsUntilNext < 300 ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.2)" }}>{challengeAssignments.countdownDisplay}</span>
+                  </div>
                 </div>
               ))}
+            </div>
+            <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.08)", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12 }}>⚠️</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>If someone fails the challenge, assume compromised. Use duress protocol.</span>
             </div>
           </div>
 
@@ -5400,6 +6062,362 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
               ))}
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OPPORTUNITIES TAB — Score-Based Improvement Recommendations
+   ═══════════════════════════════════════════════════════════════ */
+function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps }) {
+  const M = "'JetBrains Mono',monospace";
+  const accent = "#c8553a";
+  const cardSt = { background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" };
+  const [oppFilter, setOppFilter] = useState("all");
+  const [showDismissed, setShowDismissed] = useState(false);
+
+  /* ── Continuity Metrics (replicated from DashboardTab) ── */
+  const cont = useMemo(() => {
+    const clim = CLIMATES[climate] || CLIMATES.temperate;
+    const waterMod = clim.waterMod || 1;
+    const firewoodMod = clim.firewoodMod || 1;
+    const p = people || 1;
+    const fuelGals = items.filter(i => i.category === "fuel" && (i.subType === "gasoline" || i.subType === "diesel")).reduce((s, i) => s + (parseFloat(i.fields?.gallons) || 0) * (i.quantity || 1), 0);
+    const propaneTanks = items.filter(i => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
+    const batteries = items.filter(i => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
+    const solarPanels = items.filter(i => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
+    const powerHrs = fuelGals * 5.5 + batteries * 0.3 + solarPanels * 5;
+    const waterStored = items.filter(i => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
+    const waterFilters = items.filter(i => i.category === "water" && (i.subType === "purificationDevice" || i.subType === "purificationTablets")).reduce((s, i) => s + (i.quantity || 0), 0);
+    const dailyWater = p * 1.0 * waterMod;
+    const waterDays = (waterStored / Math.max(dailyWater, 0.1)) + (waterFilters * 3);
+    const firewoodCords = items.filter(i => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+    const propaneHeatDays = (propaneTanks * 4.6 * 91452 / 18000) / 12;
+    const firewoodDays = firewoodCords * 30;
+    const heatDays = firewoodMod > 1 ? (firewoodDays + propaneHeatDays) / firewoodMod : firewoodDays + propaneHeatDays + 30;
+    const totalCals = items.filter(i => i.category === "food").reduce((s, i) => {
+      const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
+      const serv = parseFloat(i.fields?.servings || 1);
+      return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1);
+    }, 0);
+    const calDays = totalCals / Math.max(p * 2000, 1);
+    const commCh = new Set();
+    items.filter(i => i.category === "electronics").forEach(i => {
+      if (i.subType === "satPhone") commCh.add("Satellite");
+      if (i.subType === "cellPhone") commCh.add("Cellular");
+      if (i.subType === "radio") commCh.add("HAM/GMRS");
+      if (i.subType === "weatherRadio") commCh.add("Weather Band");
+    });
+    items.filter(i => i.category === "comms").forEach(() => commCh.add("HAM/GMRS"));
+    return { powerHrs, waterDays, heatDays, calDays, commCount: commCh.size, commChannels: [...commCh] };
+  }, [items, people, climate]);
+
+  /* ── Preparedness Score ── */
+  const prepScore = useMemo(() => {
+    let s = 0;
+    s += Math.min(cont.waterDays / 14, 1) * 25;
+    s += Math.min(cont.calDays / 30, 1) * 25;
+    s += Math.min(cont.powerHrs / 72, 1) * 15;
+    s += Math.min(cont.heatDays / 30, 1) * 15;
+    s += Math.min(cont.commCount / 3, 1) * 10;
+    const cats = new Set(items.map(i => i.category)).size;
+    s += Math.min(cats / Object.keys(CATEGORIES).length, 1) * 10;
+    return Math.round(s);
+  }, [cont, items]);
+
+  /* ── Score simulation helper — replicates prepScore formula ── */
+  const computeScore = (metrics, itemList) => {
+    let s = 0;
+    s += Math.min(metrics.waterDays / 14, 1) * 25;
+    s += Math.min(metrics.calDays / 30, 1) * 25;
+    s += Math.min(metrics.powerHrs / 72, 1) * 15;
+    s += Math.min(metrics.heatDays / 30, 1) * 15;
+    s += Math.min(metrics.commCount / 3, 1) * 10;
+    const cats = new Set(itemList.map(i => i.category)).size;
+    s += Math.min(cats / Object.keys(CATEGORIES).length, 1) * 10;
+    return Math.round(s);
+  };
+
+  /* ── Opportunity Engine ── */
+  const opportunities = useMemo(() => {
+    const opps = [];
+    const scoreNow = prepScore;
+    const p = people || 1;
+    const catsWithItems = new Set(items.map(i => i.category));
+    const climateMeta = CLIMATES[climate] || CLIMATES.temperate;
+
+    // Helper: simulate score with modified metrics
+    const simScore = (overrides, extraCats) => {
+      const m = { ...cont, ...overrides };
+      // For coverage simulation, create a fake item list
+      let fakeItems = [...items];
+      if (extraCats) extraCats.forEach(c => { if (!catsWithItems.has(c)) fakeItems.push({ category: c }); });
+      return computeScore(m, fakeItems);
+    };
+
+    const priorityFor = (gain) => gain >= 5 ? "critical" : gain >= 3 ? "high" : gain >= 1 ? "medium" : "low";
+    const prioColor = (pr) => pr === "critical" ? "#ef4444" : pr === "high" ? "#f97316" : pr === "medium" ? "#eab308" : "#84cc16";
+
+    // ─── WATER OPPORTUNITIES ───
+    if (cont.waterDays < 14) {
+      const after = simScore({ waterDays: 14 });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "water-storage", icon: "💧", title: "Increase Water Storage", desc: `You have ${cont.waterDays.toFixed(1)} days of water. Target is 14 days for ${p} ${p === 1 ? "person" : "people"} (${(p * 14).toFixed(0)} gallons).`, action: `Store ${Math.ceil((14 - cont.waterDays) * p)} more gallons of water in food-grade containers.`, category: "water", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    const purDevices = items.filter(i => i.category === "water" && (i.subType === "purificationDevice" || i.subType === "purificationTablets")).length;
+    if (purDevices === 0) {
+      const after = simScore({ waterDays: cont.waterDays + 6 });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "water-purification", icon: "🔬", title: "Add Water Purification", desc: "No water purification capability. Stored water eventually runs out — purification extends supply indefinitely.", action: "Add a gravity-fed water filter (e.g. Berkey) and purification tablets as backup.", category: "water", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    const waterTypes = new Set();
+    items.filter(i => i.category === "water").forEach(i => waterTypes.add(i.subType));
+    if (waterTypes.size < 2 && cont.waterDays < 14) {
+      const after = simScore({ waterDays: Math.min(cont.waterDays + 5, 14) });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "water-diversity", icon: "🌧️", title: "Diversify Water Sources", desc: `Only ${waterTypes.size} water source type${waterTypes.size === 1 ? "" : "s"}. Add rainwater collection, a well, or natural spring access for redundancy.`, action: "Install a rainwater collection system or identify a nearby natural water source.", category: "water", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    // ─── FOOD OPPORTUNITIES ───
+    if (cont.calDays < 30) {
+      const after = simScore({ calDays: 30 });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "food-storage", icon: "🥫", title: "Build Food Reserves", desc: `${cont.calDays.toFixed(1)} days of calories stored. Target is 30 days at 2,000 cal/person/day (${(p * 30 * 2000).toLocaleString()} total calories).`, action: "Stock freeze-dried meals, rice, beans, and canned goods. Focus on calorie-dense, long-shelf items.", category: "food", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    if (gardenBeds.length === 0 && !catsWithItems.has("farm")) {
+      const after = simScore({ calDays: cont.calDays + 5 }, ["farm"]);
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "food-garden", icon: "🌱", title: "Start a Garden", desc: "No garden beds set up. Growing food provides a renewable calorie source and adds category coverage.", action: "Set up raised beds with high-yield crops: potatoes, beans, tomatoes, squash.", category: "food", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    if (gardenBeds.length > 0) {
+      const cropTypes = new Set();
+      gardenBeds.forEach(b => (b.plants || []).forEach(pl => cropTypes.add(pl.crop)));
+      if (cropTypes.size > 0 && cropTypes.size < 5) {
+        opps.push({ id: "farm-expansion", icon: "🌾", title: "Diversify Crop Types", desc: `Only ${cropTypes.size} crop type${cropTypes.size === 1 ? "" : "s"} planted. More variety improves nutritional balance and reduces crop failure risk.`, action: "Add root vegetables (potatoes, carrots), legumes (beans, peas), and greens (lettuce, kale).", category: "food", priority: "low", scoreNow, scoreAfter: scoreNow + 1, pointsGain: 1, prioColor: prioColor("low") });
+      }
+    }
+
+    // ─── POWER OPPORTUNITIES ───
+    if (cont.powerHrs < 72) {
+      const after = simScore({ powerHrs: 72 });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "power-generator", icon: "⚡", title: "Extend Power Backup", desc: `${cont.powerHrs.toFixed(1)} hours of power autonomy. Target is 72 hours to sustain critical systems.`, action: "Add a generator with stored fuel, or increase fuel reserves for existing generator.", category: "power", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    const solarPanels = items.filter(i => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).length;
+    if (solarPanels === 0 && cont.powerHrs < 72) {
+      const after = simScore({ powerHrs: Math.min(cont.powerHrs + 40, 72) });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "power-solar", icon: "☀️", title: "Add Solar Power", desc: "No solar panels. Solar provides renewable, silent power generation that doesn't depend on fuel supply.", action: "Install a portable solar panel system (100W+) with charge controller and battery bank.", category: "power", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    const batteryCount = items.filter(i => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
+    if (solarPanels > 0 && batteryCount < 10) {
+      const extraHrs = (10 - batteryCount) * 0.3;
+      const after = simScore({ powerHrs: Math.min(cont.powerHrs + extraHrs, 72) });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "power-batteries", icon: "🔋", title: "Increase Battery Storage", desc: `Only ${batteryCount} batteries with solar panels. Batteries store solar energy for nighttime and cloudy days.`, action: "Stock rechargeable 18650 and AA batteries with a solar-compatible charger.", category: "power", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    // ─── HEAT OPPORTUNITIES ───
+    const needsHeat = climateMeta.firewoodMod >= 0.5;
+    if (needsHeat && cont.heatDays < 30) {
+      const after = simScore({ heatDays: 30 });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "heat-firewood", icon: "🪵", title: "Stock Heating Fuel", desc: `${cont.heatDays.toFixed(1)} days of heating. Target is 30 days. ${climate === "arctic" || climate === "cold" ? "Critical in your climate zone." : "Important for winter resilience."}`, action: climate === "cold" || climate === "arctic" ? "Stack 2+ cords of seasoned firewood and store propane as backup." : "Stock firewood or propane to cover 30 cold days.", category: "heat", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    const heatSources = new Set();
+    const firewoodCords = items.filter(i => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+    const propaneTanks = items.filter(i => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
+    if (firewoodCords > 0) heatSources.add("wood");
+    if (propaneTanks > 0) heatSources.add("propane");
+    if (needsHeat && heatSources.size === 1) {
+      const addDays = heatSources.has("wood") ? propaneTanks === 0 ? 10 : 0 : 15;
+      const after = simScore({ heatDays: Math.min(cont.heatDays + addDays, 30) });
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "heat-diversity", icon: "🔥", title: "Diversify Heat Sources", desc: `Only ${[...heatSources][0]} for heating. A single fuel source is a critical vulnerability.`, action: heatSources.has("wood") ? "Add propane tanks and a propane heater as backup heat." : "Stock seasoned firewood and ensure you have a wood stove or fireplace.", category: "heat", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    // ─── COMMS OPPORTUNITIES ───
+    if (cont.commCount < 3) {
+      const after = simScore({ commCount: 3 });
+      const gain = after - scoreNow;
+      const missing = [];
+      if (!cont.commChannels.includes("HAM/GMRS")) missing.push("HAM/GMRS radio");
+      if (!cont.commChannels.includes("Satellite")) missing.push("satellite phone");
+      if (!cont.commChannels.includes("Weather Band")) missing.push("NOAA weather radio");
+      if (!cont.commChannels.includes("Cellular")) missing.push("cell phone");
+      if (gain > 0) opps.push({ id: "comms-channels", icon: "📡", title: "Add Communication Channels", desc: `${cont.commCount} of 3 required channels. Multiple independent channels ensure contact when infrastructure fails.`, action: `Add: ${missing.slice(0, 3 - cont.commCount).join(", ")}.`, category: "comms", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    if (!cont.commChannels.includes("Weather Band")) {
+      const after = simScore({ commCount: Math.min(cont.commCount + 1, 3) });
+      const gain = after - scoreNow;
+      if (gain > 0 && cont.commCount < 3) opps.push({ id: "comms-weather", icon: "🌤️", title: "Add Weather Radio", desc: "No NOAA weather radio. Weather alerts provide early warning for severe weather events.", action: "Get a hand-crank NOAA weather radio with battery backup.", category: "comms", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    // ─── CATEGORY COVERAGE OPPORTUNITIES ───
+    const allCatKeys = Object.keys(CATEGORIES);
+    const missedCats = allCatKeys.filter(c => !catsWithItems.has(c));
+
+    if (!catsWithItems.has("medical")) {
+      const after = simScore({}, ["medical"]);
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "medical-kit", icon: "💊", title: "Build Medical Supplies", desc: "No medical supplies inventoried. Medical emergencies are the most common crisis, regardless of scenario.", action: "Start with a comprehensive first aid kit, trauma kit (tourniquet, hemostatic gauze), and prescription reserves.", category: "medical", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    if (!catsWithItems.has("defense")) {
+      const after = simScore({}, ["defense"]);
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "security-defense", icon: "🛡️", title: "Add Perimeter Security", desc: "No defense items inventoried. Physical security deters threats and provides early warning.", action: "Install motion-sensor lights, trail cameras, and trip-wire alarms at entry points.", category: "defense", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    if (!catsWithItems.has("bugout")) {
+      const after = simScore({}, ["bugout"]);
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "bugout-bags", icon: "🎒", title: "Build Bug-Out Bags", desc: "No bug-out bags prepared. In evacuation scenarios, a pre-packed bag saves critical minutes.", action: `Build ${p} bag${p > 1 ? "s" : ""} with 72h of water, food, first aid, fire kit, shelter, documents, and cash.`, category: "bugout", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    // General coverage gaps (batch remaining empty categories)
+    const importantGaps = missedCats.filter(c => !["medical", "defense", "bugout", "farm"].includes(c));
+    if (importantGaps.length >= 3) {
+      const after = simScore({}, importantGaps.slice(0, 3));
+      const gain = after - scoreNow;
+      if (gain > 0) opps.push({ id: "coverage-gaps", icon: "📊", title: "Fill Category Gaps", desc: `${missedCats.length} of ${allCatKeys.length} categories empty. Each new category adds ~${(10 / allCatKeys.length).toFixed(1)} points to your coverage score.`, action: `Start with: ${importantGaps.slice(0, 3).map(c => CATEGORIES[c]?.label || c).join(", ")}.`, category: "coverage", priority: priorityFor(gain), scoreNow, scoreAfter: after, pointsGain: gain, prioColor: prioColor(priorityFor(gain)) });
+    }
+
+    // Sort by pointsGain descending
+    opps.sort((a, b) => b.pointsGain - a.pointsGain);
+    return opps;
+  }, [items, people, climate, cont, prepScore, gardenBeds]);
+
+  // Filter
+  const activeOpps = opportunities.filter(o => !dismissedOpps.includes(o.id));
+  const dismissed = opportunities.filter(o => dismissedOpps.includes(o.id));
+  const filtered = oppFilter === "all" ? activeOpps : activeOpps.filter(o => o.priority === oppFilter);
+
+  // Potential score (if ALL active opps acted on)
+  const potentialScore = activeOpps.length > 0 ? Math.min(100, Math.max(...activeOpps.map(o => o.scoreAfter))) : prepScore;
+
+  const filterPills = [
+    { id: "all", l: "All", c: accent },
+    { id: "critical", l: "Critical", c: "#ef4444" },
+    { id: "high", l: "High", c: "#f97316" },
+    { id: "medium", l: "Medium", c: "#eab308" },
+    { id: "low", l: "Low", c: "#84cc16" },
+  ];
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      {/* ── Summary Bar ── */}
+      <div style={{ ...cardSt, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: M }}>CURRENT</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: SC(prepScore), fontFamily: M }}>{prepScore}</span>
+          </div>
+          {activeOpps.length > 0 && <>
+            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.2)" }}>→</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: M }}>POTENTIAL</span>
+              <span style={{ fontSize: 20, fontWeight: 900, color: SC(potentialScore), fontFamily: M }}>{potentialScore}</span>
+            </div>
+            <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 700, fontFamily: M, background: "rgba(34,197,94,0.1)", padding: "2px 6px", borderRadius: 4 }}>+{potentialScore - prepScore} pts</span>
+          </>}
+        </div>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{activeOpps.length} opportunit{activeOpps.length === 1 ? "y" : "ies"} found</span>
+      </div>
+
+      {/* ── Filter Pills ── */}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {filterPills.map(fp => (
+          <button key={fp.id} onClick={() => setOppFilter(fp.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${oppFilter === fp.id ? fp.c : "rgba(255,255,255,0.08)"}`, background: oppFilter === fp.id ? `${fp.c}15` : "transparent", color: oppFilter === fp.id ? fp.c : "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+            {fp.l}{fp.id !== "all" && ` (${activeOpps.filter(o => o.priority === fp.id).length})`}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Opportunity Cards ── */}
+      {filtered.length === 0 && activeOpps.length === 0 && (
+        <div style={{ ...cardSt, padding: "40px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>All Optimized</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Your preparedness is well-balanced. Keep maintaining your supplies.</div>
+        </div>
+      )}
+
+      {filtered.length === 0 && activeOpps.length > 0 && (
+        <div style={{ ...cardSt, padding: "20px", textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No {oppFilter} priority opportunities</div>
+        </div>
+      )}
+
+      {filtered.map(opp => (
+        <div key={opp.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderLeft: `3px solid ${opp.prioColor}` }}>
+          <div style={{ padding: "12px 14px" }}>
+            {/* Header row */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                <span style={{ fontSize: 18 }}>{opp.icon}</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{opp.title}</div>
+                  <span style={{ fontSize: 9, color: opp.prioColor, fontWeight: 700, textTransform: "uppercase", fontFamily: M }}>{opp.priority}</span>
+                </div>
+              </div>
+              <button onClick={() => setDismissedOpps(p => [...p, opp.id])} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Dismiss">✕</button>
+            </div>
+
+            {/* Description */}
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 8 }}>{opp.desc}</div>
+
+            {/* Recommended Action */}
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, padding: "6px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 10 }}>
+              <span style={{ fontSize: 9, color: accent, fontWeight: 700, textTransform: "uppercase", fontFamily: M, display: "block", marginBottom: 3 }}>Recommended</span>
+              {opp.action}
+            </div>
+
+            {/* Score Impact */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{opp.scoreNow} → {opp.scoreAfter}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#22c55e", fontFamily: M }}>+{opp.pointsGain} pts</span>
+                </div>
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", position: "relative" }}>
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${opp.scoreNow}%`, background: SC(opp.scoreNow), borderRadius: 2, transition: "width 0.3s" }} />
+                  <div style={{ position: "absolute", left: `${opp.scoreNow}%`, top: 0, height: "100%", width: `${opp.scoreAfter - opp.scoreNow}%`, background: `${SC(opp.scoreAfter)}60`, borderRadius: "0 2px 2px 0" }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* ── Dismissed Section ── */}
+      {dismissed.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <button onClick={() => setShowDismissed(!showDismissed)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, padding: "4px 0" }}>
+            <span style={{ transition: "transform 0.2s", display: "inline-block", transform: showDismissed ? "rotate(90deg)" : "none" }}>▸</span>
+            Dismissed ({dismissed.length})
+            {dismissed.length > 0 && <span onClick={(e) => { e.stopPropagation(); setDismissedOpps([]); }} style={{ marginLeft: 8, color: accent, textDecoration: "underline", cursor: "pointer" }}>Restore All</span>}
+          </button>
+          {showDismissed && dismissed.map(opp => (
+            <div key={opp.id} style={{ ...cardSt, padding: "8px 12px", marginTop: 4, opacity: 0.45, display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `3px solid ${opp.prioColor}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 14 }}>{opp.icon}</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{opp.title}</span>
+                <span style={{ fontSize: 9, color: opp.prioColor, fontWeight: 700, fontFamily: M }}>+{opp.pointsGain}</span>
+              </div>
+              <button onClick={() => setDismissedOpps(p => p.filter(d => d !== opp.id))} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 9, padding: "2px 6px", fontFamily: "inherit" }}>↩ Restore</button>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -6632,8 +7650,21 @@ export default function PrepVault() {
   const [authError, setAuthError] = useState("");
   const [showVerification, setShowVerification] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
+  const [dismissedOpps, setDismissedOpps] = useState(() => JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"));
+  useEffect(() => localStorage.setItem("prepvault-dismissed-opps", JSON.stringify(dismissedOpps)), [dismissedOpps]);
   const [syncStatus, setSyncStatus] = useState("local"); // 'local' | 'syncing' | 'synced' | 'error' | 'offline'
   const syncEngineRef = useRef(null);
+
+  /* ── Property Profile / Quick Start ── */
+  const [propertyProfile, setPropertyProfile] = useState(() => {
+    const p = saved.current?.propertyProfile || { ...DEFAULT_PROPERTY_PROFILE };
+    const toArr = v => Array.isArray(v) ? v : v != null ? [v] : [];
+    ["heatSource", "powerSource", "generatorFuel", "waterSource", "freshwaterAccess", "medicalTraining", "defensivePosture"].forEach(k => { if (p[k] != null && !Array.isArray(p[k])) p[k] = toArr(p[k]); });
+    return p;
+  });
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showQuickStart, setShowQuickStart] = useState(false);
+  const [qsStep, setQsStep] = useState(0);
 
   /* ── Auto-save to localStorage (debounced) ── */
   const saveTimerRef = useRef(null);
@@ -6645,6 +7676,7 @@ export default function PrepVault() {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
           items, people, climate, pins, propAddress, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
+          propertyProfile,
           savedAt: new Date().toISOString()
         }));
         setDbStatus("saved");
@@ -6654,7 +7686,7 @@ export default function PrepVault() {
       } catch { /* storage full or unavailable */ }
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog]);
+  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, propertyProfile]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -7087,7 +8119,7 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate, codes]);
 
-  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
+  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }, { id: "opps", l: "Opportunities", i: "💡" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
 
   const renderContent = () => {
     if (selCat) {
@@ -7095,15 +8127,17 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} />;
+        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} />;
       case "property":
-        return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} />;
+        return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "community":
         return <CommunityTab members={members} setMembers={setMembers} contacts={contacts} setContacts={setContacts} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} items={propItems} people={people} climate={climate} user={user} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} />;
       case "farming":
         return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} />;
+      case "opps":
+        return <OpportunitiesTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} />;
       case "systems":
         return <SystemsTab items={propItems} people={people} climate={climate} />;
       case "simulate":
@@ -7215,7 +8249,7 @@ export default function PrepVault() {
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Create Free Account</button>
-            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
+            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); if (!propertyProfile?.completedAt) { setShowQuickStart(true); setQsStep(0); } }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>No credit card · Works offline · Your data stays yours</div>
         </div>
@@ -7288,7 +8322,7 @@ export default function PrepVault() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif", paddingBottom: 72 }} onClick={() => { if (showAlerts) setShowAlerts(false); }}>
+    <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif", paddingBottom: 72 }} onClick={() => { if (showAlerts) setShowAlerts(false); if (showProfileMenu) setShowProfileMenu(false); }}>
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
@@ -7361,15 +8395,44 @@ export default function PrepVault() {
           <button onClick={() => setShowSecurity(true)} style={{ ...btnSt, background: encryptedDb ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)", color: encryptedDb ? "#22c55e" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: encryptedDb ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(255,255,255,0.06)" }} title="Security & Privacy">🔒</button>
           <button onClick={() => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } }} style={{ ...btnSt, background: crisisMode ? "#ef4444" : "rgba(239,68,68,0.06)", color: crisisMode ? "#fff" : "#ef4444", fontWeight: 800, fontSize: 10, padding: "8px 14px", border: crisisMode ? "1px solid #ef4444" : "1px solid rgba(239,68,68,0.15)", letterSpacing: 1, textTransform: "uppercase", animation: crisisMode ? "pulse 2s infinite" : "none" }}>{crisisMode ? "⚡ ACTIVE" : "⚡ ACTIVATE"}</button>
           {isOffline && <div style={{ padding: "4px 8px", borderRadius: 8, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", fontSize: 9, color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>OFFLINE</div>}
-          {/* Auth Button */}
-          {user ? (
-            <button onClick={handleLogout} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }} title={user.email}>
-              <span style={{ width: 18, height: 18, borderRadius: 9, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{(user.email?.[0] || "U").toUpperCase()}</span>
-              <span style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email?.split("@")[0]}</span>
+          {/* Profile Dropdown */}
+          <div style={{ position: "relative" }}>
+            <button onClick={(e) => { e.stopPropagation(); setShowProfileMenu(p => !p); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showProfileMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showProfileMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showProfileMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 18, height: 18, borderRadius: 9, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{user ? (user.email?.[0] || "U").toUpperCase() : "D"}</span>
+              <span style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user ? user.email?.split("@")[0] : "Demo"}</span>
+              <span style={{ fontSize: 8, opacity: 0.4 }}>▾</span>
             </button>
-          ) : (
-            <button onClick={() => setShowAuth(true)} style={{ ...btnSt, padding: "6px 12px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)" }}>Sign In</button>
-          )}
+            {showProfileMenu && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "#1a1d23", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: 1200, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+                <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{user ? user.email?.split("@")[0] : "Demo User"}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{user ? user.email : "No account"}</div>
+                </div>
+                <div style={{ padding: "6px 0" }}>
+                  {[
+                    { icon: "🚀", label: "Quick Start", badge: !propertyProfile?.completedAt, onClick: () => { setShowQuickStart(true); setQsStep(0); setShowProfileMenu(false); } },
+                    { icon: "⚙️", label: "Settings", onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
+                  ].map((item, i) => (
+                    <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                      <span style={{ fontSize: 14 }}>{item.icon}</span>
+                      {item.label}
+                      {item.badge && <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", marginLeft: "auto" }} />}
+                    </button>
+                  ))}
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
+                  {user ? (
+                    <button onClick={() => { handleLogout(); setShowProfileMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                      <span style={{ fontSize: 14 }}>🔓</span>Sign Out
+                    </button>
+                  ) : (
+                    <button onClick={() => { setShowAuth(true); setShowProfileMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "#c8553a", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                      <span style={{ fontSize: 14 }}>🔐</span>Sign In
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -7508,7 +8571,7 @@ export default function PrepVault() {
 
       <div className="pcs-content">
         {/* ── Property Switcher ── */}
-        {!selCat && activeTab !== "community" && (
+        {!selCat && activeTab !== "community" && activeTab !== "comms" && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
             <button onClick={() => setActivePropertyId("all")} style={{ padding: "6px 12px", borderRadius: 8, background: activePropertyId === "all" ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: activePropertyId === "all" ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.06)", color: activePropertyId === "all" ? "#c8553a" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }}>
               🌐 All Sites <span style={{ fontSize: 10, fontFamily: M, opacity: 0.5 }}>({items.length})</span>
@@ -7608,6 +8671,19 @@ export default function PrepVault() {
           </div>
         );
       })()}
+
+      {/* ═══ Quick Start Wizard Modal ═══ */}
+      {showQuickStart && (
+        <QuickStartWizard
+          step={qsStep} setStep={setQsStep}
+          profile={propertyProfile} setProfile={setPropertyProfile}
+          people={people} setPeople={setPeople}
+          climate={climate} setClimate={setClimate}
+          propAddress={propAddress} setPropAddress={setPropAddress}
+          onComplete={(completed) => { setPropertyProfile(completed); setShowQuickStart(false); setToast("✅ Property profile saved!"); }}
+          onSkip={() => setShowQuickStart(false)}
+        />
+      )}
 
       {/* ═══ Crisis Type Selector Modal ═══ */}
       {showCrisisSelector && (
