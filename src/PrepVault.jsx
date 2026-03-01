@@ -368,22 +368,34 @@ const CATEGORIES = {
       contSuit: { label: "Full Containment Suit", icon: "🛡️", fields: ["nbcBrand", "nbcSize", "nbcRating", "deviceLocation"], unit: "suits" },
     },
   },
+  bullion: {
+    label: "Bullion", icon: "🪙", color: "#eab308", desc: "Gold, silver, precious metals — barter & store of value",
+    subTypes: {
+      goldCoin: { label: "Gold Coins", icon: "🥇", fields: ["bullionMetal", "bullionWeight", "bullionPurity", "bullionMint", "bullionPurchasePrice", "deviceLocation"], unit: "coins" },
+      silverCoin: { label: "Silver Coins", icon: "🥈", fields: ["bullionMetal", "bullionWeight", "bullionPurity", "bullionMint", "bullionPurchasePrice", "deviceLocation"], unit: "coins" },
+      goldBar: { label: "Gold Bars", icon: "🏅", fields: ["bullionMetal", "bullionWeight", "bullionPurity", "bullionMint", "bullionPurchasePrice", "deviceLocation"], unit: "bars" },
+      silverBar: { label: "Silver Bars", icon: "🪨", fields: ["bullionMetal", "bullionWeight", "bullionPurity", "bullionMint", "bullionPurchasePrice", "deviceLocation"], unit: "bars" },
+      goldback: { label: "Goldbacks", icon: "💵", fields: ["bullionGoldbackState", "bullionGoldbackDenom", "bullionPurchasePrice", "deviceLocation"], unit: "notes" },
+      platinumCoin: { label: "Platinum / Palladium", icon: "⬜", fields: ["bullionMetal", "bullionWeight", "bullionPurity", "bullionMint", "bullionPurchasePrice", "deviceLocation"], unit: "coins" },
+      junkSilver: { label: "Junk Silver (90%)", icon: "🪙", fields: ["bullionJunkType", "bullionFaceValue", "bullionPurchasePrice", "deviceLocation"], unit: "coins" },
+    },
+  },
 };
 
 const SCENARIOS = {
-  economic: { label: "Economic Collapse", icon: "📉", desc: "Supply chains fail, banks close", weights: { water: 0.8, food: 1, medical: 0.6, firewood: 0.5, fuel: 0.6, shelter: 0.3, tools: 0.7, comms: 0.4, defense: 0.7, firearms: 0.8, hygiene: 0.3, power: 0.5, batteries: 0.4, electronics: 0.3, vehicles: 0.5, equipment: 0.3, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.3, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.5, nbc: 0.2 }, defaultDur: 180 },
-  emp: { label: "EMP Attack", icon: "⚡", desc: "Electronics disabled, grid down", weights: { water: 1, food: 1, medical: 0.8, firewood: 0.9, fuel: 0.7, shelter: 0.5, tools: 0.9, comms: 1, defense: 0.6, firearms: 0.7, hygiene: 0.4, power: 1, batteries: 0.9, electronics: 0.2, vehicles: 0.3, equipment: 0.4, farm: 1, bugout: 0.8, kids: 0.8, boat: 0.2, fishing: 0.8, alcohol: 0.4, recreational: 0.1, books: 0.7, nbc: 0.3 }, defaultDur: 365 },
-  wildfire: { label: "Wildfire", icon: "🌲", desc: "Evacuation, dangerous air", weights: { water: 0.9, food: 0.7, medical: 0.9, firewood: 0.1, fuel: 0.8, shelter: 1, tools: 0.6, comms: 0.8, defense: 0.2, firearms: 0.2, hygiene: 0.5, power: 0.6, batteries: 0.5, electronics: 0.6, vehicles: 0.9, equipment: 0.4, farm: 0.1, bugout: 1, kids: 1, boat: 0.4, fishing: 0.1, alcohol: 0.1, recreational: 0.1, books: 0.2, nbc: 0.3 }, defaultDur: 30 },
-  nuclear: { label: "Nuclear", icon: "☢️", desc: "Radiation fallout, shelter-in-place", weights: { water: 1, food: 1, medical: 1, firewood: 0.5, fuel: 0.5, shelter: 1, tools: 0.5, comms: 0.7, defense: 0.3, firearms: 0.4, hygiene: 0.8, power: 0.8, batteries: 0.6, electronics: 0.4, vehicles: 0.3, equipment: 0.5, farm: 0.3, bugout: 0.7, kids: 0.9, boat: 0.1, fishing: 0.2, alcohol: 0.3, recreational: 0.1, books: 0.6, nbc: 1.0 }, defaultDur: 90 },
-  pandemic: { label: "Pandemic", icon: "🦠", desc: "Quarantine, supply disruptions", weights: { water: 0.7, food: 0.9, medical: 1, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.3, comms: 0.5, defense: 0.2, firearms: 0.3, hygiene: 1, power: 0.4, batteries: 0.3, electronics: 0.4, vehicles: 0.3, equipment: 0.2, farm: 0.7, bugout: 0.3, kids: 0.9, boat: 0.1, fishing: 0.4, alcohol: 0.3, recreational: 0.2, books: 0.4, nbc: 0.6 }, defaultDur: 120 },
-  grid: { label: "Grid Failure", icon: "🔌", desc: "Blackout, no heat/cooling", weights: { water: 1, food: 0.8, medical: 0.5, firewood: 1, fuel: 0.9, shelter: 0.6, tools: 0.7, comms: 0.6, defense: 0.3, firearms: 0.4, hygiene: 0.4, power: 1, batteries: 0.8, electronics: 0.5, vehicles: 0.4, equipment: 0.4, farm: 0.5, bugout: 0.5, kids: 0.7, boat: 0.2, fishing: 0.5, alcohol: 0.3, recreational: 0.1, books: 0.5, nbc: 0.1 }, defaultDur: 60 },
-  winter: { label: "Winter Storm", icon: "🌨️", desc: "Blizzard, ice storm, roads impassable", weights: { water: 0.8, food: 0.8, medical: 0.6, firewood: 1, fuel: 1, shelter: 0.8, tools: 0.7, comms: 0.5, defense: 0.1, firearms: 0.1, hygiene: 0.3, power: 0.9, batteries: 0.7, electronics: 0.4, vehicles: 0.6, equipment: 0.5, farm: 0.1, bugout: 0.3, kids: 0.8, boat: 0.0, fishing: 0.1, alcohol: 0.2, recreational: 0.2, books: 0.3, nbc: 0.0 }, defaultDur: 14 },
-  solarFlare: { label: "Solar Flare", icon: "☀️", desc: "Carrington-class event, grid & satellites down", weights: { water: 1, food: 1, medical: 0.7, firewood: 0.8, fuel: 0.7, shelter: 0.4, tools: 0.9, comms: 1, defense: 0.5, firearms: 0.6, hygiene: 0.3, power: 1, batteries: 0.9, electronics: 0.1, vehicles: 0.4, equipment: 0.4, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.2, fishing: 0.7, alcohol: 0.4, recreational: 0.1, books: 0.8, nbc: 0.1 }, defaultDur: 365 },
-  waterCrisis: { label: "Water Disruption", icon: "🚱", desc: "Municipal water contamination or failure", weights: { water: 1, food: 0.5, medical: 0.6, firewood: 0.2, fuel: 0.3, shelter: 0.2, tools: 0.4, comms: 0.3, defense: 0.2, firearms: 0.2, hygiene: 0.7, power: 0.4, batteries: 0.2, electronics: 0.2, vehicles: 0.5, equipment: 0.6, farm: 0.4, bugout: 0.4, kids: 0.8, boat: 0.3, fishing: 0.2, alcohol: 0.1, recreational: 0.1, books: 0.3, nbc: 0.2 }, defaultDur: 30 },
-  supplyChain: { label: "Supply Chain Shock", icon: "📦", desc: "Ports closed, shelves empty, delivery halt", weights: { water: 0.6, food: 1, medical: 0.8, firewood: 0.3, fuel: 0.7, shelter: 0.2, tools: 0.5, comms: 0.3, defense: 0.4, firearms: 0.5, hygiene: 0.6, power: 0.3, batteries: 0.5, electronics: 0.2, vehicles: 0.4, equipment: 0.4, farm: 1, bugout: 0.3, kids: 0.9, boat: 0.2, fishing: 0.8, alcohol: 0.6, recreational: 0.3, books: 0.3, nbc: 0.1 }, defaultDur: 180 },
-  russiaWar: { label: "Russia Conflict", icon: "🇷🇺", desc: "NATO conflict escalation, nuclear threat", weights: { water: 0.9, food: 0.9, medical: 0.8, firewood: 0.7, fuel: 0.8, shelter: 0.8, tools: 0.6, comms: 0.8, defense: 0.7, firearms: 0.7, hygiene: 0.5, power: 0.7, batteries: 0.6, electronics: 0.5, vehicles: 0.5, equipment: 0.5, farm: 0.7, bugout: 0.8, kids: 0.9, boat: 0.3, fishing: 0.5, alcohol: 0.4, recreational: 0.2, books: 0.6, nbc: 0.9 }, defaultDur: 365 },
-  chinaWar: { label: "China Conflict", icon: "🇨🇳", desc: "Pacific conflict, trade collapse, cyber attacks", weights: { water: 0.7, food: 1, medical: 0.7, firewood: 0.4, fuel: 0.8, shelter: 0.3, tools: 0.6, comms: 0.7, defense: 0.5, firearms: 0.5, hygiene: 0.4, power: 0.6, batteries: 0.7, electronics: 0.3, vehicles: 0.4, equipment: 0.5, farm: 0.9, bugout: 0.5, kids: 0.8, boat: 0.2, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.4, nbc: 0.4 }, defaultDur: 365 },
-  aiDisrupt: { label: "AI Disruption", icon: "🤖", desc: "Mass unemployment, infrastructure failures, social collapse", weights: { water: 0.5, food: 0.7, medical: 0.5, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.5, comms: 0.4, defense: 0.6, firearms: 0.6, hygiene: 0.2, power: 0.5, batteries: 0.3, electronics: 0.3, vehicles: 0.3, equipment: 0.3, farm: 0.8, bugout: 0.4, kids: 0.6, boat: 0.2, fishing: 0.5, alcohol: 0.5, recreational: 0.3, books: 0.7, nbc: 0.1 }, defaultDur: 365 },
+  economic: { label: "Economic Collapse", icon: "📉", desc: "Supply chains fail, banks close", weights: { water: 0.8, food: 1, medical: 0.6, firewood: 0.5, fuel: 0.6, shelter: 0.3, tools: 0.7, comms: 0.4, defense: 0.7, firearms: 0.8, hygiene: 0.3, power: 0.5, batteries: 0.4, electronics: 0.3, vehicles: 0.5, equipment: 0.3, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.3, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.5, nbc: 0.2, bullion: 0.9 }, defaultDur: 180 },
+  emp: { label: "EMP Attack", icon: "⚡", desc: "Electronics disabled, grid down", weights: { water: 1, food: 1, medical: 0.8, firewood: 0.9, fuel: 0.7, shelter: 0.5, tools: 0.9, comms: 1, defense: 0.6, firearms: 0.7, hygiene: 0.4, power: 1, batteries: 0.9, electronics: 0.2, vehicles: 0.3, equipment: 0.4, farm: 1, bugout: 0.8, kids: 0.8, boat: 0.2, fishing: 0.8, alcohol: 0.4, recreational: 0.1, books: 0.7, nbc: 0.3, bullion: 0.3 }, defaultDur: 365 },
+  wildfire: { label: "Wildfire", icon: "🌲", desc: "Evacuation, dangerous air", weights: { water: 0.9, food: 0.7, medical: 0.9, firewood: 0.1, fuel: 0.8, shelter: 1, tools: 0.6, comms: 0.8, defense: 0.2, firearms: 0.2, hygiene: 0.5, power: 0.6, batteries: 0.5, electronics: 0.6, vehicles: 0.9, equipment: 0.4, farm: 0.1, bugout: 1, kids: 1, boat: 0.4, fishing: 0.1, alcohol: 0.1, recreational: 0.1, books: 0.2, nbc: 0.3, bullion: 0.1 }, defaultDur: 30 },
+  nuclear: { label: "Nuclear", icon: "☢️", desc: "Radiation fallout, shelter-in-place", weights: { water: 1, food: 1, medical: 1, firewood: 0.5, fuel: 0.5, shelter: 1, tools: 0.5, comms: 0.7, defense: 0.3, firearms: 0.4, hygiene: 0.8, power: 0.8, batteries: 0.6, electronics: 0.4, vehicles: 0.3, equipment: 0.5, farm: 0.3, bugout: 0.7, kids: 0.9, boat: 0.1, fishing: 0.2, alcohol: 0.3, recreational: 0.1, books: 0.6, nbc: 1.0, bullion: 0.2 }, defaultDur: 90 },
+  pandemic: { label: "Pandemic", icon: "🦠", desc: "Quarantine, supply disruptions", weights: { water: 0.7, food: 0.9, medical: 1, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.3, comms: 0.5, defense: 0.2, firearms: 0.3, hygiene: 1, power: 0.4, batteries: 0.3, electronics: 0.4, vehicles: 0.3, equipment: 0.2, farm: 0.7, bugout: 0.3, kids: 0.9, boat: 0.1, fishing: 0.4, alcohol: 0.3, recreational: 0.2, books: 0.4, nbc: 0.6, bullion: 0.4 }, defaultDur: 120 },
+  grid: { label: "Grid Failure", icon: "🔌", desc: "Blackout, no heat/cooling", weights: { water: 1, food: 0.8, medical: 0.5, firewood: 1, fuel: 0.9, shelter: 0.6, tools: 0.7, comms: 0.6, defense: 0.3, firearms: 0.4, hygiene: 0.4, power: 1, batteries: 0.8, electronics: 0.5, vehicles: 0.4, equipment: 0.4, farm: 0.5, bugout: 0.5, kids: 0.7, boat: 0.2, fishing: 0.5, alcohol: 0.3, recreational: 0.1, books: 0.5, nbc: 0.1, bullion: 0.2 }, defaultDur: 60 },
+  winter: { label: "Winter Storm", icon: "🌨️", desc: "Blizzard, ice storm, roads impassable", weights: { water: 0.8, food: 0.8, medical: 0.6, firewood: 1, fuel: 1, shelter: 0.8, tools: 0.7, comms: 0.5, defense: 0.1, firearms: 0.1, hygiene: 0.3, power: 0.9, batteries: 0.7, electronics: 0.4, vehicles: 0.6, equipment: 0.5, farm: 0.1, bugout: 0.3, kids: 0.8, boat: 0.0, fishing: 0.1, alcohol: 0.2, recreational: 0.2, books: 0.3, nbc: 0.0, bullion: 0.1 }, defaultDur: 14 },
+  solarFlare: { label: "Solar Flare", icon: "☀️", desc: "Carrington-class event, grid & satellites down", weights: { water: 1, food: 1, medical: 0.7, firewood: 0.8, fuel: 0.7, shelter: 0.4, tools: 0.9, comms: 1, defense: 0.5, firearms: 0.6, hygiene: 0.3, power: 1, batteries: 0.9, electronics: 0.1, vehicles: 0.4, equipment: 0.4, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.2, fishing: 0.7, alcohol: 0.4, recreational: 0.1, books: 0.8, nbc: 0.1, bullion: 0.3 }, defaultDur: 365 },
+  waterCrisis: { label: "Water Disruption", icon: "🚱", desc: "Municipal water contamination or failure", weights: { water: 1, food: 0.5, medical: 0.6, firewood: 0.2, fuel: 0.3, shelter: 0.2, tools: 0.4, comms: 0.3, defense: 0.2, firearms: 0.2, hygiene: 0.7, power: 0.4, batteries: 0.2, electronics: 0.2, vehicles: 0.5, equipment: 0.6, farm: 0.4, bugout: 0.4, kids: 0.8, boat: 0.3, fishing: 0.2, alcohol: 0.1, recreational: 0.1, books: 0.3, nbc: 0.2, bullion: 0.1 }, defaultDur: 30 },
+  supplyChain: { label: "Supply Chain Shock", icon: "📦", desc: "Ports closed, shelves empty, delivery halt", weights: { water: 0.6, food: 1, medical: 0.8, firewood: 0.3, fuel: 0.7, shelter: 0.2, tools: 0.5, comms: 0.3, defense: 0.4, firearms: 0.5, hygiene: 0.6, power: 0.3, batteries: 0.5, electronics: 0.2, vehicles: 0.4, equipment: 0.4, farm: 1, bugout: 0.3, kids: 0.9, boat: 0.2, fishing: 0.8, alcohol: 0.6, recreational: 0.3, books: 0.3, nbc: 0.1, bullion: 0.7 }, defaultDur: 180 },
+  russiaWar: { label: "Russia Conflict", icon: "🇷🇺", desc: "NATO conflict escalation, nuclear threat", weights: { water: 0.9, food: 0.9, medical: 0.8, firewood: 0.7, fuel: 0.8, shelter: 0.8, tools: 0.6, comms: 0.8, defense: 0.7, firearms: 0.7, hygiene: 0.5, power: 0.7, batteries: 0.6, electronics: 0.5, vehicles: 0.5, equipment: 0.5, farm: 0.7, bugout: 0.8, kids: 0.9, boat: 0.3, fishing: 0.5, alcohol: 0.4, recreational: 0.2, books: 0.6, nbc: 0.9, bullion: 0.5 }, defaultDur: 365 },
+  chinaWar: { label: "China Conflict", icon: "🇨🇳", desc: "Pacific conflict, trade collapse, cyber attacks", weights: { water: 0.7, food: 1, medical: 0.7, firewood: 0.4, fuel: 0.8, shelter: 0.3, tools: 0.6, comms: 0.7, defense: 0.5, firearms: 0.5, hygiene: 0.4, power: 0.6, batteries: 0.7, electronics: 0.3, vehicles: 0.4, equipment: 0.5, farm: 0.9, bugout: 0.5, kids: 0.8, boat: 0.2, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.4, nbc: 0.4, bullion: 0.6 }, defaultDur: 365 },
+  aiDisrupt: { label: "AI Disruption", icon: "🤖", desc: "Mass unemployment, infrastructure failures, social collapse", weights: { water: 0.5, food: 0.7, medical: 0.5, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.5, comms: 0.4, defense: 0.6, firearms: 0.6, hygiene: 0.2, power: 0.5, batteries: 0.3, electronics: 0.3, vehicles: 0.3, equipment: 0.3, farm: 0.8, bugout: 0.4, kids: 0.6, boat: 0.2, fishing: 0.5, alcohol: 0.5, recreational: 0.3, books: 0.7, nbc: 0.1, bullion: 0.8 }, defaultDur: 365 },
 };
 
 const CLIMATES = {
@@ -663,6 +675,16 @@ const FIELD_META = {
   nbcRating: { label: "Rating", type: "select", options: ["Level A — full encapsulated", "Level B — splash + SCBA", "Level C — splash + APR", "Level D — minimal", "Tyvek (disposable)", "Military MOPP 1-4"] },
   nbcMaterial: { label: "Material", type: "select", options: ["Butyl rubber", "Nitrile", "Neoprene", "Viton", "Silver Shield", "Latex"] },
   nbcDosage: { label: "Dosage", type: "text", placeholder: "130mg, 65mg..." },
+  /* Bullion / Precious Metals */
+  bullionMetal: { label: "Metal", type: "select", options: ["Gold", "Silver", "Platinum", "Palladium"] },
+  bullionWeight: { label: "Weight (troy oz)", type: "select", options: ["1/10 oz", "1/4 oz", "1/2 oz", "1 oz", "2 oz", "5 oz", "10 oz", "100 oz", "1 kg"] },
+  bullionPurity: { label: "Purity", type: "select", options: [".999 Fine", ".9999 Fine", ".925 Sterling", ".900 (90%)", ".9167 (22k)", ".800"] },
+  bullionMint: { label: "Mint / Brand", type: "text", placeholder: "US Mint, RCM, PAMP..." },
+  bullionPurchasePrice: { label: "Purchase Price ($)", type: "number", placeholder: "2000" },
+  bullionGoldbackState: { label: "State", type: "select", options: ["Nevada", "New Hampshire", "Utah", "Wyoming", "South Dakota", "Alpha (Any state)"] },
+  bullionGoldbackDenom: { label: "Denomination", type: "select", options: ["1 Goldback", "5 Goldback", "10 Goldback", "25 Goldback", "50 Goldback"] },
+  bullionJunkType: { label: "Coin Type", type: "select", options: ["Roosevelt Dime", "Mercury Dime", "Washington Quarter", "Walking Liberty Half", "Franklin Half", "Kennedy Half (pre-65)", "Morgan Dollar", "Peace Dollar"] },
+  bullionFaceValue: { label: "Face Value ($)", type: "number", placeholder: "1.00" },
   /* Food calorie helpers */
   totalCalories: { label: "Total Calories", type: "number", placeholder: "2400" },
   caloriesPerServing: { label: "Cal/Serving", type: "number", placeholder: "250" },
@@ -670,6 +692,24 @@ const FIELD_META = {
   volume: { label: "Volume (ml)", type: "number", placeholder: "750" },
   fuelGallons: { label: "Gallons", type: "number", placeholder: "5" },
 };
+
+/* ── Bullion spot price reference (static — update periodically) ── */
+const SPOT_PRICES = { gold: 2950, silver: 33, platinum: 1020, palladium: 980 };
+
+function bullionTroyOz(item) {
+  const wMap = { "1/10 oz": 0.1, "1/4 oz": 0.25, "1/2 oz": 0.5, "1 oz": 1, "2 oz": 2, "5 oz": 5, "10 oz": 10, "100 oz": 100, "1 kg": 32.15 };
+  if (item.subType === "goldback") {
+    const dMap = { "1 Goldback": 1/1000, "5 Goldback": 5/1000, "10 Goldback": 10/1000, "25 Goldback": 25/1000, "50 Goldback": 50/1000 };
+    return { oz: (dMap[item.fields?.bullionGoldbackDenom] || 0) * (item.quantity || 1), metal: "gold" };
+  }
+  if (item.subType === "junkSilver") {
+    const fv = parseFloat(item.fields?.bullionFaceValue || 0) * (item.quantity || 1);
+    return { oz: fv * 0.715, metal: "silver" };
+  }
+  const w = wMap[item.fields?.bullionWeight] || 0;
+  const metal = (item.fields?.bullionMetal || "gold").toLowerCase();
+  return { oz: w * (item.quantity || 1), metal };
+}
 
 const MAP_LAYERS = {
   buildings: { label: "Buildings", icon: "🏠", color: "#94a3b8" },
@@ -1186,6 +1226,13 @@ const SAMPLE_ITEMS = [
   { id: "nb8", category: "nbc", subType: "sealantTape", name: "Gorilla duct tape", quantity: 6, location: "Basement", fields: { bobItemQty: "6", deviceLocation: "Basement + BOBs" }, addedDate: "2025-01-01" },
   { id: "nb9", category: "nbc", subType: "deconKit", name: "RSDL decon kits", quantity: 3, location: "Basement", fields: { bobItemNotes: "Reactive Skin Decon Lotion — single use per kit", bobItemQty: "3", deviceLocation: "Basement + Dad's BOB" }, addedDate: "2025-01-01" },
   { id: "nb10", category: "nbc", subType: "shelterSupply", name: "Shelter-in-place kit", quantity: 1, location: "Basement", fields: { bobItemNotes: "Pre-cut sheeting for all windows/doors, tape, towels for gaps, battery radio, 72hr water", deviceLocation: "Basement entry" }, addedDate: "2025-01-01" },
+  /* Bullion */
+  { id: "bu1", category: "bullion", subType: "goldCoin", name: "American Gold Eagle 1oz", quantity: 3, location: "Safe", fields: { bullionMetal: "Gold", bullionWeight: "1 oz", bullionPurity: ".9167 (22k)", bullionMint: "US Mint", bullionPurchasePrice: "1950", deviceLocation: "Fireproof safe" }, addedDate: "2025-01-15" },
+  { id: "bu2", category: "bullion", subType: "silverCoin", name: "Canadian Maple Leaf 1oz", quantity: 40, location: "Safe", fields: { bullionMetal: "Silver", bullionWeight: "1 oz", bullionPurity: ".9999 Fine", bullionMint: "RCM", bullionPurchasePrice: "28", deviceLocation: "Fireproof safe" }, addedDate: "2025-02-01" },
+  { id: "bu3", category: "bullion", subType: "goldBar", name: "PAMP Suisse 1oz Bar", quantity: 1, location: "Safe", fields: { bullionMetal: "Gold", bullionWeight: "1 oz", bullionPurity: ".9999 Fine", bullionMint: "PAMP Suisse", bullionPurchasePrice: "2050", deviceLocation: "Fireproof safe" }, addedDate: "2025-03-01" },
+  { id: "bu4", category: "bullion", subType: "goldback", name: "Nevada Goldback 1s", quantity: 50, location: "BOB", fields: { bullionGoldbackState: "Nevada", bullionGoldbackDenom: "1 Goldback", bullionPurchasePrice: "5", deviceLocation: "Bug-out bag" }, addedDate: "2025-02-15" },
+  { id: "bu5", category: "bullion", subType: "junkSilver", name: "Pre-65 Washington Quarters", quantity: 40, location: "Safe", fields: { bullionJunkType: "Washington Quarter", bullionFaceValue: "0.25", bullionPurchasePrice: "7", deviceLocation: "Fireproof safe" }, addedDate: "2025-01-20" },
+  { id: "bu6", category: "bullion", subType: "silverBar", name: "Sunshine Mint 10oz Bar", quantity: 5, location: "Safe", fields: { bullionMetal: "Silver", bullionWeight: "10 oz", bullionPurity: ".999 Fine", bullionMint: "Sunshine Mint", bullionPurchasePrice: "280", deviceLocation: "Fireproof safe" }, addedDate: "2025-03-10" },
 ];
 
 const SAMPLE_CODES = [
@@ -3386,6 +3433,15 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
             } else if (k === "hygiene") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty >= 10 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "bullion") {
+              let totalVal = 0;
+              ci.forEach(i => { const { oz, metal } = bullionTroyOz(i); totalVal += oz * (SPOT_PRICES[metal] || 0); });
+              const goldOz = ci.filter(i => bullionTroyOz(i).metal === "gold").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const silverOz = ci.filter(i => bullionTroyOz(i).metal === "silver").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const parts = [];
+              if (goldOz > 0) parts.push(goldOz.toFixed(1) + " oz Au");
+              if (silverOz > 0) parts.push(silverOz.toFixed(0) + " oz Ag");
+              metric = { val: "$" + (totalVal >= 1000 ? (totalVal / 1000).toFixed(1) + "k" : totalVal.toFixed(0)), unit: parts.join(" · ") || "none", color: totalVal >= 10000 ? "#22c55e" : totalVal >= 1000 ? "#f59e0b" : "#ef4444" };
             } else if (k === "shelter" || k === "tools" || k === "equipment") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
@@ -3742,6 +3798,15 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
             } else if (k === "hygiene") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty >= 10 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "bullion") {
+              let totalVal = 0;
+              ci.forEach(i => { const { oz, metal } = bullionTroyOz(i); totalVal += oz * (SPOT_PRICES[metal] || 0); });
+              const goldOz = ci.filter(i => bullionTroyOz(i).metal === "gold").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const silverOz = ci.filter(i => bullionTroyOz(i).metal === "silver").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const parts = [];
+              if (goldOz > 0) parts.push(goldOz.toFixed(1) + " oz Au");
+              if (silverOz > 0) parts.push(silverOz.toFixed(0) + " oz Ag");
+              metric = { val: "$" + (totalVal >= 1000 ? (totalVal / 1000).toFixed(1) + "k" : totalVal.toFixed(0)), unit: parts.join(" · ") || "none", color: totalVal >= 10000 ? "#22c55e" : totalVal >= 1000 ? "#f59e0b" : "#ef4444" };
             } else if (k === "shelter" || k === "tools" || k === "equipment") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
