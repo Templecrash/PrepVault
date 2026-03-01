@@ -2530,9 +2530,9 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
       case 3: return (<>
         <label style={labelSt}>Number of People</label>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit" }}>−</button>
+          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>−</button>
           <span style={{ fontSize: 28, fontWeight: 800, fontFamily: M, minWidth: 36, textAlign: "center" }}>{people}</span>
-          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit" }}>+</button>
+          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</button>
         </div>
         <label style={labelSt}>Climate Zone</label>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
@@ -2569,7 +2569,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
         ]} />
         <label style={labelSt}>Communication Methods (select all that apply)</label>
         <Multi field="commsCapability" values={profile.commsCapability} opts={[
-          { v: "cell_only", l: "Cell Only", i: "📱" }, { v: "ham", l: "HAM Radio", i: "📻" },
+          { v: "cell_only", l: "Cell Phone", i: "📱" }, { v: "ham", l: "HAM Radio", i: "📻" },
           { v: "satellite", l: "Satellite Phone", i: "📡" }, { v: "cb", l: "CB Radio", i: "🔊" },
           { v: "mesh", l: "Mesh Network", i: "🌐" },
         ]} />
@@ -2627,7 +2627,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
 /* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, setPropSub, dismissResetKey }) {
   const M = "'JetBrains Mono',monospace";
 
   /* ── Live Weather State ── */
@@ -2638,6 +2638,22 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
 
   const [showActHistory, setShowActHistory] = useState(false);
   const [showAllActions, setShowAllActions] = useState(false);
+  const [dismissedProfileCTA, setDismissedProfileCTA] = useState(() => localStorage.getItem("prepvault-dismiss-profile-cta") === "1");
+  const [dismissedCameraCTA, setDismissedCameraCTA] = useState(() => localStorage.getItem("prepvault-dismiss-camera-cta") === "1");
+  const [dismissedAlarmCTA, setDismissedAlarmCTA] = useState(() => localStorage.getItem("prepvault-dismiss-alarm-cta") === "1");
+  const [alarmMinimized, setAlarmMinimized] = useState(true);
+
+  /* Reset dismiss flags when demo mode is re-entered */
+  useEffect(() => {
+    if (dismissResetKey > 0) {
+      setDismissedProfileCTA(false);
+      setDismissedCameraCTA(false);
+      setDismissedAlarmCTA(false);
+      localStorage.removeItem("prepvault-dismiss-profile-cta");
+      localStorage.removeItem("prepvault-dismiss-camera-cta");
+      localStorage.removeItem("prepvault-dismiss-alarm-cta");
+    }
+  }, [dismissResetKey]);
 
   /* ── Live News State ── */
   const [news, setNews] = useState(null);
@@ -2733,10 +2749,10 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
     alerts: climate === "cold" ? [{ title: "Extreme cold warning", desc: "Wind chill to -25°C tonight. Check heating fuel and insulate pipes." }] : [],
   };
   const sampleNews = [
-    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID", url: "https://www.cbc.ca/news/business" },
-    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD", url: "https://www.theglobeandmail.com/business" },
-    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER", url: "https://www.theweathernetwork.com/ca/alerts" },
-    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES", url: "https://www.ctvnews.ca/toronto" },
+    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID", url: "https://www.cbc.ca/news/business/ontario-hydro-rates-increase" },
+    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD", url: "https://www.theglobeandmail.com/business/article-supply-chain-canned-goods" },
+    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER", url: "https://www.theweathernetwork.com/ca/alerts/ontario/snow-squalls" },
+    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES", url: "https://www.ctvnews.ca/toronto/highway-401-closures-weekend" },
   ];
 
   const w = weather || sampleWeather;
@@ -2878,53 +2894,41 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      {/* ── Overall Score Banner ── */}
-      <div style={{ ...cardSt, padding: "14px 20px", display: "flex", alignItems: "center", gap: 20, background: "linear-gradient(135deg, rgba(200,85,58,0.04), rgba(200,85,58,0.01))", border: "1px solid rgba(200,85,58,0.1)" }}>
-        <div style={{ position: "relative", width: 56, height: 56, flexShrink: 0 }}>
-          <svg width="56" height="56" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
-            <circle cx="28" cy="28" r="24" fill="none" stroke={SC(prepScore)} strokeWidth="4" strokeDasharray={`${prepScore / 100 * 150.8} 150.8`} strokeLinecap="round" transform="rotate(-90 28 28)" style={{ transition: "stroke-dasharray 0.8s ease" }} />
-          </svg>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, fontFamily: M, color: SC(prepScore) }}>{prepScore}</div>
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: SC(prepScore) }}>{SL(prepScore)}</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{items.length} items across {new Set(items.map(i => i.category)).size} categories · {people} people · {climate} climate</div>
-          {expiringSoon > 0 && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4, padding: "3px 8px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.1)", fontSize: 9, color: "#ef4444", fontWeight: 600 }}>⏰ {expiringSoon} item{expiringSoon !== 1 ? "s" : ""} expiring within 90d</div>
-          )}
-        </div>
-        {allAlerts.length > 0 && (
-          <div style={{ textAlign: "center", flexShrink: 0 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: "#f59e0b" }}>{allAlerts.length}</div>
-            <div style={{ fontSize: 9, color: "#f59e0b", opacity: 0.7 }}>alerts</div>
-          </div>
-        )}
-      </div>
-
       {/* ── Quick Start Banner ── */}
-      {!propertyProfile?.completedAt && onOpenQuickStart && (
-        <div onClick={onOpenQuickStart} style={{ ...cardSt, padding: "16px 20px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
-          <div style={{ fontSize: 28, flexShrink: 0 }}>🚀</div>
-          <div style={{ flex: 1 }}>
+      {!propertyProfile?.completedAt && onOpenQuickStart && !dismissedProfileCTA && (
+        <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+          <div style={{ fontSize: 28, flexShrink: 0 }}>🏠</div>
+          <div style={{ flex: 1, cursor: "pointer" }} onClick={onOpenQuickStart}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Complete Your Property Profile</div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Answer a few questions about your property infrastructure, water, and location to unlock personalized readiness insights.</div>
           </div>
-          <div style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>Get Started</div>
+          <div onClick={onOpenQuickStart} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Get Started</div>
+          <button onClick={(e) => { e.stopPropagation(); setDismissedProfileCTA(true); localStorage.setItem("prepvault-dismiss-profile-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
         </div>
       )}
 
-      {/* ── System Quick Status ── */}
-      <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
+      {/* ── Readiness Overview ── */}
+      <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "linear-gradient(135deg, rgba(200,85,58,0.04), rgba(200,85,58,0.01))", border: "1px solid rgba(200,85,58,0.1)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
           {[
+            { icon: null, label: "Score", value: SL(prepScore), color: SC(prepScore), score: prepScore },
             { icon: "⚡", label: "Power", value: cont.powerHrs >= 24 ? cont.powerHrs.toFixed(0) + "h backup" : cont.powerHrs > 0 ? cont.powerHrs.toFixed(0) + "h backup" : "No backup", color: cont.powerHrs >= 72 ? "#22c55e" : cont.powerHrs >= 24 ? "#f59e0b" : "#ef4444" },
             { icon: "💧", label: "Water", value: cont.waterDays >= 14 ? cont.waterDays.toFixed(0) + " days" : cont.waterDays > 0 ? cont.waterDays.toFixed(1) + " days" : "No stored water", color: cont.waterDays >= 14 ? "#22c55e" : cont.waterDays >= 3 ? "#f59e0b" : "#ef4444" },
             { icon: "🔥", label: "Heat", value: cont.heatDays >= 999 ? "N/A" : cont.heatDays.toFixed(0) + " days", color: cont.heatDays >= 999 ? "rgba(255,255,255,0.3)" : cont.heatDays >= 30 ? "#22c55e" : cont.heatDays >= 7 ? "#f59e0b" : "#ef4444" },
-            { icon: "📡", label: "Comms", value: cont.commCount > 0 ? cont.commCount + (cont.commCount === 1 ? " channel" : " channels") : "No comms", color: cont.commCount >= 3 ? "#22c55e" : cont.commCount >= 1 ? "#f59e0b" : "#ef4444" },
+            { icon: "🍽️", label: "Food", value: cont.calDays >= 30 ? cont.calDays.toFixed(0) + " days" : cont.calDays > 0 ? cont.calDays.toFixed(1) + " days" : "No stored food", color: cont.calDays >= 30 ? "#22c55e" : cont.calDays >= 7 ? "#f59e0b" : "#ef4444" },
           ].map((s, i) => (
-            <div key={i} style={{ padding: "14px 16px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.04)" : "none", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: s.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{s.icon}</div>
+            <div key={i} style={{ padding: "14px 16px", borderRight: i < 4 ? "1px solid rgba(255,255,255,0.04)" : "none", display: "flex", alignItems: "center", gap: 10 }}>
+              {s.score != null ? (
+                <div style={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
+                  <svg width="32" height="32" viewBox="0 0 32 32">
+                    <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                    <circle cx="16" cy="16" r="13" fill="none" stroke={s.color} strokeWidth="3" strokeDasharray={`${s.score / 100 * 81.7} 81.7`} strokeLinecap="round" transform="rotate(-90 16 16)" style={{ transition: "stroke-dasharray 0.8s ease" }} />
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, fontFamily: M, color: s.color }}>{s.score}</div>
+                </div>
+              ) : (
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: s.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{s.icon}</div>
+              )}
               <div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -2933,6 +2937,163 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
           ))}
         </div>
       </div>
+
+      {/* ── Trail Cameras ── */}
+      {!dismissedCameraCTA && (() => {
+        const camerasConnected = localStorage.getItem("prepvault-cameras-connected") === "1";
+        if (!camerasConnected) {
+          return (
+            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+              <div style={{ fontSize: 28, flexShrink: 0 }}>📷</div>
+              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Connect Trail Cameras</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Link your Tactacam or trail cameras for live perimeter monitoring and motion alerts.</div>
+              </div>
+              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
+              <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+            </div>
+          );
+        }
+        const onlineCams = SAMPLE_CAMERAS.filter(c => c.status === "online").slice(0, 3);
+        return (
+          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>📷</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Trail Cameras</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{onlineCams.length} online — last captures</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>View All</div>
+                <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {onlineCams.map(cam => (
+                <div key={cam.id} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
+                  <CameraFeedCanvas cam={cam} expanded={false} />
+                  <div style={{ padding: "5px 8px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cam.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{cam.last}</span>
+                      <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", flexShrink: 0 }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Alarm Systems ── */}
+      {!dismissedAlarmCTA && (() => {
+        const alarmsConnected = localStorage.getItem("prepvault-alarms-connected") === "1";
+        if (!alarmsConnected) {
+          return (
+            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+              <div style={{ fontSize: 28, flexShrink: 0 }}>🚨</div>
+              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Connect Alarm System</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Link Alarm.com, EyezOn, Nest, or other providers to monitor zones and device status.</div>
+              </div>
+              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
+              <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+            </div>
+          );
+        }
+        const alarm = SMART_HOME.alarm;
+        const nestDevices = SMART_HOME.nest.devices;
+        const locks = nestDevices.filter(d => d.type === "lock");
+        const sensors = nestDevices.filter(d => d.type === "smoke");
+        const thermos = nestDevices.filter(d => d.type === "thermo");
+        const allZonesSecure = alarm.zones.every(z => z.s === "closed" || z.s === "clear");
+        const allLocked = locks.every(d => d.status === "Locked");
+        const allSensorsOk = sensors.every(d => d.bat === "Good");
+        return (
+          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alarmMinimized ? 0 : 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>🚨</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Alarm Systems</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{alarm.provider} · {alarm.status} · {alarm.zones.length + nestDevices.length} devices</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Manage</div>
+                <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allZonesSecure ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", color: allZonesSecure ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{allZonesSecure ? "✓ Zones Secure" : "⚠ Zone Alert"}</span>
+              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allLocked ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allLocked ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allLocked ? "✓ Locks Engaged" : "⚠ Lock Open"}</span>
+              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allSensorsOk ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allSensorsOk ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allSensorsOk ? "✓ Sensors Armed" : "⚠ Sensor Alert"}</span>
+              {thermos.length > 0 && <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", fontWeight: 700 }}>🌡️ {thermos.map(t => t.temp).join(" / ")}</span>}
+            </div>
+            {!alarmMinimized && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {/* Alarm Zones */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allZonesSecure ? "#22c55e" : "#ef4444") }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: allZonesSecure ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allZonesSecure ? "✓ All Zones Secure" : "⚠ Zone Alert"}</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {alarm.zones.map((z, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ width: 5, height: 5, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444", flexShrink: 0 }} />
+                      {z.n} — <span style={{ color: "rgba(255,255,255,0.3)" }}>{z.s}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Smart Locks */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allLocked ? "#22c55e" : "#f59e0b") }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: allLocked ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allLocked ? "✓ Locks Secured" : "⚠ Lock Open"}</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {locks.map((d, i) => (
+                    <div key={"l" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ fontSize: 10 }}>🔐</span>
+                      {d.n} — <span style={{ color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{d.status}</span>
+                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(255,255,255,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 9 }}>{d.bat}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Smoke / CO Sensors */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allSensorsOk ? "#22c55e" : "#f59e0b") }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: allSensorsOk ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allSensorsOk ? "✓ Sensors OK" : "⚠ Sensor Alert"}</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {sensors.map((d, i) => (
+                    <div key={"s" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ fontSize: 10 }}>🔥</span>
+                      {d.n} — <span style={{ color: "rgba(255,255,255,0.3)" }}>CO: {d.co}</span>
+                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(255,255,255,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 9 }}>{d.bat}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Thermostats */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid #0ea5e9" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🌡️ Climate</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {thermos.map((d, i) => (
+                    <div key={"t" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ fontSize: 10 }}>🌡️</span>
+                      {d.n} — <span style={{ color: "#0ea5e9", fontWeight: 600 }}>{d.temp}</span>
+                      <span style={{ color: "rgba(255,255,255,0.25)" }}>set {d.set} · {d.hum} · {d.mode}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            )}
+            <button onClick={() => setAlarmMinimized(m => !m)} style={{ marginTop: 8, padding: "8px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center", width: "100%" }}>
+              {alarmMinimized ? "Show More" : "Show Less"}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ── Action Items Center ── */}
       {(() => {
@@ -2986,7 +3147,7 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
                 ))}
                 {pending.length > 3 && (
                   <button onClick={() => setShowAllActions(a => !a)} style={{ padding: "8px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
-                    {showAllActions ? "Show Less" : `See More (${pending.length - 3} more)`}
+                    {showAllActions ? "Show Less" : "See More"}
                   </button>
                 )}
               </div>
@@ -3095,43 +3256,6 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         </div>
       </div>
 
-      {/* ── Continuity Metrics ── */}
-      <div style={{ ...cardSt, padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: "12px 16px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-          <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 2, color: "rgba(255,255,255,0.35)", fontWeight: 700 }}>System Continuity</div>
-        </div>
-        <div className="pcs-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)" }}>
-          {[
-            { icon: "🔋", label: "Power Autonomy", value: cont.powerHrs < 100 ? cont.powerHrs.toFixed(1) : Math.round(cont.powerHrs), unit: "hours", color: cont.powerHrs >= 72 ? "#22c55e" : cont.powerHrs >= 24 ? "#f59e0b" : "#ef4444", threshold: cont.powerHrs >= 72 ? "72h+" : cont.powerHrs >= 24 ? "24h+" : "<24h" },
-            { icon: "💧", label: "Water Continuity", value: cont.waterDays.toFixed(1), unit: "days", color: cont.waterDays >= 14 ? "#22c55e" : cont.waterDays >= 3 ? "#f59e0b" : "#ef4444", threshold: cont.waterDays >= 14 ? "14d+" : cont.waterDays >= 3 ? "3d+" : "<3d" },
-            { icon: "🔥", label: "Heat Stability", value: cont.heatDays.toFixed(1), unit: climate === "cold" ? "days (winter)" : "days", color: cont.heatDays >= 30 ? "#22c55e" : cont.heatDays >= 7 ? "#f59e0b" : "#ef4444", threshold: cont.heatDays >= 30 ? "30d+" : cont.heatDays >= 7 ? "7d+" : "<7d" },
-            { icon: "🍽️", label: "Caloric Reserve", value: cont.calDays.toFixed(1), unit: "days", color: cont.calDays >= 30 ? "#22c55e" : cont.calDays >= 7 ? "#f59e0b" : "#ef4444", threshold: cont.calDays >= 30 ? "30d+" : cont.calDays >= 7 ? "7d+" : "<7d" },
-            { icon: "📡", label: "Comms Redundancy", value: cont.commCount, unit: cont.commCount === 1 ? "channel" : "channels", color: cont.commCount >= 3 ? "#22c55e" : cont.commCount >= 2 ? "#f59e0b" : "#ef4444", threshold: cont.commCount >= 3 ? "3ch+" : cont.commCount >= 1 ? "1ch+" : "none" },
-          ].map((m, i) => (
-            <div key={i} style={{ padding: "16px 14px", borderRight: i < 4 ? "1px solid rgba(255,255,255,0.04)" : "none", textAlign: "center" }}>
-              <div style={{ fontSize: 18, marginBottom: 4 }}>{m.icon}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: M, color: m.color, lineHeight: 1 }}>{m.value}</div>
-              <div style={{ fontSize: 10, color: m.color, fontWeight: 600, marginTop: 2, textTransform: "uppercase" }}>{m.unit}</div>
-              <div style={{ fontSize: 9, color: m.color, opacity: 0.6, marginTop: 2, fontFamily: M }}>{m.threshold}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.3 }}>{m.label}</div>
-            </div>
-          ))}
-        </div>
-        {cont.frag.length > 0 && (
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", padding: "10px 16px" }}>
-            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(239,68,68,0.5)", fontWeight: 700, marginBottom: 6 }}>⚠ Fragility Analysis</div>
-            <div style={{ display: "grid", gap: 4 }}>
-              {cont.frag.map((f, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: f.sev === "critical" ? "rgba(239,68,68,0.04)" : "rgba(245,158,11,0.03)", borderRadius: 6, borderLeft: "2px solid " + (f.sev === "critical" ? "#ef4444" : "#f59e0b") }}>
-                  <span style={{ fontSize: 12 }}>{f.icon}</span>
-                  <span style={{ fontSize: 10, color: f.sev === "critical" ? "rgba(239,68,68,0.7)" : "rgba(245,158,11,0.7)", fontStyle: "italic" }}>{f.msg}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ── Action Bar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, padding: "4px 0" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ position: "relative" }}>
@@ -3171,9 +3295,9 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#c8553a,#a03e28)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(200,85,58,0.25)" }}>+ Add</button>
       </div>
 
-      {/* ── Categories Grid ── */}
+      {/* ── Prep Inventory Grid ── */}
       <div>
-        <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Categories</h3>
+        <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📦 Prep Inventory</h3>
         <div className="pcs-cat-grid">
           {Object.entries(CATEGORIES).map(([k, cat]) => {
             const ci = items.filter((i) => i.category === k);
@@ -3267,8 +3391,9 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
               metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
             }
 
+            const statusColor = metric ? metric.color : (filled / total >= 0.6 ? "#22c55e" : filled / total >= 0.3 ? "#f59e0b" : "#ef4444");
             return (
-              <button key={k} onClick={() => setSelCat(k)} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + cat.color, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
+              <button key={k} onClick={() => { setActiveTab("preps"); setSelCat(k); window.scrollTo(0, 0); }} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
                   <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{cat.icon}</div>
                   {metric && (
@@ -3280,7 +3405,7 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
-                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: cat.color, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
+                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
               </button>
             );
           })}
@@ -3347,6 +3472,301 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
           </div>
         );
       })()}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════ */
+/* ═══ PREPS TAB ═══                         */
+/* ═══════════════════════════════════════════ */
+function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, setShowScanner, alertsDismissed, alertsDismissedUntil, onDismissAlerts }) {
+  const M = "'JetBrains Mono',monospace";
+  const cardSt = { background: "rgba(255,255,255,0.025)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 20 };
+
+  /* ── Prep Inventory Score (items-only) ── */
+  const invScore = useMemo(() => {
+    const totalCats = Object.keys(CATEGORIES).length;
+    const catsWithItems = new Set(items.map(i => i.category)).size;
+    const catCoverage = catsWithItems / totalCats;
+
+    let subtypeCoverage = 0;
+    let catCount = 0;
+    Object.entries(CATEGORIES).forEach(([k, cat]) => {
+      const ci = items.filter(i => i.category === k);
+      if (ci.length === 0) return;
+      const filled = new Set(ci.map(i => i.subType)).size;
+      const total = Object.keys(cat.subTypes).length;
+      subtypeCoverage += filled / Math.max(total, 1);
+      catCount++;
+    });
+    const avgSubCoverage = catCount > 0 ? subtypeCoverage / catCount : 0;
+
+    const totalItems = items.reduce((s, i) => s + (i.quantity || 1), 0);
+    const depthScore = Math.min(totalItems / 100, 1);
+
+    const now = new Date();
+    const expiringCount = items.filter(i => {
+      if (!i.fields?.expiryDate) return false;
+      const exp = new Date(i.fields.expiryDate);
+      return exp < now;
+    }).length;
+    const expiryPenalty = Math.min(expiringCount * 2, 15);
+
+    const score = Math.round(
+      catCoverage * 35 +
+      avgSubCoverage * 30 +
+      depthScore * 20 +
+      (items.length > 0 ? 15 : 0) -
+      expiryPenalty
+    );
+    return Math.max(0, Math.min(100, score));
+  }, [items]);
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+
+      {/* ── Inventory Score ── */}
+      <div style={{ ...cardSt, padding: "20px 24px", display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+            <circle cx="32" cy="32" r="28" fill="none" stroke={SC(invScore)} strokeWidth="5" strokeDasharray={`${(invScore / 100) * 175.9} 175.9`} strokeLinecap="round" transform="rotate(-90 32 32)" style={{ transition: "stroke-dasharray 0.6s ease" }} />
+          </svg>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, fontSize: 18, fontWeight: 800, color: SC(invScore) }}>{invScore}</div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 2 }}>Prep Inventory</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: SC(invScore), fontFamily: M }}>{SL(invScore)}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+            {items.length} items · {new Set(items.map(i => i.category)).size}/{Object.keys(CATEGORIES).length} categories covered
+          </div>
+        </div>
+        <div style={{ display: "grid", gap: 6, textAlign: "right" }}>
+          {[
+            { l: "Categories", v: new Set(items.map(i => i.category)).size + "/" + Object.keys(CATEGORIES).length, c: new Set(items.map(i => i.category)).size >= Object.keys(CATEGORIES).length * 0.6 ? "#22c55e" : "#f59e0b" },
+            { l: "Total Items", v: items.reduce((s, i) => s + (i.quantity || 1), 0), c: "#0ea5e9" },
+            { l: "Expired", v: items.filter(i => i.fields?.expiryDate && new Date(i.fields.expiryDate) < new Date()).length, c: items.filter(i => i.fields?.expiryDate && new Date(i.fields.expiryDate) < new Date()).length > 0 ? "#ef4444" : "#22c55e" },
+          ].map((s, i) => (
+            <div key={i} style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{s.l}: <span style={{ color: s.c, fontWeight: 700, fontFamily: M }}>{s.v}</span></div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Expiry Calendar Heatmap ── */}
+      {(() => {
+        const now = new Date();
+        const months = [];
+        for (let m = 0; m < 12; m++) {
+          const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+          months.push({ key: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), label: d.toLocaleDateString("en", { month: "short" }), year: d.getFullYear(), month: d.getMonth() });
+        }
+        const expiringItems = items.filter((i) => i.fields?.expiryDate).map((i) => {
+          const exp = new Date(i.fields.expiryDate);
+          const mKey = exp.getFullYear() + "-" + String(exp.getMonth() + 1).padStart(2, "0");
+          return { ...i, expDate: exp, monthKey: mKey };
+        }).filter((i) => {
+          const diff = (i.expDate - now) / 864e5;
+          return diff > -30 && diff < 400;
+        });
+        const byMonth = {};
+        expiringItems.forEach((i) => { if (!byMonth[i.monthKey]) byMonth[i.monthKey] = []; byMonth[i.monthKey].push(i); });
+        const maxCount = Math.max(1, ...months.map((m) => (byMonth[m.key] || []).length));
+        if (expiringItems.length === 0) return null;
+        return (
+          <div style={{ marginTop: 2 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Expiry Calendar</h3>
+            <div style={{ ...cardSt, padding: 16 }}>
+              <div className="pcs-expiry-grid" style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 4 }}>
+                {months.map((m) => {
+                  const mItems = byMonth[m.key] || [];
+                  const count = mItems.length;
+                  const intensity = count / maxCount;
+                  const expired = mItems.filter((i) => i.expDate < now).length;
+                  const bgColor = count === 0 ? "rgba(255,255,255,0.02)" : expired > 0 ? `rgba(239,68,68,${0.1 + intensity * 0.35})` : intensity > 0.6 ? `rgba(245,158,11,${0.1 + intensity * 0.3})` : `rgba(34,197,94,${0.05 + intensity * 0.15})`;
+                  const borderColor = count === 0 ? "rgba(255,255,255,0.04)" : expired > 0 ? "rgba(239,68,68,0.2)" : intensity > 0.6 ? "rgba(245,158,11,0.2)" : "rgba(34,197,94,0.15)";
+                  const isNow = m.month === now.getMonth() && m.year === now.getFullYear();
+                  return (
+                    <div key={m.key} style={{ padding: "8px 4px", borderRadius: 8, background: bgColor, border: isNow ? "2px solid rgba(200,85,58,0.4)" : "1px solid " + borderColor, textAlign: "center", minHeight: 58, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative" }} title={count > 0 ? mItems.map(i => i.name + " (" + CATEGORIES[i.category]?.icon + ")").join(", ") : "Nothing expiring"}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: isNow ? "#c8553a" : "rgba(255,255,255,0.3)", marginBottom: 3 }}>{m.label}</div>
+                      <div style={{ fontSize: count > 0 ? 18 : 12, fontWeight: 800, fontFamily: M, color: count === 0 ? "rgba(255,255,255,0.08)" : expired > 0 ? "#ef4444" : intensity > 0.6 ? "#f59e0b" : "#22c55e", lineHeight: 1 }}>{count > 0 ? count : "—"}</div>
+                      {count > 0 && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{expired > 0 ? <span style={{ color: "#ef4444" }}>{expired} exp</span> : "items"}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
+                <span>🟢 Low</span><span>🟡 Moderate</span><span>🔴 Urgent</span><span style={{ color: "#c8553a" }}>◻ Now</span>
+              </div>
+              {expiringItems.filter(i => { const d = (i.expDate - now) / 864e5; return d <= 90 && d >= -30; }).length > 0 && (
+                <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.08)" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>⚠ Expiring within 90 days</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {expiringItems.filter(i => { const d = (i.expDate - now) / 864e5; return d <= 90 && d >= -30; }).sort((a, b) => a.expDate - b.expDate).slice(0, 8).map((i, idx) => {
+                      const d = Math.ceil((i.expDate - now) / 864e5);
+                      return <span key={idx} style={{ fontSize: 9, padding: "4px 8px", borderRadius: 6, background: d < 0 ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)", color: d < 0 ? "#ef4444" : "#f59e0b", fontFamily: M }}>{CATEGORIES[i.category]?.icon} {i.name} · {d < 0 ? Math.abs(d) + "d ago" : d + "d"}</span>;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Action Bar ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, padding: "4px 0" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setShowAlerts(!showAlerts)} style={{ ...btnSt, background: (allAlerts.length > 0 && !alertsDismissed) ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.04)", color: (allAlerts.length > 0 && !alertsDismissed) ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: (allAlerts.length > 0 && !alertsDismissed) ? "1px solid rgba(239,68,68,0.15)" : "1px solid rgba(255,255,255,0.06)", position: "relative", opacity: alertsDismissed ? 0.5 : 1 }} title={alertsDismissed ? `Alerts dismissed — returns in ${Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h` : allAlerts.length + " alerts"}>
+            🔔
+            {allAlerts.length > 0 && !alertsDismissed && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, padding: "0 3px", boxShadow: "0 2px 6px rgba(239,68,68,0.4)" }}>{allAlerts.length}</span>}
+          </button>
+          {showAlerts && allAlerts.length > 0 && !alertsDismissed && (
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 400, overflowY: "auto", background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: 6 }}>
+              <div style={{ padding: "8px 12px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>⚠ {allAlerts.length} Alerts</span>
+                <button onClick={() => setShowAlerts(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 14, cursor: "pointer", padding: 0 }}>×</button>
+              </div>
+              {allAlerts.map((a, i) => (
+                <div key={i} onClick={() => { setShowAlerts(false); if (a.category) setSelCat(a.category); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{CATEGORIES[a.category]?.icon || "⚠"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
+                    <div style={{ fontSize: 9, color: a.ac, fontFamily: M }}>{a.al}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ padding: "6px 12px 8px", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 4 }}>
+                <button onClick={() => { onDismissAlerts(); setShowAlerts(false); }} style={{ ...btnSt, width: "100%", padding: "6px 0", fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+                  Dismiss all for 24h
+                </button>
+              </div>
+            </div>
+          )}
+          {showAlerts && alertsDismissed && (
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 240, background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: "12px 16px" }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>🔕 Alerts dismissed · returns in {Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h</div>
+            </div>
+          )}
+        </div>
+        <button onClick={() => setShowScanner(true)} style={{ ...btnSt, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontWeight: 700, fontSize: 15, padding: "8px 11px", border: "1px solid rgba(255,255,255,0.06)" }} title="Scan Barcode">📷</button>
+        <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#c8553a,#a03e28)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(200,85,58,0.25)" }}>+ Add</button>
+      </div>
+
+      {/* ── Categories Grid ── */}
+      <div>
+        <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Categories</h3>
+        <div className="pcs-cat-grid">
+          {Object.entries(CATEGORIES).map(([k, cat]) => {
+            const ci = items.filter((i) => i.category === k);
+            const filled = new Set(ci.map((i) => i.subType)).size;
+            const total = Object.keys(cat.subTypes).length;
+            const p = people || 4;
+            const _clim = CLIMATES[climate] || CLIMATES.temperate;
+            const _waterMod = _clim.waterMod || 1;
+            const _firewoodMod = _clim.firewoodMod || 1;
+
+            let metric = null;
+            if (k === "food") {
+              const totalCals = ci.reduce((s, i) => { const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0); const serv = parseFloat(i.fields?.servings || 1); return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1); }, 0);
+              const days = totalCals / Math.max(p * 2000, 1);
+              metric = { val: days.toFixed(1), unit: "days", color: days >= 30 ? "#22c55e" : days >= 7 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "water") {
+              const stored = ci.filter((i) => i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
+              const filters = ci.filter((i) => i.subType === "purificationDevice" || i.subType === "purificationTablets").reduce((s, i) => s + (i.quantity || 0), 0);
+              const days = stored / Math.max(p * 1.0 * _waterMod, 0.1) + filters * 3;
+              metric = { val: days.toFixed(1), unit: "days", color: days >= 14 ? "#22c55e" : days >= 3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "fuel") {
+              const gasGals = ci.filter((i) => i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
+              const propGals = ci.filter((i) => i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0) * 4.6;
+              const totalL = (gasGals + propGals) * 3.785;
+              const genHrs = gasGals * 5.5;
+              metric = { val: totalL > 0 ? totalL.toFixed(0) + "L" : "0L", unit: genHrs > 0 ? genHrs.toFixed(0) + "h gen" : "", color: genHrs >= 48 ? "#22c55e" : genHrs >= 12 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "firewood") {
+              const cords = ci.reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+              const days = (cords * 30) / Math.max(_firewoodMod, 0.1);
+              metric = { val: days.toFixed(0), unit: "days heat", color: days >= 60 ? "#22c55e" : days >= 14 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "medical") {
+              const coverage = filled / Math.max(total, 1);
+              metric = { val: Math.round(coverage * 100), unit: "% covered", color: coverage >= 0.6 ? "#22c55e" : coverage >= 0.3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "batteries") {
+              const cells = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const hrs = cells * 20;
+              metric = { val: cells, unit: cells + " cells · " + hrs + "h", color: cells >= 50 ? "#22c55e" : cells >= 20 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "electronics" || k === "comms") {
+              const ch = new Set();
+              ci.forEach((i) => { if (i.subType === "satPhone") ch.add("SAT"); if (i.subType === "cellPhone") ch.add("CELL"); if (i.subType === "radio") ch.add("HAM"); if (i.subType === "weatherRadio") ch.add("WX"); });
+              if (k === "comms") ch.add("HAM");
+              metric = { val: ch.size, unit: ch.size === 1 ? "channel" : "channels", color: ch.size >= 3 ? "#22c55e" : ch.size >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "vehicles") {
+              const veh = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const overdue = ci.filter((i) => i.fields?.nextService && new Date(i.fields.nextService) < new Date()).length;
+              metric = { val: veh, unit: overdue > 0 ? overdue + " need svc" : "ready", color: overdue === 0 && veh > 0 ? "#22c55e" : overdue > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "kids") {
+              const diapers = ci.filter((i) => i.subType === "diapers").reduce((s, i) => s + (i.quantity || 0), 0);
+              const formula = ci.filter((i) => i.subType === "formula").reduce((s, i) => s + (i.quantity || 0), 0);
+              const days = Math.min(diapers / 8, formula * 3);
+              metric = ci.length > 0 ? { val: days.toFixed(1), unit: "days", color: days >= 14 ? "#22c55e" : days >= 3 ? "#f59e0b" : "#ef4444" } : null;
+            } else if (k === "firearms" || k === "defense") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: qty > 0 ? (qty / p).toFixed(1) + "/person" : "none", color: qty >= p ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "nbc") {
+              const masks = ci.filter((i) => i.subType === "gasMask").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: Math.round(masks / Math.max(p, 1) * 100), unit: "% covered", color: masks >= p ? "#22c55e" : masks > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "alcohol") {
+              const vol = ci.reduce((s, i) => s + parseVolMl(i.fields?.volume || i.fields?.alcVolume) * (i.quantity || 1), 0);
+              metric = { val: (vol / 1000).toFixed(1), unit: "liters", color: ci.length >= 5 ? "#22c55e" : ci.length >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "fishing") {
+              const rods = ci.filter((i) => i.subType === "rodReel").reduce((s, i) => s + (i.quantity || 0), 0);
+              const nets = ci.filter((i) => i.subType === "net" || i.subType === "fishTrap").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: rods + nets, unit: "sources", color: rods > 0 ? "#22c55e" : "#ef4444" };
+            } else if (k === "boat") {
+              const vessels = ci.filter((i) => i.subType === "vessel").reduce((s, i) => s + (i.quantity || 0), 0);
+              const pfd = ci.filter((i) => i.subType === "lifeJacket").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: vessels, unit: pfd >= p ? "PFDs ✓" : pfd + "/" + p + " PFDs", color: vessels > 0 && pfd >= p ? "#22c55e" : vessels > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "farm") {
+              const seeds = ci.filter(i => i.subType === "seedPacket").reduce((s, i) => s + (i.quantity || 0), 0);
+              const varieties = new Set(ci.filter(i => i.subType === "seedPacket").map(i => i.fields?.cropName)).size;
+              const beds = ci.filter(i => i.subType === "raisedBed").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: varieties, unit: seeds + " packs · " + beds + " beds", color: varieties >= 5 ? "#22c55e" : varieties >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "bugout") {
+              const bags = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: bags, unit: bags >= p ? "ready" : bags + "/" + p + " packed", color: bags >= p ? "#22c55e" : bags > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "recreational") {
+              const lighters = ci.filter((i) => i.subType === "lighters").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: ci.reduce((s, i) => s + (i.quantity || 0), 0), unit: lighters > 0 ? lighters + " lighters" : "items", color: lighters >= 5 ? "#22c55e" : lighters > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "books") {
+              metric = { val: ci.reduce((s, i) => s + (i.quantity || 0), 0), unit: "volumes", color: ci.length >= 8 ? "#22c55e" : ci.length >= 3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "power") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: "devices", color: qty > 0 ? "#22c55e" : "#ef4444" };
+            } else if (k === "hygiene") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: "items", color: qty >= 10 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "shelter" || k === "tools" || k === "equipment") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
+            }
+
+            const statusColor = metric ? metric.color : (filled / total >= 0.6 ? "#22c55e" : filled / total >= 0.3 ? "#f59e0b" : "#ef4444");
+            return (
+              <button key={k} onClick={() => setSelCat(k)} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+                  <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{cat.icon}</div>
+                  {metric && (
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: metric.color, lineHeight: 1 }}>{metric.val}</div>
+                      <div style={{ fontSize: 9, color: metric.color, opacity: 0.7, whiteSpace: "nowrap" }}>{metric.unit}</div>
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
+                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3498,7 +3918,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   if (!propUnlocked) return <PinLock onUnlock={() => setPropUnlocked(true)} />;
 
   const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
-  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "routes", l: "Routes", i: "🛤️" }, { id: "resources", l: "Resources", i: "📍" }, { id: "cameras", l: "Cameras", i: "📷" }, { id: "systems", l: "Systems", i: "🏠" }, { id: "weather", l: "Advisories", i: "🌤️" }];
+  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "routes", l: "Routes", i: "🛤️" }, { id: "resources", l: "Resources", i: "📍" }, { id: "systems", l: "Systems", i: "🏠" }, { id: "weather", l: "Advisories", i: "🌤️" }];
   const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
 
   const handleAuth = async (setter, state, provider) => {
@@ -3525,6 +3945,8 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           });
           if (res.ok) {
             setter((p) => ({ ...p, loading: false, connected: true, error: "" }));
+            if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); }
+            if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); }
             // Fetch live data after successful auth
             if (provider === "tactacam") fetchLiveCameras(token);
             if (provider === "eyezon") fetchLiveAlarmStatus(token);
@@ -3537,10 +3959,10 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
         }
       }
       // Fallback: simulate connection with sample data
-      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); }, 1500);
+      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); } if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); } }, 1500);
     } catch (err) {
       // Fallback: simulate connection
-      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); }, 1500);
+      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); } if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); } }, 1500);
     }
   };
 
@@ -3813,17 +4235,12 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
 
       {propSub === "resources" && <div>{amenities.map((a) => (<div key={a.id} style={{ ...cardSt, padding: "12px 14px", marginBottom: 6, borderLeft: "3px solid " + (a.crisis === "high" ? "#22c55e" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{a.name}</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>📏 {a.dist} · 🧭 {a.dir}</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 3 }}>{a.notes}</div></div>))}</div>}
 
-      {propSub === "cameras" && (
+      {propSub === "systems" && (
         <div>
+          {/* Trail Camera Auth */}
           <AuthPanel title="Reveal Camera Login" icon="📷" color="#22c55e" auth={revealAuth} setAuth={setRevealAuth} provider="Tactacam Reveal" providerId="tactacam" helpUrl="https://www.reveal.tactacam.com" onAuth={handleAuth} onDisconnect={handleDisconnect} />
-          {!revealAuth.connected ? (
-            <div style={{ ...cardSt, padding: "40px 20px", textAlign: "center", borderStyle: "dashed" }}>
-              <div style={{ fontSize: 36, marginBottom: 10, opacity: 0.3 }}>📷</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>Camera feeds unavailable</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Connect your Reveal account above to view live camera feeds and snapshots</div>
-            </div>
-          ) : (
-            <div>
+          {revealAuth.connected && (
+            <div style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{displayCameras.length} cameras · {displayCameras.filter((c) => c.status === "online").length} online</div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Auto-refresh every 30s</div>
@@ -3873,11 +4290,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {propSub === "systems" && (
-        <div>
           {/* EyezOn Alarm Auth */}
           <AuthPanel title="EyezOn Alarm Login" icon="🚨" color="#f59e0b" auth={eyezonAuth} setAuth={setEyezonAuth} provider="EyezOn EnvisaLink" providerId="eyezon" onAuth={handleAuth} onDisconnect={handleDisconnect} />
           {eyezonAuth.connected ? (
@@ -3909,7 +4322,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
             </div>
           )}
 
-          {/* Nest Auth */}
+          {/* Nest / Google Home Auth */}
           <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" onAuth={handleAuth} onDisconnect={handleDisconnect} />
           {nestAuth.connected ? (
             <div style={{ ...cardSt, borderLeft: "3px solid #06b6d4" }}>
@@ -6071,7 +6484,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
 /* ═══════════════════════════════════════════════════════════════
    OPPORTUNITIES TAB — Score-Based Improvement Recommendations
    ═══════════════════════════════════════════════════════════════ */
-function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps }) {
+function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps, propertyProfile }) {
   const M = "'JetBrains Mono',monospace";
   const accent = "#c8553a";
   const cardSt = { background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" };
@@ -6111,8 +6524,30 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
       if (i.subType === "weatherRadio") commCh.add("Weather Band");
     });
     items.filter(i => i.category === "comms").forEach(() => commCh.add("HAM/GMRS"));
-    return { powerHrs, waterDays, heatDays, calDays, commCount: commCh.size, commChannels: [...commCh] };
-  }, [items, people, climate]);
+    // Fragility analysis
+    const frag = [];
+    const fuelSrc = new Set();
+    if (propaneTanks > 0) fuelSrc.add("propane");
+    if (fuelGals > 0) fuelSrc.add("gasoline");
+    if (fuelSrc.size <= 1 && climate === "cold") frag.push({ icon: "🔥", msg: "Heat continuity depends on " + (fuelSrc.size === 0 ? "no fuel source" : "one fuel source") + ".", sev: fuelSrc.size === 0 ? "critical" : "warning" });
+    if (waterFilters < 2) frag.push({ icon: "💧", msg: "Water purification lacks redundancy.", sev: waterFilters === 0 ? "critical" : "warning" });
+    if (solarPanels > 0 && batteries < 10) frag.push({ icon: "🔋", msg: "Battery backup is weather-dependent.", sev: "warning" });
+    if (commCh.size < 2) frag.push({ icon: "📡", msg: commCh.size === 0 ? "No communication backup exists." : "Single communication channel — no redundancy.", sev: commCh.size === 0 ? "critical" : "warning" });
+    if (calDays < 7) frag.push({ icon: "🍽️", msg: `Caloric reserve below 7 days (${calDays.toFixed(1)}d).`, sev: "critical" });
+    if (powerHrs < 24) frag.push({ icon: "⚡", msg: "Power autonomy under 24 hours.", sev: "warning" });
+    if (propertyProfile?.completedAt) {
+      const toArr = v => Array.isArray(v) ? v : v ? [v] : [];
+      const pWater = toArr(propertyProfile.waterSource);
+      const pFresh = toArr(propertyProfile.freshwaterAccess);
+      const pPower = toArr(propertyProfile.powerSource);
+      if (propertyProfile.populationDensity === "urban") frag.push({ icon: "🏙️", msg: "Urban location — high population risk in prolonged scenarios.", sev: "warning" });
+      if (pWater.length === 1 && pWater[0] === "municipal" && (pFresh.length === 0 || (pFresh.length === 1 && pFresh[0] === "none"))) frag.push({ icon: "🚱", msg: "Municipal water with no natural backup — vulnerable to infrastructure failure.", sev: "warning" });
+      if (propertyProfile.gridStatus === "on_grid" && !propertyProfile.hasGenerator) frag.push({ icon: "🔌", msg: "Grid-dependent with no backup generator.", sev: "warning" });
+      if (propertyProfile.geoRisks?.length >= 3) frag.push({ icon: "⚠️", msg: `Multiple geographic risks identified (${propertyProfile.geoRisks.length}).`, sev: "warning" });
+      if (propertyProfile.specialNeeds?.length > 0) frag.push({ icon: "🩺", msg: "Household includes vulnerable members — plan for extended care needs.", sev: "info" });
+    }
+    return { powerHrs, waterDays, heatDays, calDays, commCount: commCh.size, commChannels: [...commCh], frag };
+  }, [items, people, climate, propertyProfile]);
 
   /* ── Preparedness Score ── */
   const prepScore = useMemo(() => {
@@ -6316,6 +6751,20 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {/* ── Fragility Analysis ── */}
+      {cont.frag && cont.frag.length > 0 && (
+        <div style={{ ...cardSt, padding: "10px 16px" }}>
+          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(239,68,68,0.5)", fontWeight: 700, marginBottom: 6 }}>⚠ Fragility Analysis</div>
+          <div style={{ display: "grid", gap: 4 }}>
+            {cont.frag.map((f, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: f.sev === "critical" ? "rgba(239,68,68,0.04)" : "rgba(245,158,11,0.03)", borderRadius: 6, borderLeft: "2px solid " + (f.sev === "critical" ? "#ef4444" : "#f59e0b") }}>
+                <span style={{ fontSize: 12 }}>{f.icon}</span>
+                <span style={{ fontSize: 10, color: f.sev === "critical" ? "rgba(239,68,68,0.7)" : "rgba(245,158,11,0.7)", fontStyle: "italic" }}>{f.msg}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* ── Summary Bar ── */}
       <div style={{ ...cardSt, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -6427,7 +6876,7 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
 /* ═══════════════════════════════════════════════════════════════
    SYSTEMS TAB — Resource Conversion, Trade-offs, Dependency Graphs
    ═══════════════════════════════════════════════════════════════ */
-function SystemsTab({ items, people, climate }) {
+function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps, propertyProfile }) {
   const M = "'JetBrains Mono',monospace";
   const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
   const [sysSub, setSysSub] = useState("stock");
@@ -6436,7 +6885,7 @@ function SystemsTab({ items, people, climate }) {
   const [divertPct, setDivertPct] = useState(25);
   const [expandedDep, setExpandedDep] = useState(null);
 
-  const subs = [{ id: "stock", l: "Resources", i: "📊" }, { id: "convert", l: "Conversions", i: "⚡" }, { id: "tradeoff", l: "Trade-offs", i: "⚖️" }, { id: "graph", l: "System Map", i: "🔗" }, { id: "deps", l: "Dependencies", i: "🔌" }];
+  const subs = [{ id: "stock", l: "Resources", i: "📊" }, { id: "convert", l: "Conversions", i: "⚡" }, { id: "tradeoff", l: "Trade-offs", i: "⚖️" }, { id: "graph", l: "System Map", i: "🔗" }, { id: "deps", l: "Dependencies", i: "🔌" }, { id: "opps", l: "Opportunities", i: "💡" }];
 
   /* ── Hidden Dependency Map ── */
   const DEPENDENCY_TREE = useMemo(() => {
@@ -6990,6 +7439,9 @@ function SystemsTab({ items, people, climate }) {
             })}
           </div>
         </div>
+      )}
+      {sysSub === "opps" && (
+        <OpportunitiesTab items={items} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile} />
       )}
     </div>
   );
@@ -7595,6 +8047,7 @@ export default function PrepVault() {
   const [showAddProp, setShowAddProp] = useState(false);
   const [newPropName, setNewPropName] = useState("");
   const [newPropType, setNewPropType] = useState("cabin");
+  const [showSiteMenu, setShowSiteMenu] = useState(false);
   const [crisisMode, setCrisisMode] = useState(false);
   const [crisisStart, setCrisisStart] = useState(null);
   const [crisisType, setCrisisType] = useState(null);
@@ -7663,6 +8116,7 @@ export default function PrepVault() {
     return p;
   });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [dismissResetKey, setDismissResetKey] = useState(0);
   const [showQuickStart, setShowQuickStart] = useState(false);
   const [qsStep, setQsStep] = useState(0);
 
@@ -8119,7 +8573,7 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate, codes]);
 
-  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }, { id: "opps", l: "Opportunities", i: "💡" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
+  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Community", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }, { id: "systems", l: "Systems", i: "⚙" }, { id: "simulate", l: "Simulate", i: "🧪" }];
 
   const renderContent = () => {
     if (selCat) {
@@ -8127,19 +8581,19 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} />;
+        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} />;
       case "property":
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
+      case "preps":
+        return <PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} />;
       case "community":
         return <CommunityTab members={members} setMembers={setMembers} contacts={contacts} setContacts={setContacts} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} items={propItems} people={people} climate={climate} user={user} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} />;
       case "farming":
         return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} />;
-      case "opps":
-        return <OpportunitiesTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} />;
       case "systems":
-        return <SystemsTab items={propItems} people={people} climate={climate} />;
+        return <SystemsTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile} />;
       case "simulate":
         return <SimulateTab items={propItems} people={people} setPeople={setPeople} climate={climate} setClimate={setClimate} selScen={selScen} setSelScen={setSelScen} simDuration={simDuration} setSimDuration={setSimDuration} />;
       default:
@@ -8322,7 +8776,7 @@ export default function PrepVault() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif", paddingBottom: 72 }} onClick={() => { if (showAlerts) setShowAlerts(false); if (showProfileMenu) setShowProfileMenu(false); }}>
+    <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif", paddingBottom: 72 }} onClick={() => { if (showAlerts) setShowAlerts(false); if (showProfileMenu) setShowProfileMenu(false); if (showSiteMenu) setShowSiteMenu(false); }}>
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
@@ -8349,7 +8803,7 @@ export default function PrepVault() {
         .pcs-expiry-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4; }
         .pcs-weather-news { display: grid; grid-template-columns: 1fr 1fr; gap: 12; }
         .pcs-comms-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 16; }
-        .pcs-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 10; }
+        .pcs-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 14px; }
         .pcs-content { max-width: 1100px; margin: 0 auto; padding: 20px; }
         .pcs-sec-status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8; margin-bottom: 18; }
         @media (max-width: 768px) {
@@ -8358,7 +8812,7 @@ export default function PrepVault() {
           .pcs-tabs { display: none !important; }
           .pcs-crisis-grid { grid-template-columns: repeat(2, 1fr); }
           .pcs-opt-grid { grid-template-columns: 1fr; }
-          .pcs-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 8; }
+          .pcs-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
           .pcs-expiry-grid { grid-template-columns: repeat(4, 1fr) !important; }
           .pcs-weather-news { grid-template-columns: 1fr !important; }
           .pcs-comms-2col { grid-template-columns: 1fr !important; }
@@ -8372,7 +8826,7 @@ export default function PrepVault() {
           .pcs-sys-grid { grid-template-columns: 1fr 1fr 1fr !important; }
         }
         @media (max-width: 400px) {
-          .pcs-cat-grid { grid-template-columns: 1fr 1fr; gap: 6; }
+          .pcs-cat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
           .pcs-header { padding: 8px 10px; }
           .pcs-content { padding: 10px; }
         }
@@ -8382,7 +8836,7 @@ export default function PrepVault() {
       <div className="pcs-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }} onClick={(e) => { e.stopPropagation(); setSelCat(null); setActiveTab("dashboard"); }}>
           <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: M, boxShadow: "0 2px 12px rgba(200,85,58,0.3)" }}>P</div>
-          <div><div style={{ fontSize: 15, fontWeight: 800, letterSpacing: -0.5 }}>PCS</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2, fontWeight: 500 }}>Personal Continuity</div></div>
+          <div><div style={{ fontSize: 15, fontWeight: 800, letterSpacing: -0.5 }}>PCS</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2, fontWeight: 500 }}>Personal Continuity System</div></div>
         </div>
         <div style={{ flex: 1 }} />
         <div className="pcs-header-actions">
@@ -8392,12 +8846,59 @@ export default function PrepVault() {
               {syncStatus === "synced" ? "☁️ Synced" : syncStatus === "syncing" ? "⟳ Syncing" : syncStatus === "error" ? "⚠ Sync Error" : "💾 Local"}
             </div>
           )}
-          <button onClick={() => setShowSecurity(true)} style={{ ...btnSt, background: encryptedDb ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)", color: encryptedDb ? "#22c55e" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: encryptedDb ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(255,255,255,0.06)" }} title="Security & Privacy">🔒</button>
-          <button onClick={() => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } }} style={{ ...btnSt, background: crisisMode ? "#ef4444" : "rgba(239,68,68,0.06)", color: crisisMode ? "#fff" : "#ef4444", fontWeight: 800, fontSize: 10, padding: "8px 14px", border: crisisMode ? "1px solid #ef4444" : "1px solid rgba(239,68,68,0.15)", letterSpacing: 1, textTransform: "uppercase", animation: crisisMode ? "pulse 2s infinite" : "none" }}>{crisisMode ? "⚡ ACTIVE" : "⚡ ACTIVATE"}</button>
+          {/* Site Selector Dropdown */}
+          <div style={{ position: "relative" }}>
+            <button onClick={(e) => { e.stopPropagation(); setShowSiteMenu(p => !p); setShowProfileMenu(false); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showSiteMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showSiteMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showSiteMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 12 }}>{activePropertyId === "all" ? "🌐" : (properties.find(p => p.id === activePropertyId)?.icon || "📍")}</span>
+              <span style={{ maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activePropertyId === "all" ? "All Sites" : (properties.find(p => p.id === activePropertyId)?.name || "Site")}</span>
+              <span style={{ fontSize: 8, opacity: 0.4 }}>▾</span>
+            </button>
+            {showSiteMenu && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 260, background: "#1a1d23", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: 1200, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 9, textTransform: "uppercase", letterSpacing: 2, color: "rgba(255,255,255,0.35)", fontWeight: 700 }}>Site Selection</div>
+                <div style={{ padding: "6px 0" }}>
+                  <button onClick={() => { setActivePropertyId("all"); setShowSiteMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: activePropertyId === "all" ? "rgba(200,85,58,0.08)" : "none", border: "none", color: activePropertyId === "all" ? "#c8553a" : "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: activePropertyId === "all" ? 700 : 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => { if (activePropertyId !== "all") e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={e => { if (activePropertyId !== "all") e.currentTarget.style.background = "none"; }}>
+                    <span style={{ fontSize: 14 }}>🌐</span>
+                    <span style={{ flex: 1 }}>All Sites</span>
+                    <span style={{ fontSize: 10, fontFamily: M, opacity: 0.4 }}>{items.length}</span>
+                  </button>
+                  {properties.map(p => {
+                    const count = items.filter(i => i.propertyId === p.id).length;
+                    const isActive = activePropertyId === p.id;
+                    return (
+                      <button key={p.id} onClick={() => { setActivePropertyId(p.id); setShowSiteMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: isActive ? "rgba(200,85,58,0.08)" : "none", border: "none", color: isActive ? "#c8553a" : "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: isActive ? 700 : 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={e => { if (!isActive) e.currentTarget.style.background = "none"; }}>
+                        <span style={{ fontSize: 14 }}>{p.icon}</span>
+                        <span style={{ flex: 1 }}>{p.name}</span>
+                        <span style={{ fontSize: 10, fontFamily: M, opacity: 0.4 }}>{count}</span>
+                        {p.id !== "prop1" && (
+                          <span onClick={(e) => { e.stopPropagation(); if (confirm("Remove '" + p.name + "' and all its items? This cannot be undone.")) { removeProperty(p.id); } }} style={{ fontSize: 13, color: "rgba(255,255,255,0.15)", cursor: "pointer", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 4, transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "rgba(239,68,68,0.1)"; }} onMouseOut={e => { e.currentTarget.style.color = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "transparent"; }} title="Remove property">×</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
+                  {!showAddProp ? (
+                    <button onClick={() => setShowAddProp(true)} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                      <span style={{ fontSize: 14 }}>➕</span>Add Property
+                    </button>
+                  ) : (
+                    <div style={{ padding: "8px 14px", display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                      <input value={newPropName} onChange={e => setNewPropName(e.target.value)} onKeyDown={e => e.key === "Enter" && addProperty()} placeholder="Name..." style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit", flex: 1, minWidth: 80 }} autoFocus />
+                      <select value={newPropType} onChange={e => setNewPropType(e.target.value)} style={{ padding: "5px 6px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 10, fontFamily: "inherit" }}>
+                        <option value="cabin">🏕️ Cabin</option><option value="cache">📦 Cache</option><option value="farm">🌾 Farm</option><option value="vehicle">🚐 Vehicle</option><option value="home">🏠 Home</option><option value="office">🏢 Office</option>
+                      </select>
+                      <button onClick={() => { addProperty(); setShowSiteMenu(false); }} style={{ padding: "5px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 10, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>Add</button>
+                      <button onClick={() => setShowAddProp(false)} style={{ padding: "5px 8px", borderRadius: 6, background: "none", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           {isOffline && <div style={{ padding: "4px 8px", borderRadius: 8, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", fontSize: 9, color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>OFFLINE</div>}
           {/* Profile Dropdown */}
-          <div style={{ position: "relative" }}>
-            <button onClick={(e) => { e.stopPropagation(); setShowProfileMenu(p => !p); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showProfileMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showProfileMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showProfileMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ position: "relative", marginLeft: 6 }}>
+            <button onClick={(e) => { e.stopPropagation(); setShowProfileMenu(p => { if (!p) { setDismissResetKey(k => k + 1); setActiveTab("dashboard"); } return !p; }); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showProfileMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showProfileMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showProfileMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 18, height: 18, borderRadius: 9, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{user ? (user.email?.[0] || "U").toUpperCase() : "D"}</span>
               <span style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user ? user.email?.split("@")[0] : "Demo"}</span>
               <span style={{ fontSize: 8, opacity: 0.4 }}>▾</span>
@@ -8411,9 +8912,12 @@ export default function PrepVault() {
                 <div style={{ padding: "6px 0" }}>
                   {[
                     { icon: "🚀", label: "Quick Start", badge: !propertyProfile?.completedAt, onClick: () => { setShowQuickStart(true); setQsStep(0); setShowProfileMenu(false); } },
-                    { icon: "⚙️", label: "Settings", onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
+                    { icon: "📷", label: localStorage.getItem("prepvault-cameras-connected") === "1" ? "Trail Cameras" : "Connect Cameras", accent: localStorage.getItem("prepvault-cameras-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
+                    { icon: "🚨", label: localStorage.getItem("prepvault-alarms-connected") === "1" ? "Alarm Systems" : "Connect Alarms", accent: localStorage.getItem("prepvault-alarms-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
+                    { icon: "🔒", label: encryptedDb ? "Encryption Active" : "Security & Encryption", accent: encryptedDb ? "#22c55e" : null, onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
+                    { icon: "⚡", label: crisisMode ? "Deactivate Crisis" : "Activate Crisis", accent: crisisMode ? "#ef4444" : null, onClick: () => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } setShowProfileMenu(false); } },
                   ].map((item, i) => (
-                    <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                    <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: item.accent || "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
                       <span style={{ fontSize: 14 }}>{item.icon}</span>
                       {item.label}
                       {item.badge && <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", marginLeft: "auto" }} />}
@@ -8570,42 +9074,6 @@ export default function PrepVault() {
       })()}
 
       <div className="pcs-content">
-        {/* ── Property Switcher ── */}
-        {!selCat && activeTab !== "community" && activeTab !== "comms" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
-            <button onClick={() => setActivePropertyId("all")} style={{ padding: "6px 12px", borderRadius: 8, background: activePropertyId === "all" ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: activePropertyId === "all" ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.06)", color: activePropertyId === "all" ? "#c8553a" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }}>
-              🌐 All Sites <span style={{ fontSize: 10, fontFamily: M, opacity: 0.5 }}>({items.length})</span>
-            </button>
-            {properties.map(p => {
-              const count = items.filter(i => i.propertyId === p.id).length;
-              return (
-                <button key={p.id} onClick={() => setActivePropertyId(p.id)} style={{ padding: "6px 12px", borderRadius: 8, background: activePropertyId === p.id ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: activePropertyId === p.id ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.06)", color: activePropertyId === p.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", position: "relative" }}>
-                  {p.icon} {p.name} <span style={{ fontSize: 10, fontFamily: M, opacity: 0.5 }}>{count}</span>
-                  {p.id !== "prop1" && (
-                    <span onClick={(e) => { e.stopPropagation(); if (confirm("Remove '" + p.name + "' and all its items? This cannot be undone.")) removeProperty(p.id); }} style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", cursor: "pointer", marginLeft: 4, lineHeight: 1, width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 4, transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "rgba(239,68,68,0.1)"; }} onMouseOut={e => { e.currentTarget.style.color = "rgba(255,255,255,0.25)"; e.currentTarget.style.background = "transparent"; }} title="Remove property">×</span>
-                  )}
-                </button>
-              );
-            })}
-            {!showAddProp ? (
-              <button onClick={() => setShowAddProp(true)} style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", flexShrink: 0, transition: "all 0.15s" }}>+</button>
-            ) : (
-              <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>
-                <input value={newPropName} onChange={e => setNewPropName(e.target.value)} onKeyDown={e => e.key === "Enter" && addProperty()} placeholder="Name..." style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit", width: 100 }} autoFocus />
-                <select value={newPropType} onChange={e => setNewPropType(e.target.value)} style={{ padding: "5px 6px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 10, fontFamily: "inherit" }}>
-                  <option value="cabin">🏕️ Cabin</option>
-                  <option value="cache">📦 Cache</option>
-                  <option value="farm">🌾 Farm</option>
-                  <option value="vehicle">🚐 Vehicle</option>
-                  <option value="home">🏠 Home</option>
-                  <option value="office">🏢 Office</option>
-                </select>
-                <button onClick={addProperty} style={{ padding: "5px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 10, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>Add</button>
-                <button onClick={() => setShowAddProp(false)} style={{ padding: "5px 8px", borderRadius: 6, background: "none", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
-              </div>
-            )}
-          </div>
-        )}
         {renderContent()}
       </div>
 
@@ -8710,7 +9178,7 @@ export default function PrepVault() {
 
       {/* ═══ Security & Privacy Panel ═══ */}
       {showSecurity && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowSecurity(false)}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 5000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowSecurity(false)}>
           <div style={{ background: "#13151a", borderRadius: 14, width: "92%", maxWidth: 560, maxHeight: "90vh", overflow: "auto", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
@@ -8733,7 +9201,7 @@ export default function PrepVault() {
                   <div style={{ fontSize: 10, fontWeight: 700, color: dbStatus === "encrypted" ? "#22c55e" : dbStatus === "saved" ? "#0ea5e9" : "rgba(255,255,255,0.3)" }}>
                     {dbStatus === "encrypted" ? "Encrypted" : dbStatus === "saved" ? "Saved" : dbStatus === "saving" ? "Saving..." : "Not Saved"}
                   </div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{lastSaved ? "Last: " + lastSaved.toLocaleTimeString() : "No local backup"}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{lastSaved ? "Last: " + new Date(lastSaved).toLocaleTimeString() : "No local backup"}</div>
                 </div>
                 <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
                   <div style={{ fontSize: 18, marginBottom: 4 }}>📦</div>
@@ -8766,9 +9234,9 @@ export default function PrepVault() {
                     </div>
                   )}
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={handleLocalSave} style={{ ...btnSt, flex: 1, padding: "8px 0", fontSize: 10, fontWeight: 700, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>💾 Save</button>
-                    <button onClick={handleLocalLoad} style={{ ...btnSt, flex: 1, padding: "8px 0", fontSize: 10, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)" }}>📂 Load</button>
-                    <button onClick={handleDbWipe} style={{ ...btnSt, padding: "8px 12px", fontSize: 10, fontWeight: 700, background: "rgba(239,68,68,0.06)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)" }}>🗑️</button>
+                    <button onClick={handleLocalSave} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 10, fontWeight: 700, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>💾 Save</button>
+                    <button onClick={handleLocalLoad} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 10, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>📂 Load</button>
+                    <button onClick={handleDbWipe} style={{ ...btnSt, padding: "8px 12px", fontSize: 10, fontWeight: 700, background: "rgba(239,68,68,0.06)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>🗑️</button>
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.5 }}>
                     Data stored locally on this device only. {encryptedDb ? "AES-256-GCM with PBKDF2-SHA256 (310K iterations). Without your passphrase, data is unrecoverable." : "Enable encryption for sensitive inventories."}
