@@ -368,6 +368,47 @@ const CATEGORIES = {
       contSuit: { label: "Full Containment Suit", icon: "🛡️", fields: ["nbcBrand", "nbcSize", "nbcRating", "deviceLocation"], unit: "suits" },
     },
   },
+  clothing: {
+    label: "Clothing", icon: "👕", color: "#6366f1", desc: "Apparel, footwear, cold & warm weather gear",
+    subTypes: {
+      underwear: { label: "Underwear", icon: "🩲", fields: ["clothSize", "bobItemQty", "deviceLocation"], unit: "items", consumable: true },
+      socks: { label: "Socks", icon: "🧦", fields: ["clothSize", "clothMaterial", "bobItemQty", "deviceLocation"], unit: "pairs", consumable: true },
+      thermalBase: { label: "Thermal Base Layers", icon: "🧥", fields: ["clothSize", "clothMaterial", "deviceLocation"], unit: "sets" },
+      coldWeather: { label: "Cold Weather Gear", icon: "🧣", fields: ["clothType", "clothSize", "tempRating", "deviceLocation"], unit: "items" },
+      warmWeather: { label: "Warm Weather Gear", icon: "☀️", fields: ["clothType", "clothSize", "deviceLocation"], unit: "items" },
+      rainGear: { label: "Rain Gear", icon: "🌧️", fields: ["clothType", "clothSize", "deviceLocation"], unit: "items" },
+      boots: { label: "Boots / Footwear", icon: "🥾", fields: ["clothType", "clothSize", "deviceLocation"], unit: "pairs" },
+      gloves: { label: "Gloves / Mittens", icon: "🧤", fields: ["clothType", "clothSize", "tempRating", "deviceLocation"], unit: "pairs" },
+      hats: { label: "Hats / Head Coverings", icon: "🧢", fields: ["clothType", "deviceLocation"], unit: "items" },
+      tactical: { label: "Tactical / Work Wear", icon: "🦺", fields: ["clothType", "clothSize", "deviceLocation"], unit: "items" },
+    },
+  },
+  pets: {
+    label: "Pets", icon: "🐕", color: "#f472b6", desc: "Pet food, meds, supplies & evacuation gear",
+    subTypes: {
+      petFood: { label: "Pet Food", icon: "🦴", fields: ["petAnimal", "petFoodType", "weightLbs", "expiryDate", "deviceLocation"], unit: "bags", consumable: true },
+      petMeds: { label: "Pet Medications", icon: "💊", fields: ["petAnimal", "petMedName", "daysSupply", "expiryDate", "deviceLocation"], unit: "items", consumable: true },
+      petFirstAid: { label: "Pet First Aid", icon: "🩹", fields: ["petAnimal", "bobItemNotes", "deviceLocation"], unit: "kits" },
+      petCarrier: { label: "Carrier / Crate", icon: "📦", fields: ["petAnimal", "petCarrierSize", "deviceLocation"], unit: "carriers" },
+      petLeash: { label: "Leash / Harness / Collar", icon: "🦮", fields: ["petAnimal", "bobItemNotes", "deviceLocation"], unit: "items" },
+      petWater: { label: "Pet Water / Bowls", icon: "🥣", fields: ["petAnimal", "capacity", "deviceLocation"], unit: "items" },
+      petBedding: { label: "Bedding / Shelter", icon: "🛏️", fields: ["petAnimal", "bobItemNotes", "deviceLocation"], unit: "items" },
+      petDocs: { label: "Vet Records / Tags", icon: "📋", fields: ["petAnimal", "petName", "bobItemNotes", "deviceLocation"], unit: "docs" },
+    },
+  },
+  lighting: {
+    label: "Lighting", icon: "🕯️", color: "#fcd34d", desc: "Flashlights, headlamps, lanterns, candles & fuel",
+    subTypes: {
+      flashlight: { label: "Flashlights", icon: "🔦", fields: ["lightBrand", "lightLumens", "lightBattery", "deviceLocation"], unit: "lights" },
+      headlamp: { label: "Headlamps", icon: "⛑️", fields: ["lightBrand", "lightLumens", "lightBattery", "deviceLocation"], unit: "lamps" },
+      lantern: { label: "Lanterns", icon: "🏮", fields: ["lightBrand", "lightFuel", "lightBurnTime", "deviceLocation"], unit: "lanterns" },
+      candle: { label: "Candles", icon: "🕯️", fields: ["lightBurnTime", "bobItemQty", "deviceLocation"], unit: "candles", consumable: true },
+      oilLamp: { label: "Oil Lamps", icon: "🪔", fields: ["lightFuel", "lightBurnTime", "deviceLocation"], unit: "lamps" },
+      lampFuel: { label: "Lamp Oil / Fuel", icon: "🛢️", fields: ["lightFuel", "alcVolume", "deviceLocation"], unit: "bottles", consumable: true },
+      bulbs: { label: "Replacement Bulbs", icon: "💡", fields: ["lightBulbType", "bobItemQty", "deviceLocation"], unit: "bulbs", consumable: true },
+      chemlights: { label: "Chemlights / Glow Sticks", icon: "✨", fields: ["lightChemColor", "bobItemQty", "expiryDate", "deviceLocation"], unit: "sticks", consumable: true },
+    },
+  },
   bullion: {
     label: "Bullion", icon: "🪙", color: "#eab308", desc: "Gold, silver, precious metals — barter & store of value",
     subTypes: {
@@ -383,19 +424,19 @@ const CATEGORIES = {
 };
 
 const SCENARIOS = {
-  economic: { label: "Economic Collapse", icon: "📉", desc: "Supply chains fail, banks close", weights: { water: 0.8, food: 1, medical: 0.6, firewood: 0.5, fuel: 0.6, shelter: 0.3, tools: 0.7, comms: 0.4, defense: 0.7, firearms: 0.8, hygiene: 0.3, power: 0.5, batteries: 0.4, electronics: 0.3, vehicles: 0.5, equipment: 0.3, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.3, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.5, nbc: 0.2, bullion: 0.9 }, defaultDur: 180 },
-  emp: { label: "EMP Attack", icon: "⚡", desc: "Electronics disabled, grid down", weights: { water: 1, food: 1, medical: 0.8, firewood: 0.9, fuel: 0.7, shelter: 0.5, tools: 0.9, comms: 1, defense: 0.6, firearms: 0.7, hygiene: 0.4, power: 1, batteries: 0.9, electronics: 0.2, vehicles: 0.3, equipment: 0.4, farm: 1, bugout: 0.8, kids: 0.8, boat: 0.2, fishing: 0.8, alcohol: 0.4, recreational: 0.1, books: 0.7, nbc: 0.3, bullion: 0.3 }, defaultDur: 365 },
-  wildfire: { label: "Wildfire", icon: "🌲", desc: "Evacuation, dangerous air", weights: { water: 0.9, food: 0.7, medical: 0.9, firewood: 0.1, fuel: 0.8, shelter: 1, tools: 0.6, comms: 0.8, defense: 0.2, firearms: 0.2, hygiene: 0.5, power: 0.6, batteries: 0.5, electronics: 0.6, vehicles: 0.9, equipment: 0.4, farm: 0.1, bugout: 1, kids: 1, boat: 0.4, fishing: 0.1, alcohol: 0.1, recreational: 0.1, books: 0.2, nbc: 0.3, bullion: 0.1 }, defaultDur: 30 },
-  nuclear: { label: "Nuclear", icon: "☢️", desc: "Radiation fallout, shelter-in-place", weights: { water: 1, food: 1, medical: 1, firewood: 0.5, fuel: 0.5, shelter: 1, tools: 0.5, comms: 0.7, defense: 0.3, firearms: 0.4, hygiene: 0.8, power: 0.8, batteries: 0.6, electronics: 0.4, vehicles: 0.3, equipment: 0.5, farm: 0.3, bugout: 0.7, kids: 0.9, boat: 0.1, fishing: 0.2, alcohol: 0.3, recreational: 0.1, books: 0.6, nbc: 1.0, bullion: 0.2 }, defaultDur: 90 },
-  pandemic: { label: "Pandemic", icon: "🦠", desc: "Quarantine, supply disruptions", weights: { water: 0.7, food: 0.9, medical: 1, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.3, comms: 0.5, defense: 0.2, firearms: 0.3, hygiene: 1, power: 0.4, batteries: 0.3, electronics: 0.4, vehicles: 0.3, equipment: 0.2, farm: 0.7, bugout: 0.3, kids: 0.9, boat: 0.1, fishing: 0.4, alcohol: 0.3, recreational: 0.2, books: 0.4, nbc: 0.6, bullion: 0.4 }, defaultDur: 120 },
-  grid: { label: "Grid Failure", icon: "🔌", desc: "Blackout, no heat/cooling", weights: { water: 1, food: 0.8, medical: 0.5, firewood: 1, fuel: 0.9, shelter: 0.6, tools: 0.7, comms: 0.6, defense: 0.3, firearms: 0.4, hygiene: 0.4, power: 1, batteries: 0.8, electronics: 0.5, vehicles: 0.4, equipment: 0.4, farm: 0.5, bugout: 0.5, kids: 0.7, boat: 0.2, fishing: 0.5, alcohol: 0.3, recreational: 0.1, books: 0.5, nbc: 0.1, bullion: 0.2 }, defaultDur: 60 },
-  winter: { label: "Winter Storm", icon: "🌨️", desc: "Blizzard, ice storm, roads impassable", weights: { water: 0.8, food: 0.8, medical: 0.6, firewood: 1, fuel: 1, shelter: 0.8, tools: 0.7, comms: 0.5, defense: 0.1, firearms: 0.1, hygiene: 0.3, power: 0.9, batteries: 0.7, electronics: 0.4, vehicles: 0.6, equipment: 0.5, farm: 0.1, bugout: 0.3, kids: 0.8, boat: 0.0, fishing: 0.1, alcohol: 0.2, recreational: 0.2, books: 0.3, nbc: 0.0, bullion: 0.1 }, defaultDur: 14 },
-  solarFlare: { label: "Solar Flare", icon: "☀️", desc: "Carrington-class event, grid & satellites down", weights: { water: 1, food: 1, medical: 0.7, firewood: 0.8, fuel: 0.7, shelter: 0.4, tools: 0.9, comms: 1, defense: 0.5, firearms: 0.6, hygiene: 0.3, power: 1, batteries: 0.9, electronics: 0.1, vehicles: 0.4, equipment: 0.4, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.2, fishing: 0.7, alcohol: 0.4, recreational: 0.1, books: 0.8, nbc: 0.1, bullion: 0.3 }, defaultDur: 365 },
-  waterCrisis: { label: "Water Disruption", icon: "🚱", desc: "Municipal water contamination or failure", weights: { water: 1, food: 0.5, medical: 0.6, firewood: 0.2, fuel: 0.3, shelter: 0.2, tools: 0.4, comms: 0.3, defense: 0.2, firearms: 0.2, hygiene: 0.7, power: 0.4, batteries: 0.2, electronics: 0.2, vehicles: 0.5, equipment: 0.6, farm: 0.4, bugout: 0.4, kids: 0.8, boat: 0.3, fishing: 0.2, alcohol: 0.1, recreational: 0.1, books: 0.3, nbc: 0.2, bullion: 0.1 }, defaultDur: 30 },
-  supplyChain: { label: "Supply Chain Shock", icon: "📦", desc: "Ports closed, shelves empty, delivery halt", weights: { water: 0.6, food: 1, medical: 0.8, firewood: 0.3, fuel: 0.7, shelter: 0.2, tools: 0.5, comms: 0.3, defense: 0.4, firearms: 0.5, hygiene: 0.6, power: 0.3, batteries: 0.5, electronics: 0.2, vehicles: 0.4, equipment: 0.4, farm: 1, bugout: 0.3, kids: 0.9, boat: 0.2, fishing: 0.8, alcohol: 0.6, recreational: 0.3, books: 0.3, nbc: 0.1, bullion: 0.7 }, defaultDur: 180 },
-  russiaWar: { label: "Russia Conflict", icon: "🇷🇺", desc: "NATO conflict escalation, nuclear threat", weights: { water: 0.9, food: 0.9, medical: 0.8, firewood: 0.7, fuel: 0.8, shelter: 0.8, tools: 0.6, comms: 0.8, defense: 0.7, firearms: 0.7, hygiene: 0.5, power: 0.7, batteries: 0.6, electronics: 0.5, vehicles: 0.5, equipment: 0.5, farm: 0.7, bugout: 0.8, kids: 0.9, boat: 0.3, fishing: 0.5, alcohol: 0.4, recreational: 0.2, books: 0.6, nbc: 0.9, bullion: 0.5 }, defaultDur: 365 },
-  chinaWar: { label: "China Conflict", icon: "🇨🇳", desc: "Pacific conflict, trade collapse, cyber attacks", weights: { water: 0.7, food: 1, medical: 0.7, firewood: 0.4, fuel: 0.8, shelter: 0.3, tools: 0.6, comms: 0.7, defense: 0.5, firearms: 0.5, hygiene: 0.4, power: 0.6, batteries: 0.7, electronics: 0.3, vehicles: 0.4, equipment: 0.5, farm: 0.9, bugout: 0.5, kids: 0.8, boat: 0.2, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.4, nbc: 0.4, bullion: 0.6 }, defaultDur: 365 },
-  aiDisrupt: { label: "AI Disruption", icon: "🤖", desc: "Mass unemployment, infrastructure failures, social collapse", weights: { water: 0.5, food: 0.7, medical: 0.5, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.5, comms: 0.4, defense: 0.6, firearms: 0.6, hygiene: 0.2, power: 0.5, batteries: 0.3, electronics: 0.3, vehicles: 0.3, equipment: 0.3, farm: 0.8, bugout: 0.4, kids: 0.6, boat: 0.2, fishing: 0.5, alcohol: 0.5, recreational: 0.3, books: 0.7, nbc: 0.1, bullion: 0.8 }, defaultDur: 365 },
+  economic: { label: "Economic Collapse", icon: "📉", desc: "Supply chains fail, banks close", weights: { water: 0.8, food: 1, medical: 0.6, firewood: 0.5, fuel: 0.6, shelter: 0.3, tools: 0.7, comms: 0.4, defense: 0.7, firearms: 0.8, hygiene: 0.3, power: 0.5, batteries: 0.4, electronics: 0.3, vehicles: 0.5, equipment: 0.3, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.3, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.5, nbc: 0.2, clothing: 0.6, pets: 0.5, lighting: 0.4, bullion: 0.9 }, defaultDur: 180 },
+  emp: { label: "EMP Attack", icon: "⚡", desc: "Electronics disabled, grid down", weights: { water: 1, food: 1, medical: 0.8, firewood: 0.9, fuel: 0.7, shelter: 0.5, tools: 0.9, comms: 1, defense: 0.6, firearms: 0.7, hygiene: 0.4, power: 1, batteries: 0.9, electronics: 0.2, vehicles: 0.3, equipment: 0.4, farm: 1, bugout: 0.8, kids: 0.8, boat: 0.2, fishing: 0.8, alcohol: 0.4, recreational: 0.1, books: 0.7, nbc: 0.3, clothing: 0.7, pets: 0.6, lighting: 0.9, bullion: 0.3 }, defaultDur: 365 },
+  wildfire: { label: "Wildfire", icon: "🌲", desc: "Evacuation, dangerous air", weights: { water: 0.9, food: 0.7, medical: 0.9, firewood: 0.1, fuel: 0.8, shelter: 1, tools: 0.6, comms: 0.8, defense: 0.2, firearms: 0.2, hygiene: 0.5, power: 0.6, batteries: 0.5, electronics: 0.6, vehicles: 0.9, equipment: 0.4, farm: 0.1, bugout: 1, kids: 1, boat: 0.4, fishing: 0.1, alcohol: 0.1, recreational: 0.1, books: 0.2, nbc: 0.3, clothing: 0.8, pets: 0.9, lighting: 0.5, bullion: 0.1 }, defaultDur: 30 },
+  nuclear: { label: "Nuclear", icon: "☢️", desc: "Radiation fallout, shelter-in-place", weights: { water: 1, food: 1, medical: 1, firewood: 0.5, fuel: 0.5, shelter: 1, tools: 0.5, comms: 0.7, defense: 0.3, firearms: 0.4, hygiene: 0.8, power: 0.8, batteries: 0.6, electronics: 0.4, vehicles: 0.3, equipment: 0.5, farm: 0.3, bugout: 0.7, kids: 0.9, boat: 0.1, fishing: 0.2, alcohol: 0.3, recreational: 0.1, books: 0.6, nbc: 1.0, clothing: 0.6, pets: 0.4, lighting: 0.7, bullion: 0.2 }, defaultDur: 90 },
+  pandemic: { label: "Pandemic", icon: "🦠", desc: "Quarantine, supply disruptions", weights: { water: 0.7, food: 0.9, medical: 1, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.3, comms: 0.5, defense: 0.2, firearms: 0.3, hygiene: 1, power: 0.4, batteries: 0.3, electronics: 0.4, vehicles: 0.3, equipment: 0.2, farm: 0.7, bugout: 0.3, kids: 0.9, boat: 0.1, fishing: 0.4, alcohol: 0.3, recreational: 0.2, books: 0.4, nbc: 0.6, clothing: 0.3, pets: 0.7, lighting: 0.3, bullion: 0.4 }, defaultDur: 120 },
+  grid: { label: "Grid Failure", icon: "🔌", desc: "Blackout, no heat/cooling", weights: { water: 1, food: 0.8, medical: 0.5, firewood: 1, fuel: 0.9, shelter: 0.6, tools: 0.7, comms: 0.6, defense: 0.3, firearms: 0.4, hygiene: 0.4, power: 1, batteries: 0.8, electronics: 0.5, vehicles: 0.4, equipment: 0.4, farm: 0.5, bugout: 0.5, kids: 0.7, boat: 0.2, fishing: 0.5, alcohol: 0.3, recreational: 0.1, books: 0.5, nbc: 0.1, clothing: 0.5, pets: 0.5, lighting: 1.0, bullion: 0.2 }, defaultDur: 60 },
+  winter: { label: "Winter Storm", icon: "🌨️", desc: "Blizzard, ice storm, roads impassable", weights: { water: 0.8, food: 0.8, medical: 0.6, firewood: 1, fuel: 1, shelter: 0.8, tools: 0.7, comms: 0.5, defense: 0.1, firearms: 0.1, hygiene: 0.3, power: 0.9, batteries: 0.7, electronics: 0.4, vehicles: 0.6, equipment: 0.5, farm: 0.1, bugout: 0.3, kids: 0.8, boat: 0.0, fishing: 0.1, alcohol: 0.2, recreational: 0.2, books: 0.3, nbc: 0.0, clothing: 1.0, pets: 0.6, lighting: 0.8, bullion: 0.1 }, defaultDur: 14 },
+  solarFlare: { label: "Solar Flare", icon: "☀️", desc: "Carrington-class event, grid & satellites down", weights: { water: 1, food: 1, medical: 0.7, firewood: 0.8, fuel: 0.7, shelter: 0.4, tools: 0.9, comms: 1, defense: 0.5, firearms: 0.6, hygiene: 0.3, power: 1, batteries: 0.9, electronics: 0.1, vehicles: 0.4, equipment: 0.4, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.2, fishing: 0.7, alcohol: 0.4, recreational: 0.1, books: 0.8, nbc: 0.1, clothing: 0.6, pets: 0.5, lighting: 0.9, bullion: 0.3 }, defaultDur: 365 },
+  waterCrisis: { label: "Water Disruption", icon: "🚱", desc: "Municipal water contamination or failure", weights: { water: 1, food: 0.5, medical: 0.6, firewood: 0.2, fuel: 0.3, shelter: 0.2, tools: 0.4, comms: 0.3, defense: 0.2, firearms: 0.2, hygiene: 0.7, power: 0.4, batteries: 0.2, electronics: 0.2, vehicles: 0.5, equipment: 0.6, farm: 0.4, bugout: 0.4, kids: 0.8, boat: 0.3, fishing: 0.2, alcohol: 0.1, recreational: 0.1, books: 0.3, nbc: 0.2, clothing: 0.2, pets: 0.4, lighting: 0.3, bullion: 0.1 }, defaultDur: 30 },
+  supplyChain: { label: "Supply Chain Shock", icon: "📦", desc: "Ports closed, shelves empty, delivery halt", weights: { water: 0.6, food: 1, medical: 0.8, firewood: 0.3, fuel: 0.7, shelter: 0.2, tools: 0.5, comms: 0.3, defense: 0.4, firearms: 0.5, hygiene: 0.6, power: 0.3, batteries: 0.5, electronics: 0.2, vehicles: 0.4, equipment: 0.4, farm: 1, bugout: 0.3, kids: 0.9, boat: 0.2, fishing: 0.8, alcohol: 0.6, recreational: 0.3, books: 0.3, nbc: 0.1, clothing: 0.7, pets: 0.6, lighting: 0.5, bullion: 0.7 }, defaultDur: 180 },
+  russiaWar: { label: "Russia Conflict", icon: "🇷🇺", desc: "NATO conflict escalation, nuclear threat", weights: { water: 0.9, food: 0.9, medical: 0.8, firewood: 0.7, fuel: 0.8, shelter: 0.8, tools: 0.6, comms: 0.8, defense: 0.7, firearms: 0.7, hygiene: 0.5, power: 0.7, batteries: 0.6, electronics: 0.5, vehicles: 0.5, equipment: 0.5, farm: 0.7, bugout: 0.8, kids: 0.9, boat: 0.3, fishing: 0.5, alcohol: 0.4, recreational: 0.2, books: 0.6, nbc: 0.9, clothing: 0.7, pets: 0.5, lighting: 0.6, bullion: 0.5 }, defaultDur: 365 },
+  chinaWar: { label: "China Conflict", icon: "🇨🇳", desc: "Pacific conflict, trade collapse, cyber attacks", weights: { water: 0.7, food: 1, medical: 0.7, firewood: 0.4, fuel: 0.8, shelter: 0.3, tools: 0.6, comms: 0.7, defense: 0.5, firearms: 0.5, hygiene: 0.4, power: 0.6, batteries: 0.7, electronics: 0.3, vehicles: 0.4, equipment: 0.5, farm: 0.9, bugout: 0.5, kids: 0.8, boat: 0.2, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.4, nbc: 0.4, clothing: 0.6, pets: 0.5, lighting: 0.5, bullion: 0.6 }, defaultDur: 365 },
+  aiDisrupt: { label: "AI Disruption", icon: "🤖", desc: "Mass unemployment, infrastructure failures, social collapse", weights: { water: 0.5, food: 0.7, medical: 0.5, firewood: 0.3, fuel: 0.4, shelter: 0.2, tools: 0.5, comms: 0.4, defense: 0.6, firearms: 0.6, hygiene: 0.2, power: 0.5, batteries: 0.3, electronics: 0.3, vehicles: 0.3, equipment: 0.3, farm: 0.8, bugout: 0.4, kids: 0.6, boat: 0.2, fishing: 0.5, alcohol: 0.5, recreational: 0.3, books: 0.7, nbc: 0.1, clothing: 0.4, pets: 0.4, lighting: 0.4, bullion: 0.8 }, defaultDur: 365 },
 };
 
 const CLIMATES = {
@@ -685,6 +726,24 @@ const FIELD_META = {
   bullionGoldbackDenom: { label: "Denomination", type: "select", options: ["1 Goldback", "5 Goldback", "10 Goldback", "25 Goldback", "50 Goldback"] },
   bullionJunkType: { label: "Coin Type", type: "select", options: ["Roosevelt Dime", "Mercury Dime", "Washington Quarter", "Walking Liberty Half", "Franklin Half", "Kennedy Half (pre-65)", "Morgan Dollar", "Peace Dollar"] },
   bullionFaceValue: { label: "Face Value ($)", type: "number", placeholder: "1.00" },
+  /* Clothing */
+  clothSize: { label: "Size", type: "select", options: ["XS", "S", "M", "L", "XL", "XXL", "3XL", "Youth S", "Youth M", "Youth L"] },
+  clothMaterial: { label: "Material", type: "select", options: ["Merino wool", "Cotton", "Synthetic", "Down", "Fleece", "Gore-Tex", "Nylon", "Polypro", "Blend"] },
+  clothType: { label: "Type", type: "text", placeholder: "Parka, cargo pants..." },
+  /* Pets */
+  petAnimal: { label: "Animal", type: "select", options: ["Dog", "Cat", "Bird", "Rabbit", "Fish", "Reptile", "Horse", "Chicken", "Other"] },
+  petFoodType: { label: "Food Type", type: "select", options: ["Dry kibble", "Wet/canned", "Raw", "Freeze-dried", "Treats", "Prescription", "Hay/feed"] },
+  petMedName: { label: "Medication", type: "text", placeholder: "Heartgard, flea meds..." },
+  petCarrierSize: { label: "Size", type: "select", options: ["Small (up to 15lb)", "Medium (15-30lb)", "Large (30-70lb)", "XL (70lb+)", "Cat carrier", "Bird cage"] },
+  petName: { label: "Pet Name", type: "text", placeholder: "Buddy, Max..." },
+  /* Lighting */
+  lightBrand: { label: "Brand", type: "text", placeholder: "Fenix, Petzl, Olight..." },
+  lightLumens: { label: "Lumens", type: "number", placeholder: "1000" },
+  lightBattery: { label: "Battery", type: "select", options: ["AA", "AAA", "18650", "CR123A", "Built-in USB", "CR2032", "D-cell", "Solar"] },
+  lightFuel: { label: "Fuel", type: "select", options: ["Lamp oil", "Kerosene", "Propane", "Butane", "Battery", "Solar", "Hand crank", "Beeswax", "Paraffin"] },
+  lightBurnTime: { label: "Burn Time (hrs)", type: "number", placeholder: "8" },
+  lightBulbType: { label: "Type", type: "select", options: ["LED", "Incandescent", "Halogen", "Fluorescent", "Lantern mantle", "Wick"] },
+  lightChemColor: { label: "Color", type: "select", options: ["Green", "Red", "Blue", "Yellow", "White", "IR (infrared)", "Mixed"] },
   /* Food calorie helpers */
   totalCalories: { label: "Total Calories", type: "number", placeholder: "2400" },
   caloriesPerServing: { label: "Cal/Serving", type: "number", placeholder: "250" },
@@ -1233,6 +1292,27 @@ const SAMPLE_ITEMS = [
   { id: "bu4", category: "bullion", subType: "goldback", name: "Nevada Goldback 1s", quantity: 50, location: "BOB", fields: { bullionGoldbackState: "Nevada", bullionGoldbackDenom: "1 Goldback", bullionPurchasePrice: "5", deviceLocation: "Bug-out bag" }, addedDate: "2025-02-15" },
   { id: "bu5", category: "bullion", subType: "junkSilver", name: "Pre-65 Washington Quarters", quantity: 40, location: "Safe", fields: { bullionJunkType: "Washington Quarter", bullionFaceValue: "0.25", bullionPurchasePrice: "7", deviceLocation: "Fireproof safe" }, addedDate: "2025-01-20" },
   { id: "bu6", category: "bullion", subType: "silverBar", name: "Sunshine Mint 10oz Bar", quantity: 5, location: "Safe", fields: { bullionMetal: "Silver", bullionWeight: "10 oz", bullionPurity: ".999 Fine", bullionMint: "Sunshine Mint", bullionPurchasePrice: "280", deviceLocation: "Fireproof safe" }, addedDate: "2025-03-10" },
+  /* Clothing */
+  { id: "cl1", category: "clothing", subType: "underwear", name: "Cotton Boxer Briefs", quantity: 12, location: "Closet", fields: { clothSize: "L", deviceLocation: "Master closet" }, addedDate: "2025-01-10" },
+  { id: "cl2", category: "clothing", subType: "socks", name: "Merino Wool Hiking Socks", quantity: 8, location: "Closet", fields: { clothSize: "L", clothMaterial: "Merino wool", deviceLocation: "Master closet" }, addedDate: "2025-01-10" },
+  { id: "cl3", category: "clothing", subType: "thermalBase", name: "Thermal Base Layer Set", quantity: 2, location: "Closet", fields: { clothSize: "L", clothMaterial: "Polypro", deviceLocation: "Master closet" }, addedDate: "2025-02-01" },
+  { id: "cl4", category: "clothing", subType: "coldWeather", name: "Insulated Parka", quantity: 1, location: "Closet", fields: { clothType: "Parka", clothSize: "L", tempRating: "-20°F", deviceLocation: "Hall closet" }, addedDate: "2025-01-15" },
+  { id: "cl5", category: "clothing", subType: "boots", name: "Waterproof Hiking Boots", quantity: 2, location: "Garage", fields: { clothType: "Hiking boots", clothSize: "11", deviceLocation: "Garage shelf" }, addedDate: "2025-02-10" },
+  { id: "cl6", category: "clothing", subType: "rainGear", name: "Rain Jacket & Pants", quantity: 2, location: "Closet", fields: { clothType: "Rain suit", clothSize: "L", deviceLocation: "Hall closet" }, addedDate: "2025-03-01" },
+  /* Pets */
+  { id: "pe1", category: "pets", subType: "petFood", name: "Dry Dog Kibble 30lb", quantity: 2, location: "Garage", fields: { petAnimal: "Dog", petFoodType: "Dry kibble", weightLbs: "30", expiryDate: "2026-06-01", deviceLocation: "Garage shelf" }, addedDate: "2025-01-20" },
+  { id: "pe2", category: "pets", subType: "petMeds", name: "Heartgard Plus", quantity: 6, location: "Kitchen", fields: { petAnimal: "Dog", petMedName: "Heartgard Plus", daysSupply: "30", expiryDate: "2026-03-01", deviceLocation: "Kitchen cabinet" }, addedDate: "2025-02-01" },
+  { id: "pe3", category: "pets", subType: "petFirstAid", name: "Pet First Aid Kit", quantity: 1, location: "Garage", fields: { petAnimal: "Dog", bobItemNotes: "Bandages, antiseptic, tweezers, muzzle", deviceLocation: "Garage shelf" }, addedDate: "2025-01-15" },
+  { id: "pe4", category: "pets", subType: "petCarrier", name: "Large Dog Crate", quantity: 1, location: "Garage", fields: { petAnimal: "Dog", petCarrierSize: "Large (30-70lb)", deviceLocation: "Garage corner" }, addedDate: "2025-01-10" },
+  { id: "pe5", category: "pets", subType: "petLeash", name: "Heavy Duty Leash & Harness", quantity: 2, location: "Mudroom", fields: { petAnimal: "Dog", bobItemNotes: "6ft leash + no-pull harness", deviceLocation: "Front entry hooks" }, addedDate: "2025-01-10" },
+  { id: "pe6", category: "pets", subType: "petDocs", name: "Vet Records — Max", quantity: 1, location: "Safe", fields: { petAnimal: "Dog", petName: "Max", bobItemNotes: "Vaccination records, microchip info, vet contact", deviceLocation: "Filing cabinet" }, addedDate: "2025-02-15" },
+  /* Lighting */
+  { id: "li1", category: "lighting", subType: "flashlight", name: "Fenix PD36R Pro", quantity: 2, location: "Kitchen", fields: { lightBrand: "Fenix", lightLumens: "2800", lightBattery: "18650", deviceLocation: "Junk drawer" }, addedDate: "2025-01-10" },
+  { id: "li2", category: "lighting", subType: "headlamp", name: "Petzl Actik Core", quantity: 3, location: "Garage", fields: { lightBrand: "Petzl", lightLumens: "600", lightBattery: "Built-in USB", deviceLocation: "Garage shelf" }, addedDate: "2025-01-15" },
+  { id: "li3", category: "lighting", subType: "lantern", name: "Coleman Propane Lantern", quantity: 2, location: "Garage", fields: { lightBrand: "Coleman", lightFuel: "Propane", lightBurnTime: "14", deviceLocation: "Garage shelf" }, addedDate: "2025-02-01" },
+  { id: "li4", category: "lighting", subType: "candle", name: "Emergency Candles 115hr", quantity: 24, location: "Pantry", fields: { lightBurnTime: "115", bobItemQty: "24", deviceLocation: "Pantry shelf" }, addedDate: "2025-01-20" },
+  { id: "li5", category: "lighting", subType: "chemlights", name: "Green Chemlights 12hr", quantity: 20, location: "BOB", fields: { lightChemColor: "Green", bobItemQty: "20", expiryDate: "2028-01-01", deviceLocation: "Bug-out bag" }, addedDate: "2025-02-10" },
+  { id: "li6", category: "lighting", subType: "lampFuel", name: "Lamp Oil 32oz", quantity: 4, location: "Garage", fields: { lightFuel: "Lamp oil", alcVolume: "32 oz", deviceLocation: "Garage shelf" }, addedDate: "2025-03-01" },
 ];
 
 const SAMPLE_CODES = [
@@ -3070,7 +3150,7 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Manage</div>
+                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Manage</div>
                 <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
               </div>
             </div>
@@ -3433,6 +3513,21 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
             } else if (k === "hygiene") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty >= 10 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "clothing") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const coverage = filled / Math.max(total, 1);
+              metric = { val: qty, unit: Math.round(coverage * 100) + "% types", color: coverage >= 0.5 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "pets") {
+              const food = ci.filter(i => i.subType === "petFood").reduce((s, i) => s + (i.quantity || 0), 0);
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: food > 0 ? food + " food bags" : "items", color: food >= 2 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "lighting") {
+              const lights = ci.filter(i => ["flashlight", "headlamp", "lantern"].includes(i.subType)).reduce((s, i) => s + (i.quantity || 0), 0);
+              const candles = ci.filter(i => i.subType === "candle").reduce((s, i) => s + (i.quantity || 0), 0);
+              const parts = [];
+              if (lights > 0) parts.push(lights + " lights");
+              if (candles > 0) parts.push(candles + " candles");
+              metric = { val: lights + candles, unit: parts.join(" · ") || "items", color: lights >= 3 ? "#22c55e" : lights > 0 ? "#f59e0b" : "#ef4444" };
             } else if (k === "bullion") {
               let totalVal = 0;
               ci.forEach(i => { const { oz, metal } = bullionTroyOz(i); totalVal += oz * (SPOT_PRICES[metal] || 0); });
@@ -3798,6 +3893,21 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
             } else if (k === "hygiene") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty >= 10 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "clothing") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const coverage = filled / Math.max(total, 1);
+              metric = { val: qty, unit: Math.round(coverage * 100) + "% types", color: coverage >= 0.5 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "pets") {
+              const food = ci.filter(i => i.subType === "petFood").reduce((s, i) => s + (i.quantity || 0), 0);
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: food > 0 ? food + " food bags" : "items", color: food >= 2 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "lighting") {
+              const lights = ci.filter(i => ["flashlight", "headlamp", "lantern"].includes(i.subType)).reduce((s, i) => s + (i.quantity || 0), 0);
+              const candles = ci.filter(i => i.subType === "candle").reduce((s, i) => s + (i.quantity || 0), 0);
+              const parts = [];
+              if (lights > 0) parts.push(lights + " lights");
+              if (candles > 0) parts.push(candles + " candles");
+              metric = { val: lights + candles, unit: parts.join(" · ") || "items", color: lights >= 3 ? "#22c55e" : lights > 0 ? "#f59e0b" : "#ef4444" };
             } else if (k === "bullion") {
               let totalVal = 0;
               ci.forEach(i => { const { oz, metal } = bullionTroyOz(i); totalVal += oz * (SPOT_PRICES[metal] || 0); });
