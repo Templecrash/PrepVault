@@ -8819,7 +8819,7 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate, codes]);
 
-  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }, { id: "simulate", l: "Simulate", i: "🧪" }];
+  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
 
   const renderContent = () => {
     if (selCat) {
@@ -9159,6 +9159,7 @@ export default function PrepVault() {
                     { icon: "📷", label: localStorage.getItem("prepvault-cameras-connected") === "1" ? "Trail Cameras" : "Connect Cameras", accent: localStorage.getItem("prepvault-cameras-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
                     { icon: "🚨", label: localStorage.getItem("prepvault-alarms-connected") === "1" ? "Alarm Systems" : "Connect Alarms", accent: localStorage.getItem("prepvault-alarms-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
                     { icon: "🔒", label: encryptedDb ? "Encryption Active" : "Security & Encryption", accent: encryptedDb ? "#22c55e" : null, onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
+                    { icon: "🧪", label: "Simulate", onClick: () => { setActiveTab("simulate"); setShowProfileMenu(false); } },
                     { icon: "⚡", label: crisisMode ? "Deactivate Crisis" : "Activate Crisis", accent: crisisMode ? "#ef4444" : null, onClick: () => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } setShowProfileMenu(false); } },
                   ].map((item, i) => (
                     <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: item.accent || "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
