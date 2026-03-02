@@ -873,36 +873,6 @@ const SAMPLE_CHAT = [
   { id: "c10", from: "p2", text: "Reminder: rotate the first aid kits this month. I'll check expiry dates tonight.", ts: "9:15 AM" },
 ];
 
-const NEARBY_COMMUNITIES = [
-  { id: "nc1", name: "Rideau Creek Co-op", avatar: "🏔️", distance: "4.2 km", members: 8, status: "allied", color: "#22c55e", readiness: 62, strengths: ["farm", "water", "medical"], weaknesses: ["firearms", "comms", "power"], contact: "HAM 146.520", lastContact: "1d ago" },
-  { id: "nc2", name: "Cedar Hill Homestead", avatar: "🌲", distance: "7.8 km", members: 5, status: "allied", color: "#0ea5e9", readiness: 48, strengths: ["firewood", "tools", "vehicles"], weaknesses: ["medical", "food", "electronics"], contact: "HAM 146.520", lastContact: "3d ago" },
-  { id: "nc3", name: "Lakeside Compound", avatar: "🏕️", distance: "12.1 km", members: 12, status: "neutral", color: "#f59e0b", readiness: 71, strengths: ["boat", "fishing", "defense"], weaknesses: ["farm", "medical", "kids"], contact: "Runner only", lastContact: "2w ago" },
-  { id: "nc4", name: "South Valley Farm", avatar: "🌾", distance: "15.6 km", members: 6, status: "allied", color: "#a855f7", readiness: 55, strengths: ["farm", "food", "alcohol"], weaknesses: ["defense", "firearms", "comms"], contact: "HAM 147.000", lastContact: "5d ago" },
-  { id: "nc5", name: "Northern Ridge Collective", avatar: "⛰️", distance: "52 km", members: 15, status: "unknown", color: "#64748b", readiness: 40, strengths: ["mining", "defense", "tools"], weaknesses: ["food", "medical", "water"], contact: "HF 7.200 MHz", lastContact: "Never" },
-  { id: "nc6", name: "River Bend Settlement", avatar: "🏞️", distance: "68 km", members: 20, status: "neutral", color: "#06b6d4", readiness: 58, strengths: ["water", "fishing", "boat"], weaknesses: ["power", "comms", "defense"], contact: "HF 14.300 MHz", lastContact: "Never" },
-  { id: "nc7", name: "Highway 7 Militia", avatar: "🛡️", distance: "85 km", members: 30, status: "unknown", color: "#dc2626", readiness: 75, strengths: ["defense", "firearms", "vehicles"], weaknesses: ["farm", "medical", "food"], contact: "CB Ch 19", lastContact: "Never" },
-  { id: "nc8", name: "Maple Valley Farms", avatar: "🍁", distance: "94 km", members: 10, status: "neutral", color: "#ea580c", readiness: 50, strengths: ["farm", "food", "alcohol"], weaknesses: ["comms", "electronics", "defense"], contact: "HF 7.200 MHz", lastContact: "Never" },
-];
-
-const TRADE_OFFERS = [
-  { id: "t1", from: "nc1", type: "offer", have: "Fresh produce (10kg mixed veg)", want: "5.56 ammo (100 rds) or AA batteries (48-pack)", status: "open", posted: "1d ago" },
-  { id: "t2", from: "nc2", type: "offer", have: "Chainsaw service + 2 cords split oak", want: "Antibiotics or medical supplies", status: "open", posted: "3d ago" },
-  { id: "t3", from: "nc4", type: "offer", have: "50L homebrew beer + 5L moonshine", want: "Solar panel (100W+) or generator fuel (10gal)", status: "open", posted: "5d ago" },
-  { id: "t4", from: "nc3", type: "request", have: "Fresh fish (weekly supply)", want: "Seeds (any variety) + fertilizer", status: "open", posted: "1w ago" },
-  { id: "t5", from: "nc1", type: "offer", have: "RN available for medical consultation", want: "Propane tank or fuel", status: "completed", posted: "2w ago" },
-  { id: "t6", from: "nc2", type: "request", have: "Vehicle repair labor + parts", want: "Canned food (20+ cans) or freeze-dried meals", status: "open", posted: "4d ago" },
-];
-
-const TRADE_MESSAGES = [
-  { id: "tm1", community: "nc1", from: "them", text: "We've got surplus tomatoes and beans. Interested in trading for batteries?", ts: "Yesterday 4:30 PM" },
-  { id: "tm2", community: "nc1", from: "us", text: "We can do 24x AA Eneloops + a solar USB charger. How much produce?", ts: "Yesterday 5:15 PM" },
-  { id: "tm3", community: "nc1", from: "them", text: "Deal. 15kg mixed veg — tomatoes, beans, squash. Meet at crossroads Thursday?", ts: "Today 8:20 AM" },
-  { id: "tm4", community: "nc2", from: "them", text: "Our guy needs antibiotics badly. Can you help? We'll cut and deliver 3 cords of oak.", ts: "3d ago" },
-  { id: "tm5", community: "nc2", from: "us", text: "Sarah says she can consult but we can't part with antibiotics right now. Can offer Tylenol and wound care supplies.", ts: "3d ago" },
-  { id: "tm6", community: "nc2", from: "them", text: "Understood. We'll take the wound care. Still offering 2 cords for that.", ts: "2d ago" },
-  { id: "tm7", community: "nc4", from: "them", text: "Anyone need homebrew? We've got way too much. Looking for anything solar.", ts: "5d ago" },
-];
-
 const SAMPLE_CONTACTS = [
   { id: "ct1", name: "Sarah Mitchell", group: "Your Group", role: "Medical (RN)", phone: "613-555-0142", address: "Lot 4, Rideau Lake Rd", age: 38, bloodType: "O+", medical: "None", allergies: "Penicillin", skills: "Trauma care, IV, suturing", notes: "24/7 medical contact. Has portable med kit." },
   { id: "ct2", name: "Dave Kowalski", group: "Your Group", role: "Security", phone: "613-555-0198", address: "12 Cedar Lane", age: 45, bloodType: "A+", medical: "Knee replacement (L)", allergies: "None", skills: "Military vet, firearms, tactics", notes: "Former infantry. Handles perimeter security." },
@@ -4674,15 +4644,11 @@ function RallyMiniMap({ coords, color }) {
 
 function CommunityTab({ members, setMembers, items, people, climate, user, contacts, setContacts }) {
   const [comSub, setComSub] = useState("people");
-  const [tradeInput, setTradeInput] = useState("");
-  const [selTradeCommunity, setSelTradeCommunity] = useState("nc1");
-  const [tradeMessages, setTradeMessages] = useState(TRADE_MESSAGES);
   /* Rationing */
   const [rationPeople, setRationPeople] = useState(() => Array.from({ length: people || 4 }, (_, i) => ({ id: "rp" + i, name: "Person " + (i + 1) })));
   const [dailyCalTarget, setDailyCalTarget] = useState(2000);
   const [rationPersonName, setRationPersonName] = useState("");
   const statColors = { home: "#22c55e", nearby: "#84cc16", away: "#f59e0b", offline: "#6b7280" };
-  const statusColors = { allied: "#22c55e", neutral: "#f59e0b", unknown: "#6b7280" };
   const [liveMembers, setLiveMembers] = useState(null);
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: "", role: "", avatar: "👤" });
@@ -4700,43 +4666,8 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
-  // ── Trade Routes: Opt-In & Channel State ──
-  const [tradeOptIn, setTradeOptIn] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trade-optin") || "false"); } catch { return false; } });
-  const [channelStatus, setChannelStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-channels") || "{}"); } catch { return {}; } });
-  const [proximityFilter, setProximityFilter] = useState("all");
-  useEffect(() => { try { localStorage.setItem("prepvault-trade-optin", JSON.stringify(tradeOptIn)); } catch {} }, [tradeOptIn]);
-  useEffect(() => { try { localStorage.setItem("prepvault-channels", JSON.stringify(channelStatus)); } catch {} }, [channelStatus]);
 
-  const openChannel = (communityId) => {
-    setChannelStatus(prev => ({ ...prev, [communityId]: "pending-out" }));
-    // Simulate auto-accept after 3 seconds for demo
-    setTimeout(() => {
-      setChannelStatus(prev => ({ ...prev, [communityId]: "open" }));
-    }, 3000);
-  };
-  const acceptChannel = (communityId) => {
-    setChannelStatus(prev => ({ ...prev, [communityId]: "open" }));
-  };
-  const declineChannel = (communityId) => {
-    setChannelStatus(prev => { const n = { ...prev }; delete n[communityId]; return n; });
-  };
-  const closeChannel = (communityId) => {
-    setChannelStatus(prev => { const n = { ...prev }; delete n[communityId]; return n; });
-  };
-
-  const parseDistance = (d) => parseFloat(d.replace(/[^0-9.]/g, "")) || 0;
-  const filteredCommunities = useMemo(() => {
-    return NEARBY_COMMUNITIES.filter(c => {
-      const km = parseDistance(c.distance);
-      if (km > 100) return false;
-      if (proximityFilter === "close") return km < 25;
-      if (proximityFilter === "mid") return km >= 25 && km < 50;
-      if (proximityFilter === "far") return km >= 50 && km <= 100;
-      return true;
-    });
-  }, [proximityFilter]);
-
-  const subTabs = [{ id: "people", l: "People", i: "👤" }, { id: "tracker", l: "Tracker", i: "📡" }, { id: "trade", l: "Trade Routes", i: "🤝" }, { id: "rationing", l: "Rationing", i: "🍽️" }, { id: "combined", l: "Combined Score", i: "📊" }];
+  const subTabs = [{ id: "people", l: "People", i: "👤" }, { id: "tracker", l: "Tracker", i: "📡" }, { id: "rationing", l: "Rationing", i: "🍽️" }];
 
 
   /* ── Supabase Realtime: Location sharing ── */
@@ -4823,41 +4754,6 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
     setMembers(prev => prev.filter(m => m.id !== id));
   };
 
-  const sendTrade = () => {
-    if (!tradeInput.trim()) return;
-    if (supabaseConfigured && user) {
-      supabase.from("trade_messages").insert({ content: tradeInput.trim(), user_id: user.id, community_id: selTradeCommunity }).then(({ error }) => {
-        if (error) console.error("Trade send error:", error);
-      });
-    }
-    setTradeMessages((p) => [...p, { id: "tm" + Date.now(), community: selTradeCommunity, from: "us", text: tradeInput.trim(), ts: "Just now" }]);
-    setTradeInput("");
-  };
-
-  /* Combined scoring — pool all communities' strengths as bonus items */
-  const computeCombined = () => {
-    const allCommunities = [{ name: "Your Group", readiness: 0, members: people, strengths: [], weaknesses: [] }, ...NEARBY_COMMUNITIES.filter((c) => c.status === "allied")];
-    const yourCats = {};
-    Object.keys(CATEGORIES).forEach((cat) => {
-      const ci = items.filter((i) => i.category === cat);
-      const subs = CATEGORIES[cat].subTypes;
-      let stored = 0, dailyYield = 0;
-      ci.forEach((i) => { const sub = subs[i.subType]; if (sub?.dailyYield) dailyYield += sub.dailyYield * i.quantity; if (sub?.consumable) stored += i.quantity; else if (!sub?.dailyYield) stored += i.quantity; });
-      yourCats[cat] = { stored, dailyYield, score: Math.min(100, stored * 10 + dailyYield * 20) };
-    });
-    /* Allied community bonus: add 15pts per allied community that has this as a strength */
-    const combined = {};
-    const totalPeople = allCommunities.reduce((s, c) => s + c.members, 0);
-    Object.keys(CATEGORIES).forEach((cat) => {
-      let bonus = 0;
-      NEARBY_COMMUNITIES.filter((c) => c.status === "allied").forEach((c) => { if (c.strengths.includes(cat)) bonus += 15; });
-      const base = yourCats[cat]?.score || 0;
-      combined[cat] = { solo: base, pooled: Math.min(100, base + bonus), bonus };
-    });
-    const soloAvg = Object.values(combined).reduce((s, v) => s + v.solo, 0) / Object.keys(combined).length;
-    const pooledAvg = Object.values(combined).reduce((s, v) => s + v.pooled, 0) / Object.keys(combined).length;
-    return { combined, soloAvg, pooledAvg, totalPeople, alliedCount: NEARBY_COMMUNITIES.filter((c) => c.status === "allied").length };
-  };
 
   return (
     <div>
@@ -4866,7 +4762,6 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
         {subTabs.map((t) => (
           <button key={t.id} onClick={() => setComSub(t.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: comSub === t.id ? "2px solid #c8553a" : "2px solid transparent", color: comSub === t.id ? "#fff" : "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
             <span style={{ fontSize: 12 }}>{t.i}</span>{t.l}
-            {t.id === "trade" && <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: "rgba(245,158,11,0.15)", color: "#f59e0b", fontWeight: 700 }}>{TRADE_OFFERS.filter((o) => o.status === "open").length}</span>}
           </button>
         ))}
       </div>
@@ -4906,172 +4801,6 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {comSub === "trade" && (
-        <div>
-          {/* ── Opt-In Status Card ── */}
-          <div style={{ ...cardSt, padding: 14, marginBottom: 14, borderLeft: "3px solid " + (tradeOptIn ? "#22c55e" : "#6b7280") }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 22 }}>📡</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>Your Team Status</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
-                    {tradeOptIn ? "Discoverable to communities within 100 km" : "Not discoverable — other communities cannot find you"}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 10, color: tradeOptIn ? "#22c55e" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{tradeOptIn ? "Opt-In" : "Hidden"}</span>
-                <button onClick={() => setTradeOptIn(!tradeOptIn)} style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", position: "relative", background: tradeOptIn ? "#22c55e" : "rgba(255,255,255,0.1)", transition: "background 0.2s" }}>
-                  <div style={{ width: 18, height: 18, borderRadius: 9, background: "#fff", position: "absolute", top: 3, left: tradeOptIn ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Proximity Filter Pills ── */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-            {[{ id: "all", l: "All", count: NEARBY_COMMUNITIES.filter(c => parseDistance(c.distance) <= 100).length },
-              { id: "close", l: "< 25 km", count: NEARBY_COMMUNITIES.filter(c => parseDistance(c.distance) < 25).length },
-              { id: "mid", l: "25–50 km", count: NEARBY_COMMUNITIES.filter(c => { const d = parseDistance(c.distance); return d >= 25 && d < 50; }).length },
-              { id: "far", l: "50–100 km", count: NEARBY_COMMUNITIES.filter(c => { const d = parseDistance(c.distance); return d >= 50 && d <= 100; }).length },
-            ].map(f => (
-              <button key={f.id} onClick={() => setProximityFilter(f.id)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 10, fontWeight: 700, cursor: "pointer", border: proximityFilter === f.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: proximityFilter === f.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: proximityFilter === f.id ? "#c8553a" : "rgba(255,255,255,0.4)", fontFamily: "inherit" }}>
-                {f.l} <span style={{ opacity: 0.5 }}>({f.count})</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="pcs-trade-grid" style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
-            {/* Community list + trade board */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, padding: "2px 6px" }}>Nearby Communities ({filteredCommunities.length})</div>
-              {filteredCommunities.map((c) => {
-                const chSt = channelStatus[c.id];
-                const chColor = chSt === "open" ? "#22c55e" : chSt === "pending-out" ? "#f59e0b" : chSt === "pending-in" ? "#3b82f6" : "#6b7280";
-                const chLabel = chSt === "open" ? "Channel Open" : chSt === "pending-out" ? "Pending..." : chSt === "pending-in" ? "Request Received" : "No Channel";
-                return (
-                  <button key={c.id} onClick={() => setSelTradeCommunity(c.id)} style={{ ...cardSt, padding: "10px 12px", borderLeft: "3px solid " + c.color, cursor: "pointer", background: selTradeCommunity === c.id ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)", textAlign: "left" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 20 }}>{c.avatar}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700 }}>{c.name}</div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{c.distance} · {c.members} members</div>
-                      </div>
-                      <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 4, background: (statusColors[c.status] || "#6b7280") + "15", color: statusColors[c.status] || "#6b7280", fontWeight: 700 }}>{c.status}</span>
-                    </div>
-                    {/* Channel Status */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: 3, background: chColor, animation: chSt === "pending-in" ? "pulse 1.5s infinite" : "none" }} />
-                      <span style={{ fontSize: 9, color: chColor, fontWeight: 600 }}>{chLabel}</span>
-                      {!chSt && tradeOptIn && (
-                        <button onClick={(e) => { e.stopPropagation(); openChannel(c.id); }} style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(200,85,58,0.1)", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", fontFamily: "inherit" }}>Open Channel</button>
-                      )}
-                      {chSt === "pending-in" && (
-                        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-                          <button onClick={(e) => { e.stopPropagation(); acceptChannel(c.id); }} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", fontFamily: "inherit" }}>Accept</button>
-                          <button onClick={(e) => { e.stopPropagation(); declineChannel(c.id); }} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontFamily: "inherit" }}>Decline</button>
-                        </div>
-                      )}
-                      {chSt === "open" && (
-                        <button onClick={(e) => { e.stopPropagation(); if (confirm("Close communication channel with " + c.name + "?")) closeChannel(c.id); }} style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.1)", color: "rgba(239,68,68,0.5)", fontFamily: "inherit" }}>Close</button>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-                      {c.strengths.map((s) => <span key={s} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>{CATEGORIES[s]?.icon} {CATEGORIES[s]?.label}</span>)}
-                    </div>
-                    <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
-                      {c.weaknesses.slice(0, 2).map((w) => <span key={w} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>needs {CATEGORIES[w]?.label}</span>)}
-                    </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📻 {c.contact} · Last: {c.lastContact}</div>
-                  </button>
-                );
-              })}
-              {/* Open Trade Offers */}
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, padding: "8px 4px 0" }}>Open Trades</div>
-              {TRADE_OFFERS.filter((o) => o.status === "open").map((o) => {
-                const comm = NEARBY_COMMUNITIES.find((c) => c.id === o.from);
-                return (
-                  <div key={o.id} style={{ ...cardSt, padding: "8px 12px", borderLeft: "3px solid " + (o.type === "offer" ? "#22c55e" : "#0ea5e9") }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                      <span style={{ fontSize: 12 }}>{comm?.avatar}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700 }}>{comm?.name}</span>
-                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: o.type === "offer" ? "rgba(34,197,94,0.1)" : "rgba(14,165,233,0.1)", color: o.type === "offer" ? "#22c55e" : "#0ea5e9", fontWeight: 700 }}>{o.type}</span>
-                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginLeft: "auto", fontFamily: M }}>{o.posted}</span>
-                    </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>📦 <strong style={{ color: "#22c55e" }}>Has:</strong> {o.have}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>🔄 <strong style={{ color: "#f59e0b" }}>Wants:</strong> {o.want}</div>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Trade conversation with selected community */}
-            <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 460 }}>
-              {(() => {
-                const comm = NEARBY_COMMUNITIES.find((c) => c.id === selTradeCommunity);
-                const chSt = channelStatus[selTradeCommunity];
-                const msgs = tradeMessages.filter((m) => m.community === selTradeCommunity);
-                const canMessage = chSt === "open" || parseDistance(comm?.distance || "0") < 25;
-                return (<>
-                  <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>{comm?.avatar}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>{comm?.name}</div>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{comm?.distance} · {comm?.contact}</div>
-                    </div>
-                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-                      {chSt && (
-                        <span style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, background: chSt === "open" ? "rgba(34,197,94,0.1)" : "rgba(245,158,11,0.1)", color: chSt === "open" ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>
-                          {chSt === "open" ? "📡 Channel Open" : "⏳ Pending"}
-                        </span>
-                      )}
-                      <div style={{ width: 7, height: 7, borderRadius: 4, background: statusColors[comm?.status] || "#6b7280" }} />
-                      <span style={{ fontSize: 9, color: statusColors[comm?.status] || "#6b7280", fontWeight: 600 }}>{comm?.status}</span>
-                    </div>
-                  </div>
-                  <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                    {!canMessage && msgs.length === 0 && (
-                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11, padding: 40 }}>
-                        <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>📡</div>
-                        <div style={{ fontWeight: 700, marginBottom: 4 }}>No communication channel open</div>
-                        <div style={{ fontSize: 10 }}>{tradeOptIn ? "Open a channel to start messaging " + (comm?.name || "") : "Enable opt-in to open channels with communities"}</div>
-                      </div>
-                    )}
-                    {canMessage && msgs.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11, padding: 40 }}>No messages with {comm?.name} yet. Start a trade conversation.</div>}
-                    {msgs.map((msg) => {
-                      const isUs = msg.from === "us";
-                      return (
-                        <div key={msg.id} style={{ display: "flex", flexDirection: isUs ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
-                          {!isUs && <span style={{ fontSize: 18 }}>{comm?.avatar}</span>}
-                          <div style={{ maxWidth: "75%" }}>
-                            <div style={{ background: isUs ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isUs ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isUs ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{msg.text}</div>
-                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isUs ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {canMessage ? (
-                    <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
-                      <input value={tradeInput} onChange={(e) => setTradeInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendTrade()} placeholder={`Message ${comm?.name}...`} style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-                      <button onClick={sendTrade} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
-                    </div>
-                  ) : (
-                    <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
-                      {tradeOptIn ? (
-                        <button onClick={() => openChannel(selTradeCommunity)} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(200,85,58,0.1)", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", fontFamily: "inherit" }}>📡 Open Communication Channel</button>
-                      ) : (
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Enable opt-in above to open channels</span>
-                      )}
-                    </div>
-                  )}
-                </>);
-              })()}
-            </div>
           </div>
         </div>
       )}
@@ -5431,91 +5160,6 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {comSub === "combined" && (() => {
-        const { combined, soloAvg, pooledAvg, totalPeople, alliedCount } = computeCombined();
-        return (
-          <div>
-            {/* Summary cards */}
-            <div className="pcs-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
-              <div style={{ ...cardSt, padding: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1 }}>Solo Score</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: SC(soloAvg), fontFamily: M }}>{Math.round(soloAvg)}%</div>
-              </div>
-              <div style={{ ...cardSt, padding: 14, textAlign: "center", borderLeft: "3px solid #22c55e" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1 }}>Combined Score</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: SC(pooledAvg), fontFamily: M }}>{Math.round(pooledAvg)}%</div>
-              </div>
-              <div style={{ ...cardSt, padding: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1 }}>Allied Groups</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: "#0ea5e9", fontFamily: M }}>{alliedCount}</div>
-              </div>
-              <div style={{ ...cardSt, padding: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1 }}>Total People</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: "#a855f7", fontFamily: M }}>{totalPeople}</div>
-              </div>
-            </div>
-            {/* Boost banner */}
-            {pooledAvg > soloAvg && (
-              <div style={{ ...cardSt, background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.1)", padding: 14, marginBottom: 16, textAlign: "center" }}>
-                <span style={{ fontSize: 18 }}>📈</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#22c55e", marginLeft: 8 }}>Alliance boost: +{Math.round(pooledAvg - soloAvg)} points</span>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>by pooling resources with {alliedCount} allied communities</span>
-              </div>
-            )}
-            {/* Per-category comparison */}
-            <div style={cardSt}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>Category Breakdown — Solo vs Combined</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 18px" }}>
-                {Object.entries(combined).sort((a, b) => b[1].bonus - a[1].bonus).map(([cat, v]) => (
-                  <div key={cat} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
-                    <span style={{ fontSize: 13 }}>{CATEGORIES[cat]?.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{CATEGORIES[cat]?.label}</span>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <span style={{ fontSize: 9, color: SC(v.solo), fontFamily: M }}>{Math.round(v.solo)}%</span>
-                          {v.bonus > 0 && <span style={{ fontSize: 9, color: "#22c55e", fontFamily: M, fontWeight: 700 }}>→ {Math.round(v.pooled)}%</span>}
-                        </div>
-                      </div>
-                      <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, position: "relative" }}>
-                        <div style={{ height: "100%", width: v.solo + "%", background: SC(v.solo), borderRadius: 2, position: "absolute" }} />
-                        {v.bonus > 0 && <div style={{ height: "100%", width: v.pooled + "%", background: "rgba(34,197,94,0.25)", borderRadius: 2, position: "absolute" }} />}
-                        <div style={{ height: "100%", width: v.solo + "%", background: SC(v.solo), borderRadius: 2, position: "absolute", zIndex: 2 }} />
-                      </div>
-                    </div>
-                    {v.bonus > 0 && <span style={{ fontSize: 10, color: "#22c55e", fontFamily: M, fontWeight: 700, flexShrink: 0 }}>+{v.bonus}</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* Allied community breakdown */}
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Allied Community Contributions</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
-                {NEARBY_COMMUNITIES.filter((c) => c.status === "allied").map((c) => (
-                  <div key={c.id} style={{ ...cardSt, padding: "12px 14px", borderLeft: "3px solid " + c.color }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 18 }}>{c.avatar}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700 }}>{c.name}</div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{c.distance} · {c.members} members</div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: SC(c.readiness), fontFamily: M }}>{c.readiness}%</div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginRight: 2 }}>Brings:</span>
-                      {c.strengths.map((s) => <span key={s} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>{CATEGORIES[s]?.icon} {CATEGORIES[s]?.label}</span>)}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         );
