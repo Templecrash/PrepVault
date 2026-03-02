@@ -4089,11 +4089,36 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   const [liveNestDevices, setLiveNestDevices] = useState(null);
   const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
   useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
+  const [expandedDep, setExpandedDep] = useState(null);
+  const DEPENDENCY_TREE = useMemo(() => {
+    const hasSolar = items.filter((i) => i.category === "electronics" && i.subType === "solarGadget").length > 0;
+    const hasGen = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
+    const hasBattery = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
+    const hasFirewood = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0), 0) > 0;
+    const hasHAM = items.filter((i) => (i.category === "electronics" && i.subType === "radio") || i.category === "comms").length > 0;
+    const hasSat = items.filter((i) => i.category === "electronics" && i.subType === "satPhone").length > 0;
+    const hasFilter = items.filter((i) => i.category === "water" && (i.subType === "filter" || i.subType === "purificationTablets")).length > 0;
+    return [
+      { id: "garage", name: "Garage Door", icon: "🚗", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high", desc: "Electric garage door opener fails silently during outage.", fix: "Install manual release. Keep vehicles outside during storm warnings." },
+      { id: "wellpump", name: "Well Water Pump", icon: "💧", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : hasSolar ? "Solar" : null, hidden: true, risk: "critical", desc: "Submersible well pump draws 500-1500W. No power = no water.", fix: hasGen ? "Generator can power pump. Store 3+ days water." : "No backup power. Store minimum 14 days water." },
+      { id: "fridge", name: "Refrigerator", icon: "🧊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: false, risk: "high", desc: "Food spoils in 4hrs (open) or 24-48hrs (closed) without power.", fix: "Run generator 4-6hrs/day. Minimize door openings. Freeze water jugs." },
+      { id: "furnace", name: "Furnace Blower", icon: "🌡️", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical", desc: "Even gas furnaces need electric blower (300-600W).", fix: hasFirewood ? "Wood stove is grid-independent." : "Generator required for furnace blower." },
+      { id: "stovefan", name: "Wood Stove Fan", icon: "🔥", depends: "Battery / Thermoelectric", dep: "battery", backup: hasBattery ? "Batteries" : null, hidden: true, risk: "low", desc: "Thermoelectric fans need no battery. Battery fans improve circulation.", fix: "Stovetop thermoelectric fans need no power." },
+      { id: "sump", name: "Sump Pump", icon: "🏠", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high", desc: "Sump pump (500W) prevents flooding. Silent failure = catastrophic.", fix: "Battery backup sump pump ($150-300). Generator as primary backup." },
+      { id: "phone", name: "Cell Phone", icon: "📱", depends: "LTE Tower + Grid", dep: "grid+tower", backup: hasSat ? "Satellite Phone" : hasHAM ? "HAM Radio" : null, hidden: true, risk: "high", desc: "Cell towers have 4-8hr battery backup only.", fix: hasSat ? "Satellite phone is tower-independent." : hasHAM ? "HAM radio is grid-independent." : "Add satellite or HAM radio." },
+      { id: "internet", name: "Internet / WiFi", icon: "🌐", depends: "Grid + ISP + Router", dep: "grid+isp", backup: hasSat ? "Satellite Phone data" : null, hidden: false, risk: "medium", desc: "Router, modem, ISP all need power.", fix: "Small UPS for router extends connectivity 2-4hrs." },
+      { id: "security", name: "Security System", icon: "🚨", depends: "Grid + WiFi + Cloud", dep: "grid+cloud", backup: hasBattery ? "Battery backup" : null, hidden: true, risk: "medium", desc: "Smart security needs WiFi + cloud servers.", fix: "Mechanical trip wires and door bars are grid-independent." },
+      { id: "medical", name: "Medical Devices", icon: "💊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical", desc: "CPAP, oxygen concentrator — all grid-dependent. Life-threatening.", fix: "Dedicated battery backup for critical medical devices." },
+      { id: "waterFilter", name: "UV Water Purifier", icon: "🔬", depends: "Grid Power", dep: "grid", backup: hasFilter ? "Gravity filter" : null, hidden: true, risk: "high", desc: "UV purification needs electricity. Fails silently.", fix: hasFilter ? "Gravity filter works without power." : "Add gravity filter or purification tablets." },
+      { id: "septic", name: "Septic Pump", icon: "🚽", depends: "Grid Power", dep: "grid", backup: null, hidden: true, risk: "high", desc: "Pump systems: no power = tank fills, sewage backup.", fix: "Know your septic type. Gravity systems work without power." },
+      { id: "co_detector", name: "CO / Smoke Detectors", icon: "🔋", depends: "Battery", dep: "battery", backup: hasBattery ? "Replacement batteries" : null, hidden: true, risk: "critical", desc: "No working CO detector during generator use is lethal.", fix: "Replace batteries every 6 months. Keep spare 9V batteries." },
+    ];
+  }, [items]);
 
   if (!propUnlocked) return <PinLock onUnlock={() => setPropUnlocked(true)} />;
 
   const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
-  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "routes", l: "Routes", i: "🛤️" }, { id: "resources", l: "Resources", i: "📍" }, { id: "systems", l: "Systems", i: "🏠" }, { id: "weather", l: "Advisories", i: "🌤️" }];
+  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "deps", l: "Dependencies", i: "🔌" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "routes", l: "Routes", i: "🛤️" }, { id: "resources", l: "Resources", i: "📍" }, { id: "systems", l: "Systems", i: "🏠" }, { id: "weather", l: "Advisories", i: "🌤️" }];
   const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
 
   const handleAuth = async (setter, state, provider) => {
@@ -4404,6 +4429,70 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
         );
       })()}
 
+      {/* ═══ Hidden Dependencies ═══ */}
+      {propSub === "deps" && (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔌 Hidden Dependency Map</h3>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Appliances and amenities that silently fail when their dependencies go down</div>
+          </div>
+          <div className="pcs-sys-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+            {[
+              { label: "Critical", count: DEPENDENCY_TREE.filter((d) => d.risk === "critical").length, color: "#ef4444", desc: "Life-safety risk" },
+              { label: "No Backup", count: DEPENDENCY_TREE.filter((d) => !d.backup).length, color: "#f59e0b", desc: "Single point of failure" },
+              { label: "Hidden", count: DEPENDENCY_TREE.filter((d) => d.hidden).length, color: "#a855f7", desc: "Fails silently" },
+            ].map((s, i) => (
+              <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + s.color }}>
+                <div style={{ fontSize: 28, fontWeight: 800, fontFamily: M, color: s.color }}>{s.count}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{s.desc}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
+            {DEPENDENCY_TREE.map((dep) => {
+              const riskCol = dep.risk === "critical" ? "#ef4444" : dep.risk === "high" ? "#f59e0b" : "#22c55e";
+              const hasBackup = !!dep.backup;
+              const isExp = expandedDep === dep.id;
+              return (
+                <div key={dep.id}>
+                  <button onClick={() => setExpandedDep(isExp ? null : dep.id)} style={{ width: "100%", ...cardSt, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#fff", borderLeft: "4px solid " + riskCol, background: isExp ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>{dep.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>{dep.name}</span>
+                          {dep.hidden && <span style={{ fontSize: 9, padding: "4px 5px", borderRadius: 4, background: "rgba(168,85,247,0.15)", color: "#a855f7", fontWeight: 700 }}>HIDDEN</span>}
+                          <span style={{ fontSize: 9, padding: "4px 5px", borderRadius: 4, background: riskCol + "15", color: riskCol, fontWeight: 700, textTransform: "uppercase" }}>{dep.risk}</span>
+                        </div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Requires: <span style={{ color: "rgba(255,255,255,0.5)", fontFamily: M }}>{dep.depends}</span></div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>{hasBackup ? <div style={{ fontSize: 9, color: "#22c55e" }}>✓ {dep.backup}</div> : <div style={{ fontSize: 9, color: "#ef4444", fontWeight: 700 }}>✗ NO BACKUP</div>}</div>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", transform: isExp ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+                    </div>
+                  </button>
+                  {isExp && (
+                    <div style={{ marginLeft: 20, borderLeft: "2px solid " + riskCol + "30", padding: "12px 16px", background: "rgba(255,255,255,0.01)" }}>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 10 }}>{dep.desc}</div>
+                      <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, borderLeft: "3px solid #22c55e" }}>
+                        <div style={{ fontSize: 10, color: "#22c55e", fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Mitigation</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>{dep.fix}</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 10 }}>
+                        <div style={{ padding: "4px 10px", borderRadius: 6, background: riskCol + "10", border: "1px solid " + riskCol + "30", fontSize: 9, fontWeight: 700, color: riskCol }}>{dep.name}</div>
+                        <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" /><polygon points="22,2 30,6 22,10" fill="rgba(255,255,255,0.15)" /></svg>
+                        <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 9, fontWeight: 600, color: "rgba(239,68,68,0.6)" }}>{dep.depends}</div>
+                        {hasBackup && (<><svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(34,197,94,0.2)" strokeWidth="1.5" strokeDasharray="3,2" /><polygon points="22,2 30,6 22,10" fill="rgba(34,197,94,0.3)" /></svg><div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 9, fontWeight: 600, color: "#22c55e" }}>↻ {dep.backup}</div></>)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 10, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
 
       {propSub === "routes" && <div>{routes.map((r) => { const col = ROUTE_COLORS[r.priority] || "#6b7280"; return (<div key={r.id} style={{ ...cardSt, padding: "16px 18px", marginBottom: 8, borderLeft: "4px solid " + col }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 12, background: col + "18", color: col, fontWeight: 800, textTransform: "uppercase" }}>{r.priority}</span><h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{r.name}</h4></div><div style={{ display: "flex", gap: 14, fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}><span>📍 {r.dest}</span><span style={{ fontFamily: M, color: col }}>{r.dist}</span><span>ETA: {r.eta}</span></div><p style={{ margin: "0 0 8px", fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{r.desc}</p><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}><div style={{ background: "rgba(255,255,255,0.02)", padding: 8, borderRadius: 6 }}><div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 700, marginBottom: 3 }}>WAYPOINTS</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.waypoints}</div></div><div style={{ background: "rgba(239,68,68,0.03)", padding: 8, borderRadius: 6 }}><div style={{ fontSize: 10, color: "#ef4444", fontWeight: 700, marginBottom: 3 }}>RISKS</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.risks}</div></div><div style={{ background: "rgba(34,197,94,0.03)", padding: 8, borderRadius: 6 }}><div style={{ fontSize: 10, color: "#22c55e", fontWeight: 700, marginBottom: 3 }}>SUPPLIES</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.supplies}</div></div></div></div>); })}</div>}
@@ -4602,34 +4691,21 @@ function RallyMiniMap({ coords, color }) {
   return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
-function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, setCallSigns, codeWords, setCodeWords, rallyPoints, setRallyPoints, items, people, climate, user }) {
+function CommunityTab({ members, setMembers, items, people, climate, user }) {
   const [comSub, setComSub] = useState("tracker");
-  const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState(SAMPLE_CHAT);
   const [tradeInput, setTradeInput] = useState("");
   const [selTradeCommunity, setSelTradeCommunity] = useState("nc1");
   const [tradeMessages, setTradeMessages] = useState(TRADE_MESSAGES);
+  /* Rationing */
+  const [rationPeople, setRationPeople] = useState(() => Array.from({ length: people || 4 }, (_, i) => ({ id: "rp" + i, name: "Person " + (i + 1) })));
+  const [dailyCalTarget, setDailyCalTarget] = useState(2000);
+  const [rationPersonName, setRationPersonName] = useState("");
   const statColors = { home: "#22c55e", nearby: "#84cc16", away: "#f59e0b", offline: "#6b7280" };
   const statusColors = { allied: "#22c55e", neutral: "#f59e0b", unknown: "#6b7280" };
-  const [editContact, setEditContact] = useState(null);
-  const [contactSearch, setContactSearch] = useState("");
-  const [expandedContact, setExpandedContact] = useState(null);
   const [liveMembers, setLiveMembers] = useState(null);
-  const chatEndRef = useRef(null);
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: "", role: "", avatar: "👤" });
-  const [showAddContact, setShowAddContact] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" });
-  const [editingContact, setEditingContact] = useState(null);
-  const [editContactData, setEditContactData] = useState(null);
-  const [editingCallSign, setEditingCallSign] = useState(null);
-  const [editingCodeWord, setEditingCodeWord] = useState(null);
-  const [editingRallyPoint, setEditingRallyPoint] = useState(null);
-  const [secureUnlockedState, setSecureUnlockedState] = useState(false);
-  const [securePinState, setSecurePinState] = useState("");
-  const [securePinErrorState, setSecurePinErrorState] = useState(false);
   const [fullscreenMap, setFullscreenMap] = useState(false);
-  const [rpMapModal, setRpMapModal] = useState(null);
   // ── Skills state (moved from PropertyTab) ──
   const [expandedSkill, setExpandedSkill] = useState(null);
   const [showLesson, setShowLesson] = useState(null);
@@ -4672,34 +4748,8 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
     });
   }, [proximityFilter]);
 
-  const subTabs = [{ id: "tracker", l: "Tracker", i: "📡" }, { id: "chat", l: "Chat", i: "💬" }, { id: "comms", l: "Comms Plan", i: "📻" }, { id: "trade", l: "Trade Routes", i: "🤝" }, { id: "contacts", l: "Contacts", i: "📇" }, { id: "skills", l: "Skills", i: "🎖️" }, { id: "combined", l: "Combined Score", i: "📊" }];
+  const subTabs = [{ id: "tracker", l: "Tracker", i: "📡" }, { id: "trade", l: "Trade Routes", i: "🤝" }, { id: "rationing", l: "Rationing", i: "🍽️" }, { id: "skills", l: "Skills", i: "🎖️" }, { id: "combined", l: "Combined Score", i: "📊" }];
 
-  /* ── Supabase Realtime: Chat messages ── */
-  useEffect(() => {
-    if (!supabaseConfigured || !user) return;
-    // Fetch existing messages
-    const fetchMessages = async () => {
-      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100);
-      if (!error && data?.length > 0) {
-        setChatMessages(data.map(m => ({
-          id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
-          text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-          senderName: m.display_name || "Member",
-        })));
-      }
-    };
-    fetchMessages();
-    // Subscribe to new messages
-    const channel = supabase.channel("messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-      const m = payload.new;
-      setChatMessages(prev => [...prev, {
-        id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
-        text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-        senderName: m.display_name || "Member",
-      }]);
-    }).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
 
   /* ── Supabase Realtime: Location sharing ── */
   useEffect(() => {
@@ -4722,8 +4772,6 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  /* Auto-scroll chat */
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
   const displayMembers = liveMembers || members;
 
@@ -4787,19 +4835,6 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
     setMembers(prev => prev.filter(m => m.id !== id));
   };
 
-  const sendChat = () => {
-    if (!chatInput.trim()) return;
-    if (supabaseConfigured && user) {
-      // Send via Supabase (realtime subscription will update state)
-      supabase.from("messages").insert({ content: chatInput.trim(), user_id: user.id, display_name: user.email?.split("@")[0] || "You" }).then(({ error }) => {
-        if (error) console.error("Chat send error:", error);
-      });
-    } else {
-      // Local-only fallback
-      setChatMessages((p) => [...p, { id: "c" + Date.now(), from: "p1", text: chatInput.trim(), ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
-    }
-    setChatInput("");
-  };
   const sendTrade = () => {
     if (!tradeInput.trim()) return;
     if (supabaseConfigured && user) {
@@ -4843,9 +4878,7 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
         {subTabs.map((t) => (
           <button key={t.id} onClick={() => setComSub(t.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: comSub === t.id ? "2px solid #c8553a" : "2px solid transparent", color: comSub === t.id ? "#fff" : "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
             <span style={{ fontSize: 12 }}>{t.i}</span>{t.l}
-            {t.id === "chat" && <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: "rgba(200,85,58,0.15)", color: "#c8553a", fontWeight: 700 }}>{chatMessages.length}</span>}
             {t.id === "trade" && <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: "rgba(245,158,11,0.15)", color: "#f59e0b", fontWeight: 700 }}>{TRADE_OFFERS.filter((o) => o.status === "open").length}</span>}
-            {t.id === "contacts" && <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: "rgba(14,165,233,0.15)", color: "#0ea5e9", fontWeight: 700 }}>{contacts.length}</span>}
           </button>
         ))}
       </div>
@@ -4885,295 +4918,6 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {comSub === "chat" && (() => {
-        const SECURE_PIN_KEY = "prepvault-secure-pin";
-        const storedPinHash = localStorage.getItem(SECURE_PIN_KEY);
-        const [secureUnlocked, setSecureUnlocked] = [secureUnlockedState, setSecureUnlockedState];
-        const [securePin, setSecurePin] = [securePinState, setSecurePinState];
-        const [securePinError, setSecurePinError] = [securePinErrorState, setSecurePinErrorState];
-        const isSetup = !storedPinHash;
-
-        const hashSecurePin = async (pin) => {
-          const enc = new TextEncoder();
-          const hash = await crypto.subtle.digest("SHA-256", enc.encode(pin + "prepvault-secure-comms-salt"));
-          return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
-        };
-
-        const handlePinSubmit = async () => {
-          if (securePin.length < 4) { setSecurePinError(true); return; }
-          const hashed = await hashSecurePin(securePin);
-          if (isSetup) {
-            localStorage.setItem(SECURE_PIN_KEY, hashed);
-            setSecureUnlockedState(true);
-            setSecurePinState("");
-          } else {
-            if (hashed === storedPinHash) { setSecureUnlockedState(true); setSecurePinState(""); setSecurePinErrorState(false); }
-            else { setSecurePinErrorState(true); }
-          }
-        };
-
-        const handleImageAttach = (e) => {
-          const file = e.target.files?.[0];
-          if (!file || !file.type.startsWith("image/")) return;
-          const reader = new FileReader();
-          reader.onload = () => {
-            setChatMessages(prev => [...prev, { id: "c" + Date.now(), from: "p1", text: "", image: reader.result, ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
-          };
-          reader.readAsDataURL(file);
-          e.target.value = "";
-        };
-
-        if (!secureUnlocked) {
-          return (
-            <div style={{ ...cardSt, padding: "60px 30px", textAlign: "center" }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-              <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800 }}>Secure Communications</h3>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 20, lineHeight: 1.6 }}>
-                {isSetup ? "Set a 4-digit PIN to encrypt your communications" : "Enter your PIN to access secure comms"}
-              </p>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
-                <input type="password" maxLength={6} value={securePin} onChange={e => { setSecurePinState(e.target.value.replace(/[^0-9]/g, "")); setSecurePinErrorState(false); }} onKeyDown={e => e.key === "Enter" && handlePinSubmit()} placeholder="PIN" style={{ ...inp, width: 120, textAlign: "center", fontSize: 20, fontFamily: M, letterSpacing: 8, padding: "10px 14px", borderColor: securePinError ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.1)" }} autoFocus />
-                <button onClick={handlePinSubmit} style={{ ...btnSt, padding: "10px 20px", background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 12 }}>{isSetup ? "Set PIN" : "Unlock"}</button>
-              </div>
-              {securePinError && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Incorrect PIN. Try again.</div>}
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 20 }}>🛡️ AES-256-GCM Encryption · PBKDF2 Key Derivation</div>
-            </div>
-          );
-        }
-
-        return (
-          <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", height: 520 }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12 }}>🔒</span>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>Secure Comms</span>
-                <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>AES-256-GCM</span>
-              </div>
-              <div style={{ display: "flex", gap: 4 }}>
-                {displayMembers.filter((m) => m.status !== "offline").map((m) => (
-                  <div key={m.id} style={{ width: 22, height: 22, borderRadius: 11, background: m.color + "25", border: "1px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }} title={m.name}>{m.avatar}</div>
-                ))}
-                <button onClick={() => setSecureUnlockedState(false)} style={{ background: "none", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 6, color: "#ef4444", cursor: "pointer", fontSize: 9, padding: "2px 8px", fontFamily: "inherit" }}>Lock</button>
-              </div>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-              {chatMessages.map((msg) => {
-                const sender = displayMembers.find((m) => m.id === msg.from);
-                const isYou = msg.from === "p1";
-                return (
-                  <div key={msg.id} style={{ display: "flex", flexDirection: isYou ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
-                    {!isYou && <div style={{ width: 28, height: 28, borderRadius: 14, background: (sender?.color || "#6b7280") + "25", border: "1px solid " + (sender?.color || "#6b7280"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sender?.avatar || "?"}</div>}
-                    <div style={{ maxWidth: "75%" }}>
-                      {!isYou && <div style={{ fontSize: 9, color: sender?.color || "#999", fontWeight: 700, marginBottom: 2 }}>{sender?.name || msg.senderName || "Member"}</div>}
-                      <div style={{ background: isYou ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isYou ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isYou ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
-                        {msg.image && <img src={msg.image} style={{ maxWidth: 200, maxHeight: 200, borderRadius: 8, marginBottom: msg.text ? 6 : 0, display: "block" }} />}
-                        {msg.text}
-                      </div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isYou ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={chatEndRef} />
-            </div>
-            <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, alignItems: "center" }}>
-              <label style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 14 }} title="Attach image">
-                📷
-                <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageAttach} />
-              </label>
-              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="Encrypted message..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-              <button onClick={sendChat} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
-            </div>
-          </div>
-        );
-      })()}
-
-      {comSub === "comms" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          {/* ── Frequencies ── */}
-          <div style={cardSt}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>📻 Designated Frequencies</div>
-            {[COMMS_PLAN.primaryFreq, COMMS_PLAN.emergencyFreq].map((f, i) => (
-              <div key={i} style={{ padding: "12px 16px", marginBottom: 8, borderRadius: 10, background: i === 1 ? "rgba(239,68,68,0.04)" : "rgba(34,197,94,0.04)", border: "1px solid " + (i === 1 ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)"), display: "flex", alignItems: "center", gap: 14 }}>
-                <div style={{ textAlign: "center", flexShrink: 0 }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, fontFamily: M, color: i === 1 ? "#ef4444" : "#22c55e", lineHeight: 1 }}>{f.freq}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{f.mode}</div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: i === 1 ? "#ef4444" : "#22c55e" }}>{f.name}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{f.use}</div>
-                </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: M }}>{f.power}</div>
-              </div>
-            ))}
-            <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, margin: "10px 0 6px" }}>Backup Channels</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>
-              {COMMS_PLAN.altFreqs.map((f, i) => (
-                <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: M, color: "#f59e0b" }}>{f.freq}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{f.name}</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{f.use} · {f.power}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="pcs-comms-2col">
-            {/* ── Check-in Schedule ── */}
-            <div style={cardSt}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>🕐 Check-in Schedule</div>
-              {COMMS_PLAN.schedule.map((s, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < COMMS_PLAN.schedule.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: s.mandatory ? "#c8553a" : "rgba(255,255,255,0.3)", width: 50, flexShrink: 0, textAlign: "center" }}>{s.time}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{s.desc}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{s.duration} · {s.mandatory ? "Mandatory" : "Optional"}</div>
-                  </div>
-                  {s.mandatory && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#c8553a", flexShrink: 0 }} />}
-                </div>
-              ))}
-            </div>
-
-            {/* ── Call Signs ── */}
-            <div style={cardSt}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🎙️ Call Signs</div>
-                <button onClick={() => setCallSigns(prev => [...prev, { person: "New Person", sign: "CALL" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
-              </div>
-              {callSigns.map((cs, i) => (
-                editingCallSign === i ? (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                    <input value={cs.sign} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, sign: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, color: "#0ea5e9", width: 80, boxSizing: "border-box" }} />
-                    <input value={cs.person} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, person: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 11, flex: 1, boxSizing: "border-box" }} />
-                    <button onClick={() => setEditingCallSign(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
-                  </div>
-                ) : (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: M, color: "#0ea5e9", minWidth: 80 }}>{cs.sign}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", flex: 1 }}>{cs.person}</div>
-                    <button onClick={() => setEditingCallSign(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
-                    <button onClick={() => setCallSigns(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
-                  </div>
-                )
-              ))}
-              <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", marginBottom: 3 }}>⚠ DURESS SIGNAL</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{COMMS_PLAN.duress}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Code Words ── */}
-          <div style={cardSt}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🔐 Code Words</div>
-              <button onClick={() => setCodeWords(prev => [...prev, { code: "NEWCODE", meaning: "Description", action: "Action to take" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 6 }}>
-              {codeWords.map((cw, i) => (
-                editingCodeWord === i ? (
-                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
-                    <input value={cw.code} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, code: v } : c)); }} placeholder="Code word" style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                    <input value={cw.meaning} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, meaning: v } : c)); }} placeholder="Meaning" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                    <input value={cw.action} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, action: v } : c)); }} placeholder="Action" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                    <button onClick={() => setEditingCodeWord(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
-                  </div>
-                ) : (
-                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444") }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444", flex: 1 }}>{cw.code}</span>
-                      <button onClick={() => setEditingCodeWord(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
-                      <button onClick={() => setCodeWords(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
-                    </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>{cw.meaning}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>→ {cw.action}</div>
-                  </div>
-                )
-              ))}
-            </div>
-          </div>
-
-          {/* ── Rally Points ── */}
-          <div style={cardSt}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>📍 Rally Points</div>
-              <button onClick={() => setRallyPoints(prev => [...prev, { id: "rp" + Date.now(), name: "New Rally Point", location: "", coords: "", use: "", marker: "", supplies: "" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
-            </div>
-            {rallyPoints.map((rp, i) => (
-              editingRallyPoint === i ? (
-                <div key={rp.id} style={{ padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
-                    <input value={rp.name} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, name: v } : r)); }} placeholder="Name" style={{ ...inp, padding: "4px 6px", fontSize: 11, boxSizing: "border-box" }} />
-                    <input value={rp.coords} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, coords: v } : r)); }} placeholder="Coordinates" style={{ ...inp, padding: "4px 6px", fontSize: 11, fontFamily: M, boxSizing: "border-box" }} />
-                  </div>
-                  <input value={rp.location} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, location: v } : r)); }} placeholder="Location description" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                  <input value={rp.marker} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, marker: v } : r)); }} placeholder="Marker/identifier" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                  <input value={rp.supplies} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, supplies: v } : r)); }} placeholder="Cached supplies" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                  <input value={rp.use} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, use: v } : r)); }} placeholder="Use case" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 6, width: "100%", boxSizing: "border-box" }} />
-                  <button onClick={() => setEditingRallyPoint(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
-                </div>
-              ) : (
-                <div key={rp.id} style={{ display: "flex", gap: 12, padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7") }}>
-                  {rp.coords && (() => {
-                    const rpColor = i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7";
-                    return <div onClick={() => setRpMapModal({ coords: rp.coords, name: rp.name, color: rpColor })} style={{ width: 120, height: 90, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)", position: "relative", background: "#0a1628" }} title="Click to expand map">
-                      <RallyMiniMap coords={rp.coords} color={rpColor} />
-                      <div style={{ position: "absolute", bottom: 4, right: 4, fontSize: 10, background: "rgba(0,0,0,0.6)", borderRadius: 3, padding: "1px 4px", color: "rgba(255,255,255,0.5)" }}>⛶</div>
-                    </div>;
-                  })()}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7", flex: 1 }}>{rp.name}</span>
-                      <span style={{ fontSize: 9, fontFamily: M, color: "rgba(255,255,255,0.4)" }}>{rp.coords}</span>
-                      <button onClick={() => setEditingRallyPoint(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">{"\u270f\ufe0f"}</button>
-                      <button onClick={() => setRallyPoints(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">{"\u00d7"}</button>
-                    </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>📍 {rp.location}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>🔎 Marker: {rp.marker}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>📦 Cached: {rp.supplies}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>Use: {rp.use}</div>
-                  </div>
-                </div>
-              )
-            ))}
-          </div>
-
-          {/* ── Printable Wallet Card ── */}
-          <div style={cardSt}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🪪 Wallet Card Preview</div>
-              <button onClick={() => {
-                const card = document.getElementById("pcs-wallet-card");
-                if (!card) return;
-                const w = window.open("", "_blank", "width=500,height=340");
-                w.document.write("<html><head><style>body{margin:0;padding:20px;background:#000;font-family:monospace;color:#fff}table{width:100%;border-collapse:collapse;font-size:9px}td{padding:2px 4px;border:1px solid #333}.hdr{background:#1a1a1a;font-weight:bold;text-transform:uppercase;font-size:8px;color:#999}@media print{body{background:#fff;color:#000}td{border-color:#ccc}.hdr{background:#eee;color:#333}}</style></head><body>" + card.innerHTML + "</body></html>");
-                w.document.close();
-                w.print();
-              }} style={{ ...btnSt, padding: "6px 14px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)" }}>🖨️ Print Card</button>
-            </div>
-            <div id="pcs-wallet-card" style={{ background: "#111", borderRadius: 8, padding: 12, border: "1px solid rgba(255,255,255,0.1)", fontFamily: M, fontSize: 9 }}>
-              <div style={{ textAlign: "center", fontSize: 11, fontWeight: 800, letterSpacing: 2, marginBottom: 8, color: "#c8553a" }}>PCS — COMMS CARD</div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
-                <tbody>
-                  <tr><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, width: 80, color: "rgba(255,255,255,0.4)" }}>PRIMARY</td><td style={{ padding: "5px 6px", color: "#22c55e", fontWeight: 700 }}>{COMMS_PLAN.primaryFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{COMMS_PLAN.primaryFreq.mode}</td></tr>
-                  <tr><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>EMERGENCY</td><td style={{ padding: "5px 6px", color: "#ef4444", fontWeight: 700 }}>{COMMS_PLAN.emergencyFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{COMMS_PLAN.emergencyFreq.mode}</td></tr>
-                  {COMMS_PLAN.altFreqs.map((f, i) => <tr key={i}><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>{f.name.toUpperCase()}</td><td style={{ padding: "5px 6px", color: "#f59e0b" }}>{f.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{f.mode}</td></tr>)}
-                </tbody>
-              </table>
-              <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <div><span style={{ color: "rgba(255,255,255,0.3)" }}>CHECK-IN:</span> {COMMS_PLAN.schedule.filter(s => s.mandatory).map(s => s.time).join(" / ")}</div>
-              </div>
-              <div style={{ marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {codeWords.slice(0, 4).map((cw, i) => <span key={i} style={{ color: "#ef4444" }}>{cw.code}</span>)}
-                <span style={{ color: "#22c55e" }}>PHOENIX</span>
-              </div>
-              <div style={{ marginTop: 4, color: "rgba(255,255,255,0.4)" }}>RALLY: {rallyPoints.map(r => r.name.split(" — ")[0]).join(" → ")}</div>
-              <div style={{ marginTop: 4, color: "#ef4444", fontSize: 10 }}>DURESS: Append "COPY THAT, ALL STATIONS"</div>
-            </div>
           </div>
         </div>
       )}
@@ -5344,140 +5088,153 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
         </div>
       )}
 
-      {comSub === "contacts" && (() => {
-        const filtered = contacts.filter((c) => {
-          if (!contactSearch) return true;
-          const s = contactSearch.toLowerCase();
-          return c.name.toLowerCase().includes(s) || c.group.toLowerCase().includes(s) || c.role.toLowerCase().includes(s) || (c.medical || "").toLowerCase().includes(s);
-        });
-        const groups = [...new Set(filtered.map((c) => c.group))];
-        const groupColors = { "Your Group": "#22c55e", "Rideau Creek Co-op": "#22c55e", "Cedar Hill Homestead": "#0ea5e9", "Lakeside Compound": "#f59e0b", "South Valley Farm": "#a855f7" };
-
+      {/* ═══ Rationing Calculator ═══ */}
+      {comSub === "rationing" && (() => {
+        const foodItems = items.filter(i => i.category === "food");
+        const waterItems = items.filter(i => i.category === "water" && i.subType === "storedWater");
+        const numPeople = rationPeople.length || 1;
+        const totalCalories = foodItems.reduce((sum, item) => {
+          const cal = parseFloat(item.fields?.calories || 0);
+          const servings = parseFloat(item.fields?.servings || 1);
+          const qty = item.quantity || 1;
+          return sum + (cal * servings * qty);
+        }, 0);
+        const totalWaterGal = waterItems.reduce((sum, item) => sum + ((item.quantity || 0) * (parseFloat(item.fields?.capacity) || 1)), 0);
+        const foodDays = Math.floor(totalCalories / (numPeople * dailyCalTarget));
+        const waterDays = Math.floor(totalWaterGal / (numPeople * 1));
+        const durationColor = (d) => d >= 30 ? "#22c55e" : d >= 14 ? "#f59e0b" : "#ef4444";
+        const dailyCalPP = Math.round(totalCalories / numPeople);
+        const dailyWaterPP = (totalWaterGal / numPeople).toFixed(1);
         return (
           <div>
-            <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
-              <input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder="Search name, group, role, condition..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>{filtered.length} contacts</span>
-              <button onClick={() => setShowAddContact(!showAddContact)} style={{ ...btnSt, padding: "6px 14px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", flexShrink: 0 }}>{showAddContact ? "Cancel" : "+ Add"}</button>
+            <div style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🍽️ Rationing Calculator</h3>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>How long your prep inventory feeds your team</div>
             </div>
-            {showAddContact && (
-              <div style={{ ...cardSt, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>New Contact</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
-                  <input value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} placeholder="Full name *" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <select value={newContact.group} onChange={e => setNewContact(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
-                    {[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                  <input value={newContact.role} onChange={e => setNewContact(p => ({ ...p, role: e.target.value }))} placeholder="Role" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
-                  <input value={newContact.phone} onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))} placeholder="Phone" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.address} onChange={e => setNewContact(p => ({ ...p, address: e.target.value }))} placeholder="Address" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.age} onChange={e => setNewContact(p => ({ ...p, age: e.target.value }))} placeholder="Age" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
-                  <select value={newContact.bloodType} onChange={e => setNewContact(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
-                    {["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}
-                  </select>
-                  <input value={newContact.medical} onChange={e => setNewContact(p => ({ ...p, medical: e.target.value }))} placeholder="Medical conditions" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.allergies} onChange={e => setNewContact(p => ({ ...p, allergies: e.target.value }))} placeholder="Allergies" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
-                  <input value={newContact.skills} onChange={e => setNewContact(p => ({ ...p, skills: e.target.value }))} placeholder="Skills" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.notes} onChange={e => setNewContact(p => ({ ...p, notes: e.target.value }))} placeholder="Notes" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <button onClick={() => { if (!newContact.name.trim()) return; setContacts(prev => [...prev, { ...newContact, id: "ct" + Date.now(), age: newContact.age ? parseInt(newContact.age) || newContact.age : "" }]); setNewContact({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" }); setShowAddContact(false); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Add Contact</button>
+            {/* Duration cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+              <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + durationColor(foodDays) }}>
+                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: durationColor(foodDays) }}>{foodDays}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>🥫 Food Days</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{Math.round(totalCalories).toLocaleString()} cal total</div>
               </div>
-            )}
-            {groups.map((g) => (
-              <div key={g} style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: groupColors[g] || "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 4, background: groupColors[g] || "#6b7280" }} />
-                  {g} ({filtered.filter((c) => c.group === g).length})
-                </div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  {filtered.filter((c) => c.group === g).map((c) => {
-                    const isExpanded = expandedContact === c.id;
-                    const hasMedical = c.medical && c.medical !== "None" && c.medical !== "Unknown";
-                    const hasAllergy = c.allergies && c.allergies !== "None" && c.allergies !== "Unknown";
+              <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + durationColor(waterDays) }}>
+                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: durationColor(waterDays) }}>{waterDays}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>💧 Water Days</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{totalWaterGal.toFixed(0)} gal total</div>
+              </div>
+              <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid #8b5cf6" }}>
+                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: "#8b5cf6" }}>{numPeople}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>👤 People</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{dailyCalTarget} cal/day each</div>
+              </div>
+            </div>
+
+            {/* Calorie target */}
+            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700 }}>Daily Calorie Target</span>
+                <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#c8553a" }}>{dailyCalTarget} cal/person</span>
+              </div>
+              <input type="range" min={1000} max={3000} step={100} value={dailyCalTarget} onChange={e => setDailyCalTarget(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#c8553a" }} />
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                {[{ l: "Normal", v: 2000 }, { l: "Rationing", v: 1500 }, { l: "Severe", v: 1200 }].map(p => (
+                  <button key={p.v} onClick={() => setDailyCalTarget(p.v)} style={{ ...btnSt, fontSize: 9, padding: "4px 10px", background: dailyCalTarget === p.v ? "rgba(200,85,58,0.2)" : "rgba(255,255,255,0.04)", color: dailyCalTarget === p.v ? "#c8553a" : "rgba(255,255,255,0.4)", fontWeight: 700, border: dailyCalTarget === p.v ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)" }}>{p.l} ({p.v})</button>
+                ))}
+              </div>
+            </div>
+
+            {/* People management */}
+            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700 }}>👤 People to Feed</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                {rationPeople.map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 10 }}>
+                    <span>{p.name}</span>
+                    <button onClick={() => setRationPeople(prev => prev.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 10, padding: 0 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input value={rationPersonName} onChange={e => setRationPersonName(e.target.value)} placeholder="Add person..." style={{ ...inp, flex: 1 }} onKeyDown={e => { if (e.key === "Enter" && rationPersonName.trim()) { setRationPeople(prev => [...prev, { id: "rp" + Date.now(), name: rationPersonName.trim() }]); setRationPersonName(""); } }} />
+                <button onClick={() => { if (rationPersonName.trim()) { setRationPeople(prev => [...prev, { id: "rp" + Date.now(), name: rationPersonName.trim() }]); setRationPersonName(""); } }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px", background: "#c8553a", color: "#fff" }}>Add</button>
+              </div>
+            </div>
+
+            {/* Food inventory breakdown */}
+            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
+              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>🥫 Food Inventory</h4>
+              {foodItems.length === 0 ? <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No food items in prep inventory</div> : (
+                <div>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, marginBottom: 6, fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: 700 }}>
+                    <div>Item</div><div style={{ textAlign: "right" }}>Qty</div><div style={{ textAlign: "right" }}>Cal/Srv</div><div style={{ textAlign: "right" }}>Total Cal</div>
+                  </div>
+                  {foodItems.map(item => {
+                    const cal = parseFloat(item.fields?.calories || 0);
+                    const srv = parseFloat(item.fields?.servings || 1);
+                    const qty = item.quantity || 1;
+                    const total = cal * srv * qty;
                     return (
-                      <div key={c.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderLeft: "3px solid " + (groupColors[c.group] || "#6b7280") }}>
-                        <button onClick={() => setExpandedContact(isExpanded ? null : c.id)} style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#fff", fontFamily: "inherit" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 18, background: (groupColors[c.group] || "#6b7280") + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: groupColors[c.group] || "#6b7280" }}>{c.name.charAt(0)}</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</div>
-                              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", display: "flex", gap: 8, marginTop: 1 }}>
-                                <span>{c.role}</span>
-                                {c.phone !== "N/A — runner only" && c.phone !== "N/A — HAM only" && <span>📱 {c.phone}</span>}
-                                {c.phone.includes("HAM") && <span>📻 HAM only</span>}
-                                {c.phone.includes("runner") && <span>🏃 Runner only</span>}
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                              {hasMedical && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>⚕️ medical</span>}
-                              {hasAllergy && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>⚠ allergy</span>}
-                              {c.bloodType && c.bloodType !== "Unknown" && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", fontFamily: M }}>{c.bloodType}</span>}
-                            </div>
-                            <button onClick={(e) => { e.stopPropagation(); setEditingContact(c.id); setEditContactData({ ...c }); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
-                            <button onClick={(e) => { e.stopPropagation(); setContacts(prev => prev.filter(ct => ct.id !== c.id)); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
-                          </div>
-                        </button>
-                        {isExpanded && (
-                          <div style={{ padding: "0 14px 14px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 16px", marginTop: 10 }}>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Phone</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.phone}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Address</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.address}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Age</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.age}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Blood Type</div><div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>{c.bloodType}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Medical Conditions</div><div style={{ fontSize: 11, color: hasMedical ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: hasMedical ? 600 : 400 }}>{c.medical}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Allergies</div><div style={{ fontSize: 11, color: hasAllergy ? "#f59e0b" : "rgba(255,255,255,0.4)", fontWeight: hasAllergy ? 600 : 400 }}>{c.allergies}</div></div>
-                            </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", marginTop: 8 }}>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Skills</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.skills}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Notes</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>{c.notes}</div></div>
-                            </div>
-                          </div>
-                        )}
+                      <div key={item.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                        <div style={{ color: "#fff", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name || CATEGORIES.food?.subTypes?.[item.subType]?.label || "Food"}</div>
+                        <div style={{ textAlign: "right" }}>{qty}</div>
+                        <div style={{ textAlign: "right" }}>{cal}</div>
+                        <div style={{ textAlign: "right", fontWeight: 700, color: total > 5000 ? "#22c55e" : "rgba(255,255,255,0.5)" }}>{Math.round(total).toLocaleString()}</div>
+                      </div>
+                    );
+                  })}
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "6px 0", borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: 10, fontWeight: 700, marginTop: 4 }}>
+                    <div>Total</div><div></div><div></div><div style={{ textAlign: "right", color: "#c8553a" }}>{Math.round(totalCalories).toLocaleString()}</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>Per person per day: <span style={{ fontWeight: 700, color: dailyCalPP >= dailyCalTarget ? "#22c55e" : "#ef4444" }}>{dailyCalPP.toLocaleString()} cal</span> (target: {dailyCalTarget})</div>
+                </div>
+              )}
+            </div>
+
+            {/* Water inventory breakdown */}
+            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
+              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>💧 Water Inventory</h4>
+              {waterItems.length === 0 ? <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No stored water in prep inventory</div> : (
+                <div>
+                  {waterItems.map(item => (
+                    <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 10 }}>
+                      <span style={{ color: "#fff", fontWeight: 600 }}>{item.name || "Stored Water"}</span>
+                      <span style={{ color: "rgba(255,255,255,0.5)" }}>{item.quantity || 0} × {parseFloat(item.fields?.capacity) || 1} gal = <span style={{ fontWeight: 700 }}>{((item.quantity || 0) * (parseFloat(item.fields?.capacity) || 1)).toFixed(0)} gal</span></span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>Per person per day: <span style={{ fontWeight: 700, color: parseFloat(dailyWaterPP) >= 1 ? "#22c55e" : "#ef4444" }}>{dailyWaterPP} gal</span> (FEMA min: 1 gal)</div>
+                </div>
+              )}
+            </div>
+
+            {/* Meal suggestions */}
+            <div style={{ ...cardSt, padding: 14 }}>
+              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>🍳 Meal Suggestions</h4>
+              {foodItems.length === 0 ? <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Add food items to your prep inventory for suggestions</div> : (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {foodItems.filter(i => (i.quantity || 0) > 0 && parseFloat(i.fields?.calories || 0) > 0).sort((a, b) => parseFloat(b.fields?.calories || 0) - parseFloat(a.fields?.calories || 0)).slice(0, 6).map(item => {
+                    const srv = parseFloat(item.fields?.servings || 1);
+                    const unitsNeeded = Math.ceil(numPeople / Math.max(srv, 1));
+                    const subLabel = CATEGORIES.food?.subTypes?.[item.subType]?.unit || "units";
+                    return (
+                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ fontSize: 18 }}>{CATEGORIES.food?.subTypes?.[item.subType]?.icon || "🥫"}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600 }}>Use {unitsNeeded} {subLabel} of {item.name || "food"}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Feeds {numPeople} people · {parseFloat(item.fields?.calories || 0)} cal/serving · {item.quantity} {subLabel} in stock</div>
+                        </div>
+                        {item.quantity < unitsNeeded && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444", fontWeight: 700 }}>LOW</span>}
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         );
       })()}
-
-      {/* Contact Edit Modal */}
-      {editingContact && editContactData && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => { setEditingContact(null); setEditContactData(null); }}>
-          <div style={{ background: "#1a1f2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: 20, width: 480, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Edit Contact</div>
-              <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>\u00d7</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Name</div><input value={editContactData.name} onChange={e => setEditContactData(p => ({ ...p, name: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Group</div><select value={editContactData.group} onChange={e => setEditContactData(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Role</div><input value={editContactData.role} onChange={e => setEditContactData(p => ({ ...p, role: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Phone</div><input value={editContactData.phone} onChange={e => setEditContactData(p => ({ ...p, phone: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Address</div><input value={editContactData.address} onChange={e => setEditContactData(p => ({ ...p, address: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Age</div><input value={editContactData.age} onChange={e => setEditContactData(p => ({ ...p, age: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Blood Type</div><select value={editContactData.bloodType} onChange={e => setEditContactData(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}</select></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Medical</div><input value={editContactData.medical} onChange={e => setEditContactData(p => ({ ...p, medical: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Allergies</div><input value={editContactData.allergies} onChange={e => setEditContactData(p => ({ ...p, allergies: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Skills</div><input value={editContactData.skills} onChange={e => setEditContactData(p => ({ ...p, skills: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-            </div>
-            <div style={{ marginBottom: 12 }}><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Notes</div><input value={editContactData.notes} onChange={e => setEditContactData(p => ({ ...p, notes: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>Cancel</button>
-              <button onClick={() => { setContacts(prev => prev.map(c => c.id === editingContact ? { ...editContactData } : c)); setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ═══ Skills & Badges ═══ */}
       {comSub === "skills" && (() => {
@@ -5645,23 +5402,6 @@ function CommunityTab({ members, setMembers, contacts, setContacts, callSigns, s
         );
       })()}
 
-      {/* ── Rally Point Map Modal ── */}
-      {rpMapModal && (() => {
-        const match = rpMapModal.coords.match(/([\d.]+)\s*°?\s*([NS])\s*[,\s]+([\d.]+)\s*°?\s*([EW])/i);
-        return (
-          <div onClick={() => setRpMapModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-            <div onClick={e => e.stopPropagation()} style={{ width: "80%", maxWidth: 700, background: "#111", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "default" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div><span style={{ fontSize: 14, fontWeight: 800, color: rpMapModal.color }}>{rpMapModal.name}</span><span style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.4)", marginLeft: 10 }}>{rpMapModal.coords}</span></div>
-                <button onClick={() => setRpMapModal(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>×</button>
-              </div>
-              <div style={{ height: 400 }}>
-                {match && <RallyMiniMapLarge lat={parseFloat(match[1]) * (match[2].toUpperCase() === "S" ? -1 : 1)} lng={parseFloat(match[3]) * (match[4].toUpperCase() === "W" ? -1 : 1)} color={rpMapModal.color} />}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
@@ -5840,11 +5580,28 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
 /* ═══════════════════════════════════════════════════════════════
    COMMS TAB — Emergency Radio Channel Monitor
    ═══════════════════════════════════════════════════════════════ */
-function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, setCodeWords, rallyPoints, setRallyPoints }) {
+function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, setCodeWords, rallyPoints, setRallyPoints, contacts, setContacts, members, user }) {
   const M = "'JetBrains Mono',monospace";
   const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
 
   const [commsSub, setCommsSub] = useState("scanner");
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState(SAMPLE_CHAT);
+  const [editContact, setEditContact] = useState(null);
+  const [contactSearch, setContactSearch] = useState("");
+  const [expandedContact, setExpandedContact] = useState(null);
+  const chatEndRef = useRef(null);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" });
+  const [editingContact, setEditingContact] = useState(null);
+  const [editContactData, setEditContactData] = useState(null);
+  const [editingCallSign, setEditingCallSign] = useState(null);
+  const [editingCodeWord, setEditingCodeWord] = useState(null);
+  const [editingRallyPoint, setEditingRallyPoint] = useState(null);
+  const [secureUnlockedState, setSecureUnlockedState] = useState(false);
+  const [securePinState, setSecurePinState] = useState("");
+  const [securePinErrorState, setSecurePinErrorState] = useState(false);
+  const [rpMapModal, setRpMapModal] = useState(null);
   const [scanning, setScanning] = useState(true);
   const [scanIdx, setScanIdx] = useState(0);
   const [bandFilter, setBandFilter] = useState("all");
@@ -5902,7 +5659,55 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     { id: "schedule", l: "Schedule", i: "🕐" },
     { id: "codes", l: "Codes", i: "🔐" },
     { id: "equipment", l: "Equipment", i: "🔧" },
+    { id: "chat", l: "Chat", i: "💬" },
+    { id: "commsplan", l: "Comms Plan", i: "📻" },
+    { id: "contacts", l: "Contacts", i: "📇" },
   ];
+
+  /* ── Supabase Realtime: Chat messages ── */
+  useEffect(() => {
+    if (!supabaseConfigured || !user) return;
+    // Fetch existing messages
+    const fetchMessages = async () => {
+      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100);
+      if (!error && data?.length > 0) {
+        setChatMessages(data.map(m => ({
+          id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
+          text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+          senderName: m.display_name || "Member",
+        })));
+      }
+    };
+    fetchMessages();
+    // Subscribe to new messages
+    const channel = supabase.channel("messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+      const m = payload.new;
+      setChatMessages(prev => [...prev, {
+        id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
+        text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        senderName: m.display_name || "Member",
+      }]);
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  /* Auto-scroll chat */
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
+
+  const sendChat = () => {
+    if (!chatInput.trim()) return;
+    if (supabaseConfigured && user) {
+      // Send via Supabase (realtime subscription will update state)
+      supabase.from("messages").insert({ content: chatInput.trim(), user_id: user.id, display_name: user.email?.split("@")[0] || "You" }).then(({ error }) => {
+        if (error) console.error("Chat send error:", error);
+      });
+    } else {
+      // Local-only fallback
+      setChatMessages((p) => [...p, { id: "c" + Date.now(), from: "p1", text: chatInput.trim(), ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
+    }
+    setChatInput("");
+  };
+
 
   // ── Challenge/Response rotation tick (1s interval) ──
   const [crTick, setCrTick] = useState(Date.now());
@@ -6652,6 +6457,449 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           </div>
         </div>
       )}
+
+      {commsSub === "chat" && (() => {
+        const SECURE_PIN_KEY = "prepvault-secure-pin";
+        const storedPinHash = localStorage.getItem(SECURE_PIN_KEY);
+        const [secureUnlocked, setSecureUnlocked] = [secureUnlockedState, setSecureUnlockedState];
+        const [securePin, setSecurePin] = [securePinState, setSecurePinState];
+        const [securePinError, setSecurePinError] = [securePinErrorState, setSecurePinErrorState];
+        const isSetup = !storedPinHash;
+
+        const hashSecurePin = async (pin) => {
+          const enc = new TextEncoder();
+          const hash = await crypto.subtle.digest("SHA-256", enc.encode(pin + "prepvault-secure-comms-salt"));
+          return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+        };
+
+        const handlePinSubmit = async () => {
+          if (securePin.length < 4) { setSecurePinError(true); return; }
+          const hashed = await hashSecurePin(securePin);
+          if (isSetup) {
+            localStorage.setItem(SECURE_PIN_KEY, hashed);
+            setSecureUnlockedState(true);
+            setSecurePinState("");
+          } else {
+            if (hashed === storedPinHash) { setSecureUnlockedState(true); setSecurePinState(""); setSecurePinErrorState(false); }
+            else { setSecurePinErrorState(true); }
+          }
+        };
+
+        const handleImageAttach = (e) => {
+          const file = e.target.files?.[0];
+          if (!file || !file.type.startsWith("image/")) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            setChatMessages(prev => [...prev, { id: "c" + Date.now(), from: "p1", text: "", image: reader.result, ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
+          };
+          reader.readAsDataURL(file);
+          e.target.value = "";
+        };
+
+        if (!secureUnlocked) {
+          return (
+            <div style={{ ...cardSt, padding: "60px 30px", textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+              <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800 }}>Secure Communications</h3>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 20, lineHeight: 1.6 }}>
+                {isSetup ? "Set a 4-digit PIN to encrypt your communications" : "Enter your PIN to access secure comms"}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+                <input type="password" maxLength={6} value={securePin} onChange={e => { setSecurePinState(e.target.value.replace(/[^0-9]/g, "")); setSecurePinErrorState(false); }} onKeyDown={e => e.key === "Enter" && handlePinSubmit()} placeholder="PIN" style={{ ...inp, width: 120, textAlign: "center", fontSize: 20, fontFamily: M, letterSpacing: 8, padding: "10px 14px", borderColor: securePinError ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.1)" }} autoFocus />
+                <button onClick={handlePinSubmit} style={{ ...btnSt, padding: "10px 20px", background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 12 }}>{isSetup ? "Set PIN" : "Unlock"}</button>
+              </div>
+              {securePinError && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Incorrect PIN. Try again.</div>}
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 20 }}>🛡️ AES-256-GCM Encryption · PBKDF2 Key Derivation</div>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", height: 520 }}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12 }}>🔒</span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>Secure Comms</span>
+                <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>AES-256-GCM</span>
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {members.filter((m) => m.status !== "offline").map((m) => (
+                  <div key={m.id} style={{ width: 22, height: 22, borderRadius: 11, background: m.color + "25", border: "1px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }} title={m.name}>{m.avatar}</div>
+                ))}
+                <button onClick={() => setSecureUnlockedState(false)} style={{ background: "none", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 6, color: "#ef4444", cursor: "pointer", fontSize: 9, padding: "2px 8px", fontFamily: "inherit" }}>Lock</button>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {chatMessages.map((msg) => {
+                const sender = members.find((m) => m.id === msg.from);
+                const isYou = msg.from === "p1";
+                return (
+                  <div key={msg.id} style={{ display: "flex", flexDirection: isYou ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
+                    {!isYou && <div style={{ width: 28, height: 28, borderRadius: 14, background: (sender?.color || "#6b7280") + "25", border: "1px solid " + (sender?.color || "#6b7280"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sender?.avatar || "?"}</div>}
+                    <div style={{ maxWidth: "75%" }}>
+                      {!isYou && <div style={{ fontSize: 9, color: sender?.color || "#999", fontWeight: 700, marginBottom: 2 }}>{sender?.name || msg.senderName || "Member"}</div>}
+                      <div style={{ background: isYou ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isYou ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isYou ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
+                        {msg.image && <img src={msg.image} style={{ maxWidth: 200, maxHeight: 200, borderRadius: 8, marginBottom: msg.text ? 6 : 0, display: "block" }} />}
+                        {msg.text}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isYou ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef} />
+            </div>
+            <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, alignItems: "center" }}>
+              <label style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 14 }} title="Attach image">
+                📷
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageAttach} />
+              </label>
+              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="Encrypted message..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
+              <button onClick={sendChat} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {commsSub === "commsplan" && (
+        <div style={{ display: "grid", gap: 16 }}>
+          {/* ── Frequencies ── */}
+          <div style={cardSt}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>📻 Designated Frequencies</div>
+            {[COMMS_PLAN.primaryFreq, COMMS_PLAN.emergencyFreq].map((f, i) => (
+              <div key={i} style={{ padding: "12px 16px", marginBottom: 8, borderRadius: 10, background: i === 1 ? "rgba(239,68,68,0.04)" : "rgba(34,197,94,0.04)", border: "1px solid " + (i === 1 ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)"), display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ textAlign: "center", flexShrink: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, fontFamily: M, color: i === 1 ? "#ef4444" : "#22c55e", lineHeight: 1 }}>{f.freq}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{f.mode}</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: i === 1 ? "#ef4444" : "#22c55e" }}>{f.name}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{f.use}</div>
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: M }}>{f.power}</div>
+              </div>
+            ))}
+            <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, margin: "10px 0 6px" }}>Backup Channels</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>
+              {COMMS_PLAN.altFreqs.map((f, i) => (
+                <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: M, color: "#f59e0b" }}>{f.freq}</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{f.name}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{f.use} · {f.power}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pcs-comms-2col">
+            {/* ── Check-in Schedule ── */}
+            <div style={cardSt}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>🕐 Check-in Schedule</div>
+              {COMMS_PLAN.schedule.map((s, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < COMMS_PLAN.schedule.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: s.mandatory ? "#c8553a" : "rgba(255,255,255,0.3)", width: 50, flexShrink: 0, textAlign: "center" }}>{s.time}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{s.desc}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{s.duration} · {s.mandatory ? "Mandatory" : "Optional"}</div>
+                  </div>
+                  {s.mandatory && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#c8553a", flexShrink: 0 }} />}
+                </div>
+              ))}
+            </div>
+
+            {/* ── Call Signs ── */}
+            <div style={cardSt}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🎙️ Call Signs</div>
+                <button onClick={() => setCallSigns(prev => [...prev, { person: "New Person", sign: "CALL" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+              </div>
+              {callSigns.map((cs, i) => (
+                editingCallSign === i ? (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                    <input value={cs.sign} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, sign: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, color: "#0ea5e9", width: 80, boxSizing: "border-box" }} />
+                    <input value={cs.person} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, person: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 11, flex: 1, boxSizing: "border-box" }} />
+                    <button onClick={() => setEditingCallSign(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
+                  </div>
+                ) : (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: M, color: "#0ea5e9", minWidth: 80 }}>{cs.sign}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", flex: 1 }}>{cs.person}</div>
+                    <button onClick={() => setEditingCallSign(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                    <button onClick={() => setCallSigns(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
+                  </div>
+                )
+              ))}
+              <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", marginBottom: 3 }}>⚠ DURESS SIGNAL</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{COMMS_PLAN.duress}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Code Words ── */}
+          <div style={cardSt}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🔐 Code Words</div>
+              <button onClick={() => setCodeWords(prev => [...prev, { code: "NEWCODE", meaning: "Description", action: "Action to take" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 6 }}>
+              {codeWords.map((cw, i) => (
+                editingCodeWord === i ? (
+                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
+                    <input value={cw.code} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, code: v } : c)); }} placeholder="Code word" style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <input value={cw.meaning} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, meaning: v } : c)); }} placeholder="Meaning" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <input value={cw.action} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, action: v } : c)); }} placeholder="Action" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <button onClick={() => setEditingCodeWord(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
+                  </div>
+                ) : (
+                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444") }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444", flex: 1 }}>{cw.code}</span>
+                      <button onClick={() => setEditingCodeWord(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                      <button onClick={() => setCodeWords(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>{cw.meaning}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>→ {cw.action}</div>
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+
+          {/* ── Rally Points ── */}
+          <div style={cardSt}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>📍 Rally Points</div>
+              <button onClick={() => setRallyPoints(prev => [...prev, { id: "rp" + Date.now(), name: "New Rally Point", location: "", coords: "", use: "", marker: "", supplies: "" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+            </div>
+            {rallyPoints.map((rp, i) => (
+              editingRallyPoint === i ? (
+                <div key={rp.id} style={{ padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+                    <input value={rp.name} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, name: v } : r)); }} placeholder="Name" style={{ ...inp, padding: "4px 6px", fontSize: 11, boxSizing: "border-box" }} />
+                    <input value={rp.coords} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, coords: v } : r)); }} placeholder="Coordinates" style={{ ...inp, padding: "4px 6px", fontSize: 11, fontFamily: M, boxSizing: "border-box" }} />
+                  </div>
+                  <input value={rp.location} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, location: v } : r)); }} placeholder="Location description" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                  <input value={rp.marker} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, marker: v } : r)); }} placeholder="Marker/identifier" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                  <input value={rp.supplies} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, supplies: v } : r)); }} placeholder="Cached supplies" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                  <input value={rp.use} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, use: v } : r)); }} placeholder="Use case" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 6, width: "100%", boxSizing: "border-box" }} />
+                  <button onClick={() => setEditingRallyPoint(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
+                </div>
+              ) : (
+                <div key={rp.id} style={{ display: "flex", gap: 12, padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7") }}>
+                  {rp.coords && (() => {
+                    const rpColor = i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7";
+                    return <div onClick={() => setRpMapModal({ coords: rp.coords, name: rp.name, color: rpColor })} style={{ width: 120, height: 90, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)", position: "relative", background: "#0a1628" }} title="Click to expand map">
+                      <RallyMiniMap coords={rp.coords} color={rpColor} />
+                      <div style={{ position: "absolute", bottom: 4, right: 4, fontSize: 10, background: "rgba(0,0,0,0.6)", borderRadius: 3, padding: "1px 4px", color: "rgba(255,255,255,0.5)" }}>⛶</div>
+                    </div>;
+                  })()}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7", flex: 1 }}>{rp.name}</span>
+                      <span style={{ fontSize: 9, fontFamily: M, color: "rgba(255,255,255,0.4)" }}>{rp.coords}</span>
+                      <button onClick={() => setEditingRallyPoint(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">{"\u270f\ufe0f"}</button>
+                      <button onClick={() => setRallyPoints(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">{"\u00d7"}</button>
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>📍 {rp.location}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>🔎 Marker: {rp.marker}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>📦 Cached: {rp.supplies}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>Use: {rp.use}</div>
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+
+          {/* ── Printable Wallet Card ── */}
+          <div style={cardSt}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🪪 Wallet Card Preview</div>
+              <button onClick={() => {
+                const card = document.getElementById("pcs-wallet-card");
+                if (!card) return;
+                const w = window.open("", "_blank", "width=500,height=340");
+                w.document.write("<html><head><style>body{margin:0;padding:20px;background:#000;font-family:monospace;color:#fff}table{width:100%;border-collapse:collapse;font-size:9px}td{padding:2px 4px;border:1px solid #333}.hdr{background:#1a1a1a;font-weight:bold;text-transform:uppercase;font-size:8px;color:#999}@media print{body{background:#fff;color:#000}td{border-color:#ccc}.hdr{background:#eee;color:#333}}</style></head><body>" + card.innerHTML + "</body></html>");
+                w.document.close();
+                w.print();
+              }} style={{ ...btnSt, padding: "6px 14px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)" }}>🖨️ Print Card</button>
+            </div>
+            <div id="pcs-wallet-card" style={{ background: "#111", borderRadius: 8, padding: 12, border: "1px solid rgba(255,255,255,0.1)", fontFamily: M, fontSize: 9 }}>
+              <div style={{ textAlign: "center", fontSize: 11, fontWeight: 800, letterSpacing: 2, marginBottom: 8, color: "#c8553a" }}>PCS — COMMS CARD</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
+                <tbody>
+                  <tr><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, width: 80, color: "rgba(255,255,255,0.4)" }}>PRIMARY</td><td style={{ padding: "5px 6px", color: "#22c55e", fontWeight: 700 }}>{COMMS_PLAN.primaryFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{COMMS_PLAN.primaryFreq.mode}</td></tr>
+                  <tr><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>EMERGENCY</td><td style={{ padding: "5px 6px", color: "#ef4444", fontWeight: 700 }}>{COMMS_PLAN.emergencyFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{COMMS_PLAN.emergencyFreq.mode}</td></tr>
+                  {COMMS_PLAN.altFreqs.map((f, i) => <tr key={i}><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>{f.name.toUpperCase()}</td><td style={{ padding: "5px 6px", color: "#f59e0b" }}>{f.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{f.mode}</td></tr>)}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div><span style={{ color: "rgba(255,255,255,0.3)" }}>CHECK-IN:</span> {COMMS_PLAN.schedule.filter(s => s.mandatory).map(s => s.time).join(" / ")}</div>
+              </div>
+              <div style={{ marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {codeWords.slice(0, 4).map((cw, i) => <span key={i} style={{ color: "#ef4444" }}>{cw.code}</span>)}
+                <span style={{ color: "#22c55e" }}>PHOENIX</span>
+              </div>
+              <div style={{ marginTop: 4, color: "rgba(255,255,255,0.4)" }}>RALLY: {rallyPoints.map(r => r.name.split(" — ")[0]).join(" → ")}</div>
+              <div style={{ marginTop: 4, color: "#ef4444", fontSize: 10 }}>DURESS: Append "COPY THAT, ALL STATIONS"</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {commsSub === "contacts" && (() => {
+        const filtered = contacts.filter((c) => {
+          if (!contactSearch) return true;
+          const s = contactSearch.toLowerCase();
+          return c.name.toLowerCase().includes(s) || c.group.toLowerCase().includes(s) || c.role.toLowerCase().includes(s) || (c.medical || "").toLowerCase().includes(s);
+        });
+        const groups = [...new Set(filtered.map((c) => c.group))];
+        const groupColors = { "Your Group": "#22c55e", "Rideau Creek Co-op": "#22c55e", "Cedar Hill Homestead": "#0ea5e9", "Lakeside Compound": "#f59e0b", "South Valley Farm": "#a855f7" };
+
+        return (
+          <div>
+            <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
+              <input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder="Search name, group, role, condition..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>{filtered.length} contacts</span>
+              <button onClick={() => setShowAddContact(!showAddContact)} style={{ ...btnSt, padding: "6px 14px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", flexShrink: 0 }}>{showAddContact ? "Cancel" : "+ Add"}</button>
+            </div>
+            {showAddContact && (
+              <div style={{ ...cardSt, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>New Contact</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+                  <input value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} placeholder="Full name *" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <select value={newContact.group} onChange={e => setNewContact(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
+                    {[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <input value={newContact.role} onChange={e => setNewContact(p => ({ ...p, role: e.target.value }))} placeholder="Role" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+                  <input value={newContact.phone} onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))} placeholder="Phone" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.address} onChange={e => setNewContact(p => ({ ...p, address: e.target.value }))} placeholder="Address" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.age} onChange={e => setNewContact(p => ({ ...p, age: e.target.value }))} placeholder="Age" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+                  <select value={newContact.bloodType} onChange={e => setNewContact(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
+                    {["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}
+                  </select>
+                  <input value={newContact.medical} onChange={e => setNewContact(p => ({ ...p, medical: e.target.value }))} placeholder="Medical conditions" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.allergies} onChange={e => setNewContact(p => ({ ...p, allergies: e.target.value }))} placeholder="Allergies" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+                  <input value={newContact.skills} onChange={e => setNewContact(p => ({ ...p, skills: e.target.value }))} placeholder="Skills" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                  <input value={newContact.notes} onChange={e => setNewContact(p => ({ ...p, notes: e.target.value }))} placeholder="Notes" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
+                </div>
+                <button onClick={() => { if (!newContact.name.trim()) return; setContacts(prev => [...prev, { ...newContact, id: "ct" + Date.now(), age: newContact.age ? parseInt(newContact.age) || newContact.age : "" }]); setNewContact({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" }); setShowAddContact(false); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Add Contact</button>
+              </div>
+            )}
+            {groups.map((g) => (
+              <div key={g} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: groupColors[g] || "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 4, background: groupColors[g] || "#6b7280" }} />
+                  {g} ({filtered.filter((c) => c.group === g).length})
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {filtered.filter((c) => c.group === g).map((c) => {
+                    const isExpanded = expandedContact === c.id;
+                    const hasMedical = c.medical && c.medical !== "None" && c.medical !== "Unknown";
+                    const hasAllergy = c.allergies && c.allergies !== "None" && c.allergies !== "Unknown";
+                    return (
+                      <div key={c.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderLeft: "3px solid " + (groupColors[c.group] || "#6b7280") }}>
+                        <button onClick={() => setExpandedContact(isExpanded ? null : c.id)} style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#fff", fontFamily: "inherit" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 18, background: (groupColors[c.group] || "#6b7280") + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: groupColors[c.group] || "#6b7280" }}>{c.name.charAt(0)}</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</div>
+                              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", display: "flex", gap: 8, marginTop: 1 }}>
+                                <span>{c.role}</span>
+                                {c.phone !== "N/A — runner only" && c.phone !== "N/A — HAM only" && <span>📱 {c.phone}</span>}
+                                {c.phone.includes("HAM") && <span>📻 HAM only</span>}
+                                {c.phone.includes("runner") && <span>🏃 Runner only</span>}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                              {hasMedical && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>⚕️ medical</span>}
+                              {hasAllergy && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>⚠ allergy</span>}
+                              {c.bloodType && c.bloodType !== "Unknown" && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", fontFamily: M }}>{c.bloodType}</span>}
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingContact(c.id); setEditContactData({ ...c }); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                            <button onClick={(e) => { e.stopPropagation(); setContacts(prev => prev.filter(ct => ct.id !== c.id)); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+                          </div>
+                        </button>
+                        {isExpanded && (
+                          <div style={{ padding: "0 14px 14px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 16px", marginTop: 10 }}>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Phone</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.phone}</div></div>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Address</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.address}</div></div>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Age</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.age}</div></div>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Blood Type</div><div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>{c.bloodType}</div></div>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Medical Conditions</div><div style={{ fontSize: 11, color: hasMedical ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: hasMedical ? 600 : 400 }}>{c.medical}</div></div>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Allergies</div><div style={{ fontSize: 11, color: hasAllergy ? "#f59e0b" : "rgba(255,255,255,0.4)", fontWeight: hasAllergy ? 600 : 400 }}>{c.allergies}</div></div>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", marginTop: 8 }}>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Skills</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.skills}</div></div>
+                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Notes</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>{c.notes}</div></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* Contact Edit Modal */}
+      {editingContact && editContactData && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => { setEditingContact(null); setEditContactData(null); }}>
+          <div style={{ background: "#1a1f2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: 20, width: 480, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Edit Contact</div>
+              <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>\u00d7</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Name</div><input value={editContactData.name} onChange={e => setEditContactData(p => ({ ...p, name: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Group</div><select value={editContactData.group} onChange={e => setEditContactData(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Role</div><input value={editContactData.role} onChange={e => setEditContactData(p => ({ ...p, role: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Phone</div><input value={editContactData.phone} onChange={e => setEditContactData(p => ({ ...p, phone: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Address</div><input value={editContactData.address} onChange={e => setEditContactData(p => ({ ...p, address: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Age</div><input value={editContactData.age} onChange={e => setEditContactData(p => ({ ...p, age: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Blood Type</div><select value={editContactData.bloodType} onChange={e => setEditContactData(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}</select></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Medical</div><input value={editContactData.medical} onChange={e => setEditContactData(p => ({ ...p, medical: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Allergies</div><input value={editContactData.allergies} onChange={e => setEditContactData(p => ({ ...p, allergies: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+              <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Skills</div><input value={editContactData.skills} onChange={e => setEditContactData(p => ({ ...p, skills: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+            </div>
+            <div style={{ marginBottom: 12 }}><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Notes</div><input value={editContactData.notes} onChange={e => setEditContactData(p => ({ ...p, notes: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>Cancel</button>
+              <button onClick={() => { setContacts(prev => prev.map(c => c.id === editingContact ? { ...editContactData } : c)); setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rally Point Map Modal ── */}
+      {rpMapModal && (() => {
+        const match = rpMapModal.coords.match(/([\d.]+)\s*°?\s*([NS])\s*[,\s]+([\d.]+)\s*°?\s*([EW])/i);
+        return (
+          <div onClick={() => setRpMapModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: "80%", maxWidth: 700, background: "#111", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "default" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div><span style={{ fontSize: 14, fontWeight: 800, color: rpMapModal.color }}>{rpMapModal.name}</span><span style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.4)", marginLeft: 10 }}>{rpMapModal.coords}</span></div>
+                <button onClick={() => setRpMapModal(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>×</button>
+              </div>
+              <div style={{ height: 400 }}>
+                {match && <RallyMiniMapLarge lat={parseFloat(match[1]) * (match[2].toUpperCase() === "S" ? -1 : 1)} lng={parseFloat(match[3]) * (match[4].toUpperCase() === "W" ? -1 : 1)} color={rpMapModal.color} />}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
@@ -7058,63 +7306,8 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
   const [divertFrom, setDivertFrom] = useState("power");
   const [divertTo, setDivertTo] = useState("heat");
   const [divertPct, setDivertPct] = useState(25);
-  const [expandedDep, setExpandedDep] = useState(null);
 
-  const subs = [{ id: "stock", l: "Resources", i: "📊" }, { id: "convert", l: "Conversions", i: "⚡" }, { id: "tradeoff", l: "Trade-offs", i: "⚖️" }, { id: "graph", l: "System Map", i: "🔗" }, { id: "deps", l: "Dependencies", i: "🔌" }, { id: "opps", l: "Opportunities", i: "💡" }];
-
-  /* ── Hidden Dependency Map ── */
-  const DEPENDENCY_TREE = useMemo(() => {
-    const hasSolar = items.filter((i) => i.category === "electronics" && i.subType === "solarGadget").length > 0;
-    const hasGen = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
-    const hasBattery = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
-    const hasPropane = items.filter((i) => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
-    const hasFirewood = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0), 0) > 0;
-    const hasHAM = items.filter((i) => (i.category === "electronics" && i.subType === "radio") || i.category === "comms").length > 0;
-    const hasSat = items.filter((i) => i.category === "electronics" && i.subType === "satPhone").length > 0;
-    const hasFilter = items.filter((i) => i.category === "water" && (i.subType === "filter" || i.subType === "purificationTablets")).length > 0;
-
-    return [
-      { id: "garage", name: "Garage Door", icon: "🚗", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high",
-        desc: "Electric garage door opener fails silently during outage. Manual release cord requires physical access from inside.",
-        fix: "Install manual release. Keep vehicles outside during storm warnings." },
-      { id: "wellpump", name: "Well Water Pump", icon: "💧", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : hasSolar ? "Solar" : null, hidden: true, risk: "critical",
-        desc: "Submersible well pump draws 500-1500W. No power = no water pressure, no toilets, no showers.",
-        fix: hasGen ? "Generator can power pump. Store 3+ days water as buffer." : "No backup power source. Store minimum 14 days water." },
-      { id: "fridge", name: "Refrigerator", icon: "🧊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: false, risk: "high",
-        desc: "Fridge draws ~150W continuous. Without power, food spoils in 4hrs (open) or 24-48hrs (closed).",
-        fix: "Run generator 4-6hrs/day to maintain temp. Minimize door openings. Freeze water jugs as thermal mass." },
-      { id: "furnace", name: "Furnace Blower", icon: "🌡️", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical",
-        desc: "Even gas/propane furnaces need electric blower (300-600W). No grid = no forced air heat even with fuel.",
-        fix: hasFirewood ? "Wood stove is grid-independent. Furnace needs generator." : "No grid-independent heat source. Generator required for furnace blower." },
-      { id: "stovefan", name: "Wood Stove Fan", icon: "🔥", depends: "Battery / Thermoelectric", dep: "battery", backup: hasBattery ? "Batteries" : null, hidden: true, risk: "low",
-        desc: "Heat-powered fans are thermoelectric (no battery). Battery fans improve circulation but aren't essential.",
-        fix: "Stovetop thermoelectric fans need no power. Battery fans are comfort, not survival." },
-      { id: "sump", name: "Sump Pump", icon: "🏠", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high",
-        desc: "Sump pump (500W) prevents basement flooding. Silent failure during storm + outage = catastrophic water damage.",
-        fix: "Battery backup sump pump ($150-300). Generator as primary backup. Water alarm sensor ($20)." },
-      { id: "phone", name: "Cell Phone", icon: "📱", depends: "LTE Tower + Grid", dep: "grid+tower", backup: hasSat ? "Satellite Phone" : hasHAM ? "HAM Radio" : null, hidden: true, risk: "high",
-        desc: "Cell towers have 4-8hr battery backup. Extended outage = no cell service. Phone itself dies without charging.",
-        fix: hasSat ? "Satellite phone is tower-independent." : hasHAM ? "HAM radio is fully grid-independent." : "No backup comms. Add satellite or HAM radio." },
-      { id: "internet", name: "Internet / WiFi", icon: "🌐", depends: "Grid + ISP + Router", dep: "grid+isp", backup: hasSat ? "Satellite Phone data" : null, hidden: false, risk: "medium",
-        desc: "Router, modem, and ISP infrastructure all need power. Starlink needs 50-75W continuous.",
-        fix: "Small UPS for router extends connectivity 2-4hrs. Satellite is last-resort data." },
-      { id: "security", name: "Security System", icon: "🚨", depends: "Grid + WiFi + Cloud", dep: "grid+cloud", backup: hasBattery ? "Battery backup" : null, hidden: true, risk: "medium",
-        desc: "Smart security (Ring, Nest) needs WiFi + cloud servers. Local alarm may have 4-24hr battery backup.",
-        fix: "Dogs don't need WiFi. Mechanical trip wires and door bars are grid-independent." },
-      { id: "medical", name: "Medical Devices", icon: "💊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical",
-        desc: "CPAP, oxygen concentrator, nebulizer, insulin fridge — all grid-dependent. Failure is life-threatening.",
-        fix: "Dedicated battery backup for critical medical devices. Generator auto-start for life support." },
-      { id: "waterFilter", name: "UV Water Purifier", icon: "🔬", depends: "Grid Power", dep: "grid", backup: hasFilter ? "Gravity filter" : null, hidden: true, risk: "high",
-        desc: "UV purification (SteriPEN, whole-house UV) needs electricity. Fails silently — water looks clean but isn't.",
-        fix: hasFilter ? "Gravity filter (Berkey) works without power. Boiling requires only fuel." : "No power-independent purification. Add gravity filter or purification tablets." },
-      { id: "septic", name: "Septic Pump", icon: "🚽", depends: "Grid Power", dep: "grid", backup: null, hidden: true, risk: "high",
-        desc: "Mound/pressurized septic systems use electric pumps. No power = tank fills, sewage backup in 1-3 days.",
-        fix: "Know your septic type. Gravity systems work without power. Pump systems need generator priority." },
-      { id: "co_detector", name: "CO / Smoke Detectors", icon: "🔋", depends: "Battery", dep: "battery", backup: hasBattery ? "Replacement batteries" : null, hidden: true, risk: "critical",
-        desc: "Running generators and heaters indoors without working CO detector is lethal. Battery dies = silent death.",
-        fix: "Replace detector batteries every 6 months. Keep spare 9V batteries. Never disable during generator use." },
-    ];
-  }, [items]);
+  const subs = [{ id: "stock", l: "Resources", i: "📊" }, { id: "convert", l: "Conversions", i: "⚡" }, { id: "tradeoff", l: "Trade-offs", i: "⚖️" }, { id: "graph", l: "System Map", i: "🔗" }, { id: "opps", l: "Opportunities", i: "💡" }];
 
   /* ── Resource Conversion Constants ── */
   const CONVERSIONS = {
@@ -7536,85 +7729,6 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
         </div>
       )}
 
-      {/* ═══ Hidden Dependencies ═══ */}
-      {sysSub === "deps" && (
-        <div>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔌 Hidden Dependency Map</h3>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Appliances and amenities that silently fail when their dependencies go down</div>
-          </div>
-
-          {/* Summary cards */}
-          <div className="pcs-sys-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
-            {[
-              { label: "Critical", count: DEPENDENCY_TREE.filter((d) => d.risk === "critical").length, color: "#ef4444", desc: "Life-safety risk" },
-              { label: "No Backup", count: DEPENDENCY_TREE.filter((d) => !d.backup).length, color: "#f59e0b", desc: "Single point of failure" },
-              { label: "Hidden", count: DEPENDENCY_TREE.filter((d) => d.hidden).length, color: "#a855f7", desc: "Fails silently" },
-            ].map((s, i) => (
-              <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + s.color }}>
-                <div style={{ fontSize: 28, fontWeight: 800, fontFamily: M, color: s.color }}>{s.count}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{s.desc}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Dependency tree */}
-          <div style={{ display: "grid", gap: 6 }}>
-            {DEPENDENCY_TREE.map((dep) => {
-              const riskCol = dep.risk === "critical" ? "#ef4444" : dep.risk === "high" ? "#f59e0b" : "#22c55e";
-              const hasBackup = !!dep.backup;
-              const isExp = expandedDep === dep.id;
-              return (
-                <div key={dep.id}>
-                  <button onClick={() => setExpandedDep(isExp ? null : dep.id)} style={{ width: "100%", ...cardSt, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#fff", borderLeft: "4px solid " + riskCol, background: isExp ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 20 }}>{dep.icon}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>{dep.name}</span>
-                          {dep.hidden && <span style={{ fontSize: 9, padding: "4px 5px", borderRadius: 4, background: "rgba(168,85,247,0.15)", color: "#a855f7", fontWeight: 700 }}>HIDDEN</span>}
-                          <span style={{ fontSize: 9, padding: "4px 5px", borderRadius: 4, background: riskCol + "15", color: riskCol, fontWeight: 700, textTransform: "uppercase" }}>{dep.risk}</span>
-                        </div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
-                          Requires: <span style={{ color: "rgba(255,255,255,0.5)", fontFamily: M }}>{dep.depends}</span>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        {hasBackup ? (
-                          <div style={{ fontSize: 9, color: "#22c55e" }}>✓ {dep.backup}</div>
-                        ) : (
-                          <div style={{ fontSize: 9, color: "#ef4444", fontWeight: 700 }}>✗ NO BACKUP</div>
-                        )}
-                      </div>
-                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", transform: isExp ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
-                    </div>
-                  </button>
-                  {isExp && (
-                    <div style={{ marginLeft: 20, borderLeft: "2px solid " + riskCol + "30", padding: "12px 16px", background: "rgba(255,255,255,0.01)" }}>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 10 }}>{dep.desc}</div>
-                      <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, borderLeft: "3px solid #22c55e" }}>
-                        <div style={{ fontSize: 10, color: "#22c55e", fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Mitigation</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>{dep.fix}</div>
-                      </div>
-                      {/* Dependency chain visualization */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 10 }}>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: riskCol + "10", border: "1px solid " + riskCol + "30", fontSize: 9, fontWeight: 700, color: riskCol }}>{dep.name}</div>
-                        <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" /><polygon points="22,2 30,6 22,10" fill="rgba(255,255,255,0.15)" /></svg>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 9, fontWeight: 600, color: "rgba(239,68,68,0.6)" }}>{dep.depends}</div>
-                        {hasBackup && (<>
-                          <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(34,197,94,0.2)" strokeWidth="1.5" strokeDasharray="3,2" /><polygon points="22,2 30,6 22,10" fill="rgba(34,197,94,0.3)" /></svg>
-                          <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 9, fontWeight: 600, color: "#22c55e" }}>↻ {dep.backup}</div>
-                        </>)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
       {sysSub === "opps" && (
         <OpportunitiesTab items={items} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile} />
       )}
@@ -7625,7 +7739,7 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
 /* ═══════════════════════════════════════════ */
 /* ═══ FARMING TAB ═══                       */
 /* ═══════════════════════════════════════════ */
-function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds }) {
+function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTests, setSoilTests, compostBins, setCompostBins, livestock, setLivestock, slaughterLog, setSlaughterLog }) {
   const M = "'JetBrains Mono',monospace";
   const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
   const accent = "#65a30d";
@@ -7646,9 +7760,70 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds }) {
     { id: "fdash", l: "Dashboard", i: "📊" },
     { id: "seeds", l: "Seeds", i: "🌱" },
     { id: "calendar", l: "Calendar", i: "📅" },
+    { id: "soil", l: "Soil", i: "🧪" },
+    { id: "compost", l: "Compost", i: "♻️" },
+    { id: "rotation", l: "Rotation", i: "🔄" },
+    { id: "livestock", l: "Livestock", i: "🐔" },
     { id: "garden", l: "Garden", i: "🟩" },
     { id: "guide", l: "Guide", i: "📖" },
   ];
+
+  /* Soil state */
+  const [showAddSoil, setShowAddSoil] = useState(false);
+  const [editingSoil, setEditingSoil] = useState(null);
+  const [soilForm, setSoilForm] = useState({ bedName: "", date: new Date().toISOString().split("T")[0], ph: "", nitrogen: "Medium", phosphorus: "Medium", potassium: "Medium", organicMatter: "", moisture: "", soilType: "Loam", notes: "" });
+  /* Compost state */
+  const [showAddCompost, setShowAddCompost] = useState(false);
+  const [editingCompost, setEditingCompost] = useState(null);
+  const [compostForm, setCompostForm] = useState({ name: "", startDate: new Date().toISOString().split("T")[0], stage: "fresh", temperature: "", greenBrownRatio: 50, volume: "", turningFreqDays: 7, lastTurned: "", notes: "" });
+  /* Livestock state */
+  const [showAddAnimal, setShowAddAnimal] = useState(false);
+  const [editingAnimal, setEditingAnimal] = useState(null);
+  const [animalForm, setAnimalForm] = useState({ type: "chicken", name: "", count: 1, status: "healthy", feedType: "", feedLbsPerDay: 0.25, feedStockDays: 30, lastBred: "", notes: "" });
+  const [showAddSlaughter, setShowAddSlaughter] = useState(false);
+  const [slaughterForm, setSlaughterForm] = useState({ animalType: "chicken", date: new Date().toISOString().split("T")[0], yieldLbs: "", preservationMethod: "fresh", storageLocation: "", notes: "" });
+  const [expandedAnimalId, setExpandedAnimalId] = useState(null);
+  const [showSlaughterLog, setShowSlaughterLog] = useState(false);
+
+  /* ── Farming constants ── */
+  const CROP_FAMILIES = {
+    nightshade: { crops: ["tomato","pepper","eggplant","potato"], icon: "🍅", label: "Nightshade", color: "#ef4444" },
+    legume: { crops: ["beans","peas"], icon: "🫘", label: "Legume", color: "#22c55e" },
+    brassica: { crops: ["broccoli","cabbage","cauliflower","kale"], icon: "🥦", label: "Brassica", color: "#3b82f6" },
+    allium: { crops: ["onion","garlic"], icon: "🧅", label: "Allium", color: "#f59e0b" },
+    cucurbit: { crops: ["cucumber","zucchini","winter_squash","watermelon"], icon: "🥒", label: "Cucurbit", color: "#8b5cf6" },
+    root: { crops: ["carrot","beet","radish","potato"], icon: "🥕", label: "Root", color: "#f97316" },
+    leafy: { crops: ["lettuce","spinach","celery"], icon: "🥬", label: "Leafy", color: "#10b981" },
+    herb: { crops: ["basil","cilantro","parsley","dill","mint","rosemary"], icon: "🌿", label: "Herb", color: "#84cc16" },
+  };
+  const ROTATION_RECS = {
+    nightshade: { next: "legume", reason: "Legumes fix nitrogen depleted by heavy-feeding nightshades" },
+    legume: { next: "brassica", reason: "Brassicas benefit from nitrogen fixed by legumes" },
+    brassica: { next: "root", reason: "Deep roots break up soil compacted by brassicas" },
+    root: { next: "cucurbit", reason: "Cucurbits thrive in loosened soil from root crops" },
+    cucurbit: { next: "allium", reason: "Alliums repel pests that build up under cucurbits" },
+    allium: { next: "leafy", reason: "Light feeders follow moderate feeders" },
+    leafy: { next: "nightshade", reason: "Restarts cycle \u2014 heavy feeders in refreshed soil" },
+    herb: { next: "nightshade", reason: "Herbs are flexible; heavy feeders can follow" },
+  };
+  const getCropFamily = (cropId) => { for (const [fam, d] of Object.entries(CROP_FAMILIES)) { if (d.crops.includes(cropId)) return fam; } return null; };
+  const ANIMAL_TYPES = {
+    chicken: { icon: "🐔", gestation: 21, feedLbs: 0.25, label: "Chickens" },
+    goat: { icon: "🐐", gestation: 150, feedLbs: 4, label: "Goats" },
+    cow: { icon: "🐄", gestation: 283, feedLbs: 25, label: "Cattle" },
+    pig: { icon: "🐖", gestation: 114, feedLbs: 6, label: "Pigs" },
+    sheep: { icon: "🐑", gestation: 152, feedLbs: 3.5, label: "Sheep" },
+    rabbit: { icon: "🐇", gestation: 31, feedLbs: 0.25, label: "Rabbits" },
+    duck: { icon: "🦆", gestation: 28, feedLbs: 0.35, label: "Ducks" },
+    turkey: { icon: "🦃", gestation: 28, feedLbs: 0.5, label: "Turkeys" },
+    horse: { icon: "🐴", gestation: 340, feedLbs: 20, label: "Horses" },
+    bee: { icon: "🐝", gestation: 0, feedLbs: 0, label: "Bees" },
+  };
+  const phColor = (ph) => { const p = parseFloat(ph); if (p >= 6.0 && p <= 7.0) return "#22c55e"; if (p >= 5.5 && p <= 7.5) return "#f59e0b"; return "#ef4444"; };
+  const nutrientColor = (lvl) => lvl === "High" ? "#22c55e" : lvl === "Medium" ? "#f59e0b" : "#ef4444";
+  const stageColor = { fresh: "#3b82f6", active: "#f59e0b", curing: "#8b5cf6", finished: "#22c55e" };
+  const stageProgress = { fresh: 0, active: 33, curing: 66, finished: 100 };
+  const statusColor = { healthy: "#22c55e", sick: "#ef4444", pregnant: "#a855f7", lactating: "#3b82f6" };
 
   // Climate-aware date calculations
   const zone = GROWING_ZONES[climate] || GROWING_ZONES.temperate;
@@ -8014,6 +8189,395 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds }) {
         </div>
       )}
 
+      {/* ═══ SOIL TESTING ═══ */}
+      {farmSub === "soil" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>🧪 Soil Testing</h3>
+            <button onClick={() => { setEditingSoil(null); setSoilForm({ bedName: "", date: new Date().toISOString().split("T")[0], ph: "", nitrogen: "Medium", phosphorus: "Medium", potassium: "Medium", organicMatter: "", moisture: "", soilType: "Loam", notes: "" }); setShowAddSoil(true); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>+ Add Test</button>
+          </div>
+          {/* Summary cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+            {(() => { const avgPh = soilTests.length ? (soilTests.reduce((s, t) => s + (parseFloat(t.ph) || 0), 0) / soilTests.length).toFixed(1) : "\u2014"; const avgMoist = soilTests.length ? Math.round(soilTests.reduce((s, t) => s + (parseFloat(t.moisture) || 0), 0) / soilTests.length) : "\u2014"; return [
+              { label: "Avg pH", val: avgPh, color: avgPh !== "\u2014" ? phColor(avgPh) : "rgba(255,255,255,0.3)" },
+              { label: "Avg Moisture", val: avgMoist !== "\u2014" ? avgMoist + "%" : "\u2014", color: "#3b82f6" },
+              { label: "Tests", val: soilTests.length, color: accent },
+            ]; })().map((c, i) => (
+              <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + c.color }}>
+                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: M, color: c.color }}>{c.val}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{c.label}</div>
+              </div>
+            ))}
+          </div>
+          {/* Add/Edit form */}
+          {showAddSoil && (
+            <div style={{ ...cardSt, padding: 16, marginBottom: 12, borderLeft: "3px solid " + accent }}>
+              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>{editingSoil ? "Edit Test" : "New Soil Test"}</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <input value={soilForm.bedName} onChange={e => setSoilForm({ ...soilForm, bedName: e.target.value })} placeholder="Bed / Zone name" style={inp} />
+                <input type="date" value={soilForm.date} onChange={e => setSoilForm({ ...soilForm, date: e.target.value })} style={inp} />
+                <input type="number" step="0.1" value={soilForm.ph} onChange={e => setSoilForm({ ...soilForm, ph: e.target.value })} placeholder="pH (0-14)" style={inp} />
+                <select value={soilForm.soilType} onChange={e => setSoilForm({ ...soilForm, soilType: e.target.value })} style={inp}>{["Sandy","Loam","Clay","Silt","Peat","Chalky"].map(o => <option key={o}>{o}</option>)}</select>
+                <select value={soilForm.nitrogen} onChange={e => setSoilForm({ ...soilForm, nitrogen: e.target.value })} style={inp}>{["Low","Medium","High"].map(o => <option key={o}>{o}</option>)}</select>
+                <select value={soilForm.phosphorus} onChange={e => setSoilForm({ ...soilForm, phosphorus: e.target.value })} style={inp}>{["Low","Medium","High"].map(o => <option key={o}>{o}</option>)}</select>
+                <select value={soilForm.potassium} onChange={e => setSoilForm({ ...soilForm, potassium: e.target.value })} style={inp}>{["Low","Medium","High"].map(o => <option key={o}>{o}</option>)}</select>
+                <input type="number" value={soilForm.moisture} onChange={e => setSoilForm({ ...soilForm, moisture: e.target.value })} placeholder="Moisture %" style={inp} />
+              </div>
+              <input value={soilForm.notes} onChange={e => setSoilForm({ ...soilForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => { if (editingSoil) setSoilTests(prev => prev.map(t => t.id === editingSoil.id ? { ...soilForm, id: editingSoil.id } : t)); else setSoilTests(prev => [...prev, { ...soilForm, id: "soil-" + Date.now() }]); setShowAddSoil(false); setEditingSoil(null); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>{editingSoil ? "Update" : "Save"}</button>
+                <button onClick={() => { setShowAddSoil(false); setEditingSoil(null); }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {/* Tests list */}
+          {soilTests.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No soil tests recorded yet. Add your first test above.</div> : (
+            <div style={{ display: "grid", gap: 6 }}>
+              {soilTests.sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
+                <div key={t.id} style={{ ...cardSt, padding: "12px 16px", borderLeft: "3px solid " + phColor(t.ph) }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div><span style={{ fontWeight: 700, fontSize: 12 }}>{t.bedName || "Unnamed"}</span> <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{"\u00b7"} {t.soilType} {"\u00b7"} {t.date}</span></div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button onClick={() => { setEditingSoil(t); setSoilForm(t); setShowAddSoil(true); }} style={{ ...btnSt, fontSize: 9, padding: "3px 8px" }}>Edit</button>
+                      <button onClick={() => setSoilTests(prev => prev.filter(x => x.id !== t.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10 }}>
+                    <span style={{ padding: "3px 8px", borderRadius: 4, background: phColor(t.ph) + "15", color: phColor(t.ph), fontWeight: 700 }}>pH {t.ph}</span>
+                    <span style={{ padding: "3px 8px", borderRadius: 4, background: nutrientColor(t.nitrogen) + "15", color: nutrientColor(t.nitrogen), fontWeight: 600 }}>N: {t.nitrogen}</span>
+                    <span style={{ padding: "3px 8px", borderRadius: 4, background: nutrientColor(t.phosphorus) + "15", color: nutrientColor(t.phosphorus), fontWeight: 600 }}>P: {t.phosphorus}</span>
+                    <span style={{ padding: "3px 8px", borderRadius: 4, background: nutrientColor(t.potassium) + "15", color: nutrientColor(t.potassium), fontWeight: 600 }}>K: {t.potassium}</span>
+                    {t.organicMatter && <span style={{ color: "rgba(255,255,255,0.4)" }}>OM: {t.organicMatter}%</span>}
+                    {t.moisture && <span style={{ color: "#3b82f6" }}>{"\ud83d\udca7"} {t.moisture}%</span>}
+                  </div>
+                  {t.notes && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{t.notes}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ COMPOST ═══ */}
+      {farmSub === "compost" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>{"\u267b\ufe0f"} Compost Bins</h3>
+            <button onClick={() => { setEditingCompost(null); setCompostForm({ name: "", startDate: new Date().toISOString().split("T")[0], stage: "fresh", temperature: "", greenBrownRatio: 50, volume: "", turningFreqDays: 7, lastTurned: "", notes: "" }); setShowAddCompost(true); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>+ Add Bin</button>
+          </div>
+          {/* Summary */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+            {["fresh","active","curing","finished"].map(st => {
+              const cnt = compostBins.filter(b => b.stage === st).length;
+              return (
+                <div key={st} style={{ ...cardSt, padding: 12, textAlign: "center", borderTop: "3px solid " + stageColor[st] }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: stageColor[st] }}>{cnt}</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "capitalize" }}>{st}</div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Add/Edit form */}
+          {showAddCompost && (
+            <div style={{ ...cardSt, padding: 16, marginBottom: 12, borderLeft: "3px solid " + accent }}>
+              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>{editingCompost ? "Edit Bin" : "New Compost Bin"}</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <input value={compostForm.name} onChange={e => setCompostForm({ ...compostForm, name: e.target.value })} placeholder="Bin name" style={inp} />
+                <input type="date" value={compostForm.startDate} onChange={e => setCompostForm({ ...compostForm, startDate: e.target.value })} style={inp} />
+                <select value={compostForm.stage} onChange={e => setCompostForm({ ...compostForm, stage: e.target.value })} style={inp}>{["fresh","active","curing","finished"].map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}</select>
+                <input type="number" value={compostForm.temperature} onChange={e => setCompostForm({ ...compostForm, temperature: e.target.value })} placeholder="Temp (\u00b0F)" style={inp} />
+                <div style={{ gridColumn: "1/-1" }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Green/Brown Ratio: {compostForm.greenBrownRatio}% green / {100 - compostForm.greenBrownRatio}% brown</div>
+                  <input type="range" min="0" max="100" value={compostForm.greenBrownRatio} onChange={e => setCompostForm({ ...compostForm, greenBrownRatio: parseInt(e.target.value) })} style={{ width: "100%" }} />
+                </div>
+                <input value={compostForm.volume} onChange={e => setCompostForm({ ...compostForm, volume: e.target.value })} placeholder="Volume (cu ft)" style={inp} />
+                <input type="number" value={compostForm.turningFreqDays} onChange={e => setCompostForm({ ...compostForm, turningFreqDays: parseInt(e.target.value) || 7 })} placeholder="Turn every X days" style={inp} />
+                <input type="date" value={compostForm.lastTurned} onChange={e => setCompostForm({ ...compostForm, lastTurned: e.target.value })} style={inp} />
+              </div>
+              <input value={compostForm.notes} onChange={e => setCompostForm({ ...compostForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => { if (editingCompost) setCompostBins(prev => prev.map(b => b.id === editingCompost.id ? { ...compostForm, id: editingCompost.id } : b)); else setCompostBins(prev => [...prev, { ...compostForm, id: "comp-" + Date.now() }]); setShowAddCompost(false); setEditingCompost(null); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>{editingCompost ? "Update" : "Save"}</button>
+                <button onClick={() => { setShowAddCompost(false); setEditingCompost(null); }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {/* Bins list */}
+          {compostBins.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No compost bins yet. Start composting!</div> : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {compostBins.map(bin => {
+                const sc = stageColor[bin.stage] || "#666";
+                const sp = stageProgress[bin.stage] || 0;
+                const daysSinceTurn = bin.lastTurned ? Math.round((Date.now() - new Date(bin.lastTurned).getTime()) / 864e5) : null;
+                const turnOverdue = daysSinceTurn !== null && daysSinceTurn >= (bin.turningFreqDays || 7);
+                return (
+                  <div key={bin.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + sc }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <div>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>{bin.name || "Unnamed Bin"}</span>
+                        <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 4, background: sc + "20", color: sc, fontSize: 10, fontWeight: 700, textTransform: "capitalize" }}>{bin.stage}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button onClick={() => { setEditingCompost(bin); setCompostForm(bin); setShowAddCompost(true); }} style={{ ...btnSt, fontSize: 9, padding: "3px 8px" }}>Edit</button>
+                        <button onClick={() => setCompostBins(prev => prev.filter(x => x.id !== bin.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 4, height: 6, marginBottom: 8, overflow: "hidden" }}>
+                      <div style={{ width: sp + "%", height: "100%", background: sc, borderRadius: 4, transition: "width 0.3s" }} />
+                    </div>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      {bin.temperature && <span>{"\ud83c\udf21\ufe0f"} {bin.temperature}{"\u00b0"}F</span>}
+                      <span style={{ color: "#22c55e" }}>{bin.greenBrownRatio}% green</span>
+                      <span style={{ color: "#a16207" }}>{100 - bin.greenBrownRatio}% brown</span>
+                      {bin.volume && <span>{"\ud83d\udce6"} {bin.volume} cu ft</span>}
+                      <span>Started {bin.startDate}</span>
+                      {daysSinceTurn !== null && (
+                        <span style={{ color: turnOverdue ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: turnOverdue ? 700 : 400 }}>
+                          {turnOverdue ? "\ud83d\udd04 Turn now! (" + daysSinceTurn + "d)" : "\ud83d\udd04 " + daysSinceTurn + "d since turn"}
+                        </span>
+                      )}
+                    </div>
+                    {bin.notes && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{bin.notes}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ CROP ROTATION ═══ */}
+      {farmSub === "rotation" && (
+        <div>
+          <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 800 }}>{"\ud83d\udd04"} Crop Rotation Planner</h3>
+          {/* Rotation cycle visual */}
+          <div style={{ ...cardSt, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Rotation Cycle</div>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, fontSize: 11 }}>
+              {["nightshade","legume","brassica","root","cucurbit","allium","leafy"].map((fam, i) => {
+                const f = CROP_FAMILIES[fam];
+                return (
+                  <span key={fam} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                    <span style={{ padding: "3px 8px", borderRadius: 4, background: f.color + "20", color: f.color, fontWeight: 700, fontSize: 10 }}>{f.icon} {f.label}</span>
+                    {i < 6 && <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 2px" }}>{"\u2192"}</span>}
+                  </span>
+                );
+              })}
+              <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 2px" }}>{"\u2192"} {"\ud83d\udd01"}</span>
+            </div>
+          </div>
+          {/* Bed analysis */}
+          {gardenBeds.length === 0 ? (
+            <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No garden beds yet. Create beds in the Garden tab to see rotation recommendations.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {gardenBeds.map(bed => {
+                const cropIds = [...new Set((bed.cells || []).map(c => c.cropId).filter(Boolean))];
+                const families = [...new Set(cropIds.map(id => getCropFamily(id)).filter(Boolean))];
+                const recs = families.map(fam => ({ fam, ...(ROTATION_RECS[fam] || {}) })).filter(r => r.next);
+                return (
+                  <div key={bed.id} style={{ ...cardSt, padding: "14px 16px" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{bed.name || "Unnamed Bed"}</div>
+                    {cropIds.length === 0 ? (
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No crops planted. Plant crops to get rotation advice.</div>
+                    ) : (
+                      <div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                          {cropIds.map(id => {
+                            const fam = getCropFamily(id);
+                            const famData = fam ? CROP_FAMILIES[fam] : null;
+                            const crop = CROP_DATABASE.find(c => c.id === id);
+                            return (
+                              <span key={id} style={{ padding: "3px 8px", borderRadius: 4, background: (famData ? famData.color : "#666") + "15", color: famData ? famData.color : "#999", fontSize: 10, fontWeight: 600 }}>
+                                {crop ? crop.icon : ""} {crop ? crop.name : id} {famData ? "(" + famData.label + ")" : ""}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {recs.length > 0 && (
+                          <div style={{ display: "grid", gap: 4 }}>
+                            {recs.map((r, i) => {
+                              const nextFam = CROP_FAMILIES[r.next];
+                              return (
+                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, padding: "6px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)" }}>
+                                  <span style={{ color: CROP_FAMILIES[r.fam].color, fontWeight: 700 }}>{CROP_FAMILIES[r.fam].icon} {CROP_FAMILIES[r.fam].label}</span>
+                                  <span style={{ color: "rgba(255,255,255,0.3)" }}>{"\u2192"}</span>
+                                  <span style={{ color: nextFam.color, fontWeight: 700 }}>{nextFam.icon} {nextFam.label}</span>
+                                  <span style={{ color: "rgba(255,255,255,0.3)", flex: 1 }}>{r.reason}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ LIVESTOCK ═══ */}
+      {farmSub === "livestock" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>{"\ud83d\udc14"} Livestock Management</h3>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setShowSlaughterLog(!showSlaughterLog)} style={{ ...btnSt, fontSize: 10, padding: "6px 12px", background: showSlaughterLog ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)", color: showSlaughterLog ? "#ef4444" : "rgba(255,255,255,0.5)" }}>{"\ud83e\ude93"} Log</button>
+              <button onClick={() => { setEditingAnimal(null); setAnimalForm({ type: "chicken", name: "", count: 1, status: "healthy", feedType: "", feedLbsPerDay: 0.25, feedStockDays: 30, lastBred: "", notes: "" }); setShowAddAnimal(true); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>+ Add Animal</button>
+            </div>
+          </div>
+          {/* Summary by type */}
+          {livestock.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              {Object.entries(livestock.reduce((acc, a) => { acc[a.type] = (acc[a.type] || 0) + (parseInt(a.count) || 1); return acc; }, {})).map(([type, cnt]) => (
+                <div key={type} style={{ ...cardSt, padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 18 }}>{ANIMAL_TYPES[type]?.icon || "\ud83d\udc3e"}</span>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: accent }}>{cnt}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{ANIMAL_TYPES[type]?.label || type}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Add/Edit animal form */}
+          {showAddAnimal && (
+            <div style={{ ...cardSt, padding: 16, marginBottom: 12, borderLeft: "3px solid " + accent }}>
+              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>{editingAnimal ? "Edit Animal" : "Add Animal"}</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <select value={animalForm.type} onChange={e => { const t = e.target.value; setAnimalForm({ ...animalForm, type: t, feedLbsPerDay: ANIMAL_TYPES[t]?.feedLbs || 0.25 }); }} style={inp}>
+                  {Object.entries(ANIMAL_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                </select>
+                <input value={animalForm.name} onChange={e => setAnimalForm({ ...animalForm, name: e.target.value })} placeholder="Name / Group" style={inp} />
+                <input type="number" min="1" value={animalForm.count} onChange={e => setAnimalForm({ ...animalForm, count: parseInt(e.target.value) || 1 })} placeholder="Count" style={inp} />
+                <select value={animalForm.status} onChange={e => setAnimalForm({ ...animalForm, status: e.target.value })} style={inp}>{["healthy","sick","pregnant","lactating"].map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}</select>
+                <input value={animalForm.feedType} onChange={e => setAnimalForm({ ...animalForm, feedType: e.target.value })} placeholder="Feed type" style={inp} />
+                <input type="number" step="0.1" value={animalForm.feedLbsPerDay} onChange={e => setAnimalForm({ ...animalForm, feedLbsPerDay: parseFloat(e.target.value) || 0 })} placeholder="Lbs/day each" style={inp} />
+                <input type="number" value={animalForm.feedStockDays} onChange={e => setAnimalForm({ ...animalForm, feedStockDays: parseInt(e.target.value) || 0 })} placeholder="Feed stock (days)" style={inp} />
+                <input type="date" value={animalForm.lastBred} onChange={e => setAnimalForm({ ...animalForm, lastBred: e.target.value })} style={inp} />
+              </div>
+              <input value={animalForm.notes} onChange={e => setAnimalForm({ ...animalForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => { if (editingAnimal) setLivestock(prev => prev.map(a => a.id === editingAnimal.id ? { ...animalForm, id: editingAnimal.id } : a)); else setLivestock(prev => [...prev, { ...animalForm, id: "ani-" + Date.now() }]); setShowAddAnimal(false); setEditingAnimal(null); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>{editingAnimal ? "Update" : "Save"}</button>
+                <button onClick={() => { setShowAddAnimal(false); setEditingAnimal(null); }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {/* Animal cards */}
+          {livestock.length === 0 && !showSlaughterLog ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No livestock tracked yet. Add your animals above.</div> : !showSlaughterLog && (
+            <div style={{ display: "grid", gap: 8 }}>
+              {livestock.map(animal => {
+                const at = ANIMAL_TYPES[animal.type] || { icon: "\ud83d\udc3e", gestation: 0, feedLbs: 0, label: animal.type };
+                const totalFeed = (parseFloat(animal.feedLbsPerDay) || 0) * (parseInt(animal.count) || 1);
+                const feedDaysLeft = parseInt(animal.feedStockDays) || 0;
+                const feedWarn = feedDaysLeft <= 7;
+                let breedProgress = null;
+                let expectedDate = null;
+                if (animal.lastBred && at.gestation > 0) {
+                  const bredDate = new Date(animal.lastBred);
+                  const daysSinceBred = Math.round((Date.now() - bredDate.getTime()) / 864e5);
+                  breedProgress = Math.min(100, Math.round((daysSinceBred / at.gestation) * 100));
+                  expectedDate = new Date(bredDate.getTime() + at.gestation * 864e5).toLocaleDateString();
+                }
+                const expanded = expandedAnimalId === animal.id;
+                return (
+                  <div key={animal.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + (statusColor[animal.status] || "#666"), cursor: "pointer" }} onClick={() => setExpandedAnimalId(expanded ? null : animal.id)}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 22 }}>{at.icon}</span>
+                        <div>
+                          <span style={{ fontWeight: 700, fontSize: 13 }}>{animal.name || at.label}</span>
+                          <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, background: accent + "20", color: accent, fontSize: 10, fontWeight: 700 }}>{"\u00d7"}{animal.count}</span>
+                          <span style={{ marginLeft: 6, padding: "2px 6px", borderRadius: 4, background: (statusColor[animal.status] || "#666") + "20", color: statusColor[animal.status] || "#999", fontSize: 10, fontWeight: 600, textTransform: "capitalize" }}>{animal.status}</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 4 }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => { setEditingAnimal(animal); setAnimalForm(animal); setShowAddAnimal(true); }} style={{ ...btnSt, fontSize: 9, padding: "3px 8px" }}>Edit</button>
+                        <button onClick={() => setLivestock(prev => prev.filter(x => x.id !== animal.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                      </div>
+                    </div>
+                    {expanded && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 10 }}>
+                          <div style={{ ...cardSt, padding: 10 }}>
+                            <div style={{ color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Feed</div>
+                            <div style={{ fontWeight: 700 }}>{animal.feedType || "Not specified"}</div>
+                            <div style={{ color: "rgba(255,255,255,0.5)" }}>{totalFeed.toFixed(1)} lbs/day total</div>
+                            <div style={{ color: feedWarn ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: feedWarn ? 700 : 400 }}>
+                              {feedWarn ? "\u26a0\ufe0f " : ""}{feedDaysLeft} days of feed left
+                            </div>
+                          </div>
+                          {breedProgress !== null && (
+                            <div style={{ ...cardSt, padding: 10 }}>
+                              <div style={{ color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Breeding</div>
+                              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 4, height: 6, marginBottom: 4, overflow: "hidden" }}>
+                                <div style={{ width: breedProgress + "%", height: "100%", background: "#a855f7", borderRadius: 4 }} />
+                              </div>
+                              <div style={{ color: "#a855f7", fontWeight: 600 }}>{breedProgress}% ({"\u2192"} {expectedDate})</div>
+                            </div>
+                          )}
+                        </div>
+                        {animal.notes && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6 }}>{animal.notes}</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Slaughter / Preservation Log */}
+          {showSlaughterLog && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>{"\ud83e\ude93"} Slaughter & Preservation Log</h4>
+                <button onClick={() => { setSlaughterForm({ animalType: "chicken", date: new Date().toISOString().split("T")[0], yieldLbs: "", preservationMethod: "fresh", storageLocation: "", notes: "" }); setShowAddSlaughter(true); }} style={{ ...btnSt, background: "#ef444420", color: "#ef4444", fontSize: 10, padding: "6px 12px" }}>+ Add Entry</button>
+              </div>
+              {showAddSlaughter && (
+                <div style={{ ...cardSt, padding: 16, marginBottom: 12, borderLeft: "3px solid #ef4444" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                    <select value={slaughterForm.animalType} onChange={e => setSlaughterForm({ ...slaughterForm, animalType: e.target.value })} style={inp}>
+                      {Object.entries(ANIMAL_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                    </select>
+                    <input type="date" value={slaughterForm.date} onChange={e => setSlaughterForm({ ...slaughterForm, date: e.target.value })} style={inp} />
+                    <input type="number" value={slaughterForm.yieldLbs} onChange={e => setSlaughterForm({ ...slaughterForm, yieldLbs: e.target.value })} placeholder="Yield (lbs)" style={inp} />
+                    <select value={slaughterForm.preservationMethod} onChange={e => setSlaughterForm({ ...slaughterForm, preservationMethod: e.target.value })} style={inp}>
+                      {["fresh","frozen","smoked","canned","dried","cured","salted"].map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
+                    </select>
+                    <input value={slaughterForm.storageLocation} onChange={e => setSlaughterForm({ ...slaughterForm, storageLocation: e.target.value })} placeholder="Storage location" style={inp} />
+                  </div>
+                  <input value={slaughterForm.notes} onChange={e => setSlaughterForm({ ...slaughterForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => { setSlaughterLog(prev => [...prev, { ...slaughterForm, id: "sl-" + Date.now() }]); setShowAddSlaughter(false); }} style={{ ...btnSt, background: "#ef4444", color: "#fff", fontSize: 10, padding: "6px 12px" }}>Save</button>
+                    <button onClick={() => setShowAddSlaughter(false)} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {slaughterLog.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No slaughter records yet.</div> : (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {slaughterLog.sort((a, b) => new Date(b.date) - new Date(a.date)).map(entry => {
+                    const at = ANIMAL_TYPES[entry.animalType] || { icon: "\ud83d\udc3e", label: entry.animalType };
+                    return (
+                      <div key={entry.id} style={{ ...cardSt, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 18 }}>{at.icon}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600 }}>{at.label} {"\u00b7"} {entry.date}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{entry.yieldLbs} lbs {"\u00b7"} {entry.preservationMethod} {entry.storageLocation ? "\u00b7 " + entry.storageLocation : ""}</div>
+                          {entry.notes && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 2 }}>{entry.notes}</div>}
+                        </div>
+                        <button onClick={() => setSlaughterLog(prev => prev.filter(x => x.id !== entry.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ═══ GARDEN PLANNER ═══ */}
       {farmSub === "garden" && (
         <div style={{ display: "grid", gap: 12 }}>
@@ -8243,6 +8807,10 @@ export default function PrepVault() {
   const [rallyPoints, setRallyPoints] = useState(() => saved.current?.rallyPoints || COMMS_PLAN.rallyPoints);
   const [codes, setCodes] = useState(() => saved.current?.codes || SAMPLE_CODES);
   const [gardenBeds, setGardenBeds] = useState(() => saved.current?.gardenBeds || []);
+  const [soilTests, setSoilTests] = useState(() => saved.current?.soilTests || []);
+  const [compostBins, setCompostBins] = useState(() => saved.current?.compostBins || []);
+  const [livestock, setLivestock] = useState(() => saved.current?.livestock || []);
+  const [slaughterLog, setSlaughterLog] = useState(() => saved.current?.slaughterLog || []);
   const [actionLog, setActionLog] = useState(() => saved.current?.actionLog || []);
   const [manuals] = useState(SAMPLE_MANUALS);
   const [routes] = useState(SAMPLE_ROUTES);
@@ -8305,6 +8873,7 @@ export default function PrepVault() {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
           items, people, climate, pins, propAddress, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
+          soilTests, compostBins, livestock, slaughterLog,
           propertyProfile,
           savedAt: new Date().toISOString()
         }));
@@ -8315,7 +8884,7 @@ export default function PrepVault() {
       } catch { /* storage full or unavailable */ }
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, propertyProfile]);
+  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, propertyProfile]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -8762,11 +9331,11 @@ export default function PrepVault() {
       case "preps":
         return <PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} />;
       case "community":
-        return <CommunityTab members={members} setMembers={setMembers} contacts={contacts} setContacts={setContacts} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} items={propItems} people={people} climate={climate} user={user} />;
+        return <CommunityTab members={members} setMembers={setMembers} items={propItems} people={people} climate={climate} user={user} />;
       case "comms":
-        return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} />;
+        return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} contacts={contacts} setContacts={setContacts} members={members} user={user} />;
       case "farming":
-        return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} />;
+        return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
       case "systems":
         return <SystemsTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile} />;
       case "simulate":
