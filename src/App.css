@@ -1,0 +1,1591 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #fafaf9;
+  --text: #1a1a1a;
+  --text-muted: #6b7280;
+  --accent: #e85d04;
+  --accent-hover: #d45203;
+  --card-bg: #ffffff;
+  --border: #e5e7eb;
+  --green: #059669;
+  --green-bg: #ecfdf5;
+  --inactive-bg: #f4f4f5;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.12);
+  --radius: 12px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+/* Landing Page */
+.landing {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.landing-header {
+  text-align: left;
+  margin-bottom: 48px;
+}
+
+.logo {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.landing-subtitle {
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+  padding: 14px 24px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.filter-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--inactive-bg);
+}
+
+.traveler-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid var(--inactive-bg);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stepper-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--inactive-bg);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.stepper-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.stepper-count {
+  width: 40px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.filter-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  padding: 8px 32px 8px 12px;
+  border: 1.5px solid var(--inactive-bg);
+  border-radius: 8px;
+  background: var(--card-bg);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  min-width: 120px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border: 1.5px solid var(--inactive-bg);
+  border-radius: 20px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filter-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.no-results {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.trip-card-per-person {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.trip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+
+.trip-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.trip-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.trip-card-image {
+  height: 220px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.trip-card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(transparent 50%, rgba(0,0,0,0.5));
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+}
+
+.trip-card-flag {
+  font-size: 32px;
+}
+
+.trip-card-spots {
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trip-card-info {
+  padding: 20px;
+}
+
+.trip-card-info h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.trip-card-tagline {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.trip-card-meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.trip-card-price {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.trip-card-duration,
+.trip-card-date {
+  font-size: 14px;
+  color: var(--text-muted);
+  background: var(--inactive-bg);
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+
+/* Trip Page */
+.trip-page {
+  min-height: 100vh;
+}
+
+.trip-hero {
+  height: 400px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 32px;
+}
+
+.trip-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 30%, rgba(0,0,0,0.7));
+}
+
+.back-btn {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 2;
+  transition: background 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.trip-hero-content {
+  position: relative;
+  z-index: 1;
+  color: white;
+}
+
+.trip-hero-content h1 {
+  font-size: 36px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.trip-hero-dates {
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+.trip-hero-spots {
+  display: inline-block;
+  margin-top: 12px;
+  background: var(--accent);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Sticky Price Bar */
+.trip-sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.trip-sticky-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.price-breakdown {
+  display: flex;
+  flex-direction: column;
+}
+
+.price-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.price-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.price-total .price-value {
+  font-size: 24px;
+  color: var(--accent);
+}
+
+.price-plus, .price-equals {
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 300;
+}
+
+.trip-sticky-right {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-book {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-book:hover {
+  background: var(--accent-hover);
+}
+
+.btn-custom {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-custom:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Trip Content */
+.trip-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* Personality Bar */
+.personality-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.personality-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.personality-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.personality-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.personality-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* Flight Card */
+.flight-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.flight-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.flight-option:hover {
+  border-color: var(--accent);
+}
+
+.flight-option.selected {
+  border-color: var(--accent);
+  background: #fff8f4;
+}
+
+.flight-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.flight-radio.checked {
+  border-color: var(--accent);
+}
+
+.flight-radio.checked::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.flight-option-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flight-option-info strong {
+  font-size: 13px;
+}
+
+.flight-option-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.flight-option-label.upgrade-label {
+  color: var(--accent);
+}
+
+.flight-option-price {
+  font-weight: 700;
+  font-size: 16px;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.flight-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 32px;
+}
+
+.flight-icon {
+  font-size: 24px;
+}
+
+.flight-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flight-info strong {
+  font-size: 14px;
+}
+
+.flight-included {
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.flight-price {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* Hotels Section */
+.hotels-section {
+  margin-bottom: 32px;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.hotel-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.hotel-card-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.hotel-option {
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-right: 1px solid var(--border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hotel-option:last-child {
+  border-right: none;
+}
+
+.hotel-option.selected {
+  background: #fff7ed;
+}
+
+.hotel-option.upgrade.selected {
+  background: #fef3c7;
+}
+
+.hotel-option:hover:not(.selected) {
+  background: var(--inactive-bg);
+}
+
+.hotel-option-image {
+  width: 100%;
+  height: 100px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+}
+
+.hotel-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.hotel-option-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.upgrade-label {
+  color: #d97706;
+}
+
+.hotel-option-info strong {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.hotel-option-price {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.upgrade-diff {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.hotel-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  transition: all 0.2s;
+}
+
+.hotel-radio.checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px white;
+}
+
+.hotel-card-detail {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--inactive-bg);
+}
+
+.hotel-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.hotel-segment-badge {
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--text);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.hotel-days {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.hotel-description {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.hotel-total {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.hotel-total strong {
+  color: var(--accent);
+}
+
+/* Segments */
+.segment {
+  margin-bottom: 40px;
+}
+
+.segment-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--text);
+}
+
+.segment-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.segment-days {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Stay Card */
+.stay-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--green-bg);
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+
+.stay-icon {
+  font-size: 20px;
+}
+
+.stay-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stay-info strong {
+  font-size: 14px;
+}
+
+.stay-detail {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stay-price {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.stay-included {
+  font-size: 11px;
+  color: var(--green);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Experience Cards */
+.experiences-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.experience-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  transition: all 0.2s;
+}
+
+.experience-clickable {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.experience-card.active {
+  border-color: var(--accent);
+  background: #fff7ed;
+}
+
+.experience-card.inactive {
+  opacity: 0.6;
+}
+
+.experience-card.included {
+  cursor: default;
+  background: var(--green-bg);
+  border-color: #a7f3d0;
+  opacity: 1;
+}
+
+.experience-card:hover:not(.included) {
+  border-color: var(--accent);
+}
+
+/* Toggle Switch */
+.experience-toggle {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.toggle-switch {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.toggle-switch.on {
+  background: var(--accent);
+}
+
+.toggle-switch.off {
+  background: #d1d5db;
+}
+
+.included .toggle-switch {
+  background: var(--green);
+}
+
+.toggle-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  transition: left 0.2s;
+}
+
+.toggle-switch.on .toggle-knob {
+  left: 18px;
+}
+
+.toggle-switch.off .toggle-knob {
+  left: 2px;
+}
+
+.experience-emoji {
+  font-size: 24px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.experience-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.experience-name {
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.popular-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: #fff7ed;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid #fed7aa;
+  white-space: nowrap;
+}
+
+.experience-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.experience-price {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.experience-price .free {
+  color: var(--green);
+  font-size: 13px;
+}
+
+.experience-duration {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--inactive-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+/* Activity Detail Modal */
+.activity-detail {
+  background: var(--card-bg);
+  border-radius: 16px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.activity-detail .modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  background: rgba(0,0,0,0.4);
+  color: white;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+}
+
+.activity-detail .modal-close:hover {
+  background: rgba(0,0,0,0.6);
+}
+
+.activity-detail-image {
+  height: 280px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 16px 16px 0 0;
+  position: relative;
+}
+
+.activity-detail-image-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 60%, rgba(0,0,0,0.4));
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 20px;
+}
+
+.activity-detail-emoji {
+  font-size: 40px;
+}
+
+.activity-detail-body {
+  padding: 24px;
+}
+
+.activity-detail-body h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.activity-detail-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.activity-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--inactive-bg);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.meta-icon {
+  font-size: 14px;
+}
+
+.activity-meta-price {
+  background: #fff7ed;
+  color: var(--accent);
+  font-weight: 600;
+  border: 1px solid #fed7aa;
+}
+
+.activity-detail-desc {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+
+.activity-detail-section {
+  margin-bottom: 24px;
+}
+
+.activity-detail-section h3 {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.activity-included-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-included-list li {
+  font-size: 14px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.activity-included-list li::before {
+  content: '\2713';
+  position: absolute;
+  left: 0;
+  color: var(--green);
+  font-weight: 700;
+}
+
+/* Host Card */
+.activity-host-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--inactive-bg);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+}
+
+.host-photo {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.host-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.host-info strong {
+  font-size: 15px;
+}
+
+.host-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.host-contact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.host-contact-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* Activity Detail Actions */
+.activity-detail-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.btn-toggle-activity {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--accent);
+  color: white;
+  border: none;
+}
+
+.btn-toggle-activity:hover {
+  background: var(--accent-hover);
+}
+
+.btn-toggle-activity.added {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.btn-toggle-activity.added:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.btn-close-detail {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.btn-close-detail:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+/* Custom CTA */
+.custom-cta-section {
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-top: 40px;
+}
+
+.custom-cta-section h3 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.custom-cta-section p {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.btn-custom-large {
+  background: var(--text);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-custom-large:hover {
+  opacity: 0.85;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 36px;
+  max-width: 480px;
+  width: 100%;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.modal-close:hover {
+  background: var(--inactive-bg);
+}
+
+.modal h2 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.modal p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal input,
+.modal textarea {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modal input:focus,
+.modal textarea:focus {
+  border-color: var(--accent);
+}
+
+.modal .btn-book {
+  margin-top: 4px;
+  width: 100%;
+}
+
+/* Landing header with sign up */
+.landing-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signup-btn {
+  padding: 8px 20px;
+  border: 2px solid var(--accent);
+  border-radius: 24px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.signup-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Booking modal */
+.booking-modal {
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.booking-section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+.booking-section h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.passenger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.passenger-header h3 {
+  margin-bottom: 0;
+}
+
+.remove-passenger-btn {
+  border: none;
+  background: none;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.remove-passenger-btn:hover {
+  text-decoration: underline;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-passenger-btn {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  padding: 12px;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.add-passenger-btn:hover {
+  border-color: var(--accent);
+  background: #fff8f4;
+}
+
+.booking-summary {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+.booking-summary h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.summary-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.summary-total {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Passport upload */
+.passport-upload {
+  margin-top: 4px;
+}
+
+.upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.upload-label:hover {
+  border-color: var(--accent);
+}
+
+.upload-label span {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.upload-label input[type="file"] {
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .filter-divider {
+    display: none;
+  }
+
+  .flight-selector {
+    flex-direction: column;
+  }
+
+  .trip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trip-hero {
+    height: 300px;
+    padding: 20px;
+  }
+
+  .trip-hero-content h1 {
+    font-size: 24px;
+  }
+
+  .trip-sticky-bar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .trip-sticky-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .trip-sticky-right {
+    width: 100%;
+  }
+
+  .trip-sticky-right .btn-book,
+  .trip-sticky-right .btn-custom {
+    flex: 1;
+  }
+
+  .trip-content {
+    padding: 20px 16px 60px;
+  }
+
+  .experience-card {
+    padding: 12px 14px;
+  }
+
+  .experience-desc {
+    display: none;
+  }
+
+  .hotel-option-image {
+    height: 70px;
+  }
+
+  .hotel-option-info strong {
+    font-size: 12px;
+  }
+
+  .activity-detail-image {
+    height: 200px;
+  }
+
+  .activity-detail {
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing {
+    padding: 24px 16px 60px;
+  }
+
+  .trip-card-image {
+    height: 180px;
+  }
+
+  .price-breakdown:not(.price-total) {
+    display: none;
+  }
+
+  .price-plus, .price-equals {
+    display: none;
+  }
+}
