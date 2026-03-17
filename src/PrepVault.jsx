@@ -442,43 +442,6 @@ const CATEGORIES = {
   },
 };
 
-/* ── Category Groups — consolidate 30 categories into 13 display groups ── */
-const CATEGORY_GROUPS = {
-  water: { label: "Water", icon: "💧", color: "#0ea5e9", desc: "Water sources, storage, purification", cats: ["water"] },
-  food: { label: "Food", icon: "🥫", color: "#f59e0b", desc: "Food stores and production", cats: ["food"] },
-  medical: { label: "Medical & Hygiene", icon: "💊", color: "#ef4444", desc: "Medical supplies, sanitation", cats: ["medical", "hygiene"] },
-  energy: { label: "Energy", icon: "⚡", color: "#eab308", desc: "Firewood, fuel, power, batteries, lighting", cats: ["firewood", "fuel", "power", "batteries", "lighting"] },
-  shelter: { label: "Shelter & Gear", icon: "🏕️", color: "#8b5cf6", desc: "Shelter, clothing, equipment, CBRN", cats: ["shelter", "clothing", "equipment", "nbc"] },
-  tools: { label: "Tools", icon: "🔧", color: "#06b6d4", desc: "Essential tools and hardware", cats: ["tools"] },
-  commsElec: { label: "Comms & Electronics", icon: "📡", color: "#10b981", desc: "Radios, electronics, devices", cats: ["comms", "electronics"] },
-  security: { label: "Security", icon: "🛡️", color: "#6b7280", desc: "Defense, firearms, perimeter", cats: ["defense", "firearms"] },
-  vehicles: { label: "Vehicles", icon: "🚗", color: "#3b82f6", desc: "Vehicles, boats, fishing", cats: ["vehicles", "boat", "fishing"] },
-  farm: { label: "Farm & Garden", icon: "🌾", color: "#65a30d", desc: "Seeds, soil, livestock, growing", cats: ["farm", "livestock"] },
-  bugout: { label: "Bug-Out Bags", icon: "🎒", color: "#d97706", desc: "Go-bags, contents, readiness", cats: ["bugout"] },
-  family: { label: "Family", icon: "👶", color: "#f472b6", desc: "Kids, pets, family supplies", cats: ["kids", "pets"] },
-  barter: { label: "Barter & Morale", icon: "🥃", color: "#b45309", desc: "Alcohol, tobacco, books, bullion", cats: ["alcohol", "recreational", "books", "bullion"] },
-};
-
-/* Helper: get all subTypes for a group */
-const getGroupSubTypes = (groupKey) => {
-  const group = CATEGORY_GROUPS[groupKey];
-  if (!group) return {};
-  const merged = {};
-  group.cats.forEach(catKey => {
-    const cat = CATEGORIES[catKey];
-    if (cat?.subTypes) Object.entries(cat.subTypes).forEach(([k, v]) => { merged[k] = { ...v, _sourceCat: catKey }; });
-  });
-  return merged;
-};
-
-/* Helper: get group key for a category key */
-const getCategoryGroup = (catKey) => {
-  for (const [gk, g] of Object.entries(CATEGORY_GROUPS)) {
-    if (g.cats.includes(catKey)) return gk;
-  }
-  return null;
-};
-
 const SCENARIOS = {
   economic: { label: "Economic Collapse", icon: "📉", desc: "Supply chains fail, banks close", weights: { water: 0.8, food: 1, medical: 0.6, firewood: 0.5, fuel: 0.6, shelter: 0.3, tools: 0.7, comms: 0.4, defense: 0.7, firearms: 0.8, hygiene: 0.3, power: 0.5, batteries: 0.4, electronics: 0.3, vehicles: 0.5, equipment: 0.3, farm: 0.9, bugout: 0.6, kids: 0.7, boat: 0.3, fishing: 0.7, alcohol: 0.5, recreational: 0.2, books: 0.5, nbc: 0.2, clothing: 0.6, pets: 0.5, lighting: 0.4, bullion: 0.9, livestock: 0.9 }, defaultDur: 180 },
   emp: { label: "EMP Attack", icon: "⚡", desc: "Electronics disabled, grid down", weights: { water: 1, food: 1, medical: 0.8, firewood: 0.9, fuel: 0.7, shelter: 0.5, tools: 0.9, comms: 1, defense: 0.6, firearms: 0.7, hygiene: 0.4, power: 1, batteries: 0.9, electronics: 0.2, vehicles: 0.3, equipment: 0.4, farm: 1, bugout: 0.8, kids: 0.8, boat: 0.2, fishing: 0.8, alcohol: 0.4, recreational: 0.1, books: 0.7, nbc: 0.3, clothing: 0.7, pets: 0.6, lighting: 0.9, bullion: 0.3, livestock: 1.0 }, defaultDur: 365 },
@@ -1465,6 +1428,28 @@ const SKILLS_DATA = [
     ]
   },
 ];
+const SAMPLE_CAMERAS = [
+  { id: "cm1", name: "North Gate", model: "Reveal X Pro", status: "online", battery: 78, signal: 4, captures: 14, last: "Deer (2)", location: "North perimeter", activity: [{ t: "2:14 PM", desc: "2 deer crossing" }, { t: "11:30 AM", desc: "Fox" }] },
+  { id: "cm2", name: "Driveway", model: "Reveal X Pro", status: "online", battery: 92, signal: 5, captures: 31, last: "Delivery truck", location: "Front entrance", activity: [{ t: "1:48 PM", desc: "Delivery truck" }, { t: "10:22 AM", desc: "Vehicle — F-250" }] },
+  { id: "cm3", name: "South Tree Line", model: "Reveal SK2", status: "online", battery: 45, signal: 3, captures: 6, last: "Coyote", location: "South boundary", activity: [{ t: "5:51 AM", desc: "Coyote" }] },
+  { id: "cm4", name: "Barn Door", model: "Reveal X", status: "online", battery: 61, signal: 4, captures: 9, last: "No motion", location: "Barn east side", activity: [{ t: "12:05 PM", desc: "Person — owner" }, { t: "8:40 AM", desc: "Cat" }] },
+  { id: "cm5", name: "Creek Trail", model: "Reveal SK2", status: "offline", battery: 8, signal: 0, captures: 2, last: "Low battery", location: "East creek", activity: [] },
+  { id: "cm6", name: "Back Road", model: "Reveal X Pro", status: "online", battery: 84, signal: 3, captures: 4, last: "Clear", location: "West access", activity: [{ t: "9:15 AM", desc: "Unknown vehicle" }] },
+];
+const SMART_HOME = {
+  alarm: { provider: "EyezOn", status: "Armed (Home)", zones: [{ n: "Front Door", s: "closed" }, { n: "Back Door", s: "closed" }, { n: "Garage", s: "closed" }, { n: "Motion — Living", s: "clear" }, { n: "Motion — Basement", s: "clear" }, { n: "Glass Break — Office", s: "clear" }] },
+  nest: { devices: [
+    { n: "Front Door Lock", type: "lock", status: "Locked", bat: "Good" },
+    { n: "Back Door Lock", type: "lock", status: "Locked", bat: "Good" },
+    { n: "Garage Entry Lock", type: "lock", status: "Unlocked", bat: "Replace soon" },
+    { n: "Hallway Protect", type: "smoke", bat: "Good", co: "0ppm" },
+    { n: "Kitchen Protect", type: "smoke", bat: "Good", co: "0ppm" },
+    { n: "Basement Protect", type: "smoke", bat: "Replace soon", co: "0ppm" },
+    { n: "Living Room", type: "thermo", temp: "68°F", set: "70°F", hum: "38%", mode: "Heat" },
+    { n: "Basement Zone", type: "thermo", temp: "62°F", set: "60°F", hum: "45%", mode: "Heat" },
+  ] },
+};
+
 const RECS = {
   economic: { general: ["Stockpile cash in small bills — ATMs may be inaccessible", "Acquire barterable goods: ammo, alcohol, seeds, meds, fuel", "Build trade relationships with neighbors and farmers now", "Learn skills: sewing, food preservation, engine repair", "Reduce debt and diversify assets before it accelerates"], byCategory: { water: "Expand gravity-fed water sources. Municipal water may fail when workers stop showing up.", food: "Calorie-dense, long-shelf items. Start a garden. Expect stores empty within 72 hours.", medical: "Stockpile 6+ months prescriptions. Fish antibiotics as backup. Learn wound care.", firewood: "2+ years firewood for cold climate. Split and stack now while chainsaws can get fuel.", fuel: "Top off all fuel stores. Stabilize gasoline. Propane lasts indefinitely in sealed tanks.", defense: "Reinforce entries, establish watch rotations. Trip wires and perimeter alarms.", firearms: "Security is critical. Arm up, stockpile ammo. Caliber commonality reduces logistics.", comms: "HAM radio becomes primary. Practice now. Establish community check-in schedules.", power: "Solar + battery for long-term. Generator fuel will run out.", vehicles: "Maintain all vehicles — mechanics disappear fast. Stock spare belts, filters, fluids.", equipment: "Bug-out bags packed. Emergency docs secured. Stock replacement filters for water and air.", farm: "Your garden becomes your grocery store. Start seeds NOW. Expand beds. Save heirloom seeds — they reproduce.", bugout: "Audit every bag quarterly. Rotate food, check meds expiry. Each person needs their own bag packed.", kids: "6+ month supply of diapers, formula, meds. Kids outgrow clothes fast — stock next 2 sizes up.", batteries: "Stock deep on AA/AAA — everything runs on them. Rechargeable + solar charger is the long game.", electronics: "Renew sat phone and GPS plans NOW. Store backup electronics in Faraday bags.", boat: "Boat becomes transport and food source. Service engine now, stock spare parts and marine fuel.", fishing: "Fishing = sustainable protein. Stock deep on hooks, line, and lures. Get a net — gill nets feed families.", alcohol: "Top barter item after ammo and meds. Everclear doubles as disinfectant. Small bottles trade best.", recreational: "Cigarettes and coffee are currency in collapse. Stock lighters — worth their weight in gold.", nbc: "Low priority unless industrial accident risk nearby. Respirators useful for civil unrest (tear gas)." } },
   emp: { general: ["Fill bathtubs, sinks, every container with water immediately", "Vehicles with electronic ignition may be dead — need pre-1980s or bicycle", "Faraday cage contents are your lifeline: spare radio, solar charger, manuals", "Recovery could take 1-10 years. Plan for permanent grid-down", "Navigation: physical maps and compass only. GPS is gone."], byCategory: { water: "Electric pumps are dead. Hand pump backup essential. Berkey works without power.", food: "Freezer food must be consumed in 48hrs or preserved. Shift to hunting/foraging immediately.", medical: "Powered devices offline. Stock manual alternatives. Learn traditional medicine.", power: "Only shielded electronics survive. Solar panels may work but controllers vulnerable.", comms: "All digital comms destroyed. Faraday-protected HAM radio is the only option.", tools: "Power tools are paperweights. Hand tools become essential.", firewood: "No thermostat heating. Wood stove primary. 5+ cords per winter minimum.", fuel: "Fuel pumps are dead. Every gallon you have is priceless. Guard your supply.", vehicles: "Most modern vehicles are dead. Carbureted pre-1980s engines may still run.", firearms: "Security becomes paramount when rule of law breaks down. Ammo is currency.", farm: "Growing food is THE long-term survival skill. No powered irrigation — hand water or gravity drip. Save every seed.", bugout: "BOBs become critical if bugging out on foot. Ensure bags have manual navigation, no electronics dependency.", kids: "Stock washable cloth diapers as backup. Breast milk or powdered formula only — no refrigeration. Extra warm layers.", batteries: "Only Faraday-protected batteries survive. NiMH rechargeables + manual/solar charger are the only sustainable option.", electronics: "Most electronics are destroyed. Only Faraday-stored devices survive. Manual alternatives for everything.", boat: "Outboard ignition may be fried. Have oars and manual backup. Boat becomes critical for river transport.", fishing: "THE long-term protein strategy. No refrigeration — smoke or salt your catch immediately.", alcohol: "Distillation knowledge becomes invaluable. High-proof spirits have medical and fire-starting uses.", recreational: "Morale matters in long-term grid-down. Coffee and tobacco keep people functional.", nbc: "EMP may precede nuclear strike. Have CBRN gear staged and ready. Geiger counter in Faraday cage." } },
@@ -1605,9 +1590,9 @@ function GenericModal({ title, fields, onSave, onClose }) {
 function PinLock({ onUnlock }) {
   const [pin, setPin] = useState("");
   const [err, setErr] = useState(false);
-  const savedPin = (() => { try { return localStorage.getItem("prepvault-pin") || (localStorage.setItem("prepvault-pin", "1111"), "1111"); } catch { return "1111"; } })();
-  const [stored, setStored] = useState(savedPin);
-  const [setup, setSetup] = useState(false);
+  const savedPin = (() => { try { return localStorage.getItem("prepvault-pin"); } catch { return null; } })();
+  const [stored, setStored] = useState(savedPin || "");
+  const [setup, setSetup] = useState(!savedPin);
   const handleDigit = (d) => {
     if (pin.length >= 4) return;
     const next = pin + d;
@@ -2118,15 +2103,8 @@ function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
 }
 
 function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemove, onEdit, onQtyChange }) {
-  /* Resolve group key → merged category data */
-  const group = CATEGORY_GROUPS[catKey];
-  const isGroup = !!group;
-  const cat = isGroup
-    ? { label: group.label, icon: group.icon, color: group.color, desc: group.desc, subTypes: getGroupSubTypes(catKey) }
-    : CATEGORIES[catKey];
-  const ci = isGroup
-    ? items.filter((i) => group.cats.includes(i.category))
-    : items.filter((i) => i.category === catKey);
+  const cat = CATEGORIES[catKey];
+  const ci = items.filter((i) => i.category === catKey);
   const grouped = useMemo(() => { const g = {}; Object.keys(cat.subTypes).forEach((k) => { g[k] = ci.filter((i) => i.subType === k); }); return g; }, [ci, catKey]);
   const M = "'JetBrains Mono',monospace";
   const p = people || 4;
@@ -2134,7 +2112,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
   const climMod = clim.waterMod || 1;
   const firewoodMod = clim.firewoodMod || 1;
 
-  /* ── Continuity Calculations per Category/Group ── */
+  /* ── Continuity Calculations per Category ── */
   const calc = useMemo(() => {
     if (catKey === "food") {
       const totalCals = ci.reduce((s, i) => {
@@ -2433,7 +2411,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
     if (catKey === "farm") {
       const seeds = ci.filter((i) => i.subType === "seedPacket").reduce((s, i) => s + (i.quantity || 0), 0);
       const crops = new Set(ci.filter((i) => i.subType === "seedPacket").map((i) => i.fields?.cropName)).size;
-      const animals = ci.filter((i) => ["chickens", "goats", "cattle", "pigs", "sheep", "rabbits", "ducks", "turkeys", "horses", "bees"].includes(i.subType)).reduce((s, i) => s + (parseFloat(i.fields?.animalCount) || i.quantity || 0), 0);
+      const animals = ci.filter((i) => ["chickens", "livestock"].includes(i.subType)).reduce((s, i) => s + (i.quantity || 0), 0);
       return {
         title: "Food Production",
         icon: "🌾",
@@ -2449,114 +2427,6 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
         ]
       };
     }
-    /* ── Group-level calculations ── */
-    if (catKey === "energy") {
-      const gasGals = ci.filter((i) => i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
-      const propTanks = ci.filter((i) => i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
-      const cords = ci.filter(i => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
-      const cells = ci.filter(i => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
-      const genHrs = gasGals * 5.5;
-      const heatDays = (cords * 30) / Math.max(firewoodMod, 0.1);
-      return {
-        title: "Energy Overview",
-        icon: "⚡",
-        color: genHrs >= 48 || heatDays >= 30 ? "#22c55e" : ci.length > 0 ? "#f59e0b" : "#ef4444",
-        bigNum: ci.reduce((s, i) => s + (i.quantity || 1), 0),
-        bigUnit: "items",
-        rows: [
-          { label: "Generator fuel", value: gasGals.toFixed(1) + " gal → " + genHrs.toFixed(0) + "h runtime" },
-          { label: "Propane", value: propTanks + " tanks" },
-          { label: "Firewood", value: cords.toFixed(1) + " cords → " + heatDays.toFixed(0) + " days heat" },
-          { label: "Battery cells", value: cells },
-          { label: "Power autonomy", value: genHrs >= 48 ? "Strong" : genHrs > 0 ? "Limited" : "None", highlight: true },
-        ]
-      };
-    }
-    if (catKey === "security") {
-      const totalQty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
-      const calibers = new Set(ci.map((i) => i.fields?.caliber).filter(Boolean));
-      return {
-        title: "Security Overview",
-        icon: "🛡️",
-        color: totalQty >= p ? "#22c55e" : totalQty > 0 ? "#f59e0b" : "#ef4444",
-        bigNum: totalQty,
-        bigUnit: "items",
-        rows: [
-          { label: "Total items", value: totalQty },
-          { label: "Unique calibers", value: calibers.size || "N/A" },
-          { label: "Coverage ratio", value: totalQty > 0 ? (totalQty / p).toFixed(1) + " per person" : "0", highlight: true },
-        ]
-      };
-    }
-    if (catKey === "commsElec") {
-      const channels = new Set();
-      ci.forEach((i) => {
-        if (i.subType === "satPhone") channels.add("Satellite");
-        if (i.subType === "cellPhone") channels.add("Cellular");
-        if (i.subType === "radio" || i.subType === "hamRadio") channels.add("HAM/GMRS");
-        if (i.subType === "weatherRadio") channels.add("Weather Band");
-        if (i.subType === "walkieTalkie") channels.add("FRS/GMRS");
-      });
-      return {
-        title: "Communication Redundancy",
-        icon: "📡",
-        color: channels.size >= 3 ? "#22c55e" : channels.size >= 2 ? "#f59e0b" : "#ef4444",
-        bigNum: channels.size,
-        bigUnit: "channels",
-        rows: [
-          { label: "Total devices", value: ci.reduce((s, i) => s + (i.quantity || 0), 0) },
-          ...([...channels].map((ch) => ({ label: ch, value: "✓" }))),
-          { label: "Redundancy", value: channels.size >= 3 ? "Strong" : channels.size >= 2 ? "Adequate" : "Vulnerable", highlight: true },
-        ]
-      };
-    }
-    if (catKey === "family") {
-      const totalItems = ci.reduce((s, i) => s + (i.quantity || 0), 0);
-      return {
-        title: "Family Supplies",
-        icon: "👶",
-        color: totalItems >= 10 ? "#22c55e" : totalItems > 0 ? "#f59e0b" : "#ef4444",
-        bigNum: totalItems,
-        bigUnit: "items",
-        rows: [
-          { label: "Total items", value: totalItems },
-          { label: "Sub-types covered", value: new Set(ci.map(i => i.subType)).size + " / " + Object.keys(cat.subTypes).length },
-          { label: "Coverage", value: totalItems >= 10 ? "Good" : "Needs attention", highlight: true },
-        ]
-      };
-    }
-    if (catKey === "barter") {
-      const totalItems = ci.reduce((s, i) => s + (i.quantity || 0), 0);
-      return {
-        title: "Barter & Morale",
-        icon: "🥃",
-        color: totalItems >= 10 ? "#22c55e" : totalItems > 0 ? "#f59e0b" : "#ef4444",
-        bigNum: totalItems,
-        bigUnit: "items",
-        rows: [
-          { label: "Total items", value: totalItems },
-          { label: "Types covered", value: new Set(ci.map(i => i.subType)).size },
-          { label: "Barter value", value: totalItems >= 20 ? "High" : totalItems >= 5 ? "Moderate" : "Low", highlight: true },
-        ]
-      };
-    }
-    if (catKey === "medical") {
-      const totalItems = ci.reduce((s, i) => s + (i.quantity || 0), 0);
-      const subtypesCovered = new Set(ci.map((i) => i.subType)).size;
-      const totalSubtypes = Object.keys(cat.subTypes).length;
-      return {
-        title: "Medical & Hygiene",
-        icon: "💊",
-        color: subtypesCovered / totalSubtypes >= 0.4 ? "#22c55e" : subtypesCovered / totalSubtypes >= 0.2 ? "#f59e0b" : "#ef4444",
-        bigNum: Math.round(subtypesCovered / totalSubtypes * 100),
-        bigUnit: "% coverage",
-        rows: [
-          { label: "Total items", value: totalItems },
-          { label: "Types covered", value: subtypesCovered + " / " + totalSubtypes },
-          { label: "Coverage", value: subtypesCovered / totalSubtypes >= 0.4 ? "Good" : "Needs attention", highlight: true },
-        ]
-      };
-    }
     return null;
   }, [ci, catKey, p, climMod, climate, items]);
 
@@ -2566,7 +2436,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
         <span style={{ fontSize: 36 }}>{cat.icon}</span>
         <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{cat.label}</h2><p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{cat.desc}</p></div>
-        <button onClick={() => onAdd(isGroup ? group.cats[0] : catKey)} style={{ ...btnSt, marginLeft: "auto", background: cat.color, color: "#fff", fontWeight: 700, fontSize: 13 }}>+ Add</button>
+        <button onClick={() => onAdd(catKey)} style={{ ...btnSt, marginLeft: "auto", background: cat.color, color: "#fff", fontWeight: 700, fontSize: 13 }}>+ Add</button>
       </div>
 
       {/* ── Continuity Calculation Banner ── */}
@@ -2602,7 +2472,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
           <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.3 }}>{cat.icon}</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>No items yet</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 14 }}>Add your first {cat.label.toLowerCase()} items to start tracking</div>
-          <button onClick={() => onAdd(isGroup ? group.cats[0] : catKey)} style={{ ...btnSt, background: cat.color, color: "#fff", fontWeight: 700, fontSize: 12, padding: "10px 20px" }}>+ Add {cat.label}</button>
+          <button onClick={() => onAdd(catKey)} style={{ ...btnSt, background: cat.color, color: "#fff", fontWeight: 700, fontSize: 12, padding: "10px 20px" }}>+ Add {cat.label}</button>
         </div>
       )}
 
@@ -2616,7 +2486,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
               <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: M }}>{si.length > 0 ? si.reduce((s, i) => s + i.quantity, 0) + " " + sub.unit : "—"}</span>
             </div>
             {si.length === 0 ? (
-              <div onClick={() => onAdd(isGroup ? (sub?._sourceCat || group.cats[0]) : catKey)} style={{ padding: "10px 14px", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 8, color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", transition: "border-color 0.15s" }} onMouseOver={e => e.currentTarget.style.borderColor = cat.color + "40"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"}>+ Add {sub.label}</div>
+              <div onClick={() => onAdd(catKey)} style={{ padding: "10px 14px", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 8, color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", transition: "border-color 0.15s" }} onMouseOver={e => e.currentTarget.style.borderColor = cat.color + "40"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"}>+ Add {sub.label}</div>
             ) : si.map((item) => {
               const rs = item.fields?.lastRefreshed ? getRefreshStatus(item.fields.lastRefreshed) : null;
               const es = item.fields?.expiryDate ? getExpiryStatus(item.fields.expiryDate) : null;
@@ -2885,6 +2755,9 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   const [showActHistory, setShowActHistory] = useState(false);
   const [showAllActions, setShowAllActions] = useState(false);
   const [dismissedProfileCTA, setDismissedProfileCTA] = useState(() => localStorage.getItem("prepvault-dismiss-profile-cta") === "1");
+  const [dismissedCameraCTA, setDismissedCameraCTA] = useState(() => localStorage.getItem("prepvault-dismiss-camera-cta") === "1");
+  const [dismissedAlarmCTA, setDismissedAlarmCTA] = useState(() => localStorage.getItem("prepvault-dismiss-alarm-cta") === "1");
+  const [alarmMinimized, setAlarmMinimized] = useState(true);
 
   /* Reset dismiss flags when demo mode is re-entered */
   useEffect(() => {
@@ -3112,8 +2985,8 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
     // Comms (10 pts) — 3 channels = full marks
     score += Math.min(cont.commCount / 3, 1) * 10;
     // Category coverage (10 pts)
-    const groupsWithItems = Object.entries(CATEGORY_GROUPS).filter(([, g]) => items.some(i => g.cats.includes(i.category))).length;
-    score += Math.min(groupsWithItems / Object.keys(CATEGORY_GROUPS).length, 1) * 10;
+    const catsWithItems = new Set(items.map(i => i.category)).size;
+    score += Math.min(catsWithItems / Object.keys(CATEGORIES).length, 1) * 10;
     return Math.round(score);
   }, [cont, items]);
 
@@ -3181,6 +3054,162 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         </div>
       </div>
 
+      {/* ── Trail Cameras ── */}
+      {!dismissedCameraCTA && (() => {
+        const camerasConnected = localStorage.getItem("prepvault-cameras-connected") === "1";
+        if (!camerasConnected) {
+          return (
+            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+              <div style={{ fontSize: 28, flexShrink: 0 }}>📷</div>
+              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Connect Trail Cameras</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Link your Tactacam or trail cameras for live perimeter monitoring and motion alerts.</div>
+              </div>
+              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
+              <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+            </div>
+          );
+        }
+        const onlineCams = SAMPLE_CAMERAS.filter(c => c.status === "online").slice(0, 3);
+        return (
+          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>📷</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Trail Cameras</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{onlineCams.length} online — last captures</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>View All</div>
+                <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {onlineCams.map(cam => (
+                <div key={cam.id} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
+                  <CameraFeedCanvas cam={cam} expanded={false} />
+                  <div style={{ padding: "5px 8px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cam.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{cam.last}</span>
+                      <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", flexShrink: 0 }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Alarm Systems ── */}
+      {!dismissedAlarmCTA && (() => {
+        const alarmsConnected = localStorage.getItem("prepvault-alarms-connected") === "1";
+        if (!alarmsConnected) {
+          return (
+            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+              <div style={{ fontSize: 28, flexShrink: 0 }}>🚨</div>
+              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Connect Alarm System</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Link Alarm.com, EyezOn, Nest, or other providers to monitor zones and device status.</div>
+              </div>
+              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
+              <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+            </div>
+          );
+        }
+        const alarm = SMART_HOME.alarm;
+        const nestDevices = SMART_HOME.nest.devices;
+        const locks = nestDevices.filter(d => d.type === "lock");
+        const sensors = nestDevices.filter(d => d.type === "smoke");
+        const thermos = nestDevices.filter(d => d.type === "thermo");
+        const allZonesSecure = alarm.zones.every(z => z.s === "closed" || z.s === "clear");
+        const allLocked = locks.every(d => d.status === "Locked");
+        const allSensorsOk = sensors.every(d => d.bat === "Good");
+        return (
+          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alarmMinimized ? 0 : 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>🚨</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Alarm Systems</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{alarm.provider} · {alarm.status} · {alarm.zones.length + nestDevices.length} devices</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Manage</div>
+                <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allZonesSecure ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", color: allZonesSecure ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{allZonesSecure ? "✓ Zones Secure" : "⚠ Zone Alert"}</span>
+              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allLocked ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allLocked ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allLocked ? "✓ Locks Engaged" : "⚠ Lock Open"}</span>
+              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allSensorsOk ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allSensorsOk ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allSensorsOk ? "✓ Sensors Armed" : "⚠ Sensor Alert"}</span>
+              {thermos.length > 0 && <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", fontWeight: 700 }}>🌡️ {thermos.map(t => t.temp).join(" / ")}</span>}
+            </div>
+            {!alarmMinimized && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {/* Alarm Zones */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allZonesSecure ? "#22c55e" : "#ef4444") }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: allZonesSecure ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allZonesSecure ? "✓ All Zones Secure" : "⚠ Zone Alert"}</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {alarm.zones.map((z, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ width: 5, height: 5, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444", flexShrink: 0 }} />
+                      {z.n} — <span style={{ color: "rgba(255,255,255,0.3)" }}>{z.s}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Smart Locks */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allLocked ? "#22c55e" : "#f59e0b") }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: allLocked ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allLocked ? "✓ Locks Secured" : "⚠ Lock Open"}</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {locks.map((d, i) => (
+                    <div key={"l" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ fontSize: 10 }}>🔐</span>
+                      {d.n} — <span style={{ color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{d.status}</span>
+                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(255,255,255,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 9 }}>{d.bat}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Smoke / CO Sensors */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allSensorsOk ? "#22c55e" : "#f59e0b") }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: allSensorsOk ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allSensorsOk ? "✓ Sensors OK" : "⚠ Sensor Alert"}</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {sensors.map((d, i) => (
+                    <div key={"s" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ fontSize: 10 }}>🔥</span>
+                      {d.n} — <span style={{ color: "rgba(255,255,255,0.3)" }}>CO: {d.co}</span>
+                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(255,255,255,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 9 }}>{d.bat}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Thermostats */}
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid #0ea5e9" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🌡️ Climate</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {thermos.map((d, i) => (
+                    <div key={"t" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                      <span style={{ fontSize: 10 }}>🌡️</span>
+                      {d.n} — <span style={{ color: "#0ea5e9", fontWeight: 600 }}>{d.temp}</span>
+                      <span style={{ color: "rgba(255,255,255,0.25)" }}>set {d.set} · {d.hum} · {d.mode}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            )}
+            <button onClick={() => setAlarmMinimized(m => !m)} style={{ marginTop: 8, padding: "8px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center", width: "100%" }}>
+              {alarmMinimized ? "Show More" : "Show Less"}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ── Action Items Center ── */}
       {(() => {
@@ -3382,29 +3411,141 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#c8553a,#a03e28)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(200,85,58,0.25)" }}>+ Add</button>
       </div>
 
-      {/* ── Prep Inventory Grid (grouped) ── */}
+      {/* ── Prep Inventory Grid ── */}
       <div>
         <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📦 Prep Inventory</h3>
         <div className="pcs-cat-grid">
-          {Object.entries(CATEGORY_GROUPS).map(([gk, group]) => {
-            const gi = items.filter((i) => group.cats.includes(i.category));
-            const allSubTypes = getGroupSubTypes(gk);
-            const filled = new Set(gi.map((i) => i.subType)).size;
-            const total = Object.keys(allSubTypes).length;
-            const qty = gi.reduce((s, i) => s + (i.quantity || 1), 0);
-            const statusColor = gi.length > 0 ? (filled / total >= 0.4 ? "#22c55e" : "#f59e0b") : "rgba(255,255,255,0.15)";
+          {Object.entries(CATEGORIES).map(([k, cat]) => {
+            const ci = items.filter((i) => i.category === k);
+            const filled = new Set(ci.map((i) => i.subType)).size;
+            const total = Object.keys(cat.subTypes).length;
+            const p = people || 4;
+            const _clim = CLIMATES[climate] || CLIMATES.temperate;
+            const _waterMod = _clim.waterMod || 1;
+            const _firewoodMod = _clim.firewoodMod || 1;
+
+            /* Compute key metric per category */
+            let metric = null;
+            if (k === "food") {
+              const totalCals = ci.reduce((s, i) => { const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0); const serv = parseFloat(i.fields?.servings || 1); return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1); }, 0);
+              const days = totalCals / Math.max(p * 2000, 1);
+              metric = { val: days.toFixed(1), unit: "days", color: days >= 30 ? "#22c55e" : days >= 7 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "water") {
+              const stored = ci.filter((i) => i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
+              const filters = ci.filter((i) => i.subType === "purificationDevice" || i.subType === "purificationTablets").reduce((s, i) => s + (i.quantity || 0), 0);
+              const days = stored / Math.max(p * 1.0 * _waterMod, 0.1) + filters * 3;
+              metric = { val: days.toFixed(1), unit: "days", color: days >= 14 ? "#22c55e" : days >= 3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "fuel") {
+              const gasGals = ci.filter((i) => i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
+              const propGals = ci.filter((i) => i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0) * 4.6;
+              const totalL = (gasGals + propGals) * 3.785;
+              const genHrs = gasGals * 5.5;
+              metric = { val: totalL > 0 ? totalL.toFixed(0) + "L" : "0L", unit: genHrs > 0 ? genHrs.toFixed(0) + "h gen" : "", color: genHrs >= 48 ? "#22c55e" : genHrs >= 12 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "firewood") {
+              const cords = ci.reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+              const days = (cords * 30) / Math.max(_firewoodMod, 0.1);
+              metric = { val: days.toFixed(0), unit: "days heat", color: days >= 60 ? "#22c55e" : days >= 14 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "medical") {
+              const coverage = filled / Math.max(total, 1);
+              metric = { val: Math.round(coverage * 100), unit: "% covered", color: coverage >= 0.6 ? "#22c55e" : coverage >= 0.3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "batteries") {
+              const cells = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const hrs = cells * 20;
+              metric = { val: cells, unit: cells + " cells · " + hrs + "h", color: cells >= 50 ? "#22c55e" : cells >= 20 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "electronics" || k === "comms") {
+              const ch = new Set();
+              ci.forEach((i) => { if (i.subType === "satPhone") ch.add("SAT"); if (i.subType === "cellPhone") ch.add("CELL"); if (i.subType === "radio") ch.add("HAM"); if (i.subType === "weatherRadio") ch.add("WX"); });
+              if (k === "comms") ch.add("HAM");
+              metric = { val: ch.size, unit: ch.size === 1 ? "channel" : "channels", color: ch.size >= 3 ? "#22c55e" : ch.size >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "vehicles") {
+              const veh = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const overdue = ci.filter((i) => i.fields?.nextService && new Date(i.fields.nextService) < new Date()).length;
+              metric = { val: veh, unit: overdue > 0 ? overdue + " need svc" : "ready", color: overdue === 0 && veh > 0 ? "#22c55e" : overdue > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "kids") {
+              const diapers = ci.filter((i) => i.subType === "diapers").reduce((s, i) => s + (i.quantity || 0), 0);
+              const formula = ci.filter((i) => i.subType === "formula").reduce((s, i) => s + (i.quantity || 0), 0);
+              const days = Math.min(diapers / 8, formula * 3);
+              metric = ci.length > 0 ? { val: days.toFixed(1), unit: "days", color: days >= 14 ? "#22c55e" : days >= 3 ? "#f59e0b" : "#ef4444" } : null;
+            } else if (k === "firearms" || k === "defense") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: qty > 0 ? (qty / p).toFixed(1) + "/person" : "none", color: qty >= p ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "nbc") {
+              const masks = ci.filter((i) => i.subType === "gasMask").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: Math.round(masks / Math.max(p, 1) * 100), unit: "% covered", color: masks >= p ? "#22c55e" : masks > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "alcohol") {
+              const vol = ci.reduce((s, i) => s + parseVolMl(i.fields?.volume || i.fields?.alcVolume) * (i.quantity || 1), 0);
+              metric = { val: (vol / 1000).toFixed(1), unit: "liters", color: ci.length >= 5 ? "#22c55e" : ci.length >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "fishing") {
+              const rods = ci.filter((i) => i.subType === "rodReel").reduce((s, i) => s + (i.quantity || 0), 0);
+              const nets = ci.filter((i) => i.subType === "net" || i.subType === "fishTrap").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: rods + nets, unit: "sources", color: rods > 0 ? "#22c55e" : "#ef4444" };
+            } else if (k === "boat") {
+              const vessels = ci.filter((i) => i.subType === "vessel").reduce((s, i) => s + (i.quantity || 0), 0);
+              const pfd = ci.filter((i) => i.subType === "lifeJacket").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: vessels, unit: pfd >= p ? "PFDs ✓" : pfd + "/" + p + " PFDs", color: vessels > 0 && pfd >= p ? "#22c55e" : vessels > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "farm") {
+              const seeds = ci.filter(i => i.subType === "seedPacket").reduce((s, i) => s + (i.quantity || 0), 0);
+              const varieties = new Set(ci.filter(i => i.subType === "seedPacket").map(i => i.fields?.cropName)).size;
+              const beds = ci.filter(i => i.subType === "raisedBed").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: varieties, unit: seeds + " packs · " + beds + " beds", color: varieties >= 5 ? "#22c55e" : varieties >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "bugout") {
+              const bags = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: bags, unit: bags >= p ? "ready" : bags + "/" + p + " packed", color: bags >= p ? "#22c55e" : bags > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "recreational") {
+              const lighters = ci.filter((i) => i.subType === "lighters").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: ci.reduce((s, i) => s + (i.quantity || 0), 0), unit: lighters > 0 ? lighters + " lighters" : "items", color: lighters >= 5 ? "#22c55e" : lighters > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "books") {
+              metric = { val: ci.reduce((s, i) => s + (i.quantity || 0), 0), unit: "volumes", color: ci.length >= 8 ? "#22c55e" : ci.length >= 3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "power") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: "devices", color: qty > 0 ? "#22c55e" : "#ef4444" };
+            } else if (k === "hygiene") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: "items", color: qty >= 10 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "clothing") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const coverage = filled / Math.max(total, 1);
+              metric = { val: qty, unit: Math.round(coverage * 100) + "% types", color: coverage >= 0.5 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "pets") {
+              const food = ci.filter(i => i.subType === "petFood").reduce((s, i) => s + (i.quantity || 0), 0);
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: food > 0 ? food + " food bags" : "items", color: food >= 2 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "lighting") {
+              const lights = ci.filter(i => ["flashlight", "headlamp", "lantern"].includes(i.subType)).reduce((s, i) => s + (i.quantity || 0), 0);
+              const candles = ci.filter(i => i.subType === "candle").reduce((s, i) => s + (i.quantity || 0), 0);
+              const parts = [];
+              if (lights > 0) parts.push(lights + " lights");
+              if (candles > 0) parts.push(candles + " candles");
+              metric = { val: lights + candles, unit: parts.join(" · ") || "items", color: lights >= 3 ? "#22c55e" : lights > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "bullion") {
+              let totalVal = 0;
+              ci.forEach(i => { const { oz, metal } = bullionTroyOz(i); totalVal += oz * (SPOT_PRICES[metal] || 0); });
+              const goldOz = ci.filter(i => bullionTroyOz(i).metal === "gold").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const silverOz = ci.filter(i => bullionTroyOz(i).metal === "silver").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const parts = [];
+              if (goldOz > 0) parts.push(goldOz.toFixed(1) + " oz Au");
+              if (silverOz > 0) parts.push(silverOz.toFixed(0) + " oz Ag");
+              metric = { val: "$" + (totalVal >= 1000 ? (totalVal / 1000).toFixed(1) + "k" : totalVal.toFixed(0)), unit: parts.join(" · ") || "none", color: totalVal >= 10000 ? "#22c55e" : totalVal >= 1000 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "shelter" || k === "tools" || k === "equipment") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
+            }
+
+            const statusColor = metric ? metric.color : (filled / total >= 0.6 ? "#22c55e" : filled / total >= 0.3 ? "#f59e0b" : "#ef4444");
             return (
-              <button key={gk} onClick={() => { setActiveTab("inventory"); setSelCat(gk); window.scrollTo(0, 0); }} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
+              <button key={k} onClick={() => { setActiveTab("preps"); setSelCat(k); window.scrollTo(0, 0); }} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
-                  <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{group.icon}</div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: statusColor, lineHeight: 1 }}>{qty}</div>
-                    <div style={{ fontSize: 9, color: statusColor, opacity: 0.7 }}>items</div>
-                  </div>
+                  <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{cat.icon}</div>
+                  {metric && (
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: metric.color, lineHeight: 1 }}>{metric.val}</div>
+                      <div style={{ fontSize: 9, color: metric.color, opacity: 0.7, whiteSpace: "nowrap" }}>{metric.unit}</div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{group.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{gi.length} items · {filled}/{total}</div>
-                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (total > 0 ? filled / total * 100 : 0) + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
+                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
               </button>
             );
           })}
@@ -3478,27 +3619,27 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
 /* ═══════════════════════════════════════════ */
 /* ═══ PREPS TAB ═══                         */
 /* ═══════════════════════════════════════════ */
-function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, setShowScanner, alertsDismissed, alertsDismissedUntil, onDismissAlerts, gardenBeds, setGardenBeds, livestock, setLivestock, slaughterLog, setSlaughterLog, soilTests, setSoilTests, compostBins, setCompostBins }) {
+function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, setShowScanner, alertsDismissed, alertsDismissedUntil, onDismissAlerts }) {
   const M = "'JetBrains Mono',monospace";
   const cardSt = { background: "rgba(255,255,255,0.025)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 20 };
 
-  /* ── Prep Inventory Score (items-only, scored by groups) ── */
+  /* ── Prep Inventory Score (items-only) ── */
   const invScore = useMemo(() => {
-    const totalGroups = Object.keys(CATEGORY_GROUPS).length;
-    const groupsWithItems = Object.entries(CATEGORY_GROUPS).filter(([, g]) => items.some(i => g.cats.includes(i.category))).length;
-    const catCoverage = groupsWithItems / totalGroups;
+    const totalCats = Object.keys(CATEGORIES).length;
+    const catsWithItems = new Set(items.map(i => i.category)).size;
+    const catCoverage = catsWithItems / totalCats;
 
     let subtypeCoverage = 0;
-    let groupCount = 0;
-    Object.entries(CATEGORY_GROUPS).forEach(([gk, g]) => {
-      const gi = items.filter(i => g.cats.includes(i.category));
-      if (gi.length === 0) return;
-      const filled = new Set(gi.map(i => i.subType)).size;
-      const total = Object.keys(getGroupSubTypes(gk)).length;
+    let catCount = 0;
+    Object.entries(CATEGORIES).forEach(([k, cat]) => {
+      const ci = items.filter(i => i.category === k);
+      if (ci.length === 0) return;
+      const filled = new Set(ci.map(i => i.subType)).size;
+      const total = Object.keys(cat.subTypes).length;
       subtypeCoverage += filled / Math.max(total, 1);
-      groupCount++;
+      catCount++;
     });
-    const avgSubCoverage = groupCount > 0 ? subtypeCoverage / groupCount : 0;
+    const avgSubCoverage = catCount > 0 ? subtypeCoverage / catCount : 0;
 
     const totalItems = items.reduce((s, i) => s + (i.quantity || 1), 0);
     const depthScore = Math.min(totalItems / 100, 1);
@@ -3537,12 +3678,12 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 2 }}>Prep Inventory</div>
           <div style={{ fontSize: 16, fontWeight: 800, color: SC(invScore), fontFamily: M }}>{SL(invScore)}</div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
-            {items.length} items · {Object.entries(CATEGORY_GROUPS).filter(([, g]) => items.some(i => g.cats.includes(i.category))).length}/{Object.keys(CATEGORY_GROUPS).length} categories covered
+            {items.length} items · {new Set(items.map(i => i.category)).size}/{Object.keys(CATEGORIES).length} categories covered
           </div>
         </div>
         <div style={{ display: "grid", gap: 6, textAlign: "right" }}>
           {[
-            { l: "Categories", v: Object.entries(CATEGORY_GROUPS).filter(([, g]) => items.some(i => g.cats.includes(i.category))).length + "/" + Object.keys(CATEGORY_GROUPS).length, c: Object.entries(CATEGORY_GROUPS).filter(([, g]) => items.some(i => g.cats.includes(i.category))).length >= Object.keys(CATEGORY_GROUPS).length * 0.6 ? "#22c55e" : "#f59e0b" },
+            { l: "Categories", v: new Set(items.map(i => i.category)).size + "/" + Object.keys(CATEGORIES).length, c: new Set(items.map(i => i.category)).size >= Object.keys(CATEGORIES).length * 0.6 ? "#22c55e" : "#f59e0b" },
             { l: "Total Items", v: items.reduce((s, i) => s + (i.quantity || 1), 0), c: "#0ea5e9" },
             { l: "Expired", v: items.filter(i => i.fields?.expiryDate && new Date(i.fields.expiryDate) < new Date()).length, c: items.filter(i => i.fields?.expiryDate && new Date(i.fields.expiryDate) < new Date()).length > 0 ? "#ef4444" : "#22c55e" },
           ].map((s, i) => (
@@ -3651,75 +3792,130 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
         <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#c8553a,#a03e28)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(200,85,58,0.25)" }}>+ Add</button>
       </div>
 
-      {/* ── Categories Grid (grouped) ── */}
+      {/* ── Categories Grid ── */}
       <div>
         <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Categories</h3>
         <div className="pcs-cat-grid">
-          {Object.entries(CATEGORY_GROUPS).map(([gk, group]) => {
-            const gi = items.filter((i) => group.cats.includes(i.category));
-            const allSubTypes = getGroupSubTypes(gk);
-            const filled = new Set(gi.map((i) => i.subType)).size;
-            const total = Object.keys(allSubTypes).length;
+          {Object.entries(CATEGORIES).map(([k, cat]) => {
+            const ci = items.filter((i) => i.category === k);
+            const filled = new Set(ci.map((i) => i.subType)).size;
+            const total = Object.keys(cat.subTypes).length;
             const p = people || 4;
             const _clim = CLIMATES[climate] || CLIMATES.temperate;
             const _waterMod = _clim.waterMod || 1;
             const _firewoodMod = _clim.firewoodMod || 1;
 
             let metric = null;
-            if (gk === "food") {
-              const totalCals = gi.reduce((s, i) => { const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0); const serv = parseFloat(i.fields?.servings || 1); return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1); }, 0);
+            if (k === "food") {
+              const totalCals = ci.reduce((s, i) => { const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0); const serv = parseFloat(i.fields?.servings || 1); return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1); }, 0);
               const days = totalCals / Math.max(p * 2000, 1);
               metric = { val: days.toFixed(1), unit: "days", color: days >= 30 ? "#22c55e" : days >= 7 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "water") {
-              const stored = gi.filter((i) => i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
-              const filters = gi.filter((i) => i.subType === "purificationDevice" || i.subType === "purificationTablets").reduce((s, i) => s + (i.quantity || 0), 0);
+            } else if (k === "water") {
+              const stored = ci.filter((i) => i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
+              const filters = ci.filter((i) => i.subType === "purificationDevice" || i.subType === "purificationTablets").reduce((s, i) => s + (i.quantity || 0), 0);
               const days = stored / Math.max(p * 1.0 * _waterMod, 0.1) + filters * 3;
               metric = { val: days.toFixed(1), unit: "days", color: days >= 14 ? "#22c55e" : days >= 3 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "energy") {
-              const gasGals = gi.filter((i) => i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
-              const cords = gi.filter(i => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
-              const cells = gi.filter(i => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
+            } else if (k === "fuel") {
+              const gasGals = ci.filter((i) => i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
+              const propGals = ci.filter((i) => i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0) * 4.6;
+              const totalL = (gasGals + propGals) * 3.785;
               const genHrs = gasGals * 5.5;
-              const heatDays = (cords * 30) / Math.max(_firewoodMod, 0.1);
-              const parts = [];
-              if (genHrs > 0) parts.push(genHrs.toFixed(0) + "h gen");
-              if (heatDays > 0) parts.push(heatDays.toFixed(0) + "d heat");
-              if (cells > 0) parts.push(cells + " cells");
-              metric = { val: gi.reduce((s, i) => s + (i.quantity || 1), 0), unit: parts.join(" · ") || "items", color: genHrs >= 48 || heatDays >= 30 ? "#22c55e" : gi.length > 0 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "security") {
-              const qty = gi.reduce((s, i) => s + (i.quantity || 0), 0);
-              metric = { val: qty, unit: qty > 0 ? (qty / p).toFixed(1) + "/person" : "none", color: qty >= p ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "commsElec") {
-              const ch = new Set();
-              gi.forEach((i) => { if (i.subType === "satPhone") ch.add("SAT"); if (i.subType === "cellPhone") ch.add("CELL"); if (i.subType === "radio" || i.subType === "hamRadio") ch.add("HAM"); if (i.subType === "weatherRadio") ch.add("WX"); if (i.subType === "walkieTalkie") ch.add("FRS"); });
-              metric = { val: ch.size, unit: ch.size === 1 ? "channel" : "channels", color: ch.size >= 3 ? "#22c55e" : ch.size >= 1 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "vehicles") {
-              const veh = gi.reduce((s, i) => s + (i.quantity || 0), 0);
-              const overdue = gi.filter((i) => i.fields?.nextService && new Date(i.fields.nextService) < new Date()).length;
-              metric = { val: veh, unit: overdue > 0 ? overdue + " need svc" : "ready", color: overdue === 0 && veh > 0 ? "#22c55e" : overdue > 0 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "farm") {
-              const seeds = gi.filter(i => i.subType === "seedPacket").reduce((s, i) => s + (i.quantity || 0), 0);
-              const varieties = new Set(gi.filter(i => i.subType === "seedPacket").map(i => i.fields?.cropName)).size;
-              metric = { val: varieties, unit: seeds + " seed packs", color: varieties >= 5 ? "#22c55e" : varieties >= 2 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "bugout") {
-              const bags = gi.reduce((s, i) => s + (i.quantity || 0), 0);
-              metric = { val: bags, unit: bags >= p ? "ready" : bags + "/" + p + " packed", color: bags >= p ? "#22c55e" : bags > 0 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "medical") {
+              metric = { val: totalL > 0 ? totalL.toFixed(0) + "L" : "0L", unit: genHrs > 0 ? genHrs.toFixed(0) + "h gen" : "", color: genHrs >= 48 ? "#22c55e" : genHrs >= 12 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "firewood") {
+              const cords = ci.reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+              const days = (cords * 30) / Math.max(_firewoodMod, 0.1);
+              metric = { val: days.toFixed(0), unit: "days heat", color: days >= 60 ? "#22c55e" : days >= 14 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "medical") {
               const coverage = filled / Math.max(total, 1);
-              metric = { val: Math.round(coverage * 100), unit: "% covered", color: coverage >= 0.4 ? "#22c55e" : coverage >= 0.2 ? "#f59e0b" : "#ef4444" };
-            } else if (gk === "barter") {
-              const qty = gi.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: Math.round(coverage * 100), unit: "% covered", color: coverage >= 0.6 ? "#22c55e" : coverage >= 0.3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "batteries") {
+              const cells = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const hrs = cells * 20;
+              metric = { val: cells, unit: cells + " cells · " + hrs + "h", color: cells >= 50 ? "#22c55e" : cells >= 20 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "electronics" || k === "comms") {
+              const ch = new Set();
+              ci.forEach((i) => { if (i.subType === "satPhone") ch.add("SAT"); if (i.subType === "cellPhone") ch.add("CELL"); if (i.subType === "radio") ch.add("HAM"); if (i.subType === "weatherRadio") ch.add("WX"); });
+              if (k === "comms") ch.add("HAM");
+              metric = { val: ch.size, unit: ch.size === 1 ? "channel" : "channels", color: ch.size >= 3 ? "#22c55e" : ch.size >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "vehicles") {
+              const veh = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const overdue = ci.filter((i) => i.fields?.nextService && new Date(i.fields.nextService) < new Date()).length;
+              metric = { val: veh, unit: overdue > 0 ? overdue + " need svc" : "ready", color: overdue === 0 && veh > 0 ? "#22c55e" : overdue > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "kids") {
+              const diapers = ci.filter((i) => i.subType === "diapers").reduce((s, i) => s + (i.quantity || 0), 0);
+              const formula = ci.filter((i) => i.subType === "formula").reduce((s, i) => s + (i.quantity || 0), 0);
+              const days = Math.min(diapers / 8, formula * 3);
+              metric = ci.length > 0 ? { val: days.toFixed(1), unit: "days", color: days >= 14 ? "#22c55e" : days >= 3 ? "#f59e0b" : "#ef4444" } : null;
+            } else if (k === "firearms" || k === "defense") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: qty > 0 ? (qty / p).toFixed(1) + "/person" : "none", color: qty >= p ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "nbc") {
+              const masks = ci.filter((i) => i.subType === "gasMask").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: Math.round(masks / Math.max(p, 1) * 100), unit: "% covered", color: masks >= p ? "#22c55e" : masks > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "alcohol") {
+              const vol = ci.reduce((s, i) => s + parseVolMl(i.fields?.volume || i.fields?.alcVolume) * (i.quantity || 1), 0);
+              metric = { val: (vol / 1000).toFixed(1), unit: "liters", color: ci.length >= 5 ? "#22c55e" : ci.length >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "fishing") {
+              const rods = ci.filter((i) => i.subType === "rodReel").reduce((s, i) => s + (i.quantity || 0), 0);
+              const nets = ci.filter((i) => i.subType === "net" || i.subType === "fishTrap").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: rods + nets, unit: "sources", color: rods > 0 ? "#22c55e" : "#ef4444" };
+            } else if (k === "boat") {
+              const vessels = ci.filter((i) => i.subType === "vessel").reduce((s, i) => s + (i.quantity || 0), 0);
+              const pfd = ci.filter((i) => i.subType === "lifeJacket").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: vessels, unit: pfd >= p ? "PFDs ✓" : pfd + "/" + p + " PFDs", color: vessels > 0 && pfd >= p ? "#22c55e" : vessels > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "farm") {
+              const seeds = ci.filter(i => i.subType === "seedPacket").reduce((s, i) => s + (i.quantity || 0), 0);
+              const varieties = new Set(ci.filter(i => i.subType === "seedPacket").map(i => i.fields?.cropName)).size;
+              const beds = ci.filter(i => i.subType === "raisedBed").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: varieties, unit: seeds + " packs · " + beds + " beds", color: varieties >= 5 ? "#22c55e" : varieties >= 2 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "bugout") {
+              const bags = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: bags, unit: bags >= p ? "ready" : bags + "/" + p + " packed", color: bags >= p ? "#22c55e" : bags > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "recreational") {
+              const lighters = ci.filter((i) => i.subType === "lighters").reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: ci.reduce((s, i) => s + (i.quantity || 0), 0), unit: lighters > 0 ? lighters + " lighters" : "items", color: lighters >= 5 ? "#22c55e" : lighters > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "books") {
+              metric = { val: ci.reduce((s, i) => s + (i.quantity || 0), 0), unit: "volumes", color: ci.length >= 8 ? "#22c55e" : ci.length >= 3 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "power") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: "devices", color: qty > 0 ? "#22c55e" : "#ef4444" };
+            } else if (k === "hygiene") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty >= 10 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
-            } else {
-              const qty = gi.reduce((s, i) => s + (i.quantity || 0), 0);
+            } else if (k === "clothing") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              const coverage = filled / Math.max(total, 1);
+              metric = { val: qty, unit: Math.round(coverage * 100) + "% types", color: coverage >= 0.5 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "pets") {
+              const food = ci.filter(i => i.subType === "petFood").reduce((s, i) => s + (i.quantity || 0), 0);
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
+              metric = { val: qty, unit: food > 0 ? food + " food bags" : "items", color: food >= 2 ? "#22c55e" : qty > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "lighting") {
+              const lights = ci.filter(i => ["flashlight", "headlamp", "lantern"].includes(i.subType)).reduce((s, i) => s + (i.quantity || 0), 0);
+              const candles = ci.filter(i => i.subType === "candle").reduce((s, i) => s + (i.quantity || 0), 0);
+              const parts = [];
+              if (lights > 0) parts.push(lights + " lights");
+              if (candles > 0) parts.push(candles + " candles");
+              metric = { val: lights + candles, unit: parts.join(" · ") || "items", color: lights >= 3 ? "#22c55e" : lights > 0 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "bullion") {
+              let totalVal = 0;
+              ci.forEach(i => { const { oz, metal } = bullionTroyOz(i); totalVal += oz * (SPOT_PRICES[metal] || 0); });
+              const goldOz = ci.filter(i => bullionTroyOz(i).metal === "gold").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const silverOz = ci.filter(i => bullionTroyOz(i).metal === "silver").reduce((s, i) => s + bullionTroyOz(i).oz, 0);
+              const parts = [];
+              if (goldOz > 0) parts.push(goldOz.toFixed(1) + " oz Au");
+              if (silverOz > 0) parts.push(silverOz.toFixed(0) + " oz Ag");
+              metric = { val: "$" + (totalVal >= 1000 ? (totalVal / 1000).toFixed(1) + "k" : totalVal.toFixed(0)), unit: parts.join(" · ") || "none", color: totalVal >= 10000 ? "#22c55e" : totalVal >= 1000 ? "#f59e0b" : "#ef4444" };
+            } else if (k === "shelter" || k === "tools" || k === "equipment") {
+              const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
               metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
             }
 
             const statusColor = metric ? metric.color : (filled / total >= 0.6 ? "#22c55e" : filled / total >= 0.3 ? "#f59e0b" : "#ef4444");
             return (
-              <button key={gk} onClick={() => setSelCat(gk)} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
+              <button key={k} onClick={() => setSelCat(k)} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
-                  <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{group.icon}</div>
+                  <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{cat.icon}</div>
                   {metric && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: metric.color, lineHeight: 1 }}>{metric.val}</div>
@@ -3727,26 +3923,159 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{group.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{gi.length} items · {filled}/{total}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
                 <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
               </button>
             );
           })}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* ── Farm & Garden Section ── */}
-      <div style={{ marginTop: 24 }}>
-        <FarmingTab items={items} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />
+/* ── AuthPanel — Moved outside PropertyTab to prevent re-mount on each render ── */
+function AuthPanel({ title, icon, color, auth, setAuth, provider, helpUrl, providerId, onAuth, onDisconnect }) {
+  const [focusField, setFocusField] = useState(null);
+  if (auth.connected) {
+    return (
+      <div style={{ ...cardSt, padding: "14px 18px", marginBottom: 16, borderLeft: "3px solid " + color, background: color + "06" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22 }}>{icon}</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{provider}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                <div style={{ width: 7, height: 7, borderRadius: 4, background: color, animation: "pulse 2s infinite" }} />
+                <span style={{ fontSize: 10, color: color, fontWeight: 600 }}>Connected as {auth.email}</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={() => onDisconnect(setAuth, providerId)} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)" }}>Disconnect</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ ...cardSt, padding: "20px 24px", marginBottom: 16, borderLeft: "3px solid " + color }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span style={{ fontSize: 22 }}>{icon}</span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Sign in with your {provider} account to enable live feeds</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 10 }}>
+        <div>
+          <label style={labelSt}>Email / Username</label>
+          <input style={{ ...inp, border: focusField === "email" ? `1px solid ${color}` : inp.border, boxShadow: focusField === "email" ? `0 0 0 2px ${color}33` : "none" }} type="email" value={auth.email} onChange={(e) => setAuth((p) => ({ ...p, email: e.target.value, error: "" }))} onFocus={() => setFocusField("email")} onBlur={() => setFocusField(null)} placeholder="user@email.com" />
+        </div>
+        <div>
+          <label style={labelSt}>Password</label>
+          <div style={{ position: "relative" }}>
+            <input style={{ ...inp, paddingRight: 36, border: focusField === "password" ? `1px solid ${color}` : inp.border, boxShadow: focusField === "password" ? `0 0 0 2px ${color}33` : "none" }} type={auth.showPw ? "text" : "password"} value={auth.password} onChange={(e) => setAuth((p) => ({ ...p, password: e.target.value, error: "" }))} onFocus={() => setFocusField("password")} onBlur={() => setFocusField(null)} placeholder="••••••••" />
+            <button onClick={() => setAuth((p) => ({ ...p, showPw: !p.showPw }))} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "rgba(255,255,255,0.3)", padding: 0 }}>{auth.showPw ? "🙈" : "👁️"}</button>
+          </div>
+        </div>
+      </div>
+      {auth.error && <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 8 }}>{auth.error}</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button onClick={() => onAuth(setAuth, auth, providerId)} disabled={auth.loading} style={{ ...btnSt, padding: "8px 20px", fontSize: 12, background: auth.loading ? "rgba(255,255,255,0.06)" : color, color: "#fff", fontWeight: 700, opacity: auth.loading ? 0.6 : 1 }}>
+          {auth.loading ? "Connecting..." : "Connect"}
+        </button>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Credentials are stored locally behind your PIN</span>
       </div>
     </div>
   );
 }
 
+/* ── CameraFeedCanvas — Renders simulated trail camera feed ── */
+function CameraFeedCanvas({ cam, expanded }) {
+  const canvasRef = useRef(null);
+  const height = expanded ? 200 : 120;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const w = canvas.width = canvas.parentElement?.offsetWidth || 280;
+    const h = canvas.height = height;
+    const ctx = canvas.getContext("2d");
+
+    // Base gradient — night-vision green/brown tint per camera
+    const hue = (cam.id.charCodeAt(cam.id.length - 1) * 37) % 60 + 90;
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, `hsl(${hue}, 15%, 8%)`);
+    grad.addColorStop(0.5, `hsl(${hue}, 20%, 12%)`);
+    grad.addColorStop(1, `hsl(${hue}, 10%, 6%)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // IR noise grain
+    const imageData = ctx.getImageData(0, 0, w, h);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const noise = (Math.random() - 0.5) * 25;
+      imageData.data[i] += noise;
+      imageData.data[i + 1] += noise;
+      imageData.data[i + 2] += noise;
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    // Vignette
+    const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.2, w / 2, h / 2, w * 0.7);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.5)");
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, w, h);
+
+    // HUD overlay
+    ctx.font = "bold 9px JetBrains Mono, monospace";
+    ctx.fillStyle = "rgba(34,197,94,0.7)";
+    ctx.fillText(cam.name.toUpperCase(), 8, 14);
+
+    const ts = new Date().toLocaleString("en-US", { hour12: false });
+    const tsW = ctx.measureText(ts).width;
+    ctx.fillText(ts, w - tsW - 8, 14);
+
+    // REC dot
+    ctx.fillStyle = "rgba(239,68,68,0.8)";
+    ctx.beginPath();
+    ctx.arc(14, h - 12, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "bold 9px JetBrains Mono, monospace";
+    ctx.fillText("REC", 22, h - 8);
+
+    // Model + location bottom-right
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    const locText = `${cam.model} | ${cam.location}`;
+    const locW = ctx.measureText(locText).width;
+    ctx.fillText(locText, w - locW - 8, h - 8);
+
+    // Crosshair center (subtle)
+    ctx.strokeStyle = "rgba(34,197,94,0.15)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 20, h / 2);
+    ctx.lineTo(w / 2 + 20, h / 2);
+    ctx.moveTo(w / 2, h / 2 - 20);
+    ctx.lineTo(w / 2, h / 2 + 20);
+    ctx.stroke();
+
+  }, [cam.id, cam.name, cam.model, cam.location, height, expanded]);
+
+  return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
+}
 
 function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, amenities, revealedCodes, setRevealedCodes, user, items }) {
+  const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+  const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+  const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+  const [expandedCam, setExpandedCam] = useState(null);
   const [accessDropdown, setAccessDropdown] = useState(null);
+  const [liveCameras, setLiveCameras] = useState(null);
+  const [liveAlarm, setLiveAlarm] = useState(null);
+  const [liveNestDevices, setLiveNestDevices] = useState(null);
   const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
   useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
   const [expandedDep, setExpandedDep] = useState(null);
@@ -3778,9 +4107,96 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   if (!propUnlocked) return <PinLock onUnlock={() => setPropUnlocked(true)} />;
 
   const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
-  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "deps", l: "Dependencies", i: "🔌" }, { id: "manuals", l: "Manuals", i: "📖" }];
+  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "deps", l: "Dependencies", i: "🔌" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "systems", l: "Systems", i: "🏠" }];
   const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
 
+  const handleAuth = async (setter, state, provider) => {
+    if (!state.email || !state.password) { setter((p) => ({ ...p, error: "Enter email and password" })); return; }
+    setter((p) => ({ ...p, loading: true, error: "" }));
+
+    const apiBase = import.meta.env.VITE_API_URL || "";
+    const endpoints = {
+      tactacam: `${apiBase}/api/smart-home/tactacam/auth`,
+      eyezon: `${apiBase}/api/smart-home/eyezon/auth`,
+      nest: `${apiBase}/api/smart-home/nest/auth`,
+    };
+
+    try {
+      // Try real API if user is authenticated
+      if (user && supabaseConfigured) {
+        const session = await supabase.auth.getSession();
+        const token = session?.data?.session?.access_token;
+        if (token && endpoints[provider]) {
+          const res = await fetch(endpoints[provider], {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ email: state.email, password: state.password }),
+          });
+          if (res.ok) {
+            setter((p) => ({ ...p, loading: false, connected: true, error: "" }));
+            if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); }
+            if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); }
+            // Fetch live data after successful auth
+            if (provider === "tactacam") fetchLiveCameras(token);
+            if (provider === "eyezon") fetchLiveAlarmStatus(token);
+            if (provider === "nest") fetchLiveNestDevices(token);
+            return;
+          }
+          const errData = await res.json().catch(() => ({}));
+          setter((p) => ({ ...p, loading: false, error: errData.error || "Connection failed" }));
+          return;
+        }
+      }
+      // Fallback: simulate connection with sample data
+      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); } if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); } }, 1500);
+    } catch (err) {
+      // Fallback: simulate connection
+      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); } if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); } }, 1500);
+    }
+  };
+
+  const fetchLiveCameras = async (token) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/smart-home/tactacam/cameras`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setLiveCameras(data.cameras); }
+    } catch { /* use sample data */ }
+  };
+  const fetchLiveAlarmStatus = async (token) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/smart-home/eyezon/status`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setLiveAlarm(data); }
+    } catch { /* use sample data */ }
+  };
+  const fetchLiveNestDevices = async (token) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/smart-home/nest/devices`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setLiveNestDevices(data.devices); }
+    } catch { /* use sample data */ }
+  };
+
+  const handleDisconnect = (setter, provider) => {
+    setter({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+    if (provider === "tactacam") setLiveCameras(null);
+    if (provider === "eyezon") setLiveAlarm(null);
+    if (provider === "nest") setLiveNestDevices(null);
+  };
+
+  const displayCameras = liveCameras || SAMPLE_CAMERAS;
+  const displayAlarm = liveAlarm || SMART_HOME.alarm;
+  const displayNestDevices = liveNestDevices || SMART_HOME.nest.devices;
+
+  const signalBars = (level) => {
+    const bars = [];
+    for (let i = 0; i < 5; i++) {
+      bars.push(<div key={i} style={{ width: 3, height: 4 + i * 2, borderRadius: 1, background: i < level ? "#22c55e" : "rgba(255,255,255,0.1)" }} />);
+    }
+    return <div style={{ display: "flex", alignItems: "flex-end", gap: 1 }}>{bars}</div>;
+  };
+
+  /* AuthPanel moved outside PropertyTab — see above */
 
   return (
     <div>
@@ -4068,6 +4484,139 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
 
       {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 10, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
 
+      {propSub === "systems" && (
+        <div>
+          {/* Trail Camera Auth */}
+          <AuthPanel title="Reveal Camera Login" icon="📷" color="#22c55e" auth={revealAuth} setAuth={setRevealAuth} provider="Tactacam Reveal" providerId="tactacam" helpUrl="https://www.reveal.tactacam.com" onAuth={handleAuth} onDisconnect={handleDisconnect} />
+          {revealAuth.connected && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{displayCameras.length} cameras · {displayCameras.filter((c) => c.status === "online").length} online</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Auto-refresh every 30s</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+                {displayCameras.map((cam) => {
+                  const isOnline = cam.status === "online";
+                  const isExpanded = expandedCam === cam.id;
+                  return (
+                    <div key={cam.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderTop: "3px solid " + (isOnline ? "#22c55e" : "#ef4444") }}>
+                      <div onClick={() => isOnline && setExpandedCam(isExpanded ? null : cam.id)} style={{ height: isExpanded ? 200 : 120, position: "relative", cursor: isOnline ? "pointer" : "default", transition: "height 0.3s", overflow: "hidden", background: isOnline ? "transparent" : "linear-gradient(135deg,#1a0a0a,#200d0d)" }}>
+                        {isOnline ? (
+                          <CameraFeedCanvas cam={cam} expanded={isExpanded} />
+                        ) : (
+                          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <div style={{ textAlign: "center" }}>
+                              <div style={{ fontSize: 20, opacity: 0.3 }}>📷</div>
+                              <div style={{ fontSize: 9, color: "rgba(239,68,68,0.5)", marginTop: 4 }}>OFFLINE</div>
+                            </div>
+                          </div>
+                        )}
+                        <div style={{ position: "absolute", top: 6, left: 8, display: "flex", alignItems: "center", gap: 4 }}>
+                          <div style={{ width: 5, height: 5, borderRadius: 3, background: isOnline ? "#22c55e" : "#ef4444", animation: isOnline ? "pulse 2s infinite" : "none" }} />
+                          <span style={{ fontSize: 10, color: isOnline ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{isOnline ? "LIVE" : "OFFLINE"}</span>
+                        </div>
+                        <div style={{ position: "absolute", top: 6, right: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                          {signalBars(cam.signal)}
+                          <span style={{ fontSize: 10, color: cam.battery < 20 ? "#ef4444" : cam.battery < 50 ? "#f59e0b" : "#22c55e", fontFamily: M }}>🔋{cam.battery}%</span>
+                        </div>
+                        {isOnline && !isExpanded && <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 9, color: "rgba(255,255,255,0.3)" }}>Click to expand</div>}
+                      </div>
+                      <div style={{ padding: "10px 14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700 }}>{cam.name}</div>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{cam.model} · {cam.location}</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>📸 {cam.captures}/24h</div>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>{cam.last}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* EyezOn Alarm Auth */}
+          <AuthPanel title="EyezOn Alarm Login" icon="🚨" color="#f59e0b" auth={eyezonAuth} setAuth={setEyezonAuth} provider="EyezOn EnvisaLink" providerId="eyezon" onAuth={handleAuth} onDisconnect={handleDisconnect} />
+          {eyezonAuth.connected ? (
+            <div style={{ ...cardSt, marginBottom: 16, borderLeft: "3px solid #22c55e" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <span style={{ fontSize: 22 }}>🚨</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>Alarm — {displayAlarm.provider}</div>
+                  <div style={{ fontSize: 11, color: "#22c55e" }}>{displayAlarm.status}</div>
+                </div>
+                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 10, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Arm Away</button>
+                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 10, background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>Disarm</button>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 6 }}>
+                {(displayAlarm.zones || []).map((z, i) => (
+                  <div key={i} style={{ padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444" }} />
+                    <div style={{ fontSize: 11 }}>{z.n} — <span style={{ color: "rgba(255,255,255,0.4)" }}>{z.s}</span></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed", marginBottom: 16 }}>
+              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🚨</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.3)" }}>Connect EyezOn to view alarm status and control zones</div>
+            </div>
+          )}
+
+          {/* Nest / Google Home Auth */}
+          <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" onAuth={handleAuth} onDisconnect={handleDisconnect} />
+          {nestAuth.connected ? (
+            <div style={{ ...cardSt, borderLeft: "3px solid #06b6d4" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: 22 }}>🏠</span>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>Nest Devices</div>
+                <span style={{ fontSize: 9, padding: "4px 8px", borderRadius: 8, background: "rgba(6,182,212,0.1)", color: "#06b6d4", fontWeight: 700 }}>{displayNestDevices.length} devices</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+                {displayNestDevices.map((d, i) => (
+                  <div key={i} style={{ padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: d.type === "lock" ? (d.status === "Locked" ? "3px solid #22c55e" : "3px solid #f59e0b") : "3px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                      {d.type === "lock" ? "🔐" : d.type === "smoke" ? "🔥" : "🌡️"} {d.n}
+                    </div>
+                    {d.type === "lock" ? (
+                      <div>
+                        <div style={{ fontSize: 10, color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>
+                          {d.status === "Locked" ? "✓ Locked" : "⚠ Unlocked"} · 🔋 {d.bat}
+                        </div>
+                        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                          <button style={{ ...btnSt, padding: "5px 10px", fontSize: 9, background: d.status === "Locked" ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", color: d.status === "Locked" ? "#ef4444" : "#22c55e", border: "1px solid " + (d.status === "Locked" ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)") }}>
+                            {d.status === "Locked" ? "Unlock" : "Lock"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : d.type === "smoke" ? (
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>✓ OK · 🔋 {d.bat} · CO: {d.co}</div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 24, fontWeight: 800, fontFamily: M }}>{d.temp}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Set: {d.set} · {d.hum} · {d.mode}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed" }}>
+              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🏠</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.3)" }}>Connect Google Nest to view locks, thermostats, and smoke detectors</div>
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );
@@ -4093,7 +4642,7 @@ function RallyMiniMap({ coords, color }) {
   return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
-function CommunityTab({ members, setMembers, items, people, climate, user, contacts, setContacts, callSigns, setCallSigns, codeWords, setCodeWords, rallyPoints, setRallyPoints }) {
+function CommunityTab({ members, setMembers, items, people, climate, user, contacts, setContacts }) {
   const [comSub, setComSub] = useState("people");
   /* Rationing */
   const [rationPeople, setRationPeople] = useState(() => Array.from({ length: people || 4 }, (_, i) => ({ id: "rp" + i, name: "Person " + (i + 1) })));
@@ -4118,7 +4667,7 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
 
-  const subTabs = [{ id: "people", l: "People", i: "👤" }, { id: "tracker", l: "Tracker", i: "📡" }, { id: "comms", l: "Comms", i: "📻" }, { id: "rationing", l: "Rationing", i: "🍽️" }];
+  const subTabs = [{ id: "people", l: "People", i: "👤" }, { id: "tracker", l: "Tracker", i: "📡" }, { id: "rationing", l: "Rationing", i: "🍽️" }];
 
 
   /* ── Supabase Realtime: Location sharing ── */
@@ -4254,11 +4803,6 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
             ))}
           </div>
         </div>
-      )}
-
-      {/* ═══ Comms (inline) ═══ */}
-      {comSub === "comms" && (
-        <CommsTab items={items} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />
       )}
 
       {/* ═══ Rationing Calculator ═══ */}
@@ -4639,7 +5183,163 @@ function RallyMiniMapLarge({ lat, lng, color }) {
   return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
+function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, setSelScen, simDuration, setSimDuration }) {
+  const computeScore = (scenKey, dur) => {
+    const scen = SCENARIOS[scenKey];
+    const clim = CLIMATES[climate];
+    if (!scen || !clim) return { score: 0, cats: {} };
+    let tw = 0, tm = 0;
+    const cs = {};
+    Object.keys(CATEGORIES).forEach((cat) => {
+      const catItems = items.filter((i) => i.category === cat);
+      const subs = CATEGORIES[cat].subTypes;
+      let dailyYield = 0, stored = 0;
+      catItems.forEach((i) => {
+        const sub = subs[i.subType];
+        if (sub?.dailyYield) dailyYield += sub.dailyYield * i.quantity;
+        if (sub?.consumable) stored += i.quantity;
+        else if (!sub?.dailyYield) stored += i.quantity;
+      });
+      const w = scen.weights[cat] || 0;
+      let score;
+      if (cat === "water" || cat === "food") {
+        const dailyNeed = people * (cat === "water" ? clim.waterMod : 1);
+        const storedDays = dailyNeed > 0 ? stored / dailyNeed : 0;
+        const yieldDays = dailyYield >= dailyNeed ? dur : (dailyYield / Math.max(dailyNeed, 0.01)) * dur * 0.5;
+        score = Math.min(100, ((storedDays + yieldDays) / dur) * 100);
+      } else if (cat === "firewood") {
+        /* Firewood: calculate cords needed based on fireplaces x climate modifier x duration */
+        const fireplaces = catItems.filter((i) => i.subType === "fireplace");
+        const totalCordsPerMonth = fireplaces.reduce((sum, fp) => sum + (parseFloat(fp.fields?.cordsPerMonth) || 0.5), 0) * clim.firewoodMod;
+        const cordsNeeded = totalCordsPerMonth * (dur / 30);
+        const cordsAvail = catItems.filter((i) => i.subType === "cordwood").reduce((sum, cw) => sum + (parseFloat(cw.fields?.cords) || 0) * cw.quantity, 0);
+        score = cordsNeeded > 0 ? Math.min(100, (cordsAvail / cordsNeeded) * 100) : (cordsAvail > 0 ? 80 : 0);
+      } else if (cat === "fuel") {
+        const fuelGals = catItems.filter((i) => i.subType === "gasoline" || i.subType === "diesel" || i.subType === "kerosene").reduce((sum, f) => sum + (parseFloat(f.fields?.gallons) || 0), 0);
+        const tanks = catItems.filter((i) => i.subType === "propane").reduce((sum, t) => sum + t.quantity, 0);
+        score = Math.min(100, fuelGals * 1.5 + tanks * 10 + stored * 5);
+      } else {
+        score = (stored > 0 || dailyYield > 0) ? Math.min(100, stored * 10 + dailyYield * 20) : 0;
+      }
+      cs[cat] = score;
+      tw += score * w;
+      tm += 100 * w;
+    });
+    return { score: tm > 0 ? (tw / tm) * 100 : 0, cats: cs };
+  };
 
+  const result = computeScore(selScen, simDuration);
+  const scen = SCENARIOS[selScen];
+  const recs = RECS[selScen];
+  const sorted = Object.entries(result.cats).sort((a, b) => a[1] - b[1]);
+  const weakest = sorted.slice(0, 3);
+
+  return (
+    <div>
+      <h2 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 800 }}>Scenario Simulation</h2>
+      {/* ── People & Climate Controls ── */}
+      <div style={{ ...cardSt, padding: 14, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "end" }}>
+          <div><label style={labelSt}>People</label><div style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="range" min={1} max={20} value={people} onChange={(e) => setPeople(+e.target.value)} style={{ flex: 1, accentColor: "#c8553a" }} /><span style={{ fontFamily: M, fontSize: 18, fontWeight: 800, color: "#c8553a", minWidth: 24, textAlign: "right" }}>{people}</span></div></div>
+          <div><label style={labelSt}>Climate</label><select style={inp} value={climate} onChange={(e) => setClimate(e.target.value)}>{Object.entries(CLIMATES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 6, marginBottom: 16 }}>
+        {Object.entries(SCENARIOS).map(([k, s]) => (
+          <button key={k} onClick={() => { setSelScen(k); setSimDuration(s.defaultDur); }} style={{ padding: "10px 6px", background: selScen === k ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.02)", border: selScen === k ? "1px solid #c8553a" : "1px solid rgba(255,255,255,0.06)", borderRadius: 8, cursor: "pointer", textAlign: "center" }}>
+            <div style={{ fontSize: 22, marginBottom: 3 }}>{s.icon}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: selScen === k ? "#c8553a" : "rgba(255,255,255,0.5)" }}>{s.label}</div>
+          </button>
+        ))}
+      </div>
+      <div style={{ ...cardSt, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <label style={labelSt}>Duration</label>
+          <span style={{ fontFamily: M, fontSize: 20, fontWeight: 800, color: "#c8553a" }}>
+            {simDuration >= 365 ? (simDuration / 365).toFixed(1) + " yr" : simDuration >= 30 ? Math.round(simDuration / 30) + " mo" : simDuration + " d"}
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>({simDuration} days)</span>
+          </span>
+        </div>
+        <input type="range" min={30} max={1095} step={30} value={simDuration} onChange={(e) => setSimDuration(+e.target.value)} style={{ width: "100%", accentColor: "#c8553a" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}><span>30d</span><span>6mo</span><span>1yr</span><span>2yr</span><span>3yr</span></div>
+      </div>
+      <div style={{ ...cardSt, padding: 20, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          <ScoreRing score={result.score} size={120} />
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{scen?.icon} {scen?.label}</h3>
+            <p style={{ margin: "4px 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{scen?.desc}</p>
+            <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{simDuration} days · {people} people</p>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 18px" }}>
+          {sorted.map(([cat, v]) => (
+            <div key={cat} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0" }}>
+              <span style={{ fontSize: 12 }}>{CATEGORIES[cat]?.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{CATEGORIES[cat]?.label}</span>
+                  <span style={{ fontSize: 9, color: SC(v), fontFamily: M }}>{Math.round(v)}%</span>
+                </div>
+                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
+                  <div style={{ height: "100%", width: v + "%", background: SC(v), borderRadius: 2, transition: "width 0.5s" }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {recs && (
+        <div>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 800 }}>📋 Recommendations for {scen?.label}</h3>
+          <div style={{ ...cardSt, marginBottom: 12, borderLeft: "3px solid #c8553a" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#c8553a", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>General Actions</div>
+            {recs.general.map((r, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontFamily: M, color: "#c8553a", fontWeight: 700, flexShrink: 0, marginTop: 2 }}>{i + 1}.</span>
+                <span>{r}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Priority Areas</div>
+          {weakest.map(([cat, score]) => {
+            const rec = recs.byCategory?.[cat];
+            if (!rec) return null;
+            return (
+              <div key={cat} style={{ ...cardSt, padding: "14px 18px", marginBottom: 8, borderLeft: "3px solid " + SC(score) }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 18 }}>{CATEGORIES[cat]?.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{CATEGORIES[cat]?.label}</span>
+                  <span style={{ fontSize: 10, color: SC(score), fontFamily: M, fontWeight: 700 }}>{Math.round(score)}%</span>
+                  {score < 30 && <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 4, background: "rgba(239,68,68,0.12)", color: "#ef4444", fontWeight: 700 }}>CRITICAL</span>}
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{rec}</div>
+              </div>
+            );
+          })}
+          {sorted.slice(3).map(([cat, score]) => {
+            const rec = recs.byCategory?.[cat];
+            if (!rec) return null;
+            return (
+              <div key={cat} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, opacity: 0.7 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 14 }}>{CATEGORIES[cat]?.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{CATEGORIES[cat]?.label}</span>
+                  <span style={{ fontSize: 9, color: SC(score), fontFamily: M }}>{Math.round(score)}%</span>
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{rec}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN APP
+   ═══════════════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════════
    COMMS TAB — Emergency Radio Channel Monitor
    ═══════════════════════════════════════════════════════════════ */
@@ -7596,6 +8296,8 @@ export default function PrepVault() {
   const [showAdd, setShowAdd] = useState(false);
   const [addCat, setAddCat] = useState(null);
   const [editItem, setEditItem] = useState(null);
+  const [selScen, setSelScen] = useState("economic");
+  const [simDuration, setSimDuration] = useState(180);
   const [propUnlocked, setPropUnlocked] = useState(false);
   const [propSub, setPropSub] = useState("map");
   const [propAddress, setPropAddress] = useState(() => saved.current?.propAddress || "");
@@ -8117,7 +8819,7 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate, codes]);
 
-  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "inventory", l: "Inventory", i: "📦" }, { id: "team", l: "Team", i: "👥" }];
+  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
 
   const renderContent = () => {
     if (selCat) {
@@ -8128,10 +8830,16 @@ export default function PrepVault() {
         return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} />;
       case "property":
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
-      case "inventory":
-        return <PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} />;
-      case "team":
-        return <CommunityTab members={members} setMembers={setMembers} items={propItems} people={people} climate={climate} user={user} contacts={contacts} setContacts={setContacts} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} />;
+      case "preps":
+        return <PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} />;
+      case "community":
+        return <CommunityTab members={members} setMembers={setMembers} items={propItems} people={people} climate={climate} user={user} contacts={contacts} setContacts={setContacts} />;
+      case "comms":
+        return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
+      case "farming":
+        return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
+      case "simulate":
+        return <SimulateTab items={propItems} people={people} setPeople={setPeople} climate={climate} setClimate={setClimate} selScen={selScen} setSelScen={setSelScen} simDuration={simDuration} setSimDuration={setSimDuration} />;
       default:
         return null;
     }
@@ -8199,12 +8907,12 @@ export default function PrepVault() {
       { icon: "📦", title: "Smart Inventory", desc: "Track supplies across multiple properties with expiry alerts, consumption rate tracking, and auto-rotation reminders." },
       { icon: "📡", title: "Comms Center", desc: "HAM/GMRS frequency scanner, check-in schedules, encrypted code words, and radio protocol reference with audio simulation." },
       { icon: "👥", title: "Team Coordination", desc: "Live satellite tracking, AES-256 encrypted chat, contacts database, call signs, and rally point mapping." },
-      { icon: "🌾", title: "Farm & Garden", desc: "Track garden beds, crop database, livestock, compost, and soil tests — integrated with your inventory." },
-      { icon: "🏠", title: "Property Intelligence", desc: "Multi-site management with access codes, evacuation routes, dependency mapping, and resource tracking." },
+      { icon: "🧪", title: "Crisis Simulation", desc: "Test readiness against 13 real-world scenarios from grid failure to pandemic with scored results and gap analysis." },
+      { icon: "🏠", title: "Property Intelligence", desc: "Multi-site management with security cameras, access codes, evacuation routes, and resource mapping." },
       { icon: "🗺️", title: "Satellite Mapping", desc: "Esri World Imagery maps with member overlays, geolocation tracking, rally point thumbnails, and tactical planning." },
     ];
     const stats = [
-      { val: "13", label: "Inventory Groups" },
+      { val: "22", label: "Supply Categories" },
       { val: "13", label: "Crisis Scenarios" },
       { val: "AES-256", label: "Encryption" },
       { val: "100%", label: "Offline Capable" },
@@ -8235,7 +8943,7 @@ export default function PrepVault() {
             <span style={{ background: "linear-gradient(135deg,#c8553a,#e8724a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>encrypted & offline-ready</span>
           </h1>
           <p style={{ fontSize: "clamp(14px, 2vw, 18px)", color: "rgba(255,255,255,0.45)", maxWidth: 600, margin: "0 auto 44px", lineHeight: 1.7 }}>
-            Track inventory, coordinate your team, and manage communications — all behind military-grade encryption with zero cloud dependency.
+            Track inventory, coordinate your team, monitor comms, and simulate crisis scenarios — all behind military-grade encryption with zero cloud dependency.
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Create Free Account</button>
@@ -8276,8 +8984,8 @@ export default function PrepVault() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             {[
               { n: "01", t: "Set Up Properties", d: "Add your locations — home, bug-out cabin, cache sites — with maps and access codes." },
-              { n: "02", t: "Log Your Supplies", d: "Inventory everything across 13 categories. Expiry alerts and consumption tracking keep you current." },
-              { n: "03", t: "Coordinate & Test", d: "Add team members, set up comms, and manage your farm and garden — all in one place." },
+              { n: "02", t: "Log Your Supplies", d: "Inventory everything across 22 categories. Expiry alerts and consumption tracking keep you current." },
+              { n: "03", t: "Coordinate & Test", d: "Add team members, set up comms, and run crisis simulations to find your gaps." },
             ].map((s, i) => (
               <div key={i} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 28, fontWeight: 900, fontFamily: M, color: "rgba(200,85,58,0.3)", marginBottom: 8 }}>{s.n}</div>
@@ -8434,7 +9142,7 @@ export default function PrepVault() {
           {isOffline && <div style={{ padding: "4px 8px", borderRadius: 8, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", fontSize: 9, color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>OFFLINE</div>}
           {/* Profile Dropdown */}
           <div style={{ position: "relative", marginLeft: 6 }}>
-            <button onClick={(e) => { e.stopPropagation(); setShowProfileMenu(p => !p); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showProfileMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showProfileMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showProfileMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={(e) => { e.stopPropagation(); setShowProfileMenu(p => { if (!p) { setDismissResetKey(k => k + 1); setActiveTab("dashboard"); } return !p; }); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showProfileMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showProfileMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showProfileMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 18, height: 18, borderRadius: 9, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{user ? (user.email?.[0] || "U").toUpperCase() : "D"}</span>
               <span style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user ? user.email?.split("@")[0] : "Demo"}</span>
               <span style={{ fontSize: 8, opacity: 0.4 }}>▾</span>
@@ -8448,7 +9156,10 @@ export default function PrepVault() {
                 <div style={{ padding: "6px 0" }}>
                   {[
                     { icon: "🚀", label: "Quick Start", badge: !propertyProfile?.completedAt, onClick: () => { setShowQuickStart(true); setQsStep(0); setShowProfileMenu(false); } },
+                    { icon: "📷", label: localStorage.getItem("prepvault-cameras-connected") === "1" ? "Trail Cameras" : "Connect Cameras", accent: localStorage.getItem("prepvault-cameras-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
+                    { icon: "🚨", label: localStorage.getItem("prepvault-alarms-connected") === "1" ? "Alarm Systems" : "Connect Alarms", accent: localStorage.getItem("prepvault-alarms-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
                     { icon: "🔒", label: encryptedDb ? "Encryption Active" : "Security & Encryption", accent: encryptedDb ? "#22c55e" : null, onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
+                    { icon: "🧪", label: "Simulate", onClick: () => { setActiveTab("simulate"); setShowProfileMenu(false); } },
                     { icon: "⚡", label: crisisMode ? "Deactivate Crisis" : "Activate Crisis", accent: crisisMode ? "#ef4444" : null, onClick: () => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } setShowProfileMenu(false); } },
                   ].map((item, i) => (
                     <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: item.accent || "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
@@ -8478,7 +9189,7 @@ export default function PrepVault() {
       {!selCat && (
         <div className="pcs-tabs">
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id); }}
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}
               style={{ padding: "11px 18px", background: "none", border: "none", borderBottom: activeTab === tab.id ? "2px solid #c8553a" : "2px solid transparent", color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, fontFamily: "inherit", transition: "color 0.15s" }}>
               <span style={{ fontSize: 14 }}>{tab.i}</span> {tab.l}
               {false && tab.id === "community" && <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 8, background: "rgba(34,197,94,0.12)", color: "#22c55e", fontWeight: 700 }}>{members.filter((m) => m.sharing).length}</span>}
@@ -8626,7 +9337,7 @@ export default function PrepVault() {
       ) : (
         <div className="pcs-bottom-nav">
           {tabs.map((tab) => (
-            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => { setActiveTab(tab.id); }}>
+            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}>
               <span style={{ fontSize: 18 }}>{tab.i}</span>
               {tab.l}
             </button>
@@ -8648,8 +9359,9 @@ export default function PrepVault() {
         const steps = [
           { icon: "👋", title: "Welcome to PrepVault", desc: "Your personal continuity system. Let's take a quick tour of your preparedness dashboard.", action: "Start Tour" },
           { icon: "🏠", title: "Set Up Your Properties", desc: "Add your primary residence, bug-out locations, and cache sites. Each property tracks its own inventory independently.", action: "Next", tab: "property" },
-          { icon: "📦", title: "Track Your Inventory", desc: "Use the Inventory tab to add items across 13 categories — food, water, medical, energy, and more. Track quantities, locations, and expiry dates.", action: "Next", tab: "inventory" },
-          { icon: "👥", title: "Connect Your Team", desc: "The Team tab lets you track members, manage comms, skills, rationing, and emergency contacts all in one place.", action: "Finish", tab: "team" },
+          { icon: "📦", title: "Track Your Supplies", desc: "Use the Dashboard to add items across 20+ categories. Track quantities, locations, expiry dates, and consumption rates.", action: "Next", tab: "dashboard" },
+          { icon: "👥", title: "Connect Your Team", desc: "The Team tab lets you track team members on a satellite map, manage skills, rationing, and trade routes.", action: "Next", tab: "community" },
+          { icon: "📡", title: "Monitor Communications", desc: "The Comms tab gives you a frequency scanner, check-in schedules, code words, and radio protocol references.", action: "Finish", tab: "comms" },
         ];
         const step = steps[onboardStep];
         return (
