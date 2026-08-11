@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   prop_address TEXT,
   active_property_id TEXT DEFAULT 'prop1',
   pin_hash TEXT,
+  plan TEXT DEFAULT 'free',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -26,12 +27,13 @@ CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, display_name, climate, people)
+  INSERT INTO profiles (id, display_name, climate, people, plan)
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
     COALESCE(new.raw_user_meta_data->>'climate', 'temperate'),
-    COALESCE((new.raw_user_meta_data->>'people')::int, 4)
+    COALESCE((new.raw_user_meta_data->>'people')::int, 4),
+    'free'
   );
   RETURN new;
 END;
