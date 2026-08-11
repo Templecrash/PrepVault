@@ -15,16 +15,26 @@ export class SyncEngine {
   constructor(supabase) {
     this.supabase = supabase;
     this.userId = null;
+    this.userPlan = "free";
     this.syncTimer = null;
-    this.status = 'local'; // 'local' | 'syncing' | 'synced' | 'error' | 'offline'
+    this.status = 'local'; // 'local' | 'syncing' | 'synced' | 'error' | 'offline' | 'upgrade'
     this.onStatusChange = null;
     this.pendingChanges = false;
   }
 
   setUser(userId) {
     this.userId = userId;
-    if (userId && navigator.onLine) {
-      this.pull(); // Initial pull on login
+    if (userId && navigator.onLine && this.userPlan === "pro") {
+      this.pull();
+    }
+  }
+
+  setPlan(plan) {
+    this.userPlan = plan;
+    if (!plan || plan !== "pro") {
+      this._setStatus('local');
+    } else if (this.userId && navigator.onLine) {
+      this.pull();
     }
   }
 
@@ -45,6 +55,10 @@ export class SyncEngine {
       this._setStatus(navigator.onLine ? 'local' : 'offline');
       return;
     }
+    if (this.userPlan !== "pro") {
+      this._setStatus('local');
+      return;
+    }
     this.pendingChanges = true;
     if (this.syncTimer) clearTimeout(this.syncTimer);
     this.syncTimer = setTimeout(() => this.push(), 2000);
@@ -54,7 +68,7 @@ export class SyncEngine {
    * Push local state to Supabase
    */
   async push() {
-    if (!this.userId) return;
+    if (!this.userId || this.userPlan !== "pro") return;
     this._setStatus('syncing');
 
     try {
@@ -149,7 +163,7 @@ export class SyncEngine {
    * Pull remote state and merge into localStorage
    */
   async pull() {
-    if (!this.userId) return;
+    if (!this.userId || this.userPlan !== "pro") return;
     this._setStatus('syncing');
 
     try {
@@ -250,7 +264,7 @@ export class SyncEngine {
    * Initial migration: push local data to cloud on first login
    */
   async migrateToCloud() {
-    if (!this.userId) return;
+    if (!this.userId || this.userPlan !== "pro") return;
 
     const meta = (() => {
       try { return JSON.parse(localStorage.getItem(SYNC_KEY)); } catch { return null; }

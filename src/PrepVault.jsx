@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
+import PricingPlans from "./PricingPlans.jsx";
 import L from "leaflet";
 
 /* ═══════════════════════════════════════════════════════════
@@ -8340,6 +8341,10 @@ export default function PrepVault() {
 
   /* ── Auth + Sync State ── */
   const [user, setUser] = useState(null);
+  const [userPlan, setUserPlan] = useState(() => {
+    try { return localStorage.getItem("prepvault-plan") || "free"; } catch { return "free"; }
+  });
+  const [showPricing, setShowPricing] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // 'login' | 'signup'
   const [authEmail, setAuthEmail] = useState("");
@@ -8424,9 +8429,25 @@ export default function PrepVault() {
       // Cloud auth via Supabase
       supabase.auth.getSession().then(({ data: { session } }) => {
         setUser(session?.user || null);
+        if (session?.user) {
+          supabase.from("profiles").select("plan").eq("id", session.user.id).single().then(({ data }) => {
+            if (data?.plan) {
+              setUserPlan(data.plan);
+              localStorage.setItem("prepvault-plan", data.plan);
+            }
+          });
+        }
       });
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setUser(session?.user || null);
+        if (session?.user) {
+          supabase.from("profiles").select("plan").eq("id", session.user.id).single().then(({ data }) => {
+            if (data?.plan) {
+              setUserPlan(data.plan);
+              localStorage.setItem("prepvault-plan", data.plan);
+            }
+          });
+        }
       });
       return () => subscription.unsubscribe();
     } else {
@@ -8452,13 +8473,16 @@ export default function PrepVault() {
     const engine = syncEngineRef.current;
     if (user) {
       engine.setUser(user.id);
-      engine.migrateToCloud();
+      engine.setPlan(userPlan);
+      if (isPro) {
+        engine.migrateToCloud();
+      }
     } else {
       engine.setUser(null);
       setSyncStatus("local");
     }
     return () => engine.destroy();
-  }, [user]);
+  }, [user, userPlan, isPro]);
 
   /* ── Auth Handlers ── */
   // Local auth helpers (when Supabase isn't configured)
@@ -8819,7 +8843,9 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate, codes]);
 
-  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
+  const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥", proOnly: true }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
+
+  const isPro = userPlan === "pro";
 
   const renderContent = () => {
     if (selCat) {
@@ -8833,6 +8859,7 @@ export default function PrepVault() {
       case "preps":
         return <PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} />;
       case "community":
+        if (!isPro) return null;
         return <CommunityTab members={members} setMembers={setMembers} items={propItems} people={people} climate={climate} user={user} contacts={contacts} setContacts={setContacts} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
@@ -8949,7 +8976,7 @@ export default function PrepVault() {
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Create Free Account</button>
             <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); if (!propertyProfile?.completedAt) { setShowQuickStart(true); setQsStep(0); } }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>No credit card · Works offline · Your data stays yours</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>Free to start · Works offline · Your data stays yours</div>
         </div>
 
         {/* ── Stats Bar ── */}
@@ -8993,6 +9020,38 @@ export default function PrepVault() {
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{s.d}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ── Pricing Teaser ── */}
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
+          <h2 style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 3, fontWeight: 700, marginBottom: 24 }}>Simple Pricing</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+            <div style={{ padding: "28px 24px", borderRadius: 14, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>💪</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Free</div>
+              <div style={{ fontSize: 28, fontWeight: 900, fontFamily: M, color: "#fff", marginBottom: 8 }}>$0</div>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, margin: "0 0 16px" }}>Full preparedness toolkit on a single device. Inventory, comms, crisis sims, and property management — all encrypted and offline.</p>
+              <div style={{ textAlign: "left", fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
+                {["22 supply categories", "13 crisis scenarios", "Comms center", "Property & mapping", "AES-256 encryption", "Farming tracker"].map((f, i) => (
+                  <div key={i} style={{ padding: "4px 0", display: "flex", alignItems: "center", gap: 6 }}><span style={{ color: "#22c55e" }}>✓</span>{f}</div>
+                ))}
+              </div>
+              <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); if (!propertyProfile?.completedAt) { setShowQuickStart(true); setQsStep(0); } }} style={{ padding: "12px 24px", borderRadius: 8, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Start Free</button>
+            </div>
+            <div style={{ padding: "28px 24px", borderRadius: 14, background: "rgba(200,85,58,0.04)", border: "1px solid rgba(200,85,58,0.25)", textAlign: "center" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>🛡️</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Pro</div>
+              <div style={{ fontSize: 28, fontWeight: 900, fontFamily: M, color: "#c8553a", marginBottom: 2 }}>$9<span style={{ fontSize: 14, fontWeight: 400, color: "rgba(255,255,255,0.35)" }}>/mo</span></div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginBottom: 8 }}>or $90/year — save 17%</div>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, margin: "0 0 16px" }}>Everything in Free, plus cloud sync across all your devices and full team coordination features.</p>
+              <div style={{ textAlign: "left", fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
+                {["Everything in Free", "Cloud sync (all devices)", "Team coordination", "Encrypted team chat", "Live member tracking", "Trade & resource sharing", "Team rally points", "Priority support"].map((f, i) => (
+                  <div key={i} style={{ padding: "4px 0", display: "flex", alignItems: "center", gap: 6 }}><span style={{ color: "#22c55e" }}>✓</span>{f}</div>
+                ))}
+              </div>
+              <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "12px 24px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Get Started</button>
+            </div>
           </div>
         </div>
 
@@ -9090,6 +9149,11 @@ export default function PrepVault() {
               {syncStatus === "synced" ? "☁️ Synced" : syncStatus === "syncing" ? "⟳ Syncing" : syncStatus === "error" ? "⚠ Sync Error" : "💾 Local"}
             </div>
           )}
+          {user && !isPro && (
+            <button onClick={(e) => { e.stopPropagation(); setShowPricing(true); }} style={{ padding: "4px 10px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+              Upgrade
+            </button>
+          )}
           {/* Site Selector Dropdown */}
           <div style={{ position: "relative" }}>
             <button onClick={(e) => { e.stopPropagation(); setShowSiteMenu(p => !p); setShowProfileMenu(false); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showSiteMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showSiteMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showSiteMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
@@ -9151,18 +9215,19 @@ export default function PrepVault() {
               <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "#1a1d23", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: 1200, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
                 <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{user ? user.email?.split("@")[0] : "Demo User"}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{user ? user.email : "No account"}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{user ? user.email : "No account"}{isPro ? " · Pro" : " · Free"}</div>
                 </div>
                 <div style={{ padding: "6px 0" }}>
                   {[
                     { icon: "🚀", label: "Quick Start", badge: !propertyProfile?.completedAt, onClick: () => { setShowQuickStart(true); setQsStep(0); setShowProfileMenu(false); } },
+                    ...(!isPro ? [{ icon: "⭐", label: "Upgrade to Pro", emphasis: true, onClick: () => { setShowPricing(true); setShowProfileMenu(false); } }] : []),
                     { icon: "📷", label: localStorage.getItem("prepvault-cameras-connected") === "1" ? "Trail Cameras" : "Connect Cameras", accent: localStorage.getItem("prepvault-cameras-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
                     { icon: "🚨", label: localStorage.getItem("prepvault-alarms-connected") === "1" ? "Alarm Systems" : "Connect Alarms", accent: localStorage.getItem("prepvault-alarms-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
                     { icon: "🔒", label: encryptedDb ? "Encryption Active" : "Security & Encryption", accent: encryptedDb ? "#22c55e" : null, onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
                     { icon: "🧪", label: "Simulate", onClick: () => { setActiveTab("simulate"); setShowProfileMenu(false); } },
                     { icon: "⚡", label: crisisMode ? "Deactivate Crisis" : "Activate Crisis", accent: crisisMode ? "#ef4444" : null, onClick: () => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } setShowProfileMenu(false); } },
                   ].map((item, i) => (
-                    <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: item.accent || "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                    <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: item.emphasis ? "#c8553a" : (item.accent || "rgba(255,255,255,0.7)"), fontSize: 12, fontWeight: item.emphasis ? 700 : 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
                       <span style={{ fontSize: 14 }}>{item.icon}</span>
                       {item.label}
                       {item.badge && <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", marginLeft: "auto" }} />}
@@ -9188,13 +9253,24 @@ export default function PrepVault() {
       {/* ═══ DESKTOP TABS ═══ */}
       {!selCat && (
         <div className="pcs-tabs">
-          {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}
+          {tabs.map((tab) => {
+            const handleTabClick = () => {
+              if (tab.proOnly && !isPro) {
+                setShowPricing(true);
+                return;
+              }
+              setActiveTab(tab.id);
+              if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur);
+            };
+            return (
+            <button key={tab.id} onClick={handleTabClick}
               style={{ padding: "11px 18px", background: "none", border: "none", borderBottom: activeTab === tab.id ? "2px solid #c8553a" : "2px solid transparent", color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, fontFamily: "inherit", transition: "color 0.15s" }}>
               <span style={{ fontSize: 14 }}>{tab.i}</span> {tab.l}
+              {tab.proOnly && !isPro && <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4, background: "rgba(200,85,58,0.15)", color: "#c8553a", fontWeight: 700 }}>PRO</span>}
               {false && tab.id === "community" && <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 8, background: "rgba(34,197,94,0.12)", color: "#22c55e", fontWeight: 700 }}>{members.filter((m) => m.sharing).length}</span>}
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -9336,12 +9412,22 @@ export default function PrepVault() {
         </div>
       ) : (
         <div className="pcs-bottom-nav">
-          {tabs.map((tab) => (
-            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}>
+          {tabs.map((tab) => {
+            const handleTabClick = () => {
+              if (tab.proOnly && !isPro) {
+                setShowPricing(true);
+                return;
+              }
+              setActiveTab(tab.id);
+              if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur);
+            };
+            return (
+            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={handleTabClick}>
               <span style={{ fontSize: 18 }}>{tab.i}</span>
               {tab.l}
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
       {/* ═══ TOAST NOTIFICATION ═══ */}
@@ -9563,6 +9649,20 @@ export default function PrepVault() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ Pricing Plans Modal ═══ */}
+      {showPricing && (
+        <PricingPlans
+          userPlan={userPlan}
+          onUpgrade={(plan) => {
+            setUserPlan(plan);
+            localStorage.setItem("prepvault-plan", plan);
+            if (syncEngineRef.current) syncEngineRef.current.setPlan(plan);
+            setShowPricing(false);
+          }}
+          onClose={() => setShowPricing(false)}
+        />
       )}
     </div>
   );
