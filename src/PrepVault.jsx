@@ -9005,11 +9005,21 @@ export default function PrepVault() {
           </div>
         </div>
 
+        {/* ── Calculator promo ── */}
+        <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px 50px", textAlign: "center" }}>
+          <div style={{ padding: "32px 28px", borderRadius: 16, background: "rgba(27,94,32,0.07)", border: "1px solid rgba(27,94,32,0.18)" }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>🥫</div>
+            <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800 }}>How much food & water should you store?</h2>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 20px", lineHeight: 1.6 }}>Use our free food storage calculator to get a realistic list, in pounds, for your household and timeline. No account, no data collected.</p>
+            <a href="/calculator" style={{ display: "inline-block", padding: "12px 30px", borderRadius: 10, background: "linear-gradient(135deg,#1B5E20,#124212)", color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>Open the Food Storage Calculator →</a>
+          </div>
+        </div>
+
         {/* ── Footer ── */}
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
           <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
-            <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
+            <span>AES-256-GCM</span><span>Offline-First</span><a href="/calculator" style={{ color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>Food Storage Calculator</a>
           </div>
         </div>
 
