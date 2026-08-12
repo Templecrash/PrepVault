@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
 import L from "leaflet";
+import RadioFrequenciesGuide from "./RadioFrequenciesGuide.jsx";
 
 /* ═══════════════════════════════════════════════════════════
    DATA CONSTANTS
@@ -6069,6 +6070,15 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           <div style={{ ...cardSt, padding: 12 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📖 Manuals & References</h3>
             <div style={{ display: "grid", gap: 4 }}>
+              <a href="#/radio-frequencies" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 6, background: "rgba(200,85,58,0.06)", border: "1px solid rgba(200,85,58,0.15)", textDecoration: "none", cursor: "pointer", transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.borderColor = "rgba(200,85,58,0.3)"; }} onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"; }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>📡</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Emergency Radio Frequencies Reference</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>GMRS, FRS, MURS, CB, ham &amp; NOAA — full offline guide</div>
+                </div>
+                <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 3, background: "rgba(200,85,58,0.15)", color: "#c8553a", fontWeight: 700, flexShrink: 0 }}>PrepVault Guide</span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>↗</span>
+              </a>
               {[
                 { icon: "📻", title: "Baofeng UV-5R Manual", tag: "Baofeng", url: "https://www.miklor.com/uv5r/UV-5R-Manual.pdf" },
                 { icon: "📻", title: "Baofeng UV-82 Manual", tag: "Baofeng", url: "https://www.miklor.com/uv82/Baofeng-UV82-Manual.pdf" },
@@ -8338,6 +8348,16 @@ export default function PrepVault() {
   const [toast, setToast] = useState(null);
   const importRef = useRef(null);
 
+  /* ── Hash routing for standalone guide pages ── */
+  const [guideRoute, setGuideRoute] = useState(() => (window.location.hash.startsWith("#/radio-frequencies") ? "radio-frequencies" : null));
+  useEffect(() => {
+    const onHash = () => setGuideRoute(window.location.hash.startsWith("#/radio-frequencies") ? "radio-frequencies" : null);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const openGuide = () => { window.location.hash = "#/radio-frequencies"; };
+  const closeGuide = () => { window.history.replaceState(null, "", window.location.pathname + window.location.search); setGuideRoute(null); };
+
   /* ── Auth + Sync State ── */
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
@@ -8901,6 +8921,11 @@ export default function PrepVault() {
     </div>
   );
 
+  /* ═══ STANDALONE GUIDE PAGE ═══ */
+  if (guideRoute === "radio-frequencies") {
+    return <RadioFrequenciesGuide onBack={closeGuide} />;
+  }
+
   /* ═══ LANDING PAGE ═══ */
   if (showLanding) {
     const features = [
@@ -9006,9 +9031,10 @@ export default function PrepVault() {
         </div>
 
         {/* ── Footer ── */}
-        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M, alignItems: "center", flexWrap: "wrap" }}>
+            <a href="#/radio-frequencies" onClick={openGuide} style={{ color: "rgba(255,255,255,0.35)", textDecoration: "none" }} onMouseOver={e => e.currentTarget.style.color = "#c8553a"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.35)"}>📻 Radio Frequency Reference</a>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
