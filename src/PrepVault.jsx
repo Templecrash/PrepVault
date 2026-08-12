@@ -9005,6 +9005,11 @@ export default function PrepVault() {
           </div>
         </div>
 
+        {/* ── Resources ── */}
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px 0", textAlign: "center" }}>
+          <a href="/family-emergency-plan" style={{ display: "inline-block", padding: "12px 24px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", textDecoration: "none", fontSize: 13, fontWeight: 600, fontFamily: "inherit" }}>📝 How to Make a Family Emergency Plan — free printable template</a>
+        </div>
+
         {/* ── Footer ── */}
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
