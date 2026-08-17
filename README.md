@@ -57,7 +57,11 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 OPENWEATHERMAP_API_KEY=your-key
 GNEWS_API_KEY=your-key
+VITE_LAUNCHFURY_ANALYTICS_WRITE_KEY=your-browser-write-key
+LAUNCHFURY_ANALYTICS_SERVER_KEY=your-server-write-key
 ```
+
+`LAUNCHFURY_ANALYTICS_SERVER_KEY` is backend-only (used by `/api/analytics/*`) and must never be exposed to the browser.
 
 ### Deploy to Vercel
 

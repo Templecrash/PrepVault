@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
+import { track, identifyUser, resetAnalytics } from "./analytics.js";
 import L from "leaflet";
 
 /* ═══════════════════════════════════════════════════════════
@@ -8460,6 +8461,11 @@ export default function PrepVault() {
     return () => engine.destroy();
   }, [user]);
 
+  /* ── Analytics identity (link signed-in app user to first-party analytics) ── */
+  useEffect(() => {
+    if (user) identifyUser(user);
+  }, [user]);
+
   /* ── Auth Handlers ── */
   // Local auth helpers (when Supabase isn't configured)
   const localAuthStore = useCallback(() => {
@@ -8480,6 +8486,7 @@ export default function PrepVault() {
         if (authMode === "signup") {
           const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
           if (error) throw error;
+          track("account_signup", { method: "cloud" });
           setVerificationEmail(authEmail);
           setShowVerification(true);
           setAuthLoading(false);
@@ -8487,6 +8494,7 @@ export default function PrepVault() {
         } else {
           const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
           if (error) throw error;
+          track("auth_login", { method: "cloud" });
           showToast("Logged in ✓", "success");
         }
       } else {
@@ -8504,6 +8512,7 @@ export default function PrepVault() {
           localStorage.setItem("prepvault-local-accounts", JSON.stringify(accounts));
           setUser({ id: localUser.id, email: emailKey, isLocal: true });
           localStorage.setItem("prepvault-active-session", JSON.stringify({ id: localUser.id, email: emailKey, isLocal: true }));
+          track("account_signup", { method: "local" });
           showToast("Account created (local mode)", "success");
         } else {
           const account = accounts[emailKey];
@@ -8511,6 +8520,7 @@ export default function PrepVault() {
           if (account.pwHash !== pwHash) throw new Error("Incorrect password");
           setUser({ id: account.id, email: emailKey, isLocal: true });
           localStorage.setItem("prepvault-active-session", JSON.stringify({ id: account.id, email: emailKey, isLocal: true }));
+          track("auth_login", { method: "local" });
           showToast("Logged in ✓ (local mode)", "success");
         }
       }
@@ -8544,6 +8554,7 @@ export default function PrepVault() {
       setUser(null);
       localStorage.removeItem("prepvault-active-session");
     }
+    resetAnalytics();
     setSyncStatus("local");
     showToast("Logged out", "success");
   }, []);
@@ -8694,18 +8705,21 @@ export default function PrepVault() {
       showToast("✏️ " + i.name + " updated");
     } else {
       setItems((p) => [...p, { ...i, propertyId: activePropertyId === "all" ? "prop1" : activePropertyId }]);
+      track("inventory_item_added", { category: i.category, subType: i.subType });
       showToast("✅ " + i.name + " added to " + (CATEGORIES[i.category]?.label || "inventory"));
     }
   };
   const handleRemove = (id) => {
     const item = items.find(i => i.id === id);
     setItems((p) => p.filter((i) => i.id !== id));
+    if (item) track("inventory_item_removed", { category: item.category, subType: item.subType });
     showToast("🗑️ " + (item?.name || "Item") + " removed");
   };
   const handleScan = (product) => {
     setShowScanner(false);
     const newItem = { id: uid(), category: product.category, subType: product.subType, name: product.name, quantity: product.qty || 1, location: "", fields: product.fields || {}, addedDate: new Date().toISOString().split("T")[0], propertyId: activePropertyId === "all" ? "prop1" : activePropertyId };
     setItems((p) => [...p, newItem]);
+    track("inventory_item_added", { category: product.category, subType: product.subType, source: "barcode" });
     showToast("📷 " + product.name + " scanned and added");
   };
 
@@ -8715,6 +8729,7 @@ export default function PrepVault() {
     const np = { id: "prop" + Date.now(), name: newPropName.trim(), type: newPropType, icon: icons[newPropType] || "📍", active: false };
     setProperties(p => [...p, np]);
     setActivePropertyId(np.id);
+    track("property_added", { type: newPropType });
     setNewPropName("");
     setShowAddProp(false);
   };
@@ -9406,7 +9421,7 @@ export default function PrepVault() {
             <p style={{ margin: "0 0 16px", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Select the type of crisis to receive targeted immediate action steps.</p>
             <div style={{ display: "grid", gap: 6 }}>
               {CRISIS_TYPES.map(ct => (
-                <button key={ct.id} onClick={() => { setCrisisType(ct.id); setCrisisMode(true); setCrisisStart(new Date()); setShowCrisisSelector(false); }}
+                <button key={ct.id} onClick={() => { setCrisisType(ct.id); setCrisisMode(true); setCrisisStart(new Date()); setShowCrisisSelector(false); track("crisis_activated", { type: ct.id }); }}
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10, border: "1px solid " + ct.color + "30", background: ct.color + "08", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#fff" }}>
                   <span style={{ fontSize: 24 }}>{ct.icon}</span>
                   <div>
@@ -9525,7 +9540,7 @@ export default function PrepVault() {
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
                     {isOffline
-                      ? "No network connection detected. All data stays on this device. Encrypted exports can be saved to USB or local storage." + (user ? " Changes will sync when back online." : " Zero telemetry, zero cloud contact.")
+                      ? "No network connection detected. All data stays on this device. Encrypted exports can be saved to USB or local storage." + (user ? " Changes will sync when back online." : " First-party analytics are pseudonymous and contain no personal data.")
                       : user
                         ? "Connected and syncing with cloud. Your data is backed up and available across devices. Local-first: all features work without network."
                         : "Network is available. For maximum discretion: enable airplane mode, then reload. PCS runs entirely client-side — no server calls required for core functionality."
@@ -9550,7 +9565,7 @@ export default function PrepVault() {
                     ["Salt", "128-bit random"],
                     ["IV", "96-bit random"],
                     ["Storage", "Local only"],
-                    ["Telemetry", "None"],
+                    ["Telemetry", "First-party (pseudonymous)"],
                     ["Cloud sync", user ? "Enabled" : "Disabled"],
                   ].map(([k, v], i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
