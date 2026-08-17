@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
+import WinterOutageGuide, { GUIDE_PATH } from "./WinterOutageGuide.jsx";
 import L from "leaflet";
 
 /* ═══════════════════════════════════════════════════════════
@@ -8326,6 +8327,22 @@ export default function PrepVault() {
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session"));
+  const [guideOpen, setGuideOpen] = useState(() => window.location.pathname.replace(/\/+$/, "") === GUIDE_PATH);
+  useEffect(() => {
+    const onPop = () => setGuideOpen(window.location.pathname.replace(/\/+$/, "") === GUIDE_PATH);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  const openGuide = () => {
+    window.history.pushState({}, "", GUIDE_PATH);
+    setGuideOpen(true);
+    window.scrollTo(0, 0);
+  };
+  const closeGuide = () => {
+    window.history.pushState({}, "", "/");
+    setGuideOpen(false);
+    window.scrollTo(0, 0);
+  };
   const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
@@ -8901,6 +8918,11 @@ export default function PrepVault() {
     </div>
   );
 
+  /* ═══ WINTER OUTAGE AUTONOMY GUIDE ═══ */
+  if (guideOpen) {
+    return <WinterOutageGuide onBack={closeGuide} />;
+  }
+
   /* ═══ LANDING PAGE ═══ */
   if (showLanding) {
     const features = [
@@ -9008,7 +9030,8 @@ export default function PrepVault() {
         {/* ── Footer ── */}
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M, alignItems: "center" }}>
+            <button onClick={openGuide} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 10, fontFamily: M, padding: 0, textDecoration: "underline" }}>Winter Outage Autonomy Guide</button>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
