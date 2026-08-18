@@ -8276,12 +8276,365 @@ function loadSaved() {
   } catch { return null; }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   PREPAREDNESS SCORE CALCULATOR — standalone public tool page
+   ═══════════════════════════════════════════════════════════ */
+const CALC_CATEGORIES = [
+  { key: "water", label: "Water" }, { key: "food", label: "Food" }, { key: "medical", label: "Medical" },
+  { key: "firewood", label: "Firewood" }, { key: "fuel", label: "Fuel" }, { key: "shelter", label: "Shelter" },
+  { key: "tools", label: "Tools" }, { key: "comms", label: "Comms" }, { key: "defense", label: "Defense" },
+  { key: "firearms", label: "Firearms" }, { key: "vehicles", label: "Vehicles" }, { key: "equipment", label: "Equipment" },
+  { key: "farm", label: "Farm" }, { key: "hygiene", label: "Hygiene" }, { key: "power", label: "Power" },
+  { key: "batteries", label: "Batteries" }, { key: "electronics", label: "Electronics" }, { key: "bugout", label: "Bug-Out" },
+  { key: "kids", label: "Kids" }, { key: "boat", label: "Boat" }, { key: "fishing", label: "Fishing" },
+  { key: "alcohol", label: "Alcohol" }, { key: "recreational", label: "Recreational" }, { key: "books", label: "Books" },
+  { key: "nbc", label: "NBC" }, { key: "clothing", label: "Clothing" }, { key: "pets", label: "Pets" },
+  { key: "lighting", label: "Lighting" }, { key: "bullion", label: "Bullion" }, { key: "livestock", label: "Livestock" },
+];
+
+const CALC_COMM_CHANNELS = ["Satellite", "Cellular", "HAM/GMRS", "Weather Band"];
+
+const GREEN = "#1B5E20";
+const GREEN_LIGHT = "#4CAF50";
+const GREEN_MID = "#2E7D32";
+
+const fmtCalcNum = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+const clampCalc = (v, min, max) => {
+  const n = parseFloat(v);
+  if (isNaN(n)) return min;
+  return Math.max(min, Math.min(max, n));
+};
+
+function CalculatorPage({ onEnterApp }) {
+  const [people, setPeople] = useState(2);
+  const [climate, setClimate] = useState("temperate");
+  const [gallons, setGallons] = useState(0);
+  const [purification, setPurification] = useState(0);
+  const [foodMode, setFoodMode] = useState("days");
+  const [foodValue, setFoodValue] = useState(0);
+  const [powerHrs, setPowerHrs] = useState(0);
+  const [heatDays, setHeatDays] = useState(0);
+  const [comm, setComm] = useState([]);
+  const [cats, setCats] = useState([]);
+
+  const formRef = useRef(null);
+  const resultsRef = useRef(null);
+
+  const clim = CLIMATES[climate] || CLIMATES.temperate;
+  const waterMod = clim.waterMod || 1;
+  const p = Math.max(1, Math.min(20, Number(people) || 1));
+  const waterDays = (Number(gallons) || 0) / (p * waterMod) + (Number(purification) || 0) * 3;
+  const calDays = foodMode === "days" ? (Number(foodValue) || 0) : (Number(foodValue) || 0) / (p * 2000);
+  const commCount = comm.length;
+  const commVal = Math.min(commCount, 3);
+  const catsCovered = cats.length;
+
+  const components = [
+    { key: "water", label: "Water continuity", max: 25, full: 14, value: waterDays, unit: "day", plural: "days", earned: Math.min(waterDays / 14, 1) * 25, valText: `${fmtCalcNum(waterDays)} days` },
+    { key: "food", label: "Food continuity", max: 25, full: 30, value: calDays, unit: "day", plural: "days", earned: Math.min(calDays / 30, 1) * 25, valText: `${fmtCalcNum(calDays)} days` },
+    { key: "power", label: "Power autonomy", max: 15, full: 72, value: Number(powerHrs) || 0, unit: "hour", plural: "hours", earned: Math.min((Number(powerHrs) || 0) / 72, 1) * 15, valText: `${fmtCalcNum(Number(powerHrs) || 0)} hours` },
+    { key: "heat", label: "Heat continuity", max: 15, full: 30, value: Number(heatDays) || 0, unit: "day", plural: "days", earned: Math.min((Number(heatDays) || 0) / 30, 1) * 15, valText: `${fmtCalcNum(Number(heatDays) || 0)} days` },
+    { key: "comms", label: "Communication redundancy", max: 10, full: 3, value: commVal, unit: "channel", plural: "channels", earned: Math.min(commVal / 3, 1) * 10, valText: `${commCount} ${commCount === 1 ? "channel" : "channels"}` },
+    { key: "coverage", label: "Category coverage", max: 10, full: 30, value: catsCovered, unit: "category", plural: "categories", earned: Math.min(catsCovered / 30, 1) * 10, valText: `${catsCovered} ${catsCovered === 1 ? "category" : "categories"}` },
+  ];
+
+  const score = Math.round(components.reduce((s, c) => s + c.earned, 0));
+  const weakest = components.reduce((w, c) => (c.max - c.earned) > (w.max - w.earned) ? c : w, components[0]);
+  const shortfall = Math.max(0, weakest.full - weakest.value);
+  const unitWord = shortfall === 1 ? weakest.unit : weakest.plural;
+
+  const toggleComm = (ch) => setComm((prev) => (prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]));
+  const toggleCat = (key) => setCats((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  const setCoverageCount = (n) => setCats(CALC_CATEGORIES.slice(0, clampCalc(n, 0, 30)).map((c) => c.key));
+
+  const scrollToResults = () => { resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  const scrollToForm = () => { formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); };
+
+  const fieldWrap = { display: "flex", flexDirection: "column", gap: 6 };
+  const helperSt = { fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 };
+  const segBtn = (active) => ({ flex: 1, padding: "9px 12px", borderRadius: 8, border: "none", background: active ? GREEN : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "center" });
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes calcFadeUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .calc-chip { transition: all 0.15s ease; }
+        .calc-chip:hover { border-color: ${GREEN_LIGHT} !important; }
+        input:focus, select:focus, textarea:focus { border-color: ${GREEN_LIGHT} !important; box-shadow: 0 0 0 2px rgba(76,175,80,0.15) !important; }
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+      `}</style>
+
+      {/* ── Sticky header ── */}
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,12,16,0.85)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap" }}>
+        <button onClick={onEnterApp} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", color: "#fff" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg,${GREEN_MID},${GREEN})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: M, color: "#fff" }}>P</div>
+          <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: -0.5 }}>PrepVault</span>
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: M, marginLeft: 2 }}>Preparedness Score</span>
+        </button>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: M, letterSpacing: 1 }}>Encrypted · Offline · No cloud dependency</span>
+      </nav>
+
+      {/* ── Hero ── */}
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "60px 20px 40px", textAlign: "center", animation: "calcFadeUp 0.5s ease-out" }}>
+        <div style={{ display: "inline-block", padding: "5px 12px", borderRadius: 20, background: "rgba(76,175,80,0.08)", border: "1px solid rgba(76,175,80,0.2)", fontSize: 10, color: GREEN_LIGHT, fontWeight: 700, fontFamily: M, marginBottom: 20, letterSpacing: 1 }}>PREPAREDNESS SCORE</div>
+        <h1 style={{ fontSize: "clamp(30px, 6vw, 46px)", fontWeight: 900, margin: "0 0 14px", lineHeight: 1.1, letterSpacing: -1 }}>How prepared are you, really?</h1>
+        <p style={{ fontSize: "clamp(13px, 2vw, 16px)", color: "rgba(255,255,255,0.5)", maxWidth: 560, margin: "0 auto 22px", lineHeight: 1.7 }}>
+          Answer eight quick questions about your household, water, food, power, heat, comms, and supply coverage to get your PrepVault Preparedness Score out of 100. No account. No cloud. Nothing leaves your browser.
+        </p>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: M, marginBottom: 26 }}>Encrypted. Offline. No cloud dependency.</div>
+        <button onClick={scrollToForm} style={{ padding: "15px 34px", borderRadius: 12, background: `linear-gradient(135deg,${GREEN_MID},${GREEN})`, color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(27,94,32,0.4)" }}>Calculate my score</button>
+      </div>
+
+      {/* ── Form ── */}
+      <div ref={formRef} style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px 40px" }}>
+        <div style={{ ...cardSt, padding: 28, scrollMarginTop: 90 }}>
+          <h2 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 800 }}>Build your score</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            <span>Your score:</span>
+            <span style={{ fontFamily: M, fontSize: 18, fontWeight: 800, color: SC(score) }}>{score}</span>
+            <span style={{ fontFamily: M, fontSize: 10, fontWeight: 700, color: SC(score), textTransform: "uppercase", letterSpacing: 1 }}>{SL(score)}</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            {/* Q1 · Household size */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Household size</label>
+              <input type="number" min={1} max={20} step={1} value={people} onChange={(e) => setPeople(clampCalc(e.target.value, 1, 20))} style={{ ...inp, fontFamily: M }} />
+              <div style={helperSt}>Scales water and food needs. 1 person needs ≈2,000 calories and ≈1 gallon of water a day.</div>
+            </div>
+
+            {/* Q2 · Climate zone */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Climate zone</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                {Object.entries(CLIMATES).map(([k, c]) => {
+                  const active = climate === k;
+                  return (
+                    <button key={k} onClick={() => setClimate(k)} className="calc-chip" style={{ padding: "12px 12px", borderRadius: 10, background: active ? "rgba(76,175,80,0.1)" : "rgba(255,255,255,0.03)", border: active ? `1px solid ${GREEN_LIGHT}` : "1px solid rgba(255,255,255,0.08)", color: active ? "#fff" : "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>{c.icon}</div>
+                      <div style={{ fontSize: 11, fontWeight: active ? 700 : 600 }}>{c.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={helperSt}>Adjusts how fast stored water is consumed in your household.</div>
+            </div>
+
+            {/* Q3 · Water continuity */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Stored water (gallons)</label>
+              <input type="number" min={0} step={1} value={gallons} onChange={(e) => setGallons(clampCalc(e.target.value, 0, 100000000))} style={{ ...inp, fontFamily: M }} />
+              <div style={helperSt}>Total drinking water you keep stored. Full marks at 14 days.</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                <label style={{ ...labelSt, fontSize: 10 }}>Purification devices or tablet packs <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500, color: "rgba(255,255,255,0.25)" }}>(optional)</span></label>
+                <input type="number" min={0} step={1} value={purification} onChange={(e) => setPurification(clampCalc(e.target.value, 0, 100000000))} style={{ ...inp, fontFamily: M }} />
+                <div style={helperSt}>Each device or tablet pack adds 3 days of water.</div>
+              </div>
+            </div>
+
+            {/* Q4 · Food continuity */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>How much food do you keep stored?</label>
+              <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 4, marginBottom: 8 }}>
+                <button onClick={() => setFoodMode("days")} style={segBtn(foodMode === "days")}>Days of food</button>
+                <button onClick={() => setFoodMode("calories")} style={segBtn(foodMode === "calories")}>Total calories</button>
+              </div>
+              <input type="number" min={0} step={1} value={foodValue} onChange={(e) => setFoodValue(clampCalc(e.target.value, 0, 100000000000))} style={{ ...inp, fontFamily: M }} />
+              <div style={helperSt}>Full marks at 30 days. One person needs ≈2,000 calories a day.</div>
+            </div>
+
+            {/* Q5 · Power continuity */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Backup power (hours)</label>
+              <input type="number" min={0} step={1} value={powerHrs} onChange={(e) => setPowerHrs(clampCalc(e.target.value, 0, 100000000))} style={{ ...inp, fontFamily: M }} />
+              <div style={helperSt}>How long you can run essentials without the grid. Full marks at 72 hours. Rough equivalents: 1 gasoline gallon ≈ 5.5 hours · each battery item ≈ 0.3 hours · each solar panel or device ≈ 5 hours.</div>
+            </div>
+
+            {/* Q6 · Heat continuity */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Backup heat (days)</label>
+              <input type="number" min={0} step={1} value={heatDays} onChange={(e) => setHeatDays(clampCalc(e.target.value, 0, 100000000))} style={{ ...inp, fontFamily: M }} />
+              <div style={helperSt}>How many days you can heat your home without utilities. Full marks at 30 days. Rough equivalents: 1 cord of firewood ≈ 30 days · 1 propane tank ≈ 2 days.</div>
+            </div>
+
+            {/* Q7 · Communication redundancy */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Which communication channels can you reach in an outage?</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
+                {CALC_COMM_CHANNELS.map((ch) => {
+                  const active = comm.includes(ch);
+                  return (
+                    <button key={ch} onClick={() => toggleComm(ch)} className="calc-chip" role="checkbox" aria-checked={active} style={{ padding: "10px 12px", borderRadius: 10, background: active ? "rgba(76,175,80,0.1)" : "rgba(255,255,255,0.03)", border: active ? `1px solid ${GREEN_LIGHT}` : "1px solid rgba(255,255,255,0.08)", color: active ? "#fff" : "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "inherit", textAlign: "center", fontSize: 12, fontWeight: active ? 700 : 600 }}>
+                      {active ? "✓ " : ""}{ch}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={helperSt}>Count distinct channels you could actually use when the grid is down. Full marks at 3.</div>
+            </div>
+
+            {/* Q8 · Supply coverage */}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Which supply categories do you keep stocked?</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: M }}>{catsCovered} / 30 selected</span>
+                <input type="number" min={0} max={30} step={1} value={catsCovered} onChange={(e) => setCoverageCount(e.target.value)} aria-label="Number of supply categories stocked" style={{ ...inp, width: 80, padding: "8px 10px", fontSize: 13, fontFamily: M }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 6 }}>
+                {CALC_CATEGORIES.map((c) => {
+                  const active = cats.includes(c.key);
+                  return (
+                    <button key={c.key} onClick={() => toggleCat(c.key)} className="calc-chip" role="checkbox" aria-checked={active} style={{ padding: "8px 12px", borderRadius: 8, background: active ? "rgba(76,175,80,0.1)" : "rgba(255,255,255,0.03)", border: active ? `1px solid ${GREEN_LIGHT}` : "1px solid rgba(255,255,255,0.08)", color: active ? "#fff" : "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "inherit", textAlign: "left", fontSize: 12, fontWeight: active ? 700 : 600 }}>
+                      {active ? "✓ " : ""}{c.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={helperSt}>Count categories with at least one real item. Full marks at 30.</div>
+            </div>
+
+            {/* Primary action */}
+            <button onClick={scrollToResults} style={{ padding: "16px", borderRadius: 12, background: `linear-gradient(135deg,${GREEN_MID},${GREEN})`, color: "#fff", border: "none", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginTop: 4, boxShadow: "0 4px 24px rgba(27,94,32,0.4)" }}>Calculate my score</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Results ── */}
+      <div ref={resultsRef} style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px 48px", scrollMarginTop: 90 }}>
+        <div style={{ ...cardSt, padding: 28, textAlign: "center" }}>
+          <h2 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 800 }}>Your Preparedness Score</h2>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <ScoreRing score={score} size={170} strokeWidth={12} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, textAlign: "left" }}>
+            {components.map((c) => {
+              const pct = Math.min(c.earned / c.max, 1) * 100;
+              const barColor = SC((c.earned / c.max) * 100);
+              return (
+                <div key={c.key}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 11, marginBottom: 5, gap: 10 }}>
+                    <span style={{ fontWeight: 600 }}>{c.label}</span>
+                    <span style={{ color: barColor, fontFamily: M, fontWeight: 700, whiteSpace: "nowrap" }}>{Math.round(c.earned)} / {c.max} · {c.valText}</span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: barColor, transition: "width 0.6s ease", borderRadius: 4 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Weakest-pillar callout */}
+          <div style={{ marginTop: 22, padding: "16px 18px", borderRadius: 12, background: "rgba(76,175,80,0.06)", border: "1px solid rgba(76,175,80,0.18)", textAlign: "left" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: GREEN_LIGHT, marginBottom: 6 }}>Start here</div>
+            <div style={{ fontSize: 13, lineHeight: 1.55 }}>
+              <strong>Biggest gap: {weakest.label} — {Math.round(weakest.earned)} / {weakest.max} points.</strong>{" "}
+              You're {fmtCalcNum(shortfall)} {unitWord} short of the {weakest.full}-{weakest.unit} target. Start here.
+            </div>
+          </div>
+
+          {/* Conversion CTA */}
+          <div style={{ marginTop: 18, padding: "18px 20px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, marginBottom: 14 }}>The calculator uses your answers. PrepVault uses your actual inventory — encrypted, offline, no cloud. Get the real number.</div>
+            <button onClick={onEnterApp} style={{ padding: "13px 26px", borderRadius: 10, background: `linear-gradient(135deg,${GREEN_MID},${GREEN})`, color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 20px rgba(27,94,32,0.35)" }}>Track it for real</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Methodology ── */}
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px 48px" }}>
+        <div style={{ ...cardSt, padding: 28 }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 800 }}>How the score works</h2>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, margin: "0 0 18px" }}>
+            Your Preparedness Score is the same weighted six-pillar math PrepVault uses on a live inventory: water and food carry the most weight, power and heat come next, and communication and supply breadth round it out. Every pillar is capped at full marks, so the score tops out at 100.
+          </p>
+
+          <div style={{ overflowX: "auto", marginBottom: 20 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ textAlign: "left" }}>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase", fontSize: 10, letterSpacing: 1 }}>Component</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase", fontSize: 10, letterSpacing: 1 }}>Points</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase", fontSize: 10, letterSpacing: 1 }}>Full marks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Water", 25, "14 days"], ["Food", 25, "30 days"], ["Power", 15, "72 hours"],
+                  ["Heat", 15, "30 days"], ["Comms", 10, "3 channels"], ["Coverage", 10, "30 categories"],
+                ].map((r, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{r[0]}</td>
+                    <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)", fontFamily: M }}>{r[1]}</td>
+                    <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{r[2]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Climate</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>Your climate zone scales how quickly stored water is consumed — Arctic and Cold Continental stretches supplies, Hot & Dry and Tropical burn through it faster.</div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "rgba(255,255,255,0.4)", marginBottom: 10 }}>Score bands</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 6 }}>
+              {[
+                ["FORTIFIED", "90+", "#22c55e"], ["PREPARED", "75+", "#84cc16"], ["MODERATE", "60+", "#eab308"],
+                ["VULNERABLE", "40+", "#f97316"], ["AT RISK", "20+", "#ef4444"], ["CRITICAL", "<20", "#ef4444"],
+              ].map((b, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 5, background: b[2], flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>{b[0]}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 11, fontFamily: M, color: "rgba(255,255,255,0.5)" }}>{b[1]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, margin: 0 }}>This calculator applies the base score with no property or infrastructure bonuses. A full inventory in PrepVault can add those.</p>
+        </div>
+      </div>
+
+      {/* ── FAQ ── */}
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px 48px" }}>
+        <div style={{ ...cardSt, padding: 28 }}>
+          <h2 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 800 }}>FAQ</h2>
+          {[
+            { q: "Is this the same score PrepVault uses?", a: "Yes. It's the same six weighted pillars and the same thresholds, computed from your direct answers instead of a full inventory. No property bonuses are applied here." },
+            { q: "Do you collect my answers?", a: "No. Everything runs in your browser. PrepVault is offline-first and encrypted by design." },
+            { q: "What should I improve first?", a: "Your biggest gap is named under your score. Water and food carry the most points, so a shortfall there moves your number fastest." },
+            { q: "What does full marks mean?", a: "The targets are 14 days of water, 30 days of food, 72 hours of backup power, 30 days of backup heat, 3 communication channels, and 30 supply categories stocked." },
+          ].map((f, i) => (
+            <div key={i} style={{ padding: i > 0 ? "14px 0" : "0 0 14px", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{f.q}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.65 }}>{f.a}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Footer ── */}
+      <div style={{ padding: "22px 24px 34px", borderTop: "1px solid rgba(255,255,255,0.06)", maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>No account required. No data collected. Your answers never leave this page.</div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", lineHeight: 1.6, marginBottom: 14 }}>This score is a planning estimate based on the answers you provide. It is not a guarantee of outcome in any emergency. Preparedness is continuous — review and restock regularly.</div>
+        <button onClick={onEnterApp} style={{ background: "none", border: "none", color: GREEN_LIGHT, cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", textDecoration: "underline" }}>Open PrepVault</button>
+      </div>
+    </div>
+  );
+}
+
 export default function PrepVault() {
   const saved = useRef(loadSaved());
   const [items, setItems] = useState(() => saved.current?.items || SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" })));
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [route, setRoute] = useState(() => window.location.hash);
   const [selCat, setSelCat] = useState(null);
   const [properties, setProperties] = useState(() => saved.current?.properties || DEFAULT_PROPERTIES);
   const [activePropertyId, setActivePropertyId] = useState(() => saved.current?.activePropertyId || "prop1");
@@ -8416,6 +8769,18 @@ export default function PrepVault() {
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
+  }, []);
+
+  /* ── Hash Routing (calculator tool page) ── */
+  useEffect(() => {
+    const onHash = () => setRoute(window.location.hash);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const isCalculator = route.startsWith("#calculator");
+  const enterAppFromCalculator = useCallback(() => {
+    setShowLanding(false);
+    if (window.location.hash) window.location.hash = "";
   }, []);
 
   /* ── Auth Session Restore ── */
@@ -8901,6 +9266,11 @@ export default function PrepVault() {
     </div>
   );
 
+  /* ═══ PREPAREDNESS SCORE CALCULATOR (standalone tool page) ═══ */
+  if (isCalculator) {
+    return <CalculatorPage onEnterApp={enterAppFromCalculator} />;
+  }
+
   /* ═══ LANDING PAGE ═══ */
   if (showLanding) {
     const features = [
@@ -8930,6 +9300,7 @@ export default function PrepVault() {
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: M, marginLeft: 4 }}>v3.0</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => { window.location.hash = "calculator"; }} style={{ padding: "8px 14px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Preparedness Score</button>
             <button onClick={() => { setShowAuth(true); setAuthMode("login"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Get Started</button>
           </div>
