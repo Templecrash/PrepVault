@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How Many Calories Do You Need for Food Storage? (Person-Days Guide)</title>
+  <meta name="description" content="Calculate how much food to store per person for a 2-week to 1-year supply. Person-days calorie math, real staple calorie counts, and how to verify what your stash really delivers." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://prepvault-xi.vercel.app/guides/food-storage-calorie-math" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="PrepVault" />
+  <meta property="og:title" content="How Many Calories Do You Need for Food Storage? (Person-Days Guide)" />
+  <meta property="og:description" content="Calculate how much food to store per person for a 2-week to 1-year supply. Person-days calorie math, real staple calorie counts, and how to verify what your stash really delivers." />
+  <meta property="og:url" content="https://prepvault-xi.vercel.app/guides/food-storage-calorie-math" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="How Many Calories Do You Need for Food Storage? (Person-Days Guide)" />
+  <meta name="twitter:description" content="Calculate how much food to store per person for a 2-week to 1-year supply. Person-days calorie math, real staple calorie counts, and how to verify what your stash really delivers." />
+  <style>
+    :root {
+      --brand: #1B5E20;
+      --brand-dark: #144a18;
+      --brand-tint: #e8f0e6;
+      --brand-tint-2: #f4f7f2;
+      --ink: #1a1a1a;
+      --ink-soft: #4a4a4a;
+      --ink-faint: #6b6b6b;
+      --line: #e4e7e0;
+      --bg: #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.7;
+      font-size: 17px;
+    }
+    .mono { font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace; }
+    .site-header {
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .site-header-inner {
+      max-width: 760px; margin: 0 auto; padding: 16px 20px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .site-header a { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+    .logo {
+      width: 34px; height: 34px; border-radius: 9px; flex: 0 0 auto;
+      background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800;
+    }
+    .wordmark { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; color: var(--ink); }
+    .wordmark small { display: block; font-size: 10px; font-weight: 500; color: var(--ink-faint); letter-spacing: 0.4px; }
+    .site-header .nav-right { margin-left: auto; }
+    .site-header .nav-right a {
+      font-size: 13px; font-weight: 600; color: var(--brand); text-decoration: none;
+      padding: 7px 14px; border: 1px solid var(--brand); border-radius: 8px;
+    }
+    .site-header .nav-right a:hover { background: var(--brand-tint-2); }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 8px 20px 80px; }
+    .breadcrumb {
+      font-size: 13px; color: var(--ink-faint); padding: 18px 0 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .breadcrumb a { color: var(--brand); text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .breadcrumb .sep { color: var(--ink-faint); }
+    article h1 {
+      font-size: 2.05rem; line-height: 1.18; letter-spacing: -0.02em;
+      margin: 10px 0 14px; font-weight: 800; color: var(--ink);
+    }
+    .byline { font-size: 14px; color: var(--ink-faint); margin-bottom: 26px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .byline span { white-space: nowrap; }
+    .byline .dot { opacity: 0.5; }
+    article h2 {
+      font-size: 1.5rem; line-height: 1.25; margin: 40px 0 12px; font-weight: 800; letter-spacing: -0.01em;
+      border-top: 1px solid var(--line); padding-top: 28px; color: var(--ink);
+    }
+    article h2:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+    article h3 { font-size: 1.12rem; margin: 26px 0 10px; font-weight: 700; color: var(--ink); }
+    article p { margin: 0 0 16px; color: var(--ink); }
+    article a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
+    article a:hover { color: var(--brand-dark); }
+    article strong { font-weight: 700; }
+    article em { font-style: italic; }
+    article ul, article ol { margin: 0 0 16px; padding-left: 26px; }
+    article li { margin-bottom: 8px; }
+    .lead { font-size: 1.1rem; color: var(--ink-soft); }
+    .formula {
+      background: var(--brand-tint-2); border-left: 4px solid var(--brand);
+      padding: 16px 20px; border-radius: 8px; margin: 20px 0; font-size: 1.05rem;
+    }
+    .formula .mono { color: var(--brand-dark); font-weight: 700; }
+    .figure { margin: 22px 0; text-align: center; }
+    .figure svg { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .figure figcaption { font-size: 13px; color: var(--ink-faint); margin-top: 8px; text-align: left; }
+    .table-scroll { overflow-x: auto; margin: 18px 0 22px; }
+    table { border-collapse: collapse; width: 100%; font-size: 15px; min-width: 480px; }
+    caption { text-align: left; font-size: 13px; color: var(--ink-faint); margin-bottom: 8px; }
+    thead th {
+      background: var(--brand); color: #fff; text-align: left; font-weight: 700;
+      padding: 10px 12px; font-size: 14px; white-space: nowrap;
+    }
+    tbody td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tbody tr:nth-child(even) { background: var(--brand-tint-2); }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .cta {
+      background: var(--brand-tint-2); border: 1px solid #cfe0cd; border-radius: 12px;
+      padding: 20px 22px; margin: 20px 0; display: flex; gap: 16px; align-items: flex-start;
+    }
+    .cta .icon { font-size: 26px; line-height: 1; }
+    .cta h4 { font-size: 16px; margin: 0 0 4px; font-weight: 800; }
+    .cta p { font-size: 14px; color: var(--ink-soft); margin: 0 0 12px; }
+    .cta a.btn {
+      display: inline-block; background: var(--brand); color: #fff; text-decoration: none;
+      font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 8px;
+    }
+    .cta a.btn:hover { background: var(--brand-dark); }
+    .qa { margin: 0 0 22px; }
+    .qa h3 { font-size: 1.05rem; margin: 0 0 6px; }
+    .qa p { margin: 0; }
+    .sources { background: #fafbf8; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-top: 12px; }
+    .sources h2 { border-top: none; padding-top: 0; margin-top: 0; }
+    .sources ol { padding-left: 20px; }
+    .sources li { font-size: 14px; color: var(--ink-soft); margin-bottom: 8px; word-break: break-word; }
+    .sources a { color: var(--brand); }
+    .site-footer {
+      border-top: 1px solid var(--line); margin-top: 60px; padding: 28px 20px 40px;
+      text-align: center; font-size: 13px; color: var(--ink-faint);
+    }
+    .site-footer a { color: var(--brand); text-decoration: none; }
+    .site-footer a:hover { text-decoration: underline; }
+    .site-footer .tagline { margin-top: 6px; }
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      article h1 { font-size: 1.6rem; }
+      article h2 { font-size: 1.3rem; }
+      table { font-size: 14px; }
+      .site-header .nav-right a { font-size: 12px; padding: 6px 12px; }
+      .cta { flex-direction: column; gap: 10px; }
+    }
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How Many Calories Do You Need for Food Storage? A Person-Days Guide",
+    "description": "Calculate how much food to store per person for a 2-week to 1-year supply. Person-days calorie math, real staple calorie counts, and how to verify what your stash really delivers.",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://prepvault-xi.vercel.app/guides/food-storage-calorie-math"
+    },
+    "datePublished": "2026-08-18",
+    "dateModified": "2026-08-18",
+    "inLanguage": "en",
+    "author": {
+      "@type": "Organization",
+      "name": "PrepVault",
+      "url": "https://prepvault-xi.vercel.app"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "PrepVault",
+      "url": "https://prepvault-xi.vercel.app"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://prepvault-xi.vercel.app/" },
+      { "@type": "ListItem", "position": 2, "name": "How Many Calories Do You Need for Food Storage?", "item": "https://prepvault-xi.vercel.app/guides/food-storage-calorie-math" }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How many calories do I need for food storage?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Plan 2,000 per person per day (2,500 for active adults), then multiply by people and days. Example: one adult, 30 days = 60,000 calories."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How many calories do I need to survive?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Emergency guidance uses 2,000 cal/day as the standard; the Dietary Guidelines adult range runs 1,600–3,000 depending on age and sex."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How much food should I store per person?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "In calories, 2,000/day (adult) × the number of days you want covered. In weight, ~40 lb of white rice covers roughly 33 person-days."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How long will my food last?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Divide your stored calories by your household's daily requirement. If the answer depends on a vendor's label, re-check it with the label math in Section 5."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a href="/">
+        <span class="logo">P</span>
+        <span class="wordmark">PrepVault<small>Survival planning that works when nothing else does</small></span>
+      </a>
+      <div class="nav-right">
+        <a href="/">Open the dashboard</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span class="sep">›</span>
+      <span>How Many Calories Do You Need for Food Storage?</span>
+    </nav>
+
+    <article>
+      <h1>How Many Calories Do You Need for Food Storage? A Person-Days Guide</h1>
+      <div class="byline">
+        <span>By PrepVault</span><span class="dot">·</span>
+        <span>Updated August 18, 2026</span><span class="dot">·</span>
+        <span>11 min read</span>
+      </div>
+
+      <p class="lead">Food storage always comes back to one number: <strong>calories</strong>. If you can count the calories you have actually stored and divide them by the calories your household needs per day, you get the only answer that matters — <strong>how many days your food supply lasts</strong>.</p>
+
+      <p>The formula is simple:</p>
+
+      <div class="formula">
+        <span class="mono">Stored calories ÷ (people × daily calories per person) = days of food</span>
+      </div>
+
+      <p>For one adult at 2,000 calories a day, a 30-day supply is <strong>60,000 stored calories</strong>. For two adults eating 2,500 a day, a 30-day supply is <strong>150,000 calories</strong> — 5,000 per day for 30 days.</p>
+
+      <p>This guide walks through the math with real per-item calorie counts, then shows where estimates usually go wrong: how to convert what you actually store into person-days, how to check a store-bought kit against its real calorie count, and how expiry dates change the answer. Skip the guesswork sections if you need the numbers now.</p>
+
+      <h2>1. The one formula: person-days</h2>
+
+      <p>Preppers and preparedness forums use a consistent shorthand: <strong>X calories per person per day</strong>, multiplied by people and days. A typical planning target, echoed across r/preppers and The Prepared, is <strong>2,000 calories per person per day</strong>, with <strong>2,500 for active adults</strong>.</p>
+
+      <figure class="figure">
+        <svg xmlns="http://www.w3.org/2000/svg" width="860" height="300" viewBox="0 0 860 300" role="img" aria-labelledby="title desc">
+          <title id="title">How to calculate days of food stored</title>
+          <desc id="desc">Stored calories equal people times daily calories per person times days. Example: 2 people at 2,500 calories a day for 30 days equals 150,000 calories. Reversing it: 150,000 stored calories divided by 5,000 calories per day equals 30 days of food.</desc>
+          <rect x="0" y="0" width="860" height="300" fill="#ffffff"/>
+          <g font-family="Arial, Helvetica, sans-serif">
+            <rect x="20" y="20" width="800" height="110" rx="10" fill="#f4f7f2" stroke="#1B5E20" stroke-width="2"/>
+            <text x="40" y="55" font-size="17" font-weight="bold" fill="#1B5E20">Stored calories = people × daily calories per person × days</text>
+            <text x="40" y="82" font-size="15" fill="#222222">2 people × 2,500 cal/person/day × 30 days = 150,000 calories</text>
+            <text x="40" y="108" font-size="15" fill="#222222">So 5,000 calories per day = the 2-person daily requirement.</text>
+            <rect x="20" y="150" width="800" height="110" rx="10" fill="#e8f0e6" stroke="#1B5E20" stroke-width="2"/>
+            <text x="40" y="185" font-size="17" font-weight="bold" fill="#1B5E20">Days of food = stored calories ÷ (people × daily calories per person)</text>
+            <text x="40" y="212" font-size="15" fill="#222222">150,000 stored calories ÷ (2 × 2,500) = 30 days of food</text>
+            <text x="40" y="238" font-size="15" fill="#222222">Swap in your pantry's real item-level calories to verify actual coverage.</text>
+          </g>
+        </svg>
+        <figcaption>Person-days formula and a worked example: stored calories = people × daily calories per person × days, and the reverse check that converts stored calories back into days of food.</figcaption>
+      </figure>
+
+      <p>The same math runs in reverse. Divide your stored calories by your household's daily requirement and you know your coverage in days:</p>
+
+      <div class="table-scroll">
+        <table>
+          <caption>Calories needed for a family of 4 at 2,000 calories per person per day.</caption>
+          <thead>
+            <tr><th>Goal</th><th class="num">Math (family of 4, 2,000 cal/day each)</th><th class="num">Total calories needed</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>2-week supply</td><td class="num mono">4 × 2,000 × 14</td><td class="num mono">112,000</td></tr>
+            <tr><td>30-day supply</td><td class="num mono">4 × 2,000 × 30</td><td class="num mono">240,000</td></tr>
+            <tr><td>3-month supply</td><td class="num mono">4 × 2,000 × 90</td><td class="num mono">720,000</td></tr>
+            <tr><td>1-year supply</td><td class="num mono">4 × 2,000 × 365</td><td class="num mono">2,920,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The two real decisions are the daily calorie target and the number of days. Everything else is multiplication — and the multiplication is where most plans quietly break, because the calorie count used for "a bag of rice" is rarely the calorie count of the bag in your pantry.</p>
+
+      <h2>2. Step one: set a daily calorie target per person</h2>
+
+      <p>The Dietary Guidelines for Americans (2020–2025, Table A2-2) give the practical adult ranges used throughout this guide:</p>
+
+      <div class="table-scroll">
+        <table>
+          <caption>Adult daily calorie ranges from the Dietary Guidelines for Americans 2020–2025.</caption>
+          <thead>
+            <tr><th>Household member</th><th>Daily calorie range</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Adult females (19–50)</td><td class="num mono">1,600–2,400</td></tr>
+            <tr><td>Adult males (19–50)</td><td class="num mono">2,000–3,000</td></tr>
+            <tr><td>Adult males (60+)</td><td class="num mono">2,000–2,600</td></tr>
+            <tr><td>Adult females (60+)</td><td class="num mono">1,600–2,200</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>For planning, the standard baseline is <strong>2,000 calories per person per day</strong> — the same figure FEMA and the American Red Cross use for emergency food. Raise it to <strong>2,500</strong> for active adults or hard-working seasons, and lower it only deliberately: community threads and the preparedness wiki treat rationing below 2,000 as a temporary measure, not a plan. Children and teens fall outside the adult table; size their target individually rather than assuming "half an adult."</p>
+
+      <p>Use your target for <strong>every</strong> calculation. Mixing one person at 2,000 and another at 2,500 inside the same plan is where the arithmetic silently drifts.</p>
+
+      <h2>3. Step two: multiply people × days</h2>
+
+      <p>Set the household count and the coverage window, then run the formula from Section 1.</p>
+
+      <ul>
+        <li>1 adult, 2,000 cal/day, 30 days → <strong>60,000 calories</strong></li>
+        <li>2 adults, 2,500 cal/day, 30 days → <strong>150,000 calories</strong> (the 5,000/day requirement quoted in planning threads)</li>
+        <li>4 adults, 2,000 cal/day, 3 months → <strong>720,000 calories</strong></li>
+      </ul>
+
+      <p>This is the number your whole storage effort is measured against. The rest of the guide is about proving your actual stash adds up to it.</p>
+
+      <h2>4. Step three: convert what you store into calories</h2>
+
+      <p>This is the step every checklist skips, and it is where the errors live. A pound-based calculator tells you a household needs "X pounds per category per year." What it does not tell you is <strong>how many calories are in the items you own</strong>. Community threads on r/preppers and The Prepared show people doing this arithmetic by hand — serving by serving — because no tool does it for them.</p>
+
+      <h3>Calorie density of common staples</h3>
+
+      <p>Calorie density is best read per 100 grams. These values come from the USDA FoodData Central composition database and FAO food balance sheets (milled values):</p>
+
+      <div class="table-scroll">
+        <table>
+          <caption>Calorie density of common staples, and what a 25-lb store delivers in person-days at 2,000 calories.</caption>
+          <thead>
+            <tr><th>Staple</th><th class="num">Calories per 100 g</th><th class="num">What 25 lb stores</th><th class="num">Person-days at 2,000 cal</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>White rice</td><td class="num mono">365</td><td class="num mono">~82,800</td><td class="num mono">~41</td></tr>
+            <tr><td>Brown rice</td><td class="num mono">367</td><td class="num mono">~83,200</td><td class="num mono">~42</td></tr>
+            <tr><td>Oats</td><td class="num mono">379–385</td><td class="num mono">~86,000</td><td class="num mono">~43</td></tr>
+            <tr><td>Wheat (whole)</td><td class="num mono">332–334</td><td class="num mono">~75,300</td><td class="num mono">~38</td></tr>
+            <tr><td>Wheat flour</td><td class="num mono">364</td><td class="num mono">~82,600</td><td class="num mono">~41</td></tr>
+            <tr><td>Dried beans (white/kidney/chickpea)</td><td class="num mono">333–378</td><td class="num mono">~75,500–85,700</td><td class="num mono">~38–43</td></tr>
+            <tr><td>Sugar</td><td class="num mono">373</td><td class="num mono">~84,600</td><td class="num mono">~42</td></tr>
+            <tr><td>Potatoes</td><td class="num mono">67</td><td class="num mono">~15,200</td><td class="num mono">~8</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>A concrete example from the forums checks out: a 40-lb bag of white rice holds about <strong>66,000 calories</strong> — roughly <strong>33 days</strong> for one adult at 2,000 calories a day. When the math is done at item level, "a bag of rice" stops being a guess and becomes a date on your food supply.</p>
+
+      <h3>Reading a label or a can</h3>
+
+      <p>For anything packaged, skip the per-serving estimate and use the label: <strong>calories per serving × servings per container</strong>. A #10 can of freeze-dried vegetables is not "a week of food" because it is a can of vegetables — count what it actually delivers, then put it in the daily budget. Two cups of rice is a serving calculation; the calorie math that matters is <strong>calories per serving × number of servings stored ÷ your daily target</strong>.</p>
+
+      <p>The recurring trap is confusing <strong>weight</strong> with <strong>calories</strong>. Potatoes, canned vegetables, and anything water-heavy store weight but deliver few calories per gram (see potatoes: 67 per 100 g). Calories, not pounds, are what keep a household fed.</p>
+
+      <h2>5. Check the claims: verify what kits really deliver</h2>
+
+      <p>The preparedness community is explicitly skeptical of commercial calorie claims, and the skepticism is evidence-based:</p>
+
+      <ul>
+        <li>The <strong>r/preppers wiki</strong> warns that commercial freeze-dried kits "may only give you 800–1,000 calories a day" — about half of the 2,000-calorie planning standard.</li>
+        <li><strong>Loma Linda University</strong> documents emergency food bars sold as a "3-day supply" that deliver roughly 1,200 calories per day. At the 2,000-calorie standard, that is a day and a half of real coverage per claimed day.</li>
+      </ul>
+
+      <p>Verifying a kit is the same math as verifying your own pantry: <strong>take the calories per serving off the label, multiply by the number of servings in the kit, and divide by your daily target.</strong> Then compare that real number against the "days of supply" printed on the box. If a kit claims 3 days but counts out to 1.8, the printed claim is the marketing and the arithmetic is the plan. Treat every vendor figure as a claim to check — not a fact to trust.</p>
+
+      <h2>6. Add expiry: shelf life changes the answer</h2>
+
+      <p>A stash is only as good as the calories it still has when you need them. Rotation advice across most published guidance is category-generic — "rotate every two to four years" — but real shelf life is item-specific:</p>
+
+      <div class="table-scroll">
+        <table>
+          <caption>Item-specific shelf life at sealed, normal room temperature.</caption>
+          <thead>
+            <tr><th>Item</th><th>Shelf life (sealed, normal room temp)</th><th>Source</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>White rice</td><td>~2 years</td><td>Utah State University Extension</td></tr>
+            <tr><td>Raw whole wheat</td><td>~25 years</td><td>Utah State University Extension</td></tr>
+            <tr><td>Wheat (temperature-dependent)</td><td>~25 years cold, ~5 years hot</td><td>BYU / USU storage guidance</td></tr>
+            <tr><td>White flour</td><td>~1 year</td><td>Utah State University Extension</td></tr>
+            <tr><td>Dried pasta</td><td>~2 years</td><td>Utah State University Extension</td></tr>
+            <tr><td>Canned goods</td><td>Best within ~1 year; rotate every 2–4 years</td><td>UGA Extension</td></tr>
+            <tr><td>Emergency supply categories</td><td>6 months / 1 year / indefinite</td><td>FEMA &amp; American Red Cross</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The practical rule: <strong>track an expiry date per item, not per category.</strong> White rice and whole wheat do not age on the same clock, and neither ages like flour. A long-term supply should be built from items whose expiry you can actually honor, with a rotation date attached to each unit — eat the oldest before the newest, and replace before the date, not after it.</p>
+
+      <h2>7. What most food storage calculators get wrong</h2>
+
+      <p>The strongest alternatives in this space — LDS-method pound calculators, kit-brand calculators, and blog spreadsheets — share the same four gaps:</p>
+
+      <ol>
+        <li><strong>Anonymous-adult assumptions.</strong> They assume a generic adult or category pound totals, so the result never reflects <em>your</em> household's items, ages, or chosen calorie target.</li>
+        <li><strong>No per-item calorie math.</strong> They give target pounds, not verification of what you own. The item-level arithmetic is left to you — in a forum thread, by hand.</li>
+        <li><strong>No expiry-aware rotation.</strong> Shelf life is handled as a generic "rotate every few years," not as per-item dates that change the plan.</li>
+        <li><strong>Online-only.</strong> Every observed calculator is a web page or spreadsheet; none works offline, and none respects that preparedness planning is personal data you may not want in a cloud account.</li>
+      </ol>
+
+      <p>A guide that turns your own stored items into per-household person-days at your own calorie target — with expiry dates attached — fills exactly that gap.</p>
+
+      <h2>8. Track it item by item</h2>
+
+      <p>This is where the math becomes a system. PrepVault is a personal preparedness dashboard built around <strong>item-level calorie accounting</strong> with a <strong>caloric-day continuity</strong> view: each food item is stored with its calories per serving, servings, and expiry date, and the dashboard converts your whole pantry into <strong>days of calories stored against your household target</strong> — the default view is 30 days at 2,000 cal/person/day.</p>
+
+      <p>Add a 40-lb bag of rice with its serving math and the dashboard counts it toward person-days immediately, then keeps every item's expiry visible so rotation is a checklist, not a guess. Because PrepVault runs <strong>offline-first and encrypted, with no cloud dependency</strong>, the entire plan — household sizes, calorie targets, inventory, expiry dates — stays on your own devices and works when the grid and the internet do not. The verification math from Section 5 is built in: your real stored calories are compared against your stated target, so vendor claims and pantry gaps both show up as numbers.</p>
+
+      <p>Start with the formula in Section 1, build the item list in Section 4, then let PrepVault carry the multiplication, the person-days tally, and the rotation dates forward.</p>
+
+      <div class="cta">
+        <div class="icon">🥫</div>
+        <div>
+          <h4>Turn your pantry into person-days</h4>
+          <p>Log your food items with calories per serving, servings, and expiry dates, and PrepVault's food-storage dashboard converts them into days of coverage against your household target.</p>
+          <a class="btn" href="/">Open the PrepVault food-storage dashboard</a>
+        </div>
+      </div>
+
+      <h2>9. Worked examples</h2>
+
+      <p><strong>One adult, 30 days, 2,000 cal/day.</strong> Need 60,000 calories. A 50-lb bag of white rice (~82,800 cal) already overshoots the target alone; beans and oats add variety, not just calories.</p>
+
+      <p><strong>Two adults, 3 months, 2,500 cal/day.</strong> Need 2 × 2,500 × 90 = <strong>450,000 calories</strong> — roughly 270 lb of rice-and-beans staples, or the same calories in a mix of grains, dried beans, oats, and canned goods with expiry dates attached.</p>
+
+      <p><strong>Family of 4, 1 year, 2,000 cal/day.</strong> Need 2,920,000 calories. This is not "enough cans" — it is a rotation plan. At 365 days, every item's shelf life matters: white rice and pasta hold for the window, white flour does not (about 1 year), and canned goods should be cycled well within a year so the rotation itself stays honest.</p>
+
+      <h2>Quick answers</h2>
+
+      <div class="qa">
+        <h3>How many calories do I need for food storage?</h3>
+        <p>Plan 2,000 per person per day (2,500 for active adults), then multiply by people and days. Example: one adult, 30 days = 60,000 calories.</p>
+      </div>
+
+      <div class="qa">
+        <h3>How many calories do I need to survive?</h3>
+        <p>Emergency guidance uses 2,000 cal/day as the standard; the Dietary Guidelines adult range runs 1,600–3,000 depending on age and sex.</p>
+      </div>
+
+      <div class="qa">
+        <h3>How much food should I store per person?</h3>
+        <p>In calories, 2,000/day (adult) × the number of days you want covered. In weight, ~40 lb of white rice covers roughly 33 person-days.</p>
+      </div>
+
+      <div class="qa">
+        <h3>How long will my food last?</h3>
+        <p>Divide your stored calories by your household's daily requirement. If the answer depends on a vendor's label, re-check it with the label math in Section 5.</p>
+      </div>
+
+      <div class="sources">
+        <h2>Sources</h2>
+        <ol>
+          <li>Dietary Guidelines for Americans 2020–2025, Table A2-2: <a href="https://www.dietaryguidelines.gov/sites/default/files/2021-03/Dietary_Guidelines_for_Americans-2020-2025.pdf">https://www.dietaryguidelines.gov/sites/default/files/2021-03/Dietary_Guidelines_for_Americans-2020-2025.pdf</a></li>
+          <li>USDA FoodData Central (calorie composition database): <a href="https://fdc.nal.usda.gov">https://fdc.nal.usda.gov</a></li>
+          <li>FAO Food Balance Sheets handbook (milled staple calorie values): <a href="https://www.fao.org/4/x9892e/X9892E05.htm">https://www.fao.org/4/x9892e/X9892E05.htm</a></li>
+          <li>Utah State University Extension — food storage in the home: <a href="https://extension.usu.edu/preserve-the-harvest/research/food-storage-in-home">https://extension.usu.edu/preserve-the-harvest/research/food-storage-in-home</a></li>
+          <li>Utah State University Extension — storage conditions: <a href="https://extension.usu.edu/preserve-the-harvest/research/storage-conditions">https://extension.usu.edu/preserve-the-harvest/research/storage-conditions</a></li>
+          <li>Utah State University Extension — food storage: <a href="https://extension.usu.edu/preserve-the-harvest/food-storage">https://extension.usu.edu/preserve-the-harvest/food-storage</a></li>
+          <li>FEMA / American Red Cross, "Food and Water in an Emergency": <a href="https://www.uvu.edu/emergencymanagement/docs/food-and-water-fema.pdf">https://www.uvu.edu/emergencymanagement/docs/food-and-water-fema.pdf</a></li>
+          <li>UGA Extension — preparing an emergency food supply / long-term food storage: <a href="https://www.fcs.uga.edu/extension/preparing-an-emergency-food-supply-long-term-food-storage">https://www.fcs.uga.edu/extension/preparing-an-emergency-food-supply-long-term-food-storage</a></li>
+          <li>r/preppers wiki (commercial kit calorie warnings): <a href="https://www.reddit.com/r/preppers/wiki/food">https://www.reddit.com/r/preppers/wiki/food</a></li>
+          <li>Loma Linda University — emergency food (kit calorie documentation): <a href="https://llu.edu/campus-spiritual-life/emergency/emergency-food">https://llu.edu/campus-spiritual-life/emergency/emergency-food</a></li>
+          <li>Community planning threads: <a href="https://www.reddit.com/r/preppers/comments/1cczfmy/determining_amount_of_food_stored">https://www.reddit.com/r/preppers/comments/1cczfmy/determining_amount_of_food_stored</a> · <a href="https://www.reddit.com/r/preppers/comments/1o229zp/prepping_for_doomsday_calorie_planning_for">https://www.reddit.com/r/preppers/comments/1o229zp/prepping_for_doomsday_calorie_planning_for</a> · <a href="https://www.reddit.com/r/preppers/comments/19ckt42/advice_for_a_3_month_supply_of_food_for_4_adults">https://www.reddit.com/r/preppers/comments/19ckt42/advice_for_a_3_month_supply_of_food_for_4_adults</a> · <a href="https://theprepared.com/forum/thread/food-storage-self-reliance">https://theprepared.com/forum/thread/food-storage-self-reliance</a></li>
+        </ol>
+      </div>
+    </article>
+  </div>
+
+  <footer class="site-footer">
+    <div>PrepVault — <a href="/">survival planning that works when nothing else does</a></div>
+    <div class="tagline">Encrypted · Offline · No cloud dependency</div>
+  </footer>
+</body>
+</html>

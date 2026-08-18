@@ -4827,6 +4827,7 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
             <div style={{ marginBottom: 12 }}>
               <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🍽️ Rationing Calculator</h3>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>How long your prep inventory feeds your team</div>
+              <a href="/guides/food-storage-calorie-math.html" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, fontSize: 10, fontWeight: 600, color: "#c8553a", textDecoration: "underline", textUnderlineOffset: 3 }}>📐 How many calories do you need for food storage? Read the person-days guide →</a>
             </div>
             {/* Duration cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
