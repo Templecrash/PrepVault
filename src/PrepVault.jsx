@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
 import L from "leaflet";
+import ScoreGuide from "./ScoreGuide.jsx";
+
+const GUIDE_SLUG = "/understanding-your-preparedness-score";
+const isGuidePath = () => window.location.pathname.replace(/\/+$/, "") === GUIDE_SLUG;
 
 /* ═══════════════════════════════════════════════════════════
    DATA CONSTANTS
@@ -2743,7 +2747,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
 /* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, setPropSub, dismissResetKey }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, setPropSub, dismissResetKey, onOpenGuide }) {
   const M = "'JetBrains Mono',monospace";
 
   /* ── Live Weather State ── */
@@ -3052,6 +3056,11 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
             </div>
           ))}
         </div>
+        {onOpenGuide && (
+          <button onClick={onOpenGuide} style={{ display: "block", width: "100%", padding: "10px 16px", background: "rgba(255,255,255,0.02)", border: "none", borderTop: "1px solid rgba(255,255,255,0.05)", color: "#1B5E20", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+            How is your score calculated? Read the guide →
+          </button>
+        )}
       </div>
 
       {/* ── Trail Cameras ── */}
@@ -8282,6 +8291,7 @@ export default function PrepVault() {
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [guideOpen, setGuideOpen] = useState(() => isGuidePath());
   const [selCat, setSelCat] = useState(null);
   const [properties, setProperties] = useState(() => saved.current?.properties || DEFAULT_PROPERTIES);
   const [activePropertyId, setActivePropertyId] = useState(() => saved.current?.activePropertyId || "prop1");
@@ -8416,6 +8426,29 @@ export default function PrepVault() {
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
+  }, []);
+
+  /* ── Guide route (discoverable content page) ── */
+  const openGuide = useCallback(() => {
+    setGuideOpen(true);
+    window.history.pushState({ guide: true }, "", GUIDE_SLUG);
+    window.scrollTo(0, 0);
+  }, []);
+  const closeGuide = useCallback(() => {
+    setGuideOpen(false);
+    window.history.pushState(null, "", "/");
+    window.scrollTo(0, 0);
+  }, []);
+  const openAppFromGuide = useCallback(() => {
+    setGuideOpen(false);
+    setShowLanding(false);
+    window.history.pushState(null, "", "/");
+    window.scrollTo(0, 0);
+  }, []);
+  useEffect(() => {
+    const onPop = () => setGuideOpen(isGuidePath());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   /* ── Auth Session Restore ── */
@@ -8827,7 +8860,7 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} />;
+        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} onOpenGuide={openGuide} />;
       case "property":
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "preps":
@@ -8900,6 +8933,11 @@ export default function PrepVault() {
       </div>
     </div>
   );
+
+  /* ═══ GUIDE PAGE (discoverable content route) ═══ */
+  if (guideOpen) {
+    return <ScoreGuide onBack={closeGuide} onOpenApp={openAppFromGuide} />;
+  }
 
   /* ═══ LANDING PAGE ═══ */
   if (showLanding) {
@@ -9006,9 +9044,10 @@ export default function PrepVault() {
         </div>
 
         {/* ── Footer ── */}
-        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={openGuide} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: M, fontSize: 10, color: "rgba(255,255,255,0.35)", textDecoration: "underline", textUnderlineOffset: 3 }}>Understanding Your Preparedness Score</button>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
