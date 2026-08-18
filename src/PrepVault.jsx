@@ -1497,6 +1497,106 @@ const labelSt = { display: "block", fontSize: 11, color: "rgba(255,255,255,0.4)"
 const btnSt = { padding: "10px 20px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, transition: "all 0.15s ease", fontFamily: "inherit" };
 const cardSt = { background: "rgba(255,255,255,0.025)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 20 };
 
+/* ── Readiness continuity math (single source of truth) ── */
+function computeContinuity(items, people, climate, propertyProfile) {
+  const clim = CLIMATES[climate] || CLIMATES.temperate;
+  const waterMod = clim.waterMod || 1;
+  const firewoodMod = clim.firewoodMod || 1;
+  const p = people || 4;
+
+  // Power Autonomy (hours)
+  const fuelGals = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
+  const propaneTanks = items.filter((i) => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
+  const batteries = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
+  const solarPanels = items.filter((i) => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
+  const genHours = fuelGals * 5.5;
+  const batteryHours = batteries * 0.3;
+  const solarHrs = solarPanels * 5;
+  const powerHrs = genHours + batteryHours + solarHrs;
+
+  // Water Continuity (days)
+  const waterStored = items.filter((i) => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
+  const waterFilters = items.filter((i) => i.category === "water" && (i.subType === "purificationDevice" || i.subType === "purificationTablets")).reduce((s, i) => s + (i.quantity || 0), 0);
+  const dailyWater = p * 1.0 * waterMod;
+  const waterDays = (waterStored / Math.max(dailyWater, 0.1)) + (waterFilters * 3);
+
+  // Heat Stability (days)
+  const firewoodCords = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+  const propaneHeatDays = (propaneTanks * 4.6 * 91452 / 18000) / 12;
+  const firewoodDays = firewoodCords * 30;
+  const heatDays = firewoodMod > 1 ? (firewoodDays + propaneHeatDays) / firewoodMod : firewoodDays + propaneHeatDays + 30;
+
+  // Caloric Reserve (days)
+  const totalCals = items.filter((i) => i.category === "food").reduce((s, i) => {
+    const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
+    const serv = parseFloat(i.fields?.servings || 1);
+    return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1);
+  }, 0);
+  const calDays = totalCals / Math.max(p * 2000, 1);
+
+  // Communication Redundancy
+  const commCh = new Set();
+  items.filter((i) => i.category === "electronics").forEach((i) => {
+    if (i.subType === "satPhone") commCh.add("Satellite");
+    if (i.subType === "cellPhone") commCh.add("Cellular");
+    if (i.subType === "radio") commCh.add("HAM/GMRS");
+    if (i.subType === "weatherRadio") commCh.add("Weather Band");
+  });
+  items.filter((i) => i.category === "comms").forEach(() => commCh.add("HAM/GMRS"));
+
+  // Fragilities
+  const frag = [];
+  const fuelSrc = new Set();
+  if (firewoodCords > 0) fuelSrc.add("wood");
+  if (propaneTanks > 0) fuelSrc.add("propane");
+  if (fuelGals > 0) fuelSrc.add("gasoline");
+  if (fuelSrc.size <= 1 && climate === "cold") frag.push({ icon: "🔥", msg: "Heat continuity depends on " + (fuelSrc.size === 0 ? "no fuel source" : "one fuel source") + ".", sev: fuelSrc.size === 0 ? "critical" : "warning" });
+  if (waterFilters < 2) frag.push({ icon: "💧", msg: "Water purification lacks redundancy.", sev: waterFilters === 0 ? "critical" : "warning" });
+  if (solarPanels > 0 && batteries < 10) frag.push({ icon: "🔋", msg: "Battery backup is weather-dependent.", sev: "warning" });
+  if (commCh.size < 2) frag.push({ icon: "📡", msg: commCh.size === 0 ? "No communication backup exists." : "Single communication channel — no redundancy.", sev: commCh.size === 0 ? "critical" : "warning" });
+  if (calDays < 7) frag.push({ icon: "🍽️", msg: `Caloric reserve below 7 days (${calDays.toFixed(1)}d).`, sev: "critical" });
+  if (powerHrs < 24) frag.push({ icon: "⚡", msg: "Power autonomy under 24 hours.", sev: "warning" });
+
+  // ── Profile-based adjustments ──
+  let adjWater = waterDays, adjPower = powerHrs, adjHeat = heatDays, adjComm = commCh.size;
+  if (propertyProfile?.completedAt) {
+    const toArr = v => Array.isArray(v) ? v : v ? [v] : [];
+    const pWater = toArr(propertyProfile.waterSource);
+    const pFresh = toArr(propertyProfile.freshwaterAccess);
+    const pPower = toArr(propertyProfile.powerSource);
+    const pHeat = toArr(propertyProfile.heatSource);
+    if (pWater.some(s => ["well", "spring", "lake_river"].includes(s))) adjWater += 7;
+    if (pWater.includes("rain")) adjWater += 3;
+    if (pFresh.some(s => ["lakefront", "river_adjacent"].includes(s))) adjWater += 5;
+    if (pPower.some(s => ["solar", "wind", "hybrid"].includes(s))) adjPower += 48;
+    if (propertyProfile.hasGenerator) adjPower += 24;
+    if (pHeat.includes("wood")) adjHeat += 10;
+    if (pHeat.some(s => ["propane", "oil", "gas"].includes(s))) adjHeat += 5;
+    if (propertyProfile.commsCapability?.includes("ham")) adjComm += 1;
+    if (propertyProfile.commsCapability?.includes("satellite")) adjComm += 1;
+    if (propertyProfile.commsCapability?.includes("mesh")) adjComm += 1;
+    if (propertyProfile.populationDensity === "urban") frag.push({ icon: "🏙️", msg: "Urban location — high population risk in prolonged scenarios. Consider relocating to rural property.", sev: "warning" });
+    if (pWater.length === 1 && pWater[0] === "municipal" && (pFresh.length === 0 || (pFresh.length === 1 && pFresh[0] === "none"))) frag.push({ icon: "🚱", msg: "Municipal water with no natural backup — vulnerable to infrastructure failure.", sev: "warning" });
+    if (propertyProfile.gridStatus === "on_grid" && !propertyProfile.hasGenerator) frag.push({ icon: "🔌", msg: "Grid-dependent with no backup generator.", sev: "warning" });
+    if (propertyProfile.geoRisks?.length >= 3) frag.push({ icon: "⚠️", msg: `Multiple geographic risks identified (${propertyProfile.geoRisks.length}).`, sev: "warning" });
+    if (propertyProfile.specialNeeds?.length > 0) frag.push({ icon: "🩺", msg: "Household includes vulnerable members — plan for extended care needs.", sev: "info" });
+  }
+
+  return { powerHrs: adjPower, waterDays: adjWater, heatDays: adjHeat, calDays, commCount: adjComm, commChannels: [...commCh], frag };
+}
+
+function computePrepScore(cont, items) {
+  let score = 0;
+  score += Math.min(cont.waterDays / 14, 1) * 25;
+  score += Math.min(cont.calDays / 30, 1) * 25;
+  score += Math.min(cont.powerHrs / 72, 1) * 15;
+  score += Math.min(cont.heatDays / 30, 1) * 15;
+  score += Math.min(cont.commCount / 3, 1) * 10;
+  const catsWithItems = new Set(items.map(i => i.category)).size;
+  score += Math.min(catsWithItems / Object.keys(CATEGORIES).length, 1) * 10;
+  return Math.round(score);
+}
+
 /* ═══════════════════════════════════════════════════════════
    COMPONENTS
    ═══════════════════════════════════════════════════════════ */
@@ -2560,17 +2660,90 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
     </div>
   );
 
+  const climateShort = { arctic: "Arctic", cold: "Cold", temperate: "Temperate", hot_dry: "Hot & Dry", tropical: "Tropical", coastal: "Coastal" };
+  const riskLabels = { flood: "Flood", wildfire: "Wildfire", tornado: "Tornado", earthquake: "Earthquake", coastal: "Coastal Storm", extreme_cold: "Extreme Cold", extreme_heat: "Extreme Heat" };
+
   const STEPS = [
-    { icon: "🏠", title: "Property Infrastructure", desc: "How is your property powered and heated?" },
-    { icon: "💧", title: "Water Situation", desc: "What are your water sources and access?" },
-    { icon: "📍", title: "Location Context", desc: "Tell us about your property location" },
-    { icon: "👥", title: "Household", desc: "Who lives at this property?" },
-    { icon: "🛡️", title: "Existing Capabilities", desc: "What do you already have in place?" },
+    { icon: "👥", title: "Who are we planning for?", body: "Your numbers — water days, food days, heat days — are computed per person." },
+    { icon: "💧", title: "Your water situation", body: "Water is the first thing to run out. We count your sources so you can see your days." },
+    { icon: "⚡", title: "Power & heat", body: "If the grid drops, what keeps you warm and running? This sets your power and heat numbers." },
+    { icon: "📍", title: "Where you are", body: "Adds context for risks and distance-to-help. Quick taps — address optional." },
+    { icon: "🛡️", title: "What you already bring", body: "Your food storage, medical training, comms, and defense — so the sketch credits what you've built." },
   ];
+
+  const previewFor = (s) => {
+    switch (s) {
+      case 0: return people > 0 ? `Planning for ${people} ${people === 1 ? "person" : "people"} in a ${(climateShort[climate] || climate).toLowerCase()} climate.` : "Planning for your household.";
+      case 1: {
+        const n = (profile.waterSource || []).length;
+        return n > 0 ? `${n} source${n === 1 ? "" : "s"} on tap → water is a ${n >= 2 ? "core" : "gap"} in your sketch.` : "No water sources logged yet.";
+      }
+      case 2: {
+        const pw = profile.powerSource || [];
+        const src = pw.includes("solar") ? "Solar" : profile.hasGenerator ? "Generator" : profile.gridStatus === "off_grid" ? "Off-grid" : "Grid";
+        const core = pw.length >= 2 || profile.hasGenerator === true || profile.gridStatus === "off_grid";
+        return `${src} detected → power is a ${core ? "core" : "gap"} in your sketch.`;
+      }
+      case 3: {
+        const risks = (profile.geoRisks || []).map(r => riskLabels[r] || r);
+        return risks.length > 0 ? `Risks tagged: ${risks.join(", ")}.` : "No risks tagged yet.";
+      }
+      case 4: {
+        const n = (profile.commsCapability || []).length;
+        return n > 0 ? `Comms: ${n} channel${n === 1 ? "" : "s"} → ${n >= 2 ? "core" : "gap"} in your sketch.` : "No comms channels logged yet.";
+      }
+      default: return "";
+    }
+  };
 
   const renderStep = () => {
     switch (step) {
       case 0: return (<>
+        <label style={labelSt}>Number of People</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>−</button>
+          <span style={{ fontSize: 28, fontWeight: 800, fontFamily: M, minWidth: 36, textAlign: "center" }}>{people}</span>
+          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</button>
+        </div>
+        <label style={labelSt}>Climate Zone</label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {[{ v: "arctic", l: "Arctic", i: "🧊" }, { v: "cold", l: "Cold", i: "❄️" }, { v: "temperate", l: "Temperate", i: "🌿" }, { v: "hot_dry", l: "Hot & Dry", i: "🏜️" }, { v: "tropical", l: "Tropical", i: "🌴" }, { v: "coastal", l: "Coastal", i: "🌊" }].map(o => (
+            <button key={o.v} onClick={() => setClimate(o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: climate === o.v ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: climate === o.v ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: climate === o.v ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+              <span style={{ marginRight: 6 }}>{o.i}</span>{o.l}
+            </button>
+          ))}
+        </div>
+        <label style={labelSt}>Special Needs (select all that apply)</label>
+        <Multi field="specialNeeds" values={profile.specialNeeds} opts={[
+          { v: "elderly", l: "Elderly (65+)", i: "👴" }, { v: "children_under5", l: "Children Under 5", i: "👶" },
+          { v: "children_5to12", l: "Children 5-12", i: "🧒" }, { v: "medical", l: "Medical Conditions", i: "💊" },
+          { v: "mobility", l: "Mobility Impaired", i: "♿" },
+        ]} />
+        <label style={labelSt}>Pets & Livestock</label>
+        <Multi field="pets" values={profile.pets} opts={[
+          { v: "dogs", l: "Dogs", i: "🐕" }, { v: "cats", l: "Cats", i: "🐈" },
+          { v: "livestock_small", l: "Small Livestock", i: "🐑" }, { v: "livestock_large", l: "Large Livestock", i: "🐄" },
+          { v: "poultry", l: "Poultry", i: "🐔" }, { v: "horses", l: "Horses", i: "🐴" },
+        ]} />
+      </>);
+      case 1: return (<>
+        <label style={labelSt}>Water Sources (select all that apply)</label>
+        <Multi field="waterSource" values={profile.waterSource} opts={[
+          { v: "municipal", l: "Municipal", i: "🏙️" }, { v: "well", l: "Well", i: "🕳️" }, { v: "spring", l: "Spring", i: "⛲" },
+          { v: "lake_river", l: "Lake / River", i: "🏞️" }, { v: "rain", l: "Rain Collection", i: "🌧️" }, { v: "cistern", l: "Cistern", i: "🪣" },
+        ]} />
+        <label style={labelSt}>Fresh Water Access (select all that apply)</label>
+        <Multi field="freshwaterAccess" values={profile.freshwaterAccess} opts={[
+          { v: "lakefront", l: "Lakefront Property", i: "🏖️" }, { v: "river_adjacent", l: "River Adjacent", i: "🏞️" },
+          { v: "within_1km", l: "Within 1 km", i: "🚶" }, { v: "none", l: "None Nearby", i: "🏜️" },
+        ]} />
+        <label style={labelSt}>Sewage System</label>
+        <Pill field="sewage" value={profile.sewage} opts={[
+          { v: "municipal", l: "Municipal Sewer", i: "🏙️" }, { v: "septic", l: "Septic", i: "🕳️" },
+          { v: "outhouse", l: "Outhouse", i: "🚻" }, { v: "none", l: "None", i: "❌" },
+        ]} />
+      </>);
+      case 2: return (<>
         <label style={labelSt}>Heat Sources (select all that apply)</label>
         <Multi field="heatSource" values={profile.heatSource} opts={[
           { v: "gas", l: "Natural Gas", i: "🔥" }, { v: "electric", l: "Electric", i: "⚡" }, { v: "wood", l: "Wood Stove", i: "🪵" },
@@ -2596,24 +2769,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
           ]} />
         </>)}
       </>);
-      case 1: return (<>
-        <label style={labelSt}>Water Sources (select all that apply)</label>
-        <Multi field="waterSource" values={profile.waterSource} opts={[
-          { v: "municipal", l: "Municipal", i: "🏙️" }, { v: "well", l: "Well", i: "🕳️" }, { v: "spring", l: "Spring", i: "⛲" },
-          { v: "lake_river", l: "Lake / River", i: "🏞️" }, { v: "rain", l: "Rain Collection", i: "🌧️" }, { v: "cistern", l: "Cistern", i: "🪣" },
-        ]} />
-        <label style={labelSt}>Fresh Water Access (select all that apply)</label>
-        <Multi field="freshwaterAccess" values={profile.freshwaterAccess} opts={[
-          { v: "lakefront", l: "Lakefront Property", i: "🏖️" }, { v: "river_adjacent", l: "River Adjacent", i: "🏞️" },
-          { v: "within_1km", l: "Within 1 km", i: "🚶" }, { v: "none", l: "None Nearby", i: "🏜️" },
-        ]} />
-        <label style={labelSt}>Sewage System</label>
-        <Pill field="sewage" value={profile.sewage} opts={[
-          { v: "municipal", l: "Municipal Sewer", i: "🏙️" }, { v: "septic", l: "Septic", i: "🕳️" },
-          { v: "outhouse", l: "Outhouse", i: "🚻" }, { v: "none", l: "None", i: "❌" },
-        ]} />
-      </>);
-      case 2: return (<>
+      case 3: return (<>
         <label style={labelSt}>Property Address</label>
         <input style={{ ...inp, marginBottom: 16 }} type="text" value={propAddress || ""} onChange={e => setPropAddress(e.target.value)} placeholder="123 Rural Route 7, Muskoka, ON" />
         <label style={labelSt}>Population Density</label>
@@ -2641,34 +2797,6 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
           { v: "flood", l: "Flood Zone", i: "🌊" }, { v: "wildfire", l: "Wildfire", i: "🔥" }, { v: "tornado", l: "Tornado", i: "🌪️" },
           { v: "earthquake", l: "Earthquake", i: "🌍" }, { v: "coastal", l: "Coastal Storm", i: "🌊" },
           { v: "extreme_cold", l: "Extreme Cold", i: "🥶" }, { v: "extreme_heat", l: "Extreme Heat", i: "🥵" },
-        ]} />
-      </>);
-      case 3: return (<>
-        <label style={labelSt}>Number of People</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>−</button>
-          <span style={{ fontSize: 28, fontWeight: 800, fontFamily: M, minWidth: 36, textAlign: "center" }}>{people}</span>
-          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</button>
-        </div>
-        <label style={labelSt}>Climate Zone</label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-          {[{ v: "arctic", l: "Arctic", i: "🧊" }, { v: "cold", l: "Cold", i: "❄️" }, { v: "temperate", l: "Temperate", i: "🌿" }, { v: "hot_dry", l: "Hot & Dry", i: "🏜️" }, { v: "tropical", l: "Tropical", i: "🌴" }, { v: "coastal", l: "Coastal", i: "🌊" }].map(o => (
-            <button key={o.v} onClick={() => setClimate(o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: climate === o.v ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: climate === o.v ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: climate === o.v ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-              <span style={{ marginRight: 6 }}>{o.i}</span>{o.l}
-            </button>
-          ))}
-        </div>
-        <label style={labelSt}>Special Needs (select all that apply)</label>
-        <Multi field="specialNeeds" values={profile.specialNeeds} opts={[
-          { v: "elderly", l: "Elderly (65+)", i: "👴" }, { v: "children_under5", l: "Children Under 5", i: "👶" },
-          { v: "children_5to12", l: "Children 5-12", i: "🧒" }, { v: "medical", l: "Medical Conditions", i: "💊" },
-          { v: "mobility", l: "Mobility Impaired", i: "♿" },
-        ]} />
-        <label style={labelSt}>Pets & Livestock</label>
-        <Multi field="pets" values={profile.pets} opts={[
-          { v: "dogs", l: "Dogs", i: "🐕" }, { v: "cats", l: "Cats", i: "🐈" },
-          { v: "livestock_small", l: "Small Livestock", i: "🐑" }, { v: "livestock_large", l: "Large Livestock", i: "🐄" },
-          { v: "poultry", l: "Poultry", i: "🐔" }, { v: "horses", l: "Horses", i: "🐴" },
         ]} />
       </>);
       case 4: return (<>
@@ -2711,10 +2839,15 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
         <div style={{ padding: "28px 32px 0", textAlign: "center" }}>
           <div style={{ fontSize: 44, marginBottom: 10 }}>{STEPS[step].icon}</div>
           <h3 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{STEPS[step].title}</h3>
-          <p style={{ margin: "0 0 24px", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{STEPS[step].desc} · Step {step + 1} of {STEPS.length}</p>
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{STEPS[step].body}</p>
+          <p style={{ margin: "0 0 24px", fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: M }}>Step {step + 1} of {STEPS.length}</p>
         </div>
         {/* Content */}
         <div style={{ padding: "0 32px 16px" }}>{renderStep()}</div>
+        {/* Live preview */}
+        <div style={{ padding: "0 32px 20px" }}>
+          <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(200,85,58,0.04)", border: "1px solid rgba(200,85,58,0.12)", fontSize: 11, color: "rgba(255,255,255,0.55)", fontFamily: M, textAlign: "center" }}>{previewFor(step)}</div>
+        </div>
         {/* Navigation */}
         <div style={{ padding: "12px 32px 20px", display: "flex", justifyContent: "space-between", gap: 8 }}>
           {step > 0 ? (
@@ -2726,7 +2859,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
             if (step < STEPS.length - 1) setStep(step + 1);
             else onComplete({ ...profile, completedAt: new Date().toISOString() });
           }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: step < STEPS.length - 1 ? "linear-gradient(135deg,#c8553a,#a3412d)" : "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(200,85,58,0.25)" }}>
-            {step < STEPS.length - 1 ? "Next →" : "✓ Complete Setup"}
+            {step < STEPS.length - 1 ? "Next →" : "✓ See my readiness sketch"}
           </button>
         </div>
         {/* Step dots */}
@@ -2740,10 +2873,101 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
   );
 }
 
+/* ── Setup Intro (first-run) ── */
+function SetupIntro({ onStart, onSkip }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onSkip}>
+      <div style={{ background: "#13151a", borderRadius: 16, maxWidth: 540, width: "100%", maxHeight: "85vh", overflow: "auto", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", padding: "36px 32px", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
+        <h3 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800 }}>Build your readiness sketch</h3>
+        <p style={{ margin: "0 0 20px", fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+          In about a minute, answer a few questions about your household, water, power, and what you already keep on hand. PrepVault turns your answers into a personal readiness score with real numbers — not a generic checklist.
+        </p>
+        <div style={{ margin: "0 0 20px", padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+          Everything stays on this device. No account, no credit card, no cloud required.
+        </div>
+        <button onClick={onStart} style={{ width: "100%", padding: "14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginBottom: 10, boxShadow: "0 4px 16px rgba(200,85,58,0.25)" }}>Start my sketch</button>
+        <button onClick={onSkip} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Skip for now →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Readiness Sketch Reveal ── */
+function ReadinessReveal({ items, people, climate, propertyProfile, onDashboard, onAddSupplies, onOpenGap }) {
+  const M = "'JetBrains Mono',monospace";
+  const cont = useMemo(() => computeContinuity(items, people, climate, propertyProfile), [items, people, climate, propertyProfile]);
+  const prepScore = useMemo(() => computePrepScore(cont, items), [cont, items]);
+
+  const continuity = [
+    { icon: "⚡", label: "Power", value: cont.powerHrs > 0 ? cont.powerHrs.toFixed(0) + "h backup" : "No backup", color: cont.powerHrs >= 72 ? "#22c55e" : cont.powerHrs >= 24 ? "#f59e0b" : "#ef4444" },
+    { icon: "💧", label: "Water", value: cont.waterDays > 0 ? cont.waterDays.toFixed(1) + " days" : "No stored water", color: cont.waterDays >= 14 ? "#22c55e" : cont.waterDays >= 3 ? "#f59e0b" : "#ef4444" },
+    { icon: "🔥", label: "Heat", value: cont.heatDays >= 999 ? "N/A" : cont.heatDays.toFixed(0) + " days", color: cont.heatDays >= 999 ? "rgba(255,255,255,0.3)" : cont.heatDays >= 30 ? "#22c55e" : cont.heatDays >= 7 ? "#f59e0b" : "#ef4444" },
+    { icon: "🍽️", label: "Food", value: cont.calDays > 0 ? cont.calDays.toFixed(1) + " days" : "No stored food", color: cont.calDays >= 30 ? "#22c55e" : cont.calDays >= 7 ? "#f59e0b" : "#ef4444" },
+  ];
+
+  const gaps = [
+    ...(cont.powerHrs < 72 ? [{ icon: "⚡", tab: "preps", cat: "power", msg: cont.powerHrs <= 0 ? "No backup power — add a generator or solar." : "Power under 72 hours — add a generator or solar." }] : []),
+    ...(cont.waterDays < 14 ? [{ icon: "💧", tab: "preps", cat: "water", msg: cont.waterDays <= 0 ? "Water unlogged — add stored water to see your days." : "Water under 14 days — add stored water." }] : []),
+    ...(cont.heatDays < 30 ? [{ icon: "🔥", tab: "preps", cat: "firewood", msg: "Heat under 30 days — stock firewood or propane." }] : []),
+    ...(cont.calDays < 30 ? [{ icon: "🍽️", tab: "preps", cat: "food", msg: cont.calDays <= 0 ? "Food unlogged — log your stores to see your days." : "Food under 30 days — add stored food." }] : []),
+    ...(cont.commCount < 2 ? [{ icon: "📡", tab: "comms", cat: null, msg: cont.commCount === 0 ? "No comm backup — add a HAM or satellite radio." : "Single comm channel — add a HAM or satellite backup." }] : []),
+  ];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "#13151a", borderRadius: 16, maxWidth: 560, width: "100%", maxHeight: "88vh", overflow: "auto", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", padding: "32px 32px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🎯</div>
+          <h3 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>Your readiness sketch</h3>
+          <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>This is your starting baseline — a snapshot you can improve from here.</p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <ScoreRing score={prepScore} size={120} strokeWidth={10} />
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, fontFamily: M, color: SC(prepScore), letterSpacing: 1 }}>{SL(prepScore)}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Readiness score: {prepScore}/100</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 20 }}>
+          {continuity.map((c, i) => (
+            <div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: c.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{c.icon}</div>
+              <div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{c.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: c.color }}>{c.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Top gaps to close</div>
+        {gaps.length > 0 ? (
+          <div style={{ display: "grid", gap: 6, marginBottom: 20 }}>
+            {gaps.map((g, i) => (
+              <button key={i} onClick={() => onOpenGap(g.tab, g.cat)} style={{ textAlign: "left", padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", display: "flex", gap: 8, alignItems: "center", transition: "all 0.15s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.3)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"}>
+                <span style={{ flexShrink: 0 }}>{g.icon}</span><span>{g.msg}</span><span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>→</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: "12px", borderRadius: 8, background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)", fontSize: 11, color: "#22c55e", marginBottom: 20 }}>No major gaps — your basics are covered.</div>
+        )}
+
+        <button onClick={onDashboard} style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginBottom: 8, boxShadow: "0 4px 16px rgba(200,85,58,0.25)" }}>Go to my dashboard</button>
+        <button onClick={onAddSupplies} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginBottom: 12 }}>Add my first supplies</button>
+        <div style={{ textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Everything above is stored on this device only.</div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, setPropSub, dismissResetKey }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, user, onOpenAuth, setActiveTab, setPropSub, dismissResetKey }) {
   const M = "'JetBrains Mono',monospace";
 
   /* ── Live Weather State ── */
@@ -2758,6 +2982,9 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   const [dismissedCameraCTA, setDismissedCameraCTA] = useState(() => localStorage.getItem("prepvault-dismiss-camera-cta") === "1");
   const [dismissedAlarmCTA, setDismissedAlarmCTA] = useState(() => localStorage.getItem("prepvault-dismiss-alarm-cta") === "1");
   const [alarmMinimized, setAlarmMinimized] = useState(true);
+  const [dismissedUpgrade, setDismissedUpgrade] = useState(() => localStorage.getItem("prepvault-dismiss-upgrade") === "1");
+  const [dismissedGapNudge, setDismissedGapNudge] = useState(() => localStorage.getItem("prepvault-gap-nudge-" + new Date().toISOString().slice(0, 10)) === "1");
+  const [showPlans, setShowPlans] = useState(false);
 
   /* Reset dismiss flags when demo mode is re-entered */
   useEffect(() => {
@@ -2878,117 +3105,13 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   const newsItems = news || sampleNews;
 
   /* ── Continuity Metrics ── */
-  const cont = useMemo(() => {
-    const clim = CLIMATES[climate] || CLIMATES.temperate;
-    const waterMod = clim.waterMod || 1;
-    const fuelMod = clim.fuelMod || 1;
-    const firewoodMod = clim.firewoodMod || 1;
-    const p = people || 4;
-
-    // Power Autonomy (hours)
-    const fuelGals = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
-    const propaneTanks = items.filter((i) => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
-    const batteries = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
-    const solarPanels = items.filter((i) => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
-    const genHours = fuelGals * 5.5;
-    const batteryHours = batteries * 0.3;
-    const solarHrs = solarPanels * 5;
-    const powerHrs = genHours + batteryHours + solarHrs;
-
-    // Water Continuity (days)
-    const waterStored = items.filter((i) => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
-    const waterFilters = items.filter((i) => i.category === "water" && (i.subType === "purificationDevice" || i.subType === "purificationTablets")).reduce((s, i) => s + (i.quantity || 0), 0);
-    const dailyWater = p * 1.0 * waterMod;
-    const waterDays = (waterStored / Math.max(dailyWater, 0.1)) + (waterFilters * 3);
-
-    // Heat Stability (days)
-    const firewoodCords = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
-    const propaneHeatDays = (propaneTanks * 4.6 * 91452 / 18000) / 12; // 4.6gal × 91,452 BTU/gal ÷ 18,000 BTU heater ÷ 12hrs/day
-    const firewoodDays = firewoodCords * 30;
-    const heatDays = firewoodMod > 1 ? (firewoodDays + propaneHeatDays) / firewoodMod : firewoodDays + propaneHeatDays + 30;
-
-    // Caloric Reserve (days)
-    const totalCals = items.filter((i) => i.category === "food").reduce((s, i) => {
-      const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
-      const serv = parseFloat(i.fields?.servings || 1);
-      return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1);
-    }, 0);
-    const calDays = totalCals / Math.max(p * 2000, 1);
-
-    // Communication Redundancy
-    const commCh = new Set();
-    items.filter((i) => i.category === "electronics").forEach((i) => {
-      if (i.subType === "satPhone") commCh.add("Satellite");
-      if (i.subType === "cellPhone") commCh.add("Cellular");
-      if (i.subType === "radio") commCh.add("HAM/GMRS");
-      if (i.subType === "weatherRadio") commCh.add("Weather Band");
-    });
-    items.filter((i) => i.category === "comms").forEach(() => commCh.add("HAM/GMRS"));
-
-    // Fragilities
-    const frag = [];
-    const fuelSrc = new Set();
-    if (firewoodCords > 0) fuelSrc.add("wood");
-    if (propaneTanks > 0) fuelSrc.add("propane");
-    if (fuelGals > 0) fuelSrc.add("gasoline");
-    if (fuelSrc.size <= 1 && climate === "cold") frag.push({ icon: "🔥", msg: "Heat continuity depends on " + (fuelSrc.size === 0 ? "no fuel source" : "one fuel source") + ".", sev: fuelSrc.size === 0 ? "critical" : "warning" });
-    if (waterFilters < 2) frag.push({ icon: "💧", msg: "Water purification lacks redundancy.", sev: waterFilters === 0 ? "critical" : "warning" });
-    if (solarPanels > 0 && batteries < 10) frag.push({ icon: "🔋", msg: "Battery backup is weather-dependent.", sev: "warning" });
-    if (commCh.size < 2) frag.push({ icon: "📡", msg: commCh.size === 0 ? "No communication backup exists." : "Single communication channel — no redundancy.", sev: commCh.size === 0 ? "critical" : "warning" });
-    if (calDays < 7) frag.push({ icon: "🍽️", msg: `Caloric reserve below 7 days (${calDays.toFixed(1)}d).`, sev: "critical" });
-    if (powerHrs < 24) frag.push({ icon: "⚡", msg: "Power autonomy under 24 hours.", sev: "warning" });
-
-    // ── Profile-based adjustments ──
-    let adjWater = waterDays, adjPower = powerHrs, adjHeat = heatDays, adjComm = commCh.size;
-    if (propertyProfile?.completedAt) {
-      const toArr = v => Array.isArray(v) ? v : v ? [v] : [];
-      const pWater = toArr(propertyProfile.waterSource);
-      const pFresh = toArr(propertyProfile.freshwaterAccess);
-      const pPower = toArr(propertyProfile.powerSource);
-      const pHeat = toArr(propertyProfile.heatSource);
-      // Water: renewable sources (bonus per source type, not stacking duplicates)
-      if (pWater.some(s => ["well", "spring", "lake_river"].includes(s))) adjWater += 7;
-      if (pWater.includes("rain")) adjWater += 3;
-      if (pFresh.some(s => ["lakefront", "river_adjacent"].includes(s))) adjWater += 5;
-      // Power: renewables & generator infrastructure
-      if (pPower.some(s => ["solar", "wind", "hybrid"].includes(s))) adjPower += 48;
-      if (propertyProfile.hasGenerator) adjPower += 24;
-      // Heat: infrastructure bonus (best applies)
-      if (pHeat.includes("wood")) adjHeat += 10;
-      if (pHeat.some(s => ["propane", "oil", "gas"].includes(s))) adjHeat += 5;
-      // Comms: capability
-      if (propertyProfile.commsCapability?.includes("ham")) adjComm += 1;
-      if (propertyProfile.commsCapability?.includes("satellite")) adjComm += 1;
-      if (propertyProfile.commsCapability?.includes("mesh")) adjComm += 1;
-      // Fragilities from profile
-      if (propertyProfile.populationDensity === "urban") frag.push({ icon: "🏙️", msg: "Urban location — high population risk in prolonged scenarios. Consider relocating to rural property.", sev: "warning" });
-      if (pWater.length === 1 && pWater[0] === "municipal" && (pFresh.length === 0 || (pFresh.length === 1 && pFresh[0] === "none"))) frag.push({ icon: "🚱", msg: "Municipal water with no natural backup — vulnerable to infrastructure failure.", sev: "warning" });
-      if (propertyProfile.gridStatus === "on_grid" && !propertyProfile.hasGenerator) frag.push({ icon: "🔌", msg: "Grid-dependent with no backup generator.", sev: "warning" });
-      if (propertyProfile.geoRisks?.length >= 3) frag.push({ icon: "⚠️", msg: `Multiple geographic risks identified (${propertyProfile.geoRisks.length}).`, sev: "warning" });
-      if (propertyProfile.specialNeeds?.length > 0) frag.push({ icon: "🩺", msg: "Household includes vulnerable members — plan for extended care needs.", sev: "info" });
-    }
-
-    return { powerHrs: adjPower, waterDays: adjWater, heatDays: adjHeat, calDays, commCount: adjComm, commChannels: [...commCh], frag };
-  }, [items, people, climate, propertyProfile]);
+  const cont = useMemo(() => computeContinuity(items, people, climate, propertyProfile), [items, people, climate, propertyProfile]);
 
   /* ── Overall Preparedness Score ── */
-  const prepScore = useMemo(() => {
-    let score = 0;
-    // Water (25 pts) — 14 days = full marks
-    score += Math.min(cont.waterDays / 14, 1) * 25;
-    // Food (25 pts) — 30 days = full marks
-    score += Math.min(cont.calDays / 30, 1) * 25;
-    // Power (15 pts) — 72 hours = full marks
-    score += Math.min(cont.powerHrs / 72, 1) * 15;
-    // Heat (15 pts) — 30 days = full marks
-    score += Math.min(cont.heatDays / 30, 1) * 15;
-    // Comms (10 pts) — 3 channels = full marks
-    score += Math.min(cont.commCount / 3, 1) * 10;
-    // Category coverage (10 pts)
-    const catsWithItems = new Set(items.map(i => i.category)).size;
-    score += Math.min(catsWithItems / Object.keys(CATEGORIES).length, 1) * 10;
-    return Math.round(score);
-  }, [cont, items]);
+  const prepScore = useMemo(() => computePrepScore(cont, items), [cont, items]);
+
+  /* Open gaps on the sketch (for the post-sketch nudge) */
+  const openGaps = (cont.powerHrs < 72 ? 1 : 0) + (cont.waterDays < 14 ? 1 : 0) + (cont.heatDays < 30 ? 1 : 0) + (cont.calDays < 30 ? 1 : 0) + (cont.commCount < 2 ? 1 : 0);
 
   /* Planting calendar alerts */
   const now = new Date();
@@ -3053,6 +3176,51 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
           ))}
         </div>
       </div>
+
+      {/* ── Post-sketch contextual nudge ── */}
+      {propertyProfile?.completedAt && openGaps > 0 && !dismissedGapNudge && (
+        <div style={{ ...cardSt, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>🎯</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700 }}>{openGaps} gap{openGaps === 1 ? "" : "s"} open on your sketch</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Preps is where you close them.</div>
+          </div>
+          <button onClick={() => { setActiveTab("preps"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0, border: "none", fontFamily: "inherit" }}>Open Preps</button>
+          <button onClick={() => { setDismissedGapNudge(true); localStorage.setItem("prepvault-gap-nudge-" + new Date().toISOString().slice(0, 10), "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+        </div>
+      )}
+
+      {/* ── Upgrade prompt (gated on completed sketch, never blocks) ── */}
+      {propertyProfile?.completedAt && !dismissedUpgrade && (
+        <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)" }}>
+          <div style={{ fontSize: 28, flexShrink: 0 }}>⬆️</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>{user ? "Go deeper" : "Save your sketch"}</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+              {user
+                ? "Your readiness sketch is saved. When you want the full system — advanced scenarios, more properties, and everything running on your own schedule — one-time access is available."
+                : "Your readiness sketch is saved on this device. Sign in to keep it safe, then unlock the full system."}
+            </div>
+          </div>
+          {user ? (
+            <button onClick={() => setShowPlans(true)} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer", border: "none", fontFamily: "inherit" }}>See plans</button>
+          ) : (
+            <button onClick={onOpenAuth} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer", border: "none", fontFamily: "inherit" }}>Save my sketch</button>
+          )}
+          <button onClick={() => { setDismissedUpgrade(true); localStorage.setItem("prepvault-dismiss-upgrade", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+        </div>
+      )}
+
+      {/* ── Plans modal (honest placeholder — pricing owned by the paywall spec) ── */}
+      {showPlans && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowPlans(false)}>
+          <div style={{ background: "#13151a", borderRadius: 14, maxWidth: 420, width: "100%", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", padding: "24px 26px" }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>Go deeper</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>One-time access to the full system — advanced scenarios, more properties, and everything on your own schedule — is on its way. Your readiness sketch and everything you've logged stay free in the meantime.</p>
+            <button onClick={() => setShowPlans(false)} style={{ width: "100%", padding: "12px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>Got it</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Trail Cameras ── */}
       {!dismissedCameraCTA && (() => {
@@ -8326,7 +8494,7 @@ export default function PrepVault() {
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session"));
-  const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
+  const [onboardStep, setOnboardStep] = useState(null);
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
   const [importPw, setImportPw] = useState("");
@@ -8363,7 +8531,16 @@ export default function PrepVault() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [dismissResetKey, setDismissResetKey] = useState(0);
   const [showQuickStart, setShowQuickStart] = useState(false);
+  const [showSetupIntro, setShowSetupIntro] = useState(false);
+  const [showReveal, setShowReveal] = useState(false);
   const [qsStep, setQsStep] = useState(0);
+
+  const openGuidedSetup = () => {
+    setShowQuickStart(true);
+    setShowSetupIntro(true);
+    setShowReveal(false);
+    setQsStep(0);
+  };
 
   /* ── Auto-save to localStorage (debounced) ── */
   const saveTimerRef = useRef(null);
@@ -8528,7 +8705,7 @@ export default function PrepVault() {
         setCodeWords([]);
         setRallyPoints([]);
         setCodes([]);
-        setOnboardStep(0);
+        openGuidedSetup();
       }
     } catch (err) {
       setAuthError(err.message || "Authentication failed");
@@ -8827,7 +9004,7 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} />;
+        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => openGuidedSetup()} user={user} onOpenAuth={() => { setShowAuth(true); setAuthMode("signup"); }} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} />;
       case "property":
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "preps":
@@ -8895,7 +9072,7 @@ export default function PrepVault() {
           </>)}
         </div>
         <div style={{ padding: "12px 24px 18px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
-          <button onClick={() => { setShowAuth(false); if (showLanding) setShowLanding(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
+          <button onClick={() => { setShowAuth(false); if (showLanding) setShowLanding(false); if (!propertyProfile?.completedAt) openGuidedSetup(); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
         </div>
       </div>
     </div>
@@ -8947,7 +9124,7 @@ export default function PrepVault() {
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Create Free Account</button>
-            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); if (!propertyProfile?.completedAt) { setShowQuickStart(true); setQsStep(0); } }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
+            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); if (!propertyProfile?.completedAt) { openGuidedSetup(); } }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>No credit card · Works offline · Your data stays yours</div>
         </div>
@@ -9155,7 +9332,8 @@ export default function PrepVault() {
                 </div>
                 <div style={{ padding: "6px 0" }}>
                   {[
-                    { icon: "🚀", label: "Quick Start", badge: !propertyProfile?.completedAt, onClick: () => { setShowQuickStart(true); setQsStep(0); setShowProfileMenu(false); } },
+                    { icon: "🚀", label: "Quick Start", badge: !propertyProfile?.completedAt, onClick: () => { openGuidedSetup(); setShowProfileMenu(false); } },
+                    { icon: "👋", label: "Take the tour", onClick: () => { setOnboardStep(0); setShowProfileMenu(false); } },
                     { icon: "📷", label: localStorage.getItem("prepvault-cameras-connected") === "1" ? "Trail Cameras" : "Connect Cameras", accent: localStorage.getItem("prepvault-cameras-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
                     { icon: "🚨", label: localStorage.getItem("prepvault-alarms-connected") === "1" ? "Alarm Systems" : "Connect Alarms", accent: localStorage.getItem("prepvault-alarms-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
                     { icon: "🔒", label: encryptedDb ? "Encryption Active" : "Security & Encryption", accent: encryptedDb ? "#22c55e" : null, onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
@@ -9385,16 +9563,34 @@ export default function PrepVault() {
         );
       })()}
 
-      {/* ═══ Quick Start Wizard Modal ═══ */}
-      {showQuickStart && (
+      {/* ═══ Guided Setup: Intro ═══ */}
+      {showSetupIntro && (
+        <SetupIntro
+          onStart={() => { setShowSetupIntro(false); setQsStep(0); }}
+          onSkip={() => { setShowSetupIntro(false); setShowQuickStart(false); localStorage.setItem("prepvault-onboarding-done", "1"); }}
+        />
+      )}
+
+      {/* ═══ Guided Setup: Wizard ═══ */}
+      {showQuickStart && !showSetupIntro && (
         <QuickStartWizard
           step={qsStep} setStep={setQsStep}
           profile={propertyProfile} setProfile={setPropertyProfile}
           people={people} setPeople={setPeople}
           climate={climate} setClimate={setClimate}
           propAddress={propAddress} setPropAddress={setPropAddress}
-          onComplete={(completed) => { setPropertyProfile(completed); setShowQuickStart(false); setToast("✅ Property profile saved!"); }}
+          onComplete={(completed) => { setPropertyProfile(completed); setShowQuickStart(false); setShowReveal(true); }}
           onSkip={() => setShowQuickStart(false)}
+        />
+      )}
+
+      {/* ═══ Guided Setup: Reveal ═══ */}
+      {showReveal && (
+        <ReadinessReveal
+          items={items} people={people} climate={climate} propertyProfile={propertyProfile}
+          onDashboard={() => { setShowReveal(false); setActiveTab("dashboard"); }}
+          onAddSupplies={() => { setShowReveal(false); setActiveTab("preps"); openAdd(null); }}
+          onOpenGap={(tab, cat) => { setShowReveal(false); setActiveTab(tab); if (cat) setSelCat(cat); }}
         />
       )}
 
