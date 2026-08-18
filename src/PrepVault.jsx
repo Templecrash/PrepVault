@@ -9008,7 +9008,8 @@ export default function PrepVault() {
         {/* ── Footer ── */}
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M, alignItems: "center", flexWrap: "wrap" }}>
+            <a href="/guides/grid-down-family-continuity-checklist.html" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>Grid-Down Family Continuity Checklist</a>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
