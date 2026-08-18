@@ -7,7 +7,11 @@
       "maxDuration": 10
     }
   },
+  "redirects": [
+    { "source": "/food-storage-calories-guide", "destination": "/guides/food-storage-calorie-math", "permanent": true }
+  ],
   "rewrites": [
+    { "source": "/guides/food-storage-calorie-math", "destination": "/guides/food-storage-calorie-math.html" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
