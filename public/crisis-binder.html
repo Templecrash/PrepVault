@@ -1,0 +1,1294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The PrepVault Crisis Binder — Household Preparedness Workbook</title>
+  <meta name="description" content="A free, dual-format household preparedness workbook: printable, waterproof-friendly pages plus an encrypted offline digital copy. Fill-in worksheets for roster, comms, medical, property, supplies, team, crisis scenarios, records, and updates." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://prepvault-xi.vercel.app/crisis-binder.html" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="The PrepVault Crisis Binder — Household Preparedness Workbook" />
+  <meta property="og:description" content="Build your preparedness plan once, on paper you control, plus an encrypted offline digital copy. Free printable fill-in worksheets for every part of your household plan." />
+  <meta property="og:url" content="https://prepvault-xi.vercel.app/crisis-binder.html" />
+  <meta property="og:site_name" content="PrepVault" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="The PrepVault Crisis Binder — Household Preparedness Workbook" />
+  <meta name="twitter:description" content="A free dual-format crisis binder: printable, waterproof-friendly pages plus an encrypted offline digital copy." />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "The PrepVault Crisis Binder — Household Preparedness Workbook",
+    "description": "A free, dual-format household preparedness workbook: printable, waterproof-friendly pages plus an encrypted offline digital copy, with fill-in worksheets across ten sections.",
+    "datePublished": "2026-08-18",
+    "dateModified": "2026-08-18",
+    "inLanguage": "en",
+    "isAccessibleForFree": true,
+    "publisher": {
+      "@type": "Organization",
+      "name": "PrepVault"
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://prepvault-xi.vercel.app/crisis-binder.html"
+    }
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --green: #1B5E20;
+      --green-bright: #2e7d32;
+      --green-soft: #43a047;
+      --green-tint: rgba(27, 94, 32, 0.10);
+      --green-border: rgba(27, 94, 32, 0.30);
+      --bg: #0a0c10;
+      --panel: #11141a;
+      --panel-2: #161a21;
+      --line: rgba(255, 255, 255, 0.07);
+      --text: #e6edf3;
+      --muted: rgba(230, 237, 243, 0.55);
+      --faint: rgba(230, 237, 243, 0.35);
+      --mono: 'Geist Mono', 'JetBrains Mono', monospace;
+      --sans: 'Outfit', 'DM Sans', 'Segoe UI', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a { color: var(--green-soft); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .no-print { }
+    .mono { font-family: var(--mono); }
+
+    /* ── Sticky action bar ── */
+    .bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(10, 12, 16, 0.86);
+      backdrop-filter: blur(12px);
+    }
+    .bar .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .bar .brand:hover { text-decoration: none; }
+    .mark {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--green), #0d3811);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; font-family: var(--mono); color: #fff;
+    }
+    .bar .brand-name { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
+    .bar .brand-sub { font-size: 9px; color: var(--faint); font-family: var(--mono); text-transform: uppercase; letter-spacing: 1.5px; }
+    .bar .spacer { flex: 1; }
+    .btn {
+      all: unset;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 10px 16px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--green), #0d3811);
+      color: #fff;
+      border: 1px solid var(--green-border);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+    .btn:hover { box-shadow: 0 4px 20px rgba(27, 94, 32, 0.35); }
+    .btn:active { transform: scale(0.97); }
+    .btn.ghost {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--line);
+      color: rgba(230,237,243,0.7);
+    }
+
+    /* ── Layout ── */
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+
+    header.hero { padding: 56px 20px 40px; text-align: center; border-bottom: 1px solid var(--line); }
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 14px; border-radius: 20px;
+      background: var(--green-tint);
+      border: 1px solid var(--green-border);
+      font-size: 11px; color: var(--green-soft);
+      font-weight: 700; font-family: var(--mono);
+      letter-spacing: 1.5px; text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+    header.hero h1 {
+      font-size: clamp(30px, 5.5vw, 52px);
+      font-weight: 900;
+      margin: 0 0 8px;
+      line-height: 1.08;
+      letter-spacing: -1px;
+    }
+    header.hero .sub {
+      font-size: clamp(14px, 2vw, 17px);
+      color: var(--muted);
+      margin: 0 0 18px;
+      font-weight: 500;
+    }
+    header.hero .tagline {
+      font-size: 13px; font-weight: 700;
+      color: var(--green-soft);
+      font-family: var(--mono);
+      letter-spacing: 0.5px;
+    }
+    header.hero .meta {
+      margin-top: 14px;
+      font-size: 11px; color: var(--faint); font-family: var(--mono);
+    }
+
+    .toc {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin: 40px 0;
+    }
+    .toc h2 { margin: 0 0 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--faint); font-family: var(--mono); }
+    .toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+    .toc li { margin: 6px 0; font-size: 13px; break-inside: avoid; }
+    .toc a { color: var(--text); font-weight: 500; }
+    .toc a:hover { color: var(--green-soft); text-decoration: none; }
+
+    /* ── Content sections ── */
+    section.block { margin: 46px 0; }
+    section.block > .head {
+      padding: 22px 24px;
+      background: linear-gradient(135deg, var(--green-tint), rgba(27,94,32,0.02));
+      border: 1px solid var(--green-border);
+      border-radius: 14px 14px 0 0;
+      border-bottom: none;
+    }
+    section.block > .head .num {
+      font-family: var(--mono); font-size: 11px; font-weight: 700;
+      color: var(--green-soft); text-transform: uppercase; letter-spacing: 1.5px;
+      display: block; margin-bottom: 6px;
+    }
+    section.block > .head h2 { margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.4px; }
+    section.block > .head p.purpose { margin: 0; font-size: 13px; color: var(--muted); }
+    section.block > .head p.purpose strong { color: var(--text); }
+    .owner-line {
+      margin-top: 12px; font-size: 12px; color: var(--faint); font-family: var(--mono);
+    }
+    .owner-line strong { color: var(--green-soft); }
+    .owner-line span.blank { display: inline-block; min-width: 120px; border-bottom: 1px solid var(--line); }
+
+    .body-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 0 0 14px 14px;
+      padding: 24px;
+    }
+
+    .body-card h3 { font-size: 15px; font-weight: 700; margin: 24px 0 10px; color: var(--text); }
+    .body-card h3:first-child { margin-top: 0; }
+    .body-card p { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
+    .body-card p strong { color: var(--text); }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 12.5px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: rgba(255,255,255,0.03);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--green-soft);
+      font-weight: 700;
+    }
+    td { color: var(--muted); }
+    td.blank, th.blank { min-width: 90px; }
+    .write { color: var(--faint); font-family: var(--mono); }
+
+    /* Checklist */
+    ul.check { list-style: none; margin: 0 0 14px; padding: 0; }
+    ul.check li { padding: 4px 0; font-size: 13.5px; color: var(--muted); display: flex; gap: 9px; align-items: flex-start; }
+    ul.check li .box { color: var(--green-soft); font-family: var(--mono); flex-shrink: 0; line-height: 1.5; }
+    ul.check li strong { color: var(--text); }
+
+    /* Bullet features */
+    ul.bullets { margin: 0 0 14px; padding-left: 20px; }
+    ul.bullets li { margin: 6px 0; font-size: 14px; color: var(--muted); }
+    ul.bullets li strong { color: var(--text); }
+
+    /* Ordered steps */
+    ol.steps { margin: 0 0 14px; padding-left: 22px; }
+    ol.steps li { margin: 8px 0; font-size: 14px; color: var(--muted); }
+    ol.steps li strong { color: var(--text); }
+    ol.steps li::marker { color: var(--green-soft); font-weight: 700; font-family: var(--mono); }
+
+    .callout {
+      background: var(--green-tint);
+      border-left: 3px solid var(--green);
+      border-radius: 0 10px 10px 0;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--muted);
+      margin: 16px 0;
+    }
+    .callout strong { color: var(--text); }
+
+    .do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+    .do-dont > div { border-radius: 10px; padding: 14px 16px; font-size: 12.5px; }
+    .do-dont .do { background: var(--green-tint); border: 1px solid var(--green-border); }
+    .do-dont .dont { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.18); }
+    .do-dont h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); }
+    .do-dont .do h4 { color: var(--green-soft); }
+    .do-dont .dont h4 { color: #ef7b6b; }
+
+    /* CTA + footer */
+    .cta-band {
+      margin: 48px 0;
+      padding: 36px 32px;
+      border-radius: 16px;
+      background: var(--green-tint);
+      border: 1px solid var(--green-border);
+      text-align: center;
+    }
+    .cta-band h2 { margin: 0 0 8px; font-size: 22px; font-weight: 800; }
+    .cta-band p { margin: 0 0 22px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .cta-band .btn { font-size: 14px; padding: 13px 28px; }
+
+    footer.site {
+      border-top: 1px solid var(--line);
+      padding: 28px 20px 40px;
+      margin-top: 40px;
+    }
+    footer.site .inner { max-width: 880px; margin: 0 auto; }
+    footer.site .fine { font-size: 10.5px; color: var(--faint); line-height: 1.7; }
+    footer.site .sources { margin: 18px 0 0; }
+    footer.site .sources h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--faint); font-family: var(--mono); margin: 0 0 8px; }
+    footer.site .sources ul { list-style: none; margin: 0; padding: 0; }
+    footer.site .sources li { font-size: 11.5px; color: var(--muted); margin: 4px 0; }
+    footer.site .sources li a { color: var(--muted); }
+    footer.site .sources li a:hover { color: var(--green-soft); }
+    footer.site .disclaimer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 10.5px; color: var(--faint); font-style: italic; }
+
+    @media (max-width: 640px) {
+      .toc ol { columns: 1; }
+      .do-dont { grid-template-columns: 1fr; }
+      .bar .brand-sub { display: none; }
+      .bar .btn span.btn-label { display: none; }
+    }
+
+    /* ── Print ── */
+    @media print {
+      :root {
+        --bg: #ffffff;
+        --panel: #ffffff;
+        --panel-2: #ffffff;
+        --line: #c9c9c9;
+        --text: #111111;
+        --muted: #333333;
+        --faint: #555555;
+        --green: #1B5E20;
+        --green-bright: #2e7d32;
+        --green-soft: #1B5E20;
+        --green-tint: #eef4ee;
+        --green-border: #1B5E20;
+      }
+      .no-print { display: none !important; }
+      body { font-size: 10pt; }
+      .wrap { max-width: none; padding: 0; }
+      header.hero { padding: 24px 0 16px; }
+      .toc { page-break-after: always; }
+      section.block { margin: 0 0 20px; page-break-inside: avoid; }
+      section.block > .head { border: 1px solid var(--green-border); }
+      .body-card { border: 1px solid var(--line); }
+      th, td { border-color: #999; padding: 5px 7px; }
+      td.blank, th.blank { min-height: 14px; }
+      a { color: inherit; text-decoration: none; }
+      .cta-band { border: 1px solid var(--green-border); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky action bar -->
+  <div class="bar no-print">
+    <a class="brand" href="https://prepvault-xi.vercel.app">
+      <span class="mark">P</span>
+      <span>
+        <span class="brand-name">PrepVault</span><br />
+        <span class="brand-sub">Crisis Binder</span>
+      </span>
+    </a>
+    <div class="spacer"></div>
+    <a class="btn ghost" href="https://prepvault-xi.vercel.app">Open the app</a>
+    <button class="btn" onclick="window.print()">🖨️ <span class="btn-label">Print / Save as PDF</span></button>
+  </div>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="wrap">
+      <div class="eyebrow">Household Preparedness Workbook</div>
+      <h1>The PrepVault Crisis Binder</h1>
+      <p class="sub">Household Preparedness Workbook</p>
+      <p class="tagline">Survival planning that works when nothing else does. Encrypted. Offline. No cloud dependency.</p>
+      <p class="meta">Build it once. Review it quarterly. Update it after every near-miss.</p>
+      <div style="margin-top: 22px;" class="no-print">
+        <button class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- Contents -->
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#s1">Household Roster &amp; Personal Records</a></li>
+        <li><a href="#s2">Communication Plan</a></li>
+        <li><a href="#s3">Medical</a></li>
+        <li><a href="#s4">Home &amp; Property</a></li>
+        <li><a href="#s5">Supplies Inventory</a></li>
+        <li><a href="#s6">Roles &amp; Team Coordination</a></li>
+        <li><a href="#s7">Crisis Quick-Reference</a></li>
+        <li><a href="#s8">Financial &amp; Legal Records</a></li>
+        <li><a href="#s9">Digital Backup &amp; Security</a></li>
+        <li><a href="#s10">Update Log</a></li>
+      </ol>
+    </nav>
+
+    <!-- Why this binder -->
+    <section class="block">
+      <div class="head">
+        <span class="num">Introduction</span>
+        <h2>Why this binder</h2>
+        <p class="purpose">Most emergency plans live in a person's head, a notebook, or a cloud app. When the grid goes down, so does the cloud — and so does the app that needed a connection to be useful.</p>
+      </div>
+      <div class="body-card">
+        <p>This workbook puts your plan where it still works: on paper you control, plus an encrypted offline digital copy you keep yourself. The strongest crisis binders share the same shape, and this one is built that way:</p>
+        <ul class="bullets">
+          <li><strong>Dual format</strong> — printable, waterproof-friendly pages plus an encrypted offline digital copy</li>
+          <li><strong>Fill-in worksheets</strong>, not static lists — the plan is the blank you actually complete</li>
+          <li><strong>An update cadence</strong> — quarterly, and after every near-miss or life change</li>
+          <li><strong>Per-section ownership</strong> — someone in charge of every section, with an alternate</li>
+        </ul>
+        <p>Fill in every field. If a section doesn't apply to your household, write <strong>N/A</strong> and date it, so it's clear it was considered and skipped on purpose. Then tell your household where the binder lives and who the out-of-area contact is.</p>
+      </div>
+    </section>
+
+    <!-- How to assemble -->
+    <section class="block">
+      <div class="head">
+        <span class="num">Getting started</span>
+        <h2>How to assemble your binder</h2>
+      </div>
+      <div class="body-card">
+        <ol class="steps">
+          <li><strong>Print two copies.</strong> One stays in the home. One lives off-site — in a go-bag, vehicle, or outbuilding — so a plan survives even if the house doesn't.</li>
+          <li><strong>Protect the paper.</strong> Use sheet protectors in a 3-ring binder, or print on waterproof paper. Keep the off-site copy in a waterproof pouch.</li>
+          <li><strong>Build the digital copy.</strong> After the paper is filled in, create an encrypted offline copy (Section 9). The cloud is optional. An encrypted local copy is not.</li>
+          <li><strong>Assign owners.</strong> Complete the Ownership page on the next sheet. Every section gets a primary and an alternate.</li>
+          <li><strong>Set the cadence.</strong> Put a quarterly review in your calendar now. Also review within a week of any move, medical change, major purchase, or near-miss.</li>
+          <li><strong>Tell your people.</strong> Household members and your out-of-area contact should know where the binder is and who holds the digital copy.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Contents / ownership table -->
+    <section class="block">
+      <div class="head">
+        <span class="num">Contents &amp; ownership</span>
+        <h2>Contents</h2>
+        <p class="purpose">Copy this contents page and keep it at the front of the binder. Fill in owners as you complete each section.</p>
+      </div>
+      <div class="body-card">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Section</th><th>Owner</th><th>Alternate</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Household Roster &amp; Personal Records</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>2</td><td>Communication Plan</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>3</td><td>Medical</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>4</td><td>Home &amp; Property</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>5</td><td>Supplies Inventory</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>6</td><td>Roles &amp; Team Coordination</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>7</td><td>Crisis Quick-Reference</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>8</td><td>Financial &amp; Legal Records</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>9</td><td>Digital Backup &amp; Security</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>10</td><td>Update Log</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 1 -->
+    <section class="block" id="s1">
+      <div class="head">
+        <span class="num">Section 1</span>
+        <h2>Household Roster &amp; Personal Records</h2>
+        <p class="purpose"><strong>Purpose:</strong> Every member of the household, what identifies them, and where their critical documents live.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Who's in the household</h3>
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Date of birth</th><th>Blood type</th><th>Known conditions</th><th>Allergies</th><th>Emergency contact</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+        <p>Include everyone who lives in the home, plus anyone with a key who needs to be accounted for in an emergency. Add pets and livestock on the last row of this page if space allows.</p>
+
+        <h3>Critical documents — where are the originals?</h3>
+        <p>Store originals in a fireproof and waterproof box or safe, and note the location here. Record the document, not the number you'd rather not write down — this page should be useful to a family member, not just to you.</p>
+        <table>
+          <thead>
+            <tr><th>Document</th><th>Have it?</th><th>Location of original</th><th>Copy in binder?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Birth certificates</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Passports</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Social Security cards</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Marriage / divorce records</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Citizenship / naturalization papers</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Military records</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Vehicle titles &amp; registrations</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Property deed / lease</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Wills &amp; trusts</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Insurance policies</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Pet registrations / vet records</td><td>☐</td><td class="blank"></td><td>☐</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 2 -->
+    <section class="block" id="s2">
+      <div class="head">
+        <span class="num">Section 2</span>
+        <h2>Communication Plan</h2>
+        <p class="purpose"><strong>Purpose:</strong> How your household finds each other and checks in when phones and local lines fail.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Out-of-area contact</h3>
+        <p>Choose one person outside your region. When local lines fail, everyone in the household calls or messages this person — they can relay that everyone is safe. Agree on this in advance and put it in everyone's phone.</p>
+        <table>
+          <thead><tr><th>Field</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>Name</td><td class="blank"></td></tr>
+            <tr><td>Phone</td><td class="blank"></td></tr>
+            <tr><td>Location</td><td class="blank"></td></tr>
+            <tr><td>Relation to household</td><td class="blank"></td></tr>
+            <tr><td>Do they know they're the contact?</td><td>☐ Yes &nbsp;&nbsp; ☐ No — tell them</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Local emergency numbers</h3>
+        <p class="write">These are non-emergency lines — call them before you need them.</p>
+        <table>
+          <thead><tr><th>Service</th><th>Number</th></tr></thead>
+          <tbody>
+            <tr><td>Police / Sheriff (non-emergency)</td><td class="blank"></td></tr>
+            <tr><td>Fire (non-emergency)</td><td class="blank"></td></tr>
+            <tr><td>Utilities — electric</td><td class="blank"></td></tr>
+            <tr><td>Utilities — gas</td><td class="blank"></td></tr>
+            <tr><td>Utilities — water</td><td class="blank"></td></tr>
+            <tr><td>Poison control</td><td class="blank"></td></tr>
+            <tr><td>Nearest hospital / ER</td><td class="blank"></td></tr>
+            <tr><td>Household out-of-area contact</td><td>(see above)</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Meeting places</h3>
+        <p>Agree on three and make sure every capable member of the household knows them.</p>
+        <table>
+          <thead><tr><th>#</th><th>Place</th><th>Location</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Inside the home <span class="write">(e.g., safe room, basement corner)</span></td><td class="blank"></td></tr>
+            <tr><td>2</td><td>Outside the home, in the neighborhood <span class="write">(e.g., mailbox, corner lot)</span></td><td class="blank"></td></tr>
+            <tr><td>3</td><td>Out of the area / rally point <span class="write">(e.g., relative's house, community center)</span></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Phone tree</h3>
+        <p>Who tells whom, in order. Write names and numbers.</p>
+        <table>
+          <thead><tr><th>Order</th><th>Name</th><th>Number</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>2</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>3</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>4</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Radio &amp; alternate comms</h3>
+        <p class="write">For households that run radios or plan for full comms failure.</p>
+        <table>
+          <thead><tr><th>Field</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>Household radio / call signs</td><td class="blank"></td></tr>
+            <tr><td>Primary frequency / channel</td><td class="blank"></td></tr>
+            <tr><td>Alternate frequency / channel</td><td class="blank"></td></tr>
+            <tr><td>Check-in schedule</td><td class="write">(e.g., every morning at 08:00)</td></tr>
+            <tr><td>Backup comms method</td><td class="write">(e.g., text, ham, GMRS, messenger)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><strong>Household comms rule:</strong> If local lines fail, we will reach each other via: <span class="blank" style="display:inline-block; min-width:180px; border-bottom:1px solid var(--line);"></span></div>
+      </div>
+    </section>
+
+    <!-- Section 3 -->
+    <section class="block" id="s3">
+      <div class="head">
+        <span class="num">Section 3</span>
+        <h2>Medical</h2>
+        <p class="purpose"><strong>Purpose:</strong> What each person needs medically, what they take, and where to find care and records fast.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Household medical worksheet</h3>
+        <p class="write">One row per person.</p>
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Blood type</th><th>Allergies</th><th>Chronic conditions</th><th>Medications (name, dose, how taken)</th><th>Doctor / pharmacy</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Medical devices &amp; power needs</h3>
+        <p class="write">Anything in the home that needs electricity.</p>
+        <table>
+          <thead>
+            <tr><th>Device / equipment</th><th>Who uses it</th><th>Power/battery needs</th><th>Backup plan if power is out</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Providers &amp; insurance</h3>
+        <table>
+          <thead><tr><th>Field</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>Primary care doctor</td><td class="blank"></td></tr>
+            <tr><td>Dentist</td><td class="blank"></td></tr>
+            <tr><td>Pharmacy</td><td class="blank"></td></tr>
+            <tr><td>Nearest urgent care</td><td class="blank"></td></tr>
+            <tr><td>Nearest ER</td><td class="blank"></td></tr>
+            <tr><td>Health insurance company / policy #</td><td class="blank"></td></tr>
+            <tr><td>Prescription refill number / provider</td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Medication checklist</h3>
+        <ul class="check">
+          <li><span class="box">☐</span> Medication list is current and legible</li>
+          <li><span class="box">☐</span> A printed copy lives in the go-bag / get-home bag</li>
+          <li><span class="box">☐</span> An encrypted digital copy is in the backup (Section 9)</li>
+          <li><span class="box">☐</span> At least 7 days (ideally 30) of each essential medication is on hand</li>
+          <li><span class="box">☐</span> Refill dates are on the household calendar</li>
+        </ul>
+
+        <h3>Pets / livestock medical</h3>
+        <table>
+          <thead>
+            <tr><th>Animal</th><th>Vet / large-animal vet</th><th>Medications</th><th>Needs in an emergency</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 4 -->
+    <section class="block" id="s4">
+      <div class="head">
+        <span class="num">Section 4</span>
+        <h2>Home &amp; Property</h2>
+        <p class="purpose"><strong>Purpose:</strong> Know your utilities, heat, power, and water — and exactly where to turn things off and on.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Utilities</h3>
+        <table>
+          <thead>
+            <tr><th>Utility</th><th>Provider</th><th>Outage/report number</th><th>Shut-off location</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Electric</td><td class="blank"></td><td class="blank"></td><td>Breaker panel:</td><td class="blank"></td></tr>
+            <tr><td>Gas</td><td class="blank"></td><td class="blank"></td><td>Main valve + wrench kept at:</td><td>Shut off only if you suspect a leak</td></tr>
+            <tr><td>Water (city/municipal)</td><td class="blank"></td><td class="blank"></td><td>Main shut-off:</td><td class="blank"></td></tr>
+            <tr><td>Well (if applicable)</td><td>—</td><td>—</td><td>Pump control:</td><td>Pump needs power — see backup below</td></tr>
+            <tr><td>Septic (if applicable)</td><td>—</td><td>—</td><td>—</td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Heating</h3>
+        <table>
+          <thead>
+            <tr><th>Heat source</th><th>Type / fuel</th><th>Where fuel is stored</th><th>How much on hand</th><th>Refill / rotate date</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Primary</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Secondary</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Power</h3>
+        <table>
+          <thead>
+            <tr><th>Power source</th><th>Type</th><th>Fuel / capacity</th><th>Runtime estimate</th><th>How it connects</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Generator</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Solar / inverter</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Battery bank</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Backup heat (if separate)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Water</h3>
+        <table>
+          <thead>
+            <tr><th>Source</th><th>Storage (gallons)</th><th>Last refreshed</th><th>Backup source</th><th>Access notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Stored water</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Well / spring</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Rain catchment</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Other (pond, creek, pool)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><strong>If the power is out</strong>, list which of the above stop working and what replaces them: <span class="blank" style="display:inline-block; min-width:180px; border-bottom:1px solid var(--line);"></span></div>
+
+        <h3>Property map notes</h3>
+        <p>PrepVault keeps a pin-based map of your property. Sketch the same key points here so the paper copy stands alone:</p>
+        <table>
+          <thead>
+            <tr><th>Point</th><th>What it is</th><th>Location on property</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Rally point</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Cache / supply stash</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Known hazard</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Evacuation route out</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Shelter (tornado / storm)</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Household special needs</h3>
+        <p class="write">Mobility, medical, or anyone who needs extra time or help evacuating.</p>
+        <table>
+          <thead>
+            <tr><th>Person</th><th>Need</th><th>Who helps them</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 5 -->
+    <section class="block" id="s5">
+      <div class="head">
+        <span class="num">Section 5</span>
+        <h2>Supplies Inventory</h2>
+        <p class="purpose"><strong>Purpose:</strong> Know what you have, how much, where it is, and when it expires — on paper, and current.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Your coverage targets</h3>
+        <p>Decide these with the household and write them here. PrepVault tracks the same numbers as a live score — power hours, water days, heat days, and food days — so use the same targets in both places.</p>
+        <table>
+          <thead><tr><th>Life support</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>Power</td><td class="blank">___ hours backup</td></tr>
+            <tr><td>Water</td><td class="blank">___ days</td></tr>
+            <tr><td>Heat</td><td class="blank">___ days</td></tr>
+            <tr><td>Food</td><td class="blank">___ days</td></tr>
+          </tbody>
+        </table>
+
+        <h3>How to use these sheets</h3>
+        <ul class="bullets">
+          <li>One row per item. Mark the quantity in units that make sense (gallons, days, cans, cords).</li>
+          <li><strong>Write the expiry or refresh date</strong> on every row. Rotate on a first-in, first-out basis: new stock goes to the back, oldest to the front.</li>
+          <li>Update a section whenever it changes materially, and log it in Section 10.</li>
+          <li>The paper binder is the durable copy. PrepVault is the live, searchable one — keep both current and they back each other up.</li>
+        </ul>
+
+        <h3>Water</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Unit</th><th>Location</th><th>Last refreshed / expiry</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Bottled water</td><td class="blank"></td><td>gallons</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>5-gallon jugs / barrels</td><td class="blank"></td><td>gallons</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Water filtration / purification</td><td class="blank"></td><td>—</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Water treatment tablets</td><td class="blank"></td><td>—</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Food — pantry and daily-use</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Unit</th><th>Location</th><th>Expiry</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Canned goods</td><td class="blank"></td><td>cans</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Shelf-stable staples (rice, beans, pasta, oats)</td><td class="blank"></td><td>lbs/days</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Canned proteins</td><td class="blank"></td><td>cans</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Infant / special diet items</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Cooking fuel / stove</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Food — long-term storage</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Unit</th><th>Location</th><th>Expiry</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Freeze-dried / MREs</td><td class="blank"></td><td>servings</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Bulk grains / legumes</td><td class="blank"></td><td>lbs</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Seeds (garden)</td><td class="blank"></td><td>packets</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Other</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Medical &amp; first aid</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Location</th><th>Expiry</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>First-aid kit</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Prescription medications (days on hand)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Over-the-counter (pain, fever, allergy, stomach)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Bandages / wound care</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Thermometer / gloves / masks</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Water purification</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Power &amp; batteries</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Location</th><th>Charge / expiry</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Power bank(s)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Batteries (sizes: AA, AAA, C, D, 9V)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Generator fuel (gallons, stabilized)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Fuel for vehicle / heating</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Flashlights / headlamps</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Solar charger</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Lighting &amp; cooking</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Location</th><th>Fuel / notes</th></tr></thead>
+          <tbody>
+            <tr><td>Flashlights / headlamps</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Candles / lanterns</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Camp stove / grill + fuel</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Manual can opener</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Sanitation &amp; hygiene</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Location</th><th>Expiry</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Toiletries (soap, toothpaste, deodorant)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Toilet paper / wipes</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Trash bags</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Hand sanitizer / soap</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Feminine products / diapers</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Clothing &amp; warmth</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Location</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Blankets / sleeping bags</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Warm layers per person</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Rain gear</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Work gloves / sturdy footwear</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Comms &amp; electronics</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Location</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Radios (ham/GMRS)</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Battery-powered / crank radio</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Weather radio</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Spare chargers</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Cash &amp; important papers</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Amount / location</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Cash on hand (small bills)</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Spare credit/debit cards</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Passport / ID copies</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Bags &amp; tools</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Location</th><th>Ready?</th></tr></thead>
+          <tbody>
+            <tr><td>Go-bag / bug-out bag (per person)</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Get-home bag (per vehicle)</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Tools (multi-tool, wrench for gas shut-off, axe)</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Duct tape, rope/paracord, zip ties</td><td class="blank"></td><td>☐</td></tr>
+            <tr><td>Fire extinguisher(s) — check pressure</td><td class="blank"></td><td>☐</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Defense &amp; security</h3>
+        <p class="write">If applicable to your household.</p>
+        <table>
+          <thead><tr><th>Item</th><th>Quantity</th><th>Location</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Firearms / ammunition</td><td class="blank"></td><td class="blank"></td><td>Store per your household rules</td></tr>
+            <tr><td>Pepper spray / deterrents</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Home security system / cameras</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Vehicles</h3>
+        <table>
+          <thead><tr><th>Vehicle</th><th>Fuel level target</th><th>Get-home bag?</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td>☐</td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td>☐</td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 6 -->
+    <section class="block" id="s6">
+      <div class="head">
+        <span class="num">Section 6</span>
+        <h2>Roles &amp; Team Coordination</h2>
+        <p class="purpose"><strong>Purpose:</strong> Everyone knows their job, and every section has an owner — with an alternate so the plan survives one person being unavailable.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Household roles</h3>
+        <table>
+          <thead><tr><th>Area</th><th>Person responsible</th><th>Alternate</th></tr></thead>
+          <tbody>
+            <tr><td>Water</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Food &amp; cooking</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Medical</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Power &amp; fuel</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Comms &amp; check-ins</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Kids / pets</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Property &amp; security</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Rally point / evac lead</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Mutual aid network</h3>
+        <p class="write">The neighbors and suppliers who can help in a pinch, and who you can help.</p>
+        <table>
+          <thead><tr><th>Name</th><th>What they can help with</th><th>Phone / contact</th></tr></thead>
+          <tbody>
+            <tr><td>Neighbor</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Neighbor</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Vet / large-animal vet</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Feed / supply dealer</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Equipment / parts dealer</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Other</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Team / extended family</h3>
+        <table>
+          <thead><tr><th>Member</th><th>Role</th><th>Contact</th><th>Where they are in a crisis</th></tr></thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 7 -->
+    <section class="block" id="s7">
+      <div class="head">
+        <span class="num">Section 7</span>
+        <h2>Crisis Quick-Reference</h2>
+        <p class="purpose"><strong>Purpose:</strong> Think through each scenario before it happens, so the household reacts instead of freezes.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <p class="write">One card per scenario. Fill in your household's specifics. For location-specific guidance, use FEMA's hazard information sheets and Ready.gov's Make a Plan materials (links on the Sources page).</p>
+
+        <h3>Grid Failure</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Know your backup heat and power options and their fuel</li>
+          <li><span class="box">☐</span> Decide which devices and appliances are essential</li>
+          <li><span class="box">☐</span> Have battery/crank lighting where you'll need it</li>
+        </ul>
+        <p><strong>When it's active, your household will:</strong></p>
+        <ul class="bullets">
+          <li><strong>Keep refrigerators and freezers closed</strong> to hold the cold</li>
+          <li><strong>Turn on battery/crank lighting</strong>, not open flames, unless supervised</li>
+          <li><strong>Check in via the comms plan</strong> (Section 2) at the agreed time</li>
+          <li><strong>Protect water</strong> if pumps need power</li>
+        </ul>
+        <p class="write">Who you check on first: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span> &nbsp; What could run short: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>Winter Storm</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Confirm heat source works and fuel is full</li>
+          <li><span class="box">☐</span> Prevent pipe freezing — know how you'll keep the house above freezing</li>
+          <li><span class="box">☐</span> Have warm layers and blankets accessible per person</li>
+        </ul>
+        <p><strong>When it's active:</strong> keep one room warm, drip faucets if pipes are at risk, and stay off roads unless you must travel.</p>
+        <p class="write">Who you check on first: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span> &nbsp; What could run short: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>Wildfire</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Know two evacuation routes out of your area</li>
+          <li><span class="box">☐</span> Pack go-bags where they can be grabbed fast</li>
+          <li><span class="box">☐</span> Know your rally point and out-of-area contact</li>
+        </ul>
+        <p><strong>When it's active:</strong> <strong>leave early when advised</strong> — do not wait for a second warning; grab the go-bags and binder copy, and check in with the out-of-area contact.</p>
+        <p class="write">First alert to act on: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span> &nbsp; Evacuation trigger: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>Water Crisis</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Stored water is refreshed on the calendar</li>
+          <li><span class="box">☐</span> Filtration/purification method works — tested</li>
+          <li><span class="box">☐</span> Know where a backup source is (Section 4)</li>
+        </ul>
+        <p><strong>When it's active:</strong> use stored water first, then a tested backup source, and treat water before drinking if you're not certain of it.</p>
+        <p class="write">What you'd ration first: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span> &nbsp; Backup source: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>Supply Chain Shock</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Pantry holds your food-day target (Section 5)</li>
+          <li><span class="box">☐</span> Medications have a 30-day buffer where possible</li>
+          <li><span class="box">☐</span> Cash on hand for outages at retailers</li>
+        </ul>
+        <p><strong>When it's active:</strong> avoid hoarding, rotate through what you have, and help neighbors where you can.</p>
+        <p class="write">What runs out first in your household: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>Pandemic</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Household plan for two weeks of isolation — food, meds, hygiene</li>
+          <li><span class="box">☐</span> Who checks on elderly or at-risk neighbors</li>
+        </ul>
+        <p><strong>When it's active:</strong> follow current public-health guidance from official sources, keep the household's medication and food buffer intact, and keep a calm, practical routine.</p>
+        <p class="write">Household isolation plan: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>Economic Collapse</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Cash buffer in small bills (Section 8)</li>
+          <li><span class="box">☐</span> Stocks of essentials reduce dependence on daily purchases</li>
+          <li><span class="box">☐</span> Skills and barterable items identified</li>
+        </ul>
+        <p><strong>When it's active:</strong> avoid panic buying, use existing stock, and lean on the mutual aid network (Section 6).</p>
+        <p class="write">First financial action your household takes: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>EMP / Solar Flare</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Understand what's vulnerable (electronics) and what isn't (mechanical, paper)</li>
+          <li><span class="box">☐</span> The paper binder is your primary plan — this is exactly why</li>
+          <li><span class="box">☐</span> Faraday-type storage considered for backup devices</li>
+        </ul>
+        <p><strong>When it's active:</strong> expect prolonged loss of electronics and grid services; fall back to the paper binder, radios, and manual tools.</p>
+        <p class="write">What's protected vs. not: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+
+        <h3>Nuclear / Chemical Incident</h3>
+        <p><strong>Before it happens:</strong></p>
+        <ul class="check">
+          <li><span class="box">☐</span> Know the shelter-in-place room and its supplies (water, food, tape, plastic)</li>
+          <li><span class="box">☐</span> Know official alert channels (weather radio, local alerts)</li>
+        </ul>
+        <p><strong>When it's active:</strong> follow official instructions — shelter in place or evacuate as directed, and do not improvise beyond your plan.</p>
+        <p class="write">Shelter-in-place room: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span> &nbsp; Supplies staged there: <span class="blank" style="display:inline-block; min-width:160px; border-bottom:1px solid var(--line);"></span></p>
+      </div>
+    </section>
+
+    <!-- Section 8 -->
+    <section class="block" id="s8">
+      <div class="head">
+        <span class="num">Section 8</span>
+        <h2>Financial &amp; Legal Records</h2>
+        <p class="purpose"><strong>Purpose:</strong> Know your accounts, policies, and documents — and where the originals live — so the household can act on money and paperwork under stress.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Financial institutions</h3>
+        <table>
+          <thead><tr><th>Institution</th><th>Account(s)</th><th>Contact</th><th>Account # (or last 4)</th></tr></thead>
+          <tbody>
+            <tr><td>Bank / credit union</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Credit cards</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Loans / mortgage</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Investments / retirement</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Safe-deposit box</td><td class="blank"></td><td>Location:</td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Insurance policies</h3>
+        <table>
+          <thead><tr><th>Policy</th><th>Company</th><th>Policy #</th><th>What it covers</th><th>Agent / claims #</th></tr></thead>
+          <tbody>
+            <tr><td>Home / renters</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Auto</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Health</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Life</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Flood / disaster</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Livestock / farm</td><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Cash &amp; liquidity</h3>
+        <table>
+          <thead><tr><th>Item</th><th>Where</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Emergency cash (small bills)</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Spare card</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Legal documents</h3>
+        <table>
+          <thead><tr><th>Document</th><th>Have it?</th><th>Location of original</th><th>Signed / current?</th></tr></thead>
+          <tbody>
+            <tr><td>Will</td><td>☐</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Durable power of attorney</td><td>☐</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Advance medical directive</td><td>☐</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Guardianship (children)</td><td>☐</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Trust documents</td><td>☐</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Deed / lease</td><td>☐</td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td>Vehicle titles</td><td>☐</td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 9 -->
+    <section class="block" id="s9">
+      <div class="head">
+        <span class="num">Section 9</span>
+        <h2>Digital Backup &amp; Security</h2>
+        <p class="purpose"><strong>Purpose:</strong> Make a second, encrypted copy of this binder that isn't the only copy, isn't readable by anyone who finds it, and isn't dependent on the cloud.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Why the digital copy matters</h3>
+        <p>The paper binder is your primary copy. The digital copy is your backup. Sensitive-document guidance from authoritative sources supports a specific approach:</p>
+        <ul class="bullets">
+          <li>Keep a local copy of important data — data that exists <strong>only</strong> in the cloud can be lost (CISA).</li>
+          <li>For physical backups, use an <strong>encrypted external drive</strong>; if you use cloud storage, <strong>encrypt files before uploading</strong> (California Privacy Protection Agency, April 2026).</li>
+          <li>Encrypt before uploading, and be aware that cloud providers may be able to access customer data and that privacy terms can be unclear (HKCERT).</li>
+          <li>Store an <strong>encrypted thumb drive</strong> in a filing cabinet, safe, or go-bag — cloud storage always carries some risk because files sit on someone else's server (PIRG).</li>
+          <li>A disaster binder's <strong>digital backup should be encrypted and password-protected</strong> (FEEA).</li>
+        </ul>
+
+        <h3>The rule in practice: 3-2-1</h3>
+        <ul class="bullets">
+          <li><strong>3</strong> copies of the binder — paper, encrypted drive A, encrypted drive B</li>
+          <li><strong>2</strong> formats — print and digital</li>
+          <li><strong>1</strong> copy off-site — in the go-bag, safe, or outbuilding</li>
+        </ul>
+
+        <h3>Your digital backup worksheet</h3>
+        <table>
+          <thead><tr><th>Field</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>Encrypted drive A (home)</td><td>Location: <span class="blank" style="display:inline-block; min-width:120px;"></span></td></tr>
+            <tr><td>Encrypted drive B (off-site)</td><td>Location: <span class="blank" style="display:inline-block; min-width:120px;"></span></td></tr>
+            <tr><td>Encryption method / tool</td><td class="blank"></td></tr>
+            <tr><td>Password manager used</td><td class="blank"></td></tr>
+            <tr><td>When was the last backup made?</td><td>Date: <span class="blank" style="display:inline-block; min-width:120px;"></span></td></tr>
+            <tr><td>When is the next backup due?</td><td>Date: <span class="blank" style="display:inline-block; min-width:120px;"></span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="do-dont">
+          <div class="do">
+            <h4>Do</h4>
+            <p style="margin:0; font-size:12.5px;">Encrypt before it leaves your hands, keep the password in your password manager, and re-back up after every update to the binder.</p>
+          </div>
+          <div class="dont">
+            <h4>Don't</h4>
+            <p style="margin:0; font-size:12.5px;">Keep this binder's digital copy <strong>only</strong> in an online account.</p>
+          </div>
+        </div>
+
+        <h3>What this has to do with PrepVault</h3>
+        <p>PrepVault is built on the same principle: your preparedness plan, <strong>encrypted and offline by default</strong>, with cloud sync only if you turn it on. Your data stays on your device unless you choose otherwise — zero telemetry, no data selling. The binder is the plan on paper; PrepVault keeps the same plan live — inventory, expiry dates, and a real readiness score — on the devices you already carry.</p>
+      </div>
+    </section>
+
+    <!-- Section 10 -->
+    <section class="block" id="s10">
+      <div class="head">
+        <span class="num">Section 10</span>
+        <h2>Update Log</h2>
+        <p class="purpose"><strong>Purpose:</strong> Keep the binder alive. Review quarterly — and within a week of any move, medical change, major purchase, or near-miss.</p>
+        <div class="owner-line"><strong>Owner:</strong> <span class="blank"></span> &nbsp;<strong>Alternate:</strong> <span class="blank"></span></div>
+      </div>
+      <div class="body-card">
+        <h3>Quarterly review checklist</h3>
+        <ul class="check">
+          <li><span class="box">☐</span> Roster, contacts, and out-of-area contact are current</li>
+          <li><span class="box">☐</span> Medications and medical worksheet updated</li>
+          <li><span class="box">☐</span> Expiry dates checked and rotated (first in, first out)</li>
+          <li><span class="box">☐</span> Stored water refreshed</li>
+          <li><span class="box">☐</span> Fuel stabilized and full</li>
+          <li><span class="box">☐</span> Digital backup re-created (Section 9)</li>
+          <li><span class="box">☐</span> Everyone still knows where the binder lives</li>
+        </ul>
+
+        <table>
+          <thead><tr><th>Date</th><th>What changed</th><th>Reviewed by</th></tr></thead>
+          <tbody>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+            <tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Keep alive -->
+    <section class="block">
+      <div class="head">
+        <span class="num">Closing</span>
+        <h2>Keep this binder alive</h2>
+      </div>
+      <div class="body-card">
+        <p>The binder is your plan on paper. PrepVault keeps the same plan live on your devices — encrypted, fully offline, with no cloud dependency unless you choose it.</p>
+        <p><strong>PrepVault tracks what this binder tracks, live:</strong></p>
+        <ul class="bullets">
+          <li>A real <strong>Preparedness Score</strong> — CRITICAL to FORTIFIED — based on your actual property, climate zone, and household</li>
+          <li><strong>Continuity numbers you can act on</strong>: power hours, water days, heat days, food days</li>
+          <li><strong>Expiry tracking and rotation</strong> so nothing silently goes bad in the back of the pantry</li>
+          <li><strong>13 crisis scenario simulations</strong> that show where your plan has gaps before it matters</li>
+          <li><strong>Team coordination</strong> — shared inventory, comms check-ins, and a mutual aid network with the people you trust</li>
+          <li><strong>Crisis Mode</strong> — a calm, step-by-step dashboard the moment something is actually happening</li>
+        </ul>
+        <p>Fill in the paper binder once. Keep the live picture in PrepVault. When something changes, update both.</p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="cta-band">
+      <h2>Get PrepVault free</h2>
+      <p>Run it offline, encrypted, no account required to start.</p>
+      <a class="btn" href="https://prepvault-xi.vercel.app">Open PrepVault →</a>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site">
+    <div class="inner">
+      <div class="fine mono">PrepVault — Personal Continuity System</div>
+
+      <div class="sources">
+        <h3>Sources &amp; attribution</h3>
+        <ul>
+          <li><strong>Planning backbone (referenced, not reproduced).</strong> This workbook paraphrases and links to government planning structure rather than reproducing it, per FEMA's reproduction terms.</li>
+          <li>FEMA / Ready.gov — Make a Plan: <a href="https://www.ready.gov/plan">https://www.ready.gov/plan</a></li>
+          <li>FEMA / Ready.gov — Build a Kit: <a href="https://www.ready.gov/kit">https://www.ready.gov/kit</a></li>
+          <li>American Red Cross — Make a Plan: <a href="https://www.redcross.org/get-help/how-to-prepare-for-emergencies/make-a-plan.html">https://www.redcross.org/get-help/how-to-prepare-for-emergencies/make-a-plan.html</a></li>
+        </ul>
+        <ul>
+          <li><strong>Sensitive-document security (Section 9)</strong></li>
+          <li>CISA — cloud storage risk guidance: <a href="https://www.cisa.gov/resources-tools/training/get-most-out-cloud-storage-and-services-while-minimizing-risk">https://www.cisa.gov/resources-tools/training/get-most-out-cloud-storage-and-services-while-minimizing-risk</a></li>
+          <li>California Privacy Protection Agency — "Safely and Securely Back Up Your Data" (April 2026): <a href="https://privacy.ca.gov/2026/04/safely-and-securely-back-up-your-data-blog">https://privacy.ca.gov/2026/04/safely-and-securely-back-up-your-data-blog</a></li>
+          <li>HKCERT — cloud storage security guideline: <a href="https://www.hkcert.org/security-guideline/cloud-storage-security">https://www.hkcert.org/security-guideline/cloud-storage-security</a></li>
+          <li>PIRG — "Disaster-Proof Your Documents": <a href="https://pirg.org/edfund/resources/disaster-proof-documents">https://pirg.org/edfund/resources/disaster-proof-documents</a></li>
+          <li>FEEA — Disaster Preparedness Binder comprehensive guide: <a href="https://feea.org/2023/08/disaster-preparedness-binder-comprehensive-guide">https://feea.org/2023/08/disaster-preparedness-binder-comprehensive-guide</a></li>
+        </ul>
+        <ul>
+          <li><strong>Product</strong></li>
+          <li>PrepVault repository: <a href="https://github.com/Templecrash/PrepVault">https://github.com/Templecrash/PrepVault</a></li>
+          <li>PrepVault app (deployed): <a href="https://prepvault-xi.vercel.app">https://prepvault-xi.vercel.app</a></li>
+        </ul>
+      </div>
+
+      <div class="disclaimer">PrepVault is not affiliated with, authorized by, or endorsed by FEMA, the U.S. Government, or the American Red Cross.</div>
+    </div>
+  </footer>
+
+</body>
+</html>

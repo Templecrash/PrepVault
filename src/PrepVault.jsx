@@ -9006,9 +9006,10 @@ export default function PrepVault() {
         </div>
 
         {/* ── Footer ── */}
-        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M, alignItems: "center" }}>
+            <a href="/crisis-binder.html" style={{ color: "rgba(255,255,255,0.55)", fontWeight: 700, textDecoration: "none" }} onMouseOver={e => e.currentTarget.style.color = "#fff"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.55)"}>Free Crisis Binder →</a>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
