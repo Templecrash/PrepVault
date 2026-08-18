@@ -241,6 +241,21 @@ ALTER TABLE smart_home_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "No direct access to tokens" ON smart_home_tokens FOR ALL USING (false);
 
 -- ================================================================
+-- LEAD CAPTURES (email signups for the Crisis Binder lead magnet)
+-- Written by the serverless function via the service role only.
+-- ================================================================
+CREATE TABLE IF NOT EXISTS lead_captures (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  source TEXT DEFAULT 'crisis-binder',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE lead_captures ENABLE ROW LEVEL SECURITY;
+-- No direct client access: only the service role (serverless function) writes.
+CREATE POLICY "No direct client access to lead_captures" ON lead_captures FOR ALL USING (false);
+
+-- ================================================================
 -- ENABLE REALTIME
 -- ================================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;

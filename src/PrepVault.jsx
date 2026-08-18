@@ -8338,6 +8338,47 @@ export default function PrepVault() {
   const [toast, setToast] = useState(null);
   const importRef = useRef(null);
 
+  /* ── Crisis Binder Lead Magnet ── */
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadState, setLeadState] = useState("idle"); // idle | submitting | done | error
+  const [leadError, setLeadError] = useState("");
+  const triggerBinderDownload = () => {
+    const a = document.createElement("a");
+    a.href = "/prepvault-crisis-binder.pdf";
+    a.download = "prepvault-crisis-binder.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  const handleLeadSubmit = async () => {
+    if (!leadEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail)) {
+      setLeadState("error");
+      setLeadError("Enter a valid email address");
+      return;
+    }
+    setLeadState("submitting");
+    setLeadError("");
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/lead-capture`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: leadEmail }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLeadState("error");
+        setLeadError(data.error || "Something went wrong. Please try again.");
+        return;
+      }
+      setLeadState("done");
+      triggerBinderDownload();
+    } catch {
+      setLeadState("error");
+      setLeadError("Something went wrong. Please try again.");
+    }
+  };
+
   /* ── Auth + Sync State ── */
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
@@ -8993,6 +9034,55 @@ export default function PrepVault() {
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{s.d}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ── Crisis Binder Lead Magnet ── */}
+        <div style={{ maxWidth: 760, margin: "0 auto", padding: "20px 20px 40px" }}>
+          <div style={{ padding: "36px 32px", borderRadius: 16, background: "linear-gradient(160deg, rgba(27,94,32,0.12), rgba(27,94,32,0.02))", border: "1px solid rgba(27,94,32,0.28)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 28, alignItems: "center" }}>
+              <div>
+                <div style={{ display: "inline-block", padding: "4px 10px", borderRadius: 20, background: "rgba(27,94,32,0.16)", border: "1px solid rgba(27,94,32,0.28)", fontSize: 10, color: "#4caf50", fontWeight: 700, fontFamily: M, letterSpacing: 1, marginBottom: 14 }}>FREE PRINTABLE WORKBOOK</div>
+                <h2 style={{ margin: "0 0 10px", fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>Get the PrepVault <span style={{ color: "#4caf50" }}>Crisis Binder</span></h2>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 18px", lineHeight: 1.6 }}>
+                  A printable, offline household preparedness workbook — 10 fill-in sections you complete on paper, plus an encrypted offline digital copy you keep yourself. No cloud required.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[
+                    { icon: "📋", t: "10 fill-in sections", d: "Roster, comms, medical, property, supplies, roles, quick-reference, financial, digital backup, update log." },
+                    { icon: "🖨️", t: "Worksheets, not static lists", d: "Blank fill-in tables — the plan is the one you actually complete." },
+                    { icon: "🔒", t: "Encrypted & offline", d: "A 3-2-1 backup worksheet so a second copy survives even if the house doesn't." },
+                  ].map((f, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <span style={{ fontSize: 16, lineHeight: 1.4 }}>{f.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>{f.t}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{f.d}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ padding: "24px", borderRadius: 12, background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                {leadState === "done" ? (
+                  <div style={{ textAlign: "center", padding: "12px 0" }}>
+                    <div style={{ fontSize: 30, marginBottom: 8 }}>✅</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Your download is starting</div>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: 0, lineHeight: 1.5 }}>Didn't get it? <button onClick={triggerBinderDownload} style={{ background: "none", border: "none", color: "#4caf50", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", padding: 0, textDecoration: "underline" }}>Download again</button></p>
+                  </div>
+                ) : (
+                  <>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>Email</label>
+                    <input type="email" value={leadEmail} onChange={(e) => { setLeadEmail(e.target.value); if (leadState === "error") setLeadState("idle"); }} placeholder="you@example.com" onKeyDown={(e) => e.key === "Enter" && handleLeadSubmit()} style={{ width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box", marginBottom: 10 }} />
+                    {leadState === "error" && <div style={{ fontSize: 11, color: "#ef4444", margin: "0 0 10px" }}>❌ {leadError}</div>}
+                    <button onClick={handleLeadSubmit} disabled={leadState === "submitting"} style={{ width: "100%", padding: "12px", borderRadius: 8, background: leadState === "submitting" ? "rgba(27,94,32,0.5)" : "#1B5E20", color: "#fff", border: "none", cursor: leadState === "submitting" ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>
+                      {leadState === "submitting" ? "⟳ Please wait..." : "Download the binder"}
+                    </button>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 10, textAlign: "center", lineHeight: 1.5 }}>Free & printable · No account required · Your email is never sold</div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
