@@ -8930,6 +8930,7 @@ export default function PrepVault() {
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: M, marginLeft: 4 }}>v3.0</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <a href="/guides/days-of-supply-per-person" style={{ padding: "8px 14px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>Guides</a>
             <button onClick={() => { setShowAuth(true); setAuthMode("login"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Get Started</button>
           </div>
@@ -9009,6 +9010,7 @@ export default function PrepVault() {
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
           <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+            <a href="/guides/days-of-supply-per-person" style={{ color: "rgba(255,255,255,0.35)" }}>Guides</a>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
