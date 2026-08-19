@@ -8914,8 +8914,8 @@ export default function PrepVault() {
     const stats = [
       { val: "22", label: "Supply Categories" },
       { val: "13", label: "Crisis Scenarios" },
-      { val: "AES-256", label: "Encryption" },
-      { val: "100%", label: "Offline Capable" },
+      { val: "AES-256", label: "Encrypted Backup" },
+      { val: "100%", label: "Offline & Local" },
     ];
     return (
       <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif" }}>
@@ -8937,19 +8937,19 @@ export default function PrepVault() {
 
         {/* ── Hero Section ── */}
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "100px 20px 60px", textAlign: "center", animation: "fadeUp 0.6s ease-out" }}>
-          <div style={{ display: "inline-block", padding: "6px 14px", borderRadius: 20, background: "rgba(200,85,58,0.08)", border: "1px solid rgba(200,85,58,0.15)", fontSize: 11, color: "#c8553a", fontWeight: 700, fontFamily: M, marginBottom: 28, letterSpacing: 1 }}>PERSONAL CONTINUITY SYSTEM</div>
+          <div style={{ display: "inline-block", padding: "6px 14px", borderRadius: 20, background: "rgba(200,85,58,0.08)", border: "1px solid rgba(200,85,58,0.15)", fontSize: 11, color: "#c8553a", fontWeight: 700, fontFamily: M, marginBottom: 28, letterSpacing: 1 }}>ONE-TIME PURCHASE · NO SUBSCRIPTION</div>
           <h1 style={{ fontSize: "clamp(36px, 6vw, 60px)", fontWeight: 900, margin: "0 0 16px", lineHeight: 1.05, letterSpacing: -1 }}>
-            Your survival plan,<br />
-            <span style={{ background: "linear-gradient(135deg,#c8553a,#e8724a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>encrypted & offline-ready</span>
+            Buy once. Own it for good.<br />
+            <span style={{ background: "linear-gradient(135deg,#c8553a,#e8724a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>encrypted local backup, no cloud.</span>
           </h1>
           <p style={{ fontSize: "clamp(14px, 2vw, 18px)", color: "rgba(255,255,255,0.45)", maxWidth: 600, margin: "0 auto 44px", lineHeight: 1.7 }}>
-            Track inventory, coordinate your team, monitor comms, and simulate crisis scenarios — all behind military-grade encryption with zero cloud dependency.
+            No subscription, no cloud account. Track inventory, coordinate your team, and simulate crisis scenarios — everything stored in encrypted local backup that never leaves your device.
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
-            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Create Free Account</button>
+            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Get Started</button>
             <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); if (!propertyProfile?.completedAt) { setShowQuickStart(true); setQsStep(0); } }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>No credit card · Works offline · Your data stays yours</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>One-time purchase · No subscription · Encrypted local backup</div>
         </div>
 
         {/* ── Stats Bar ── */}
@@ -8999,9 +8999,9 @@ export default function PrepVault() {
         {/* ── Final CTA ── */}
         <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px 60px", textAlign: "center" }}>
           <div style={{ padding: "40px 32px", borderRadius: 16, background: "rgba(200,85,58,0.04)", border: "1px solid rgba(200,85,58,0.12)" }}>
-            <h2 style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800 }}>Ready to start?</h2>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 24px", lineHeight: 1.6 }}>Create your account in seconds. Everything runs locally — your data never leaves your device unless you choose cloud sync.</p>
-            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "14px 36px", borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>Create Free Account</button>
+            <h2 style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800 }}>Buy once. Back up locally.</h2>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 24px", lineHeight: 1.6 }}>One-time purchase, no subscription. Your data lives in encrypted local backup on your device — offline, private, and always yours.</p>
+            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "14px 36px", borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>Get Started</button>
           </div>
         </div>
 
