@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
+import { track, identifyAuthenticatedUser, resetAnalytics } from "./analytics.js";
 import L from "leaflet";
 
 /* ═══════════════════════════════════════════════════════════
@@ -8460,6 +8461,14 @@ export default function PrepVault() {
     return () => engine.destroy();
   }, [user]);
 
+  /* ── Analytics Identity ── */
+  useEffect(() => {
+    if (!supabaseConfigured || !user || user.isLocal) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) identifyAuthenticatedUser(session.access_token);
+    });
+  }, [user]);
+
   /* ── Auth Handlers ── */
   // Local auth helpers (when Supabase isn't configured)
   const localAuthStore = useCallback(() => {
@@ -8480,6 +8489,7 @@ export default function PrepVault() {
         if (authMode === "signup") {
           const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
           if (error) throw error;
+          track("signup_completed", { mode: "cloud" });
           setVerificationEmail(authEmail);
           setShowVerification(true);
           setAuthLoading(false);
@@ -8487,6 +8497,7 @@ export default function PrepVault() {
         } else {
           const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
           if (error) throw error;
+          track("login_completed", { mode: "cloud" });
           showToast("Logged in ✓", "success");
         }
       } else {
@@ -8504,6 +8515,7 @@ export default function PrepVault() {
           localStorage.setItem("prepvault-local-accounts", JSON.stringify(accounts));
           setUser({ id: localUser.id, email: emailKey, isLocal: true });
           localStorage.setItem("prepvault-active-session", JSON.stringify({ id: localUser.id, email: emailKey, isLocal: true }));
+          track("signup_completed", { mode: "local" });
           showToast("Account created (local mode)", "success");
         } else {
           const account = accounts[emailKey];
@@ -8511,6 +8523,7 @@ export default function PrepVault() {
           if (account.pwHash !== pwHash) throw new Error("Incorrect password");
           setUser({ id: account.id, email: emailKey, isLocal: true });
           localStorage.setItem("prepvault-active-session", JSON.stringify({ id: account.id, email: emailKey, isLocal: true }));
+          track("login_completed", { mode: "local" });
           showToast("Logged in ✓ (local mode)", "success");
         }
       }
@@ -8544,7 +8557,9 @@ export default function PrepVault() {
       setUser(null);
       localStorage.removeItem("prepvault-active-session");
     }
+    resetAnalytics();
     setSyncStatus("local");
+    track("logout");
     showToast("Logged out", "success");
   }, []);
 
@@ -8599,6 +8614,7 @@ export default function PrepVault() {
       URL.revokeObjectURL(url);
       setSecMsg("✅ Encrypted backup downloaded — AES-256-GCM");
       setExportPw("");
+      track("encrypted_backup_exported");
     } catch (e) {
       setSecMsg("❌ Export failed: " + e.message);
     }
@@ -9189,7 +9205,7 @@ export default function PrepVault() {
       {!selCat && (
         <div className="pcs-tabs">
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") { setSimDuration(SCENARIOS[selScen].defaultDur); track("crisis_simulation_viewed", { scenario: selScen }); } }}
               style={{ padding: "11px 18px", background: "none", border: "none", borderBottom: activeTab === tab.id ? "2px solid #c8553a" : "2px solid transparent", color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, fontFamily: "inherit", transition: "color 0.15s" }}>
               <span style={{ fontSize: 14 }}>{tab.i}</span> {tab.l}
               {false && tab.id === "community" && <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 8, background: "rgba(34,197,94,0.12)", color: "#22c55e", fontWeight: 700 }}>{members.filter((m) => m.sharing).length}</span>}
@@ -9337,7 +9353,7 @@ export default function PrepVault() {
       ) : (
         <div className="pcs-bottom-nav">
           {tabs.map((tab) => (
-            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}>
+            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") { setSimDuration(SCENARIOS[selScen].defaultDur); track("crisis_simulation_viewed", { scenario: selScen }); } }}>
               <span style={{ fontSize: 18 }}>{tab.i}</span>
               {tab.l}
             </button>
