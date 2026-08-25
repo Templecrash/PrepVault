@@ -8325,7 +8325,7 @@ export default function PrepVault() {
     try { const s = localStorage.getItem("prepvault-alerts-dismissed-until"); if (s && parseInt(s, 10) > Date.now()) return parseInt(s, 10); } catch {} return null;
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session"));
+  const [showLanding, setShowLanding] = useState(() => new URLSearchParams(window.location.search).get("demo") === "1" ? false : !localStorage.getItem("prepvault-active-session"));
   const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
@@ -8416,6 +8416,15 @@ export default function PrepVault() {
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
+  }, []);
+
+  /* ── Direct-to-demo entry (?demo=1) — used by the readiness calculator CTA ── */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("demo") === "1") {
+      localStorage.setItem("prepvault-onboarding-done", "1");
+      if (!propertyProfile?.completedAt) { setShowQuickStart(true); setQsStep(0); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ── Auth Session Restore ── */
@@ -8994,6 +9003,9 @@ export default function PrepVault() {
               </div>
             ))}
           </div>
+          <div style={{ textAlign: "center", marginTop: 26 }}>
+            <a href="/readiness-calculator" style={{ fontSize: 12, color: "#c8553a", fontWeight: 700, textDecoration: "underline" }}>Not sure what you already have is enough? Measure your supplies with the free readiness calculator →</a>
+          </div>
         </div>
 
         {/* ── Final CTA ── */}
@@ -9008,7 +9020,8 @@ export default function PrepVault() {
         {/* ── Footer ── */}
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M, alignItems: "center" }}>
+            <a href="/readiness-calculator" style={{ color: "inherit" }}>Readiness Calculator</a>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
