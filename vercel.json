@@ -9,6 +9,8 @@
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/walkthroughs/track-food-storage-without-a-spreadsheet", "destination": "/walkthroughs/track-food-storage-without-a-spreadsheet/index.html" },
+    { "source": "/walkthroughs/track-food-storage-without-a-spreadsheet/", "destination": "/walkthroughs/track-food-storage-without-a-spreadsheet/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

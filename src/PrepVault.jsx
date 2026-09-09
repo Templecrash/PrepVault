@@ -8930,6 +8930,7 @@ export default function PrepVault() {
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: M, marginLeft: 4 }}>v3.0</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <a href="/walkthroughs/track-food-storage-without-a-spreadsheet" style={{ padding: "8px 14px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textDecoration: "none" }}>Food Storage Guide</a>
             <button onClick={() => { setShowAuth(true); setAuthMode("login"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Get Started</button>
           </div>
@@ -8978,6 +8979,18 @@ export default function PrepVault() {
           </div>
         </div>
 
+        {/* ── Walkthrough Resource ── */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ fontSize: 34, flexShrink: 0 }}>🥫</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 3 }}>Track food storage without a spreadsheet that drifts</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>A step-by-step offline method for inventorying what you have, watching expiries, and calculating days of supply.</div>
+            </div>
+            <a href="/walkthroughs/track-food-storage-without-a-spreadsheet" style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", fontFamily: "inherit" }}>Read the walkthrough</a>
+          </div>
+        </div>
+
         {/* ── How It Works ── */}
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px 60px" }}>
           <h2 style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 3, fontWeight: 700, marginBottom: 24 }}>Get started in 3 steps</h2>
@@ -9008,7 +9021,8 @@ export default function PrepVault() {
         {/* ── Footer ── */}
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M, alignItems: "center" }}>
+            <a href="/walkthroughs/track-food-storage-without-a-spreadsheet" style={{ color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>Food Storage Walkthrough</a>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>
