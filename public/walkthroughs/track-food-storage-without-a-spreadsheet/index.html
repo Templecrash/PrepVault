@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Track Your Food Storage Without a Spreadsheet That Drifts Out of Date | PrepVault</title>
+    <meta name="description" content="An offline food storage method that answers two questions: what do you have and when does it expire, and how many days can it feed your household. Paper, spreadsheet, or an offline-first tool." />
+    <meta name="robots" content="index,follow" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Track Your Food Storage Without a Spreadsheet That Drifts Out of Date",
+      "description": "An offline food storage method that answers two questions: what do you have and when does it expire, and how many days can it feed your household. Paper, spreadsheet, or an offline-first tool.",
+      "inLanguage": "en",
+      "articleSection": "Preparedness",
+      "about": ["food storage", "expiration tracking", "days of supply", "household readiness", "offline inventory"],
+      "publisher": { "@type": "Organization", "name": "PrepVault" }
+    }
+    </script>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { background: #0a0c10; color: #e6edf3; font-family: 'Outfit', 'DM Sans', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+      a { color: inherit; }
+      .pv-nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 28px; background: rgba(10,12,16,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+      .pv-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; color: #ffffff; text-decoration: none; letter-spacing: -0.3px; }
+      .pv-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#c8553a,#8b2e1a); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #fff; }
+      .pv-nav-cta { display: flex; align-items: center; gap: 8px; }
+      .pv-btn { border-radius: 10px; padding: 9px 18px; font-size: 13px; font-weight: 700; text-decoration: none; font-family: inherit; cursor: pointer; transition: filter 0.15s; }
+      .pv-btn-ghost { color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.14); }
+      .pv-btn-primary { background: linear-gradient(135deg,#c8553a,#a3412d); color: #ffffff; box-shadow: 0 4px 18px rgba(200,85,58,0.3); }
+      .pv-btn:hover { filter: brightness(1.08); }
+      .pv-wrap { max-width: 780px; margin: 0 auto; padding: 0 22px; }
+      .pv-article { padding: 48px 0 24px; }
+      .pv-kicker { display: inline-block; font-size: 11px; font-family: 'Geist Mono','JetBrains Mono',monospace; letter-spacing: 1.5px; color: #c8553a; font-weight: 700; text-transform: uppercase; border: 1px solid rgba(200,85,58,0.28); background: rgba(200,85,58,0.08); padding: 6px 12px; border-radius: 999px; margin-bottom: 22px; }
+      h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.08; font-weight: 900; letter-spacing: -0.8px; color: #ffffff; margin-bottom: 22px; }
+      h2 { font-size: 21px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px; margin: 46px 0 14px; line-height: 1.3; }
+      h2 .step { color: #c8553a; }
+      h3 { font-size: 15px; font-weight: 700; color: #ffffff; margin: 22px 0 8px; }
+      .pv-lede { font-size: 18px; line-height: 1.7; color: rgba(255,255,255,0.75); margin-bottom: 18px; }
+      .pv-lede strong, p strong { color: #ffffff; }
+      p { font-size: 15.5px; line-height: 1.72; color: #e6edf3; margin: 14px 0; }
+      p.subtle { color: rgba(255,255,255,0.62); }
+      ul { margin: 12px 0 14px; padding-left: 4px; list-style: none; }
+      ul li { position: relative; padding-left: 22px; margin: 9px 0; font-size: 15.5px; line-height: 1.66; color: #e6edf3; }
+      ul li::before { content: ""; position: absolute; left: 3px; top: 11px; width: 7px; height: 7px; border-radius: 2px; background: linear-gradient(135deg,#c8553a,#a3412d); }
+      .pv-formula { display: block; margin: 16px 0; padding: 14px 16px; background: #1a1d23; border: 1px solid rgba(255,255,255,0.07); border-left: 3px solid #c8553a; border-radius: 10px; font-family: 'Geist Mono','JetBrains Mono',monospace; font-size: 13.5px; line-height: 1.6; color: #ffffff; }
+      .pv-note { margin: 20px 0; padding: 16px 18px; background: rgba(200,85,58,0.05); border: 1px solid rgba(200,85,58,0.18); border-radius: 12px; }
+      .pv-note p { margin: 6px 0; }
+      .pv-note .lead { color: #ffffff; font-weight: 700; font-size: 15.5px; }
+      .pv-link { color: #c8553a; text-decoration: none; font-weight: 600; border-bottom: 1px solid rgba(200,85,58,0.3); }
+      .pv-link:hover { border-bottom-color: #c8553a; }
+      .pv-cta { text-align: center; margin: 48px 0 8px; padding: 40px 26px; border-radius: 16px; background: rgba(200,85,58,0.05); border: 1px solid rgba(200,85,58,0.2); }
+      .pv-cta h2 { margin: 0 0 8px; }
+      .pv-cta p { font-size: 13.5px; color: rgba(255,255,255,0.5); max-width: 480px; margin: 0 auto 20px; line-height: 1.6; }
+      .pv-toc { background: #1a1d23; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 18px 22px; margin: 8px 0 10px; }
+      .pv-toc-title { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.4); font-weight: 700; margin-bottom: 10px; }
+      .pv-toc a { display: block; color: rgba(255,255,255,0.75); text-decoration: none; font-size: 14px; font-weight: 600; padding: 5px 0; }
+      .pv-toc a:hover { color: #c8553a; }
+      .pv-divider { height: 1px; background: rgba(255,255,255,0.06); border: 0; margin: 44px 0 0; }
+      .pv-footer { border-top: 1px solid rgba(255,255,255,0.05); margin-top: 30px; padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+      .pv-footer small { color: rgba(255,255,255,0.35); font-size: 12px; font-family: 'Geist Mono','JetBrains Mono',monospace; }
+      .pv-footer a { color: rgba(255,255,255,0.55); text-decoration: none; font-size: 12.5px; font-weight: 600; }
+      .pv-footer a:hover { color: #c8553a; }
+      .pv-tag { color: rgba(255,255,255,0.3); font-size: 12px; font-family: 'Geist Mono','JetBrains Mono',monospace; }
+      @media (max-width: 640px) {
+        .pv-nav { padding: 12px 16px; }
+        .pv-nav-cta .pv-btn-ghost { display: none; }
+        .pv-wrap { padding: 0 16px; }
+        .pv-footer { flex-direction: column; align-items: flex-start; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="pv-nav">
+      <a class="pv-brand" href="/"><span class="pv-mark">P</span><span>PrepVault</span></a>
+      <div class="pv-nav-cta">
+        <a class="pv-btn pv-btn-ghost" href="/">Sign In</a>
+        <a class="pv-btn pv-btn-primary" href="/">Get Started Free</a>
+      </div>
+    </nav>
+
+    <main class="pv-wrap">
+      <article class="pv-article">
+        <div class="pv-kicker">PrepVault Walkthrough · Food Storage</div>
+        <h1>Track Your Food Storage Without a Spreadsheet That Drifts Out of Date</h1>
+
+        <p class="pv-lede">The cans go into the back of the pantry. The spreadsheet row does not. Months later, the file says you have twelve cans of black beans with years of shelf life left, and the shelf says you have four, with a best-by date next month.</p>
+
+        <p>That gap is not a software bug. Food storage is a live system. Items come in, items go out, food ages, and the tracking gets updated only when someone remembers to update it. The fix is a method that answers two questions:</p>
+
+        <ul>
+          <li>What do I have, and when does it expire?</li>
+          <li>How many days can it feed my household?</li>
+        </ul>
+
+        <p>This walkthrough gives you an offline method for both. No cloud account, no internet connection, no spreadsheet required. You can keep it on paper, in a spreadsheet you maintain on a schedule, or in an <a class="pv-link" href="/">offline-first tool</a> that does the routine watching for you. The goal is a defensible inventory: on this date, this many people can be sustained by these shelves for this many days.</p>
+
+        <nav class="pv-toc" aria-label="In this walkthrough">
+          <div class="pv-toc-title">In this walkthrough</div>
+          <a href="#household">Choose your target and define your household</a>
+          <a href="#shelves">Step 1: Inventory the physical shelves</a>
+          <a href="#rotation">Step 2: Separate deep storage from rotation</a>
+          <a href="#expiry">Step 3: Make expiration a recurring check</a>
+          <a href="#days">Step 4: Convert the inventory into days of supply</a>
+          <a href="#honest">Step 5: Keep the system honest</a>
+          <a href="#tool">Where a purpose-built offline tool helps</a>
+          <a href="#done">What &ldquo;done&rdquo; looks like</a>
+        </nav>
+
+        <section id="household">
+          <h2>Choose your target and define your household</h2>
+          <p>Start with a clear target. Ready.gov&rsquo;s <a class="pv-link" href="https://www.ready.gov/kit" rel="noopener" target="_blank">basic emergency kit guidance</a> is the standard floor for household readiness. Beyond that, choose how many days you are actually preparing for. It could be three days, two weeks, a month, or longer. Write that number down.</p>
+          <p>Then write down the household you are feeding. Count every person who would shelter in place with you, including children and anyone with medical or dietary needs. Days-of-supply math is only meaningful per person.</p>
+          <p>These two numbers, one line on your inventory sheet, will anchor everything else:</p>
+          <span class="pv-formula">Household size: N people. Target: N days.</span>
+        </section>
+
+        <section id="shelves">
+          <h2><span class="step">Step 1:</span> Inventory the physical shelves</h2>
+          <p>Do not build this from memory. Go through your storage space shelf by shelf, bin by bin, and bucket by bucket.</p>
+          <p>For each item, record:</p>
+          <ul>
+            <li><strong>Item name and size.</strong> Include brand and unit size, such as &ldquo;canned chicken, 12.5 oz.&rdquo;</li>
+            <li><strong>Quantity.</strong> Count the actual units on the shelf, not the number the case supposedly holds.</li>
+            <li><strong>Location.</strong> Write down where it lives, such as &ldquo;pantry shelf 2&rdquo; or &ldquo;garage tote B.&rdquo; Location matters because it tells you what you can reach quickly and what you would have to dig for.</li>
+            <li><strong>Expiration or best-by date.</strong> Month and year is usually enough.</li>
+            <li><strong>Calories per container, when the label provides it.</strong> You will need this later. If the label only lists servings and calories per serving, record both.</li>
+          </ul>
+          <p>Skip nothing because it feels small. A few extra cans of soup are still calories on a bad week. If a food item has no readable date, mark it &ldquo;unknown, inspect&rdquo; and give it a review date instead of guessing.</p>
+        </section>
+
+        <section id="rotation">
+          <h2><span class="step">Step 2:</span> Separate deep storage from rotation</h2>
+          <p>Your stockpile is not a museum. You should be eating from it and replacing what you eat. That is the point of FIFO, first in, first out, and it only works if your tracking distinguishes two kinds of stores:</p>
+          <ul>
+            <li><strong>Deep storage.</strong> The reserve you plan not to touch except in an emergency.</li>
+            <li><strong>Active rotation.</strong> Food you are cycling through normal meals and replacing as you buy.</li>
+          </ul>
+          <p>Mark each item as one or the other. When you pull a can from deep storage for a normal meal, you are not ruining your stockpile. You are rotating it. The tracking system&rsquo;s job is to remind you to replace that can so your deep-storage count stays true.</p>
+          <p>When you put new supplies away, place newer items behind older ones so the oldest are always in front.</p>
+        </section>
+
+        <section id="expiry">
+          <h2><span class="step">Step 3:</span> Make expiration a recurring check</h2>
+          <p>A date buried in a long list is not a reminder. It is a surprise waiting for you. The fix is to make expiry visible on a regular cadence.</p>
+          <p>Choose a standing review date, such as the first weekend of each month. On that date, check every item that is approaching its rotation window and decide which ones move into meals first.</p>
+          <p>The discipline is simple:</p>
+          <ul>
+            <li>When something reaches its rotation window, move it to the front of the pantry and put it on a meal plan.</li>
+            <li>Eat what you store, replace what you eat.</li>
+            <li>Treat the printed date as a trigger to use the item, not as the moment you first notice it.</li>
+          </ul>
+          <p>For shelf-stable food, a practical rotation window is usually one to three months before the date. For anything without a readable date, use &ldquo;inspect&rdquo; and a conservative review date. Physically check it on that schedule for rust, spoilage, or failed seals. An unlabeled jar is not &ldquo;probably fine.&rdquo; It is an open question your system should force you to answer.</p>
+        </section>
+
+        <section id="days">
+          <h2><span class="step">Step 4:</span> Convert the inventory into days of supply</h2>
+          <p>This is the step that turns a list into a readiness number.</p>
+          <h3>Set a daily calorie planning target.</h3>
+          <p>Choose a number you can defend for each person. A 2,000-calorie per day target is a reasonable starting benchmark for an average adult, but adjust it for activity level, age, and conditions. The target is a planning assumption, not a medical prescription. Write it down.</p>
+          <h3>Calculate calories per stored item.</h3>
+          <p>For packaged food, use the nutrition label. If there is no label, use a conservative published reference for that food and mark the entry as an estimate. The point is not perfect precision. It is replacing &ldquo;I think we have maybe a month&rdquo; with a number you can verify.</p>
+          <h3>Do the division.</h3>
+          <span class="pv-formula">Days of food supply = total stored food calories &divide; (household size &times; planned calories per person per day)</span>
+          <p>Example: A two-person household uses a 2,000-calorie planning target, so the household needs 4,000 calories per day. If the food in your inventory totals 80,000 calories, that is 20 days of food. If your target was 30 days, you now know the gap.</p>
+          <h3>Count water separately.</h3>
+          <p>Ready.gov&rsquo;s <a class="pv-link" href="https://www.ready.gov/kit" rel="noopener" target="_blank">basic emergency kit guidance</a> uses one gallon per person per day for drinking and sanitation. Use the same method:</p>
+          <span class="pv-formula">Days of water supply = total stored gallons &divide; household size</span>
+          <p>Water is easy to overestimate and easy to forget to rotate, yet it is the supply you cannot substitute.</p>
+        </section>
+
+        <section id="honest">
+          <h2><span class="step">Step 5:</span> Keep the system honest</h2>
+          <p>The inventory you just built is a snapshot. It becomes reliable only with a maintenance rhythm.</p>
+          <ul>
+            <li><strong>Review once a month.</strong> On your standing review date, check approaching dates, pull items into meals, and note what needs replacing.</li>
+            <li><strong>Update at the moment of change.</strong> When you use a stored item, subtract it. When you add a case, add it. This single habit separates a live system from a list that drifts.</li>
+            <li><strong>Recompute days of supply when your household or target changes.</strong> A new baby, aging parents moving in, or a longer preparedness target invalidates the old math. Run the numbers again.</li>
+          </ul>
+        </section>
+
+        <section id="tool">
+          <h2>Where a purpose-built offline tool helps</h2>
+          <p>The method above works on paper, and a committed spreadsheet user can make it work too. But both put the entire burden on you to remember to open the file and check dates. That is where drift starts.</p>
+          <p>PrepVault is built around the same inventory structure: entries organized into 30 categories, with quantity, location, and expiry fields for each item. The difference is what happens after you enter a date. Instead of leaving it buried in a row, PrepVault raises rotation reminders as items approach their dates, shows an expiry heatmap across your stockpile, and turns your entered inventory into a readiness score. In short, it handles the date-watching and the readiness math that paper and spreadsheets leave to memory.</p>
+          <p>PrepVault is offline-first. You do not need a cloud account or an internet connection to <a class="pv-link" href="/">track what you own</a>.</p>
+          <p>No tool replaces the parts only you control. A readiness score is only as truthful as the quantities you enter, and rotation only works if you actually use from the front and replace what you consume. The tool removes the math and memory failure points. It does not remove the monthly review.</p>
+        </section>
+
+        <section id="done">
+          <h2>What &ldquo;done&rdquo; looks like</h2>
+          <p>At the end of this process, you should be able to state three things:</p>
+          <ul>
+            <li>This household has X days of food and Y days of water stored as of today.</li>
+            <li>These specific items are approaching their use-by dates and need to move into meals soon.</li>
+            <li>This month&rsquo;s review date is on the calendar, and the inventory will be updated when food is used or added.</li>
+          </ul>
+          <p>That is the difference between a stockpile and a guess. The number you can defend, this many people, this many days, supplied by what you can verify on your shelves, is the point of the entire exercise.</p>
+        </section>
+
+        <div class="pv-cta">
+          <h2>Start tracking what you actually have</h2>
+          <p>PrepVault runs entirely on your device. No credit card, works offline, your data stays yours.</p>
+          <a class="pv-btn pv-btn-primary" href="/">Create Free Account</a>
+        </div>
+      </article>
+    </main>
+
+    <div class="pv-wrap"><hr class="pv-divider" /></div>
+    <footer class="pv-footer">
+      <small>PrepVault — Personal Continuity System</small>
+      <div style="display:flex;gap:18px;align-items:center;">
+        <a href="/">Dashboard</a>
+        <span class="pv-tag">AES-256-GCM</span>
+        <span class="pv-tag">Offline-First</span>
+        <span class="pv-tag">Zero Telemetry</span>
+      </div>
+    </footer>
+  </body>
+</html>
