@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="960" height="430" role="img" aria-labelledby="w6Title w6Desc">
+  <title id="w6Title">Which water gets the six-month rule</title>
+  <desc id="w6Desc">Comparison of two water containers: water filled and stored by the household, marked replace every six months, next to commercially bottled water kept sealed in its original container, marked with no replacement interval.</desc>
+
+  <rect width="960" height="430" fill="#0a0c10"/>
+  <text x="40" y="44" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" letter-spacing="3" fill="rgba(255,255,255,0.35)">THE SIX-MONTH RULE APPLIES TO ONE OF THESE</text>
+
+  <!-- left: self-stored -->
+  <rect x="40" y="70" width="420" height="286" rx="14" fill="#1a1d23" stroke="rgba(245,158,11,0.30)"/>
+  <text x="64" y="102" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="14" font-weight="800" fill="#ffffff">WATER YOU STORE YOURSELF</text>
+  <text x="64" y="123" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="11.5" fill="rgba(255,255,255,0.42)">filled containers you clean and prepare</text>
+
+  <path d="M 168 168 h 56 v 14 a 22 22 0 0 1 22 22 v 84 a 22 22 0 0 1 -22 22 h -56 a 22 22 0 0 1 -22 -22 v -84 a 22 22 0 0 1 22 -22 z" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="2"/>
+  <rect x="176" y="156" width="40" height="16" rx="4" fill="rgba(245,158,11,0.18)" stroke="#f59e0b" stroke-width="2"/>
+  <text x="196" y="248" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="13" fill="#f59e0b">H2O</text>
+  <text x="196" y="290" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="10" fill="rgba(255,255,255,0.35)">date on the container</text>
+
+  <rect x="296" y="196" width="140" height="86" rx="10" fill="rgba(245,158,11,0.10)" stroke="rgba(245,158,11,0.40)"/>
+  <text x="366" y="228" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="14" font-weight="800" fill="#f59e0b">REPLACE</text>
+  <text x="366" y="252" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="13" font-weight="700" fill="#ffffff">every 6 months</text>
+
+  <!-- right: commercially bottled -->
+  <rect x="500" y="70" width="420" height="286" rx="14" fill="#1a1d23" stroke="rgba(34,197,94,0.30)"/>
+  <text x="524" y="102" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="14" font-weight="800" fill="#ffffff">COMMERCIALLY BOTTLED WATER</text>
+  <text x="524" y="123" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="11.5" fill="rgba(255,255,255,0.42)">kept sealed in the original container, cool and dark</text>
+
+  <path d="M 628 176 h 56 v 118 a 22 22 0 0 1 -22 22 h -12 a 22 22 0 0 1 -22 -22 z" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="2"/>
+  <rect x="640" y="156" width="32" height="22" rx="4" fill="rgba(34,197,94,0.18)" stroke="#22c55e" stroke-width="2"/>
+  <text x="656" y="248" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" fill="#22c55e">SEALED</text>
+  <text x="656" y="290" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="10" fill="rgba(255,255,255,0.35)">do not re-date</text>
+
+  <rect x="756" y="196" width="140" height="86" rx="10" fill="rgba(34,197,94,0.10)" stroke="rgba(34,197,94,0.40)"/>
+  <text x="826" y="224" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="14" font-weight="800" fill="#22c55e">KEEP SEALED</text>
+  <text x="826" y="246" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="11.5" fill="rgba(255,255,255,0.65)">no replacement</text>
+  <text x="826" y="262" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="11.5" fill="rgba(255,255,255,0.65)">interval stated</text>
+
+  <text x="40" y="392" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="rgba(255,255,255,0.35)">SOURCE: READY.GOV, WATER &#8212; &#8220;WATER THAT HAS NOT BEEN COMMERCIALLY BOTTLED SHOULD BE REPLACED EVERY SIX MONTHS.&#8221;</text>
+  <text x="40" y="412" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="rgba(255,255,255,0.35)">BASELINE QUANTITY: AT LEAST 1 GALLON PER PERSON PER DAY FOR DRINKING AND SANITATION.</text>
+</svg>

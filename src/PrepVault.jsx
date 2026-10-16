@@ -8278,6 +8278,10 @@ function loadSaved() {
 
 export default function PrepVault() {
   const saved = useRef(loadSaved());
+  // Entry deep links used by the published prep-rotation guide (/guides/rotate-stored-food-water-medication).
+  const entryParams = (() => { try { return new URLSearchParams(window.location.search); } catch { return new URLSearchParams(); } })();
+  const demoEntry = entryParams.get("demo") === "1";
+  const signupEntry = entryParams.get("signup") === "1";
   const [items, setItems] = useState(() => saved.current?.items || SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" })));
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
@@ -8325,8 +8329,8 @@ export default function PrepVault() {
     try { const s = localStorage.getItem("prepvault-alerts-dismissed-until"); if (s && parseInt(s, 10) > Date.now()) return parseInt(s, 10); } catch {} return null;
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session"));
-  const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
+  const [showLanding, setShowLanding] = useState(() => demoEntry ? false : !localStorage.getItem("prepvault-active-session"));
+  const [onboardStep, setOnboardStep] = useState(() => demoEntry ? null : (localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0)));
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
   const [importPw, setImportPw] = useState("");
@@ -8340,8 +8344,8 @@ export default function PrepVault() {
 
   /* ── Auth + Sync State ── */
   const [user, setUser] = useState(null);
-  const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState("login"); // 'login' | 'signup'
+  const [showAuth, setShowAuth] = useState(() => signupEntry);
+  const [authMode, setAuthMode] = useState(() => signupEntry ? "signup" : "login"); // 'login' | 'signup'
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -8930,6 +8934,7 @@ export default function PrepVault() {
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: M, marginLeft: 4 }}>v3.0</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <a href="/guides/rotate-stored-food-water-medication" style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)", padding: "8px 4px" }}>Rotation Guide</a>
             <button onClick={() => { setShowAuth(true); setAuthMode("login"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
             <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Get Started</button>
           </div>
@@ -8978,6 +8983,15 @@ export default function PrepVault() {
           </div>
         </div>
 
+        {/* ── Rotation Guide ── */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 40px" }}>
+          <a href="/guides/rotate-stored-food-water-medication" style={{ display: "block", padding: "22px 24px", borderRadius: 14, background: "rgba(200,85,58,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
+            <div style={{ fontSize: 9, fontFamily: M, color: "#c8553a", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>GUIDE</div>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>How long stored food, water, and medication last — and how to rotate them</div>
+            <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>One rotation cadence across all three categories, each rule quoted from its government source, plus a printable rotation chart. →</div>
+          </a>
+        </div>
+
         {/* ── How It Works ── */}
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px 60px" }}>
           <h2 style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 3, fontWeight: 700, marginBottom: 24 }}>Get started in 3 steps</h2>
@@ -9009,6 +9023,7 @@ export default function PrepVault() {
         <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
           <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
+            <a href="/guides/rotate-stored-food-water-medication">Rotation Guide</a>
             <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
           </div>
         </div>

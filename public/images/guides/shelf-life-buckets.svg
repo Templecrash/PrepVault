@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 520" width="860" height="520" role="img" aria-labelledby="sbTitle sbDesc">
+  <title id="sbTitle">Three food shelf-life buckets</title>
+  <desc id="sbDesc">Three stacked bands showing the food shelf-life groups from the FEMA booklet: use within six months; use within one year or before the label date; may be stored indefinitely in proper containers and conditions.</desc>
+
+  <rect width="860" height="520" fill="#0a0c10"/>
+  <text x="40" y="44" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" letter-spacing="3" fill="rgba(255,255,255,0.35)">STORED FOOD DOES NOT HAVE ONE SHELF LIFE</text>
+
+  <!-- band 1 -->
+  <rect x="40" y="76" width="780" height="120" rx="14" fill="#1a1d23" stroke="rgba(34,197,94,0.28)"/>
+  <rect x="40" y="76" width="6" height="120" rx="3" fill="#22c55e"/>
+  <text x="72" y="126" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="19" font-weight="700" fill="#ffffff">&#8220;Use within six months:&#8221;</text>
+  <text x="72" y="152" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.42)">Consume first. Replace the item as it is used.</text>
+  <rect x="600" y="104" width="196" height="30" rx="8" fill="rgba(34,197,94,0.10)" stroke="rgba(34,197,94,0.35)"/>
+  <text x="698" y="124" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="#22c55e">CHECK EVERY 6 MONTHS</text>
+
+  <!-- band 2 -->
+  <rect x="40" y="212" width="780" height="120" rx="14" fill="#1a1d23" stroke="rgba(245,158,11,0.28)"/>
+  <rect x="40" y="212" width="6" height="120" rx="3" fill="#f59e0b"/>
+  <text x="72" y="258" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="17" font-weight="700" fill="#ffffff">&#8220;Use within one year, or before the date</text>
+  <text x="72" y="280" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="17" font-weight="700" fill="#ffffff">indicated on the label:&#8221;</text>
+  <text x="72" y="304" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.42)">Pull these forward as their printed date approaches.</text>
+  <rect x="600" y="240" width="196" height="30" rx="8" fill="rgba(245,158,11,0.10)" stroke="rgba(245,158,11,0.35)"/>
+  <text x="698" y="260" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="#f59e0b">CHECK EVERY 6 MONTHS</text>
+
+  <!-- band 3 -->
+  <rect x="40" y="348" width="780" height="120" rx="14" fill="#1a1d23" stroke="rgba(255,255,255,0.08)"/>
+  <rect x="40" y="348" width="6" height="120" rx="3" fill="rgba(255,255,255,0.25)"/>
+  <text x="72" y="394" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="17" font-weight="700" fill="#ffffff">&#8220;May be stored indefinitely (in proper</text>
+  <text x="72" y="416" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="17" font-weight="700" fill="#ffffff">containers and conditions):&#8221;</text>
+  <text x="72" y="440" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.42)">Keep behind the dated stock. Re-check containers and conditions annually.</text>
+  <rect x="600" y="376" width="196" height="30" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
+  <text x="698" y="396" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="rgba(255,255,255,0.55)">ANNUAL WALK</text>
+
+  <text x="40" y="498" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="rgba(255,255,255,0.35)">HEADERS QUOTED FROM FEMA 477 / A5055, &#8220;FOOD AND WATER IN AN EMERGENCY&#8221; (AUGUST 2004)</text>
+</svg>

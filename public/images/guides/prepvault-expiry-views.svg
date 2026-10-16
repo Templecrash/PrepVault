@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" width="960" height="500" role="img" aria-labelledby="pvTitle pvDesc">
+  <title id="pvTitle">Readiness score, expiry heatmap, and category coverage</title>
+  <desc id="pvDesc">PrepVault dashboard on a phone showing a readiness score, an expiry heatmap highlighting supplies close to their dates, and coverage across the Water, Food, Medical, Power, Security, and Documents categories.</desc>
+
+  <rect width="960" height="500" fill="#0a0c10"/>
+  <text x="40" y="44" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" letter-spacing="3" fill="rgba(255,255,255,0.35)">ON YOUR DEVICE, OFFLINE &#183; ILLUSTRATIVE DASHBOARD VIEW</text>
+
+  <!-- phone -->
+  <rect x="60" y="70" width="316" height="392" rx="30" fill="#1a1d23" stroke="rgba(255,255,255,0.10)"/>
+  <rect x="76" y="86" width="284" height="360" rx="22" fill="#0d1117"/>
+
+  <circle cx="98" cy="110" r="10" fill="none" stroke="rgba(200,85,58,0.25)" stroke-width="5"/>
+  <circle cx="98" cy="110" r="10" fill="none" stroke="#c8553a" stroke-width="5" stroke-dasharray="44 19" transform="rotate(-90 98 110)"/>
+  <text x="118" y="108" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12" font-weight="800" fill="#ffffff">PrepVault</text>
+  <text x="118" y="122" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="8.5" fill="rgba(255,255,255,0.35)">LOCAL &#183; OFFLINE</text>
+
+  <!-- readiness ring -->
+  <circle cx="150" cy="188" r="42" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="11"/>
+  <circle cx="150" cy="188" r="42" fill="none" stroke="#22c55e" stroke-width="11" stroke-dasharray="187 77" stroke-linecap="round" transform="rotate(-90 150 188)"/>
+  <text x="150" y="192" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="22" font-weight="700" fill="#22c55e">78</text>
+  <text x="150" y="208" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="8" letter-spacing="1" fill="rgba(255,255,255,0.35)">READINESS</text>
+
+  <text x="222" y="166" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12" font-weight="700" fill="#ffffff">Expiry heatmap</text>
+  <text x="222" y="184" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="10" fill="rgba(255,255,255,0.40)">dated tiles, next 12 months</text>
+  <g>
+    <rect x="222" y="196" width="20" height="26" rx="4" fill="rgba(34,197,94,0.35)"/>
+    <rect x="245" y="196" width="20" height="26" rx="4" fill="rgba(34,197,94,0.30)"/>
+    <rect x="268" y="196" width="20" height="26" rx="4" fill="rgba(34,197,94,0.25)"/>
+    <rect x="291" y="196" width="20" height="26" rx="4" fill="rgba(245,158,11,0.35)"/>
+    <rect x="314" y="196" width="20" height="26" rx="4" fill="rgba(245,158,11,0.55)"/>
+    <rect x="337" y="196" width="20" height="26" rx="4" fill="rgba(239,68,68,0.75)"/>
+  </g>
+  <text x="222" y="240" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="9" fill="rgba(255,255,255,0.35)">tiles grouped by month &#183; amber and red are the near dates</text>
+
+  <text x="94" y="272" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12" font-weight="700" fill="#ffffff">Category coverage</text>
+  <g font-family="'Geist Mono','JetBrains Mono',monospace" font-size="9">
+    <rect x="94" y="284" width="80" height="24" rx="12" fill="rgba(14,165,233,0.10)" stroke="rgba(14,165,233,0.35)"/>
+    <text x="134" y="300" text-anchor="middle" fill="#0ea5e9">WATER</text>
+    <rect x="180" y="284" width="74" height="24" rx="12" fill="rgba(34,197,94,0.10)" stroke="rgba(34,197,94,0.35)"/>
+    <text x="217" y="300" text-anchor="middle" fill="#22c55e">FOOD</text>
+    <rect x="260" y="284" width="94" height="24" rx="12" fill="rgba(239,68,68,0.10)" stroke="rgba(239,68,68,0.40)"/>
+    <text x="307" y="300" text-anchor="middle" fill="#ef4444">MEDICAL</text>
+    <rect x="94" y="314" width="80" height="24" rx="12" fill="rgba(245,158,11,0.10)" stroke="rgba(245,158,11,0.35)"/>
+    <text x="134" y="330" text-anchor="middle" fill="#f59e0b">POWER</text>
+    <rect x="180" y="314" width="98" height="24" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
+    <text x="229" y="330" text-anchor="middle" fill="rgba(255,255,255,0.55)">SECURITY</text>
+    <rect x="284" y="314" width="106" height="24" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
+    <text x="337" y="330" text-anchor="middle" fill="rgba(255,255,255,0.55)">DOCUMENTS</text>
+  </g>
+
+  <text x="94" y="364" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="10.5" fill="rgba(255,255,255,0.40)">Reviewed at the six-month pass &#8212; no connection needed.</text>
+  <rect x="94" y="382" width="248" height="34" rx="10" fill="rgba(200,85,58,0.10)" stroke="rgba(200,85,58,0.35)"/>
+  <text x="218" y="404" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="11.5" font-weight="700" fill="#c8553a">Item &#183; quantity &#183; location &#183; expiry</text>
+
+  <!-- annotations -->
+  <line x1="376" y1="188" x2="452" y2="140" stroke="rgba(255,255,255,0.15)" stroke-dasharray="4 4"/>
+  <text x="460" y="128" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="15" font-weight="800" fill="#ffffff">A readiness score</text>
+  <text x="460" y="150" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.45)">one number for the whole stockpile</text>
+
+  <line x1="376" y1="212" x2="452" y2="222" stroke="rgba(255,255,255,0.15)" stroke-dasharray="4 4"/>
+  <text x="460" y="218" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="15" font-weight="800" fill="#ffffff">The expiry heatmap</text>
+  <text x="460" y="240" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.45)">which stock is approaching its date, in amber and red</text>
+
+  <line x1="376" y1="300" x2="452" y2="330" stroke="rgba(255,255,255,0.15)" stroke-dasharray="4 4"/>
+  <text x="460" y="326" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="15" font-weight="800" fill="#ffffff">Category coverage</text>
+  <text x="460" y="348" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.45)">all six categories, so Medical cannot silently drop out</text>
+
+  <text x="460" y="392" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.45)">Quantity, location, barcode entry and per-item expiry records</text>
+  <text x="460" y="412" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12.5" fill="rgba(255,255,255,0.45)">live on the device itself.</text>
+
+  <text x="40" y="484" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="rgba(255,255,255,0.35)">ILLUSTRATIVE VIEW WITH SAMPLE DATA &#183; NO ACCOUNT REQUIRED TO USE THE APP</text>
+</svg>

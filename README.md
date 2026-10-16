@@ -83,6 +83,12 @@ api/
     tactacam/            # Camera system integration
     eyezon/              # Alarm system integration
     nest/                # Google Nest OAuth + devices
+
+public/
+  guides/                # Standalone guide pages with their own title, description and canonical
+  images/guides/         # Guide diagrams (SVG)
+  robots.txt             # Crawl directives + sitemap reference
+  sitemap.xml            # Indexable URLs (app root + guides)
 ```
 
 ## License

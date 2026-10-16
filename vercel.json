@@ -9,6 +9,7 @@
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/guides/rotate-stored-food-water-medication", "destination": "/guides/rotate-stored-food-water-medication.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" role="img" aria-labelledby="mrTitle mrDesc">
+  <title id="mrTitle">Medication rotates backwards</title>
+  <desc id="mrDesc">Side-by-side comparison showing food and water rotate oldest-first, while medication follows the opposite rule and is replaced once its expiration date passes.</desc>
+  <defs>
+    <marker id="mrArrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/>
+    </marker>
+    <marker id="mrArrowL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="420" fill="#0a0c10"/>
+  <text x="40" y="44" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" letter-spacing="3" fill="rgba(255,255,255,0.35)">FIFO IS CORRECT FOR FOOD AND WRONG FOR MEDICATION</text>
+
+  <!-- left panel -->
+  <rect x="40" y="70" width="420" height="276" rx="14" fill="#1a1d23" stroke="rgba(34,197,94,0.28)"/>
+  <text x="64" y="104" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="15" font-weight="800" fill="#ffffff">Food &amp; self-stored water</text>
+  <rect x="64" y="150" width="372" height="10" rx="5" fill="rgba(255,255,255,0.14)"/>
+  <rect x="76" y="112" width="90" height="38" rx="8" fill="#0a0c10" stroke="rgba(200,85,58,0.55)"/>
+  <text x="121" y="136" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" fill="#c8553a">OLDEST</text>
+  <rect x="230" y="112" width="90" height="38" rx="8" fill="#0a0c10" stroke="rgba(255,255,255,0.10)"/>
+  <text x="275" y="136" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" fill="rgba(255,255,255,0.55)">MIDDLE</text>
+  <rect x="336" y="112" width="90" height="38" rx="8" fill="#0a0c10" stroke="rgba(255,255,255,0.10)"/>
+  <text x="381" y="136" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" fill="rgba(255,255,255,0.55)">NEWEST</text>
+  <line x1="76" y1="196" x2="428" y2="196" stroke="#22c55e" stroke-width="3" marker-end="url(#mrArrowR)"/>
+  <text x="250" y="228" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="15" font-weight="800" fill="#22c55e">FIFO &#8212; use oldest first</text>
+  <text x="250" y="256" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12" fill="rgba(255,255,255,0.45)">the front of the shelf is the one to open</text>
+  <text x="250" y="300" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11" fill="rgba(255,255,255,0.32)">FEMA 477 / A5055 &#183; READY.GOV</text>
+
+  <!-- right panel -->
+  <rect x="500" y="70" width="420" height="276" rx="14" fill="#1a1d23" stroke="rgba(239,68,68,0.28)"/>
+  <text x="524" y="104" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="15" font-weight="800" fill="#ffffff">Medication</text>
+  <rect x="524" y="150" width="372" height="10" rx="5" fill="rgba(255,255,255,0.14)"/>
+  <rect x="524" y="112" width="90" height="38" rx="8" fill="#0a0c10" stroke="rgba(239,68,68,0.55)"/>
+  <text x="569" y="136" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" fill="#ef4444">IN DATE</text>
+  <rect x="678" y="112" width="90" height="38" rx="8" fill="#0a0c10" stroke="rgba(255,255,255,0.10)"/>
+  <text x="723" y="136" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" fill="rgba(255,255,255,0.55)">DUE SOON</text>
+  <rect x="784" y="112" width="90" height="38" rx="8" fill="rgba(239,68,68,0.10)" stroke="rgba(239,68,68,0.55)"/>
+  <text x="829" y="136" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="12" fill="#ef4444">EXPIRED</text>
+  <line x1="884" y1="196" x2="536" y2="196" stroke="#ef4444" stroke-width="3" marker-end="url(#mrArrowL)"/>
+  <text x="710" y="228" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="15" font-weight="800" fill="#ef4444">REPLACE AT EXPIRY</text>
+  <text x="710" y="256" text-anchor="middle" font-family="Outfit,'DM Sans','Segoe UI',sans-serif" font-size="12" fill="rgba(255,255,255,0.45)">do not work the oldest item through the cabinet</text>
+  <text x="710" y="300" text-anchor="middle" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11" fill="rgba(255,255,255,0.32)">FDA, &#8220;DON'T BE TEMPTED TO USE EXPIRED MEDICINES&#8221;</text>
+
+  <text x="40" y="384" font-family="'Geist Mono','JetBrains Mono',monospace" font-size="11.5" fill="rgba(255,255,255,0.35)">FDA: &#8220;ONCE THE EXPIRATION DATE HAS PASSED, THERE IS NO GUARANTEE THAT THE MEDICINE IS SAFE AND EFFECTIVE.&#8221;</text>
+</svg>

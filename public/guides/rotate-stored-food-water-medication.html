@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>How Long Stored Food, Water, and Medication Last — And How to Rotate Them</title>
+    <meta
+      name="description"
+      content="Shelf life for stored food, water, and medication, with the government replacement rule for each, a labeling and shelving method that makes rotation work, and a printable rotation chart."
+    />
+    <link rel="canonical" href="https://prepvault-xi.vercel.app/guides/rotate-stored-food-water-medication" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="PrepVault" />
+    <meta property="og:title" content="How Long Stored Food, Water, and Medication Last — And How to Rotate Them" />
+    <meta
+      property="og:description"
+      content="One rotation cadence covering stored food, water, and medication, with each rule quoted from its government source and a printable household rotation chart."
+    />
+    <meta property="og:url" content="https://prepvault-xi.vercel.app/guides/rotate-stored-food-water-medication" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="How Long Stored Food, Water, and Medication Last" />
+    <meta
+      name="twitter:description"
+      content="One rotation cadence covering stored food, water, and medication, each rule quoted from its government source."
+    />
+    <meta name="theme-color" content="#0a0c10" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "How Long Stored Food, Water, and Medication Last",
+        "description": "Shelf life for stored food, water, and medication, with the government replacement rule for each, a labeling and shelving method that makes rotation work, and a printable rotation chart.",
+        "datePublished": "2026-10-16",
+        "dateModified": "2026-10-16",
+        "author": { "@type": "Organization", "name": "PrepVault" },
+        "publisher": { "@type": "Organization", "name": "PrepVault" },
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": "https://prepvault-xi.vercel.app/guides/rotate-stored-food-water-medication"
+        },
+        "citation": [
+          {
+            "@type": "CreativeWork",
+            "name": "Food and Water in an Emergency (FEMA 477 / A5055)",
+            "url": "https://www.fema.gov/pdf/library/f&web.pdf"
+          },
+          { "@type": "WebPage", "name": "Ready.gov — Water", "url": "https://www.ready.gov/water" },
+          {
+            "@type": "WebPage",
+            "name": "FDA — Don't Be Tempted to Use Expired Medicines",
+            "url": "https://www.fda.gov/drugs/safe-disposal-medicines/dont-be-tempted-use-expired-medicines"
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root {
+        --primary: #c8553a;
+        --primary-deep: #a3412d;
+        --primary-dark: #8b2e1a;
+        --bg: #0a0c10;
+        --body-bg: #0d1117;
+        --surface: #1a1d23;
+        --text: #e6edf3;
+        --muted: rgba(255, 255, 255, 0.45);
+        --muted-dim: rgba(255, 255, 255, 0.32);
+        --line: rgba(255, 255, 255, 0.07);
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --display: "Outfit", "DM Sans", "Segoe UI", sans-serif;
+        --mono: "Geist Mono", "JetBrains Mono", monospace;
+      }
+      *,
+      *::before,
+      *::after { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--display);
+        font-size: 16.5px;
+        line-height: 1.75;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: #7cb2f5; text-decoration: underline; text-underline-offset: 2px; }
+      a:hover { color: #a9ceff; }
+      :focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
+
+      .site-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 24px;
+        background: rgba(10, 12, 16, 0.88);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+      .brand-mark {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--mono); font-weight: 800; font-size: 14px; color: #fff;
+      }
+      .brand-name { font-weight: 800; font-size: 15px; letter-spacing: -0.4px; }
+      .nav-links { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .nav-link {
+        font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, 0.6);
+        text-decoration: none; padding: 8px 14px; border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .nav-link:hover { color: #fff; border-color: rgba(255, 255, 255, 0.18); }
+      .nav-cta {
+        font-size: 12.5px; font-weight: 700; color: #fff; text-decoration: none;
+        padding: 8px 16px; border-radius: 8px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+      }
+
+      main { max-width: 780px; margin: 0 auto; padding: 40px 22px 20px; }
+      .breadcrumb { font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px; color: var(--muted-dim); text-transform: uppercase; }
+      .breadcrumb a { color: var(--muted); text-decoration: none; }
+      .breadcrumb a:hover { color: var(--primary); }
+
+      h1 {
+        font-size: clamp(30px, 5.4vw, 46px);
+        line-height: 1.08;
+        letter-spacing: -1px;
+        font-weight: 900;
+        margin: 18px 0 14px;
+      }
+      .byline { font-family: var(--mono); font-size: 11.5px; color: var(--muted-dim); margin: 0 0 22px; }
+      .lede { font-size: 18.5px; color: rgba(230, 237, 243, 0.82); }
+
+      h2 {
+        font-size: clamp(22px, 3.4vw, 29px);
+        font-weight: 800;
+        letter-spacing: -0.6px;
+        line-height: 1.2;
+        margin: 52px 0 14px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+      }
+      h3 { font-size: 18px; font-weight: 700; margin: 30px 0 10px; }
+      p { margin: 0 0 16px; }
+      ul, ol { margin: 0 0 18px; padding-left: 22px; }
+      li { margin-bottom: 10px; }
+      strong { color: #fff; }
+
+      blockquote {
+        margin: 22px 0;
+        padding: 16px 20px;
+        background: rgba(200, 85, 58, 0.05);
+        border-left: 3px solid var(--primary);
+        border-radius: 0 10px 10px 0;
+        color: rgba(230, 237, 243, 0.86);
+      }
+      blockquote p:last-child { margin-bottom: 0; }
+
+      figure { margin: 30px 0; }
+      figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+      }
+      figcaption { margin-top: 10px; font-size: 13px; color: var(--muted); }
+
+      .table-wrap { overflow-x: auto; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+      table { width: 100%; border-collapse: collapse; min-width: 620px; }
+      th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 14px; }
+      th {
+        font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.6px; text-transform: uppercase;
+        color: var(--muted); font-weight: 600; background: rgba(255, 255, 255, 0.02);
+      }
+      tr:last-child td { border-bottom: none; }
+      td.num, .num { font-family: var(--mono); }
+      .table-note { font-size: 12.5px; color: var(--muted-dim); margin: 0 0 22px; }
+
+      .callout {
+        margin: 26px 0;
+        padding: 18px 20px;
+        border-radius: 14px;
+        background: rgba(200, 85, 58, 0.05);
+        border: 1px solid rgba(200, 85, 58, 0.18);
+      }
+      .callout h3 { margin-top: 0; }
+      .callout p:last-child { margin-bottom: 0; }
+
+      .kicker { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--primary); margin: 0 0 6px; }
+      .source-line { font-family: var(--mono); font-size: 12px; color: var(--muted-dim); margin: 0 0 18px; }
+      .note { font-size: 14.5px; color: rgba(230, 237, 243, 0.62); }
+      .note em { color: rgba(230, 237, 243, 0.8); }
+
+      .cta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 22px 0 8px; }
+      .btn-primary, .btn-ghost {
+        display: inline-block; text-decoration: none; font-weight: 700; border-radius: 10px; padding: 14px 26px;
+      }
+      .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-deep)); color: #fff; box-shadow: 0 4px 20px rgba(200, 85, 58, 0.28); }
+      .btn-ghost { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); }
+      .tagline { font-family: var(--mono); font-size: 11.5px; color: var(--muted-dim); }
+
+      pre.chart {
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.55;
+        color: rgba(230, 237, 243, 0.85);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 20px;
+        overflow-x: auto;
+        margin: 0 0 16px;
+      }
+
+      .faq h3 { margin-bottom: 6px; }
+      .faq p { color: rgba(230, 237, 243, 0.8); }
+
+      footer.site-footer {
+        margin-top: 56px;
+        border-top: 1px solid var(--line);
+        padding: 24px 22px 44px;
+        display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center;
+      }
+      footer.site-footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+      footer.site-footer a { color: var(--muted-dim); text-decoration: none; font-family: var(--mono); font-size: 11.5px; }
+      footer.site-footer a:hover { color: var(--primary); }
+      .chip-row { display: flex; gap: 16px; font-family: var(--mono); font-size: 11px; color: var(--muted-dim); }
+
+      @media (max-width: 640px) {
+        body { font-size: 16px; }
+        .site-nav { flex-wrap: wrap; padding: 12px 16px; }
+        main { padding: 28px 16px 16px; }
+        .btn-primary, .btn-ghost { width: 100%; text-align: center; }
+      }
+
+      @media print {
+        .site-nav, .cta-row, .tagline, footer.site-footer, figure, .breadcrumb { display: none !important; }
+        body { background: #fff; color: #000; font-size: 12pt; }
+        main { max-width: none; padding: 0; }
+        h1, h2, h3, strong { color: #000; }
+        h2 { border-top: 1px solid #ccc; }
+        a { color: #000; }
+        blockquote, .callout, .table-wrap { border-color: #ccc; background: none; }
+        th { background: none; color: #000; }
+        pre.chart { border-color: #000; color: #000; background: none; font-size: 9pt; page-break-inside: avoid; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-nav">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span class="brand-name">PrepVault</span>
+      </a>
+      <nav class="nav-links" aria-label="PrepVault">
+        <a class="nav-link" href="/">Open the app</a>
+        <a class="nav-cta" href="/?signup=1">Create free account</a>
+      </nav>
+    </header>
+
+    <main>
+      <article>
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="/">PrepVault</a> / Guides / Prep rotation
+        </nav>
+        <h1>How Long Stored Food, Water, and Medication Last</h1>
+        <p class="byline">PrepVault &middot; Published 16 October 2026</p>
+
+        <p class="lede">
+          Most stored supplies do not fail because a household forgot what to buy. They fail at the date. The food is
+          fine until the shelf life runs out, the water is fine until its replacement interval passes, and the
+          medication is fine only until the printed expiration date &mdash; at which point the rule is the opposite of
+          the rule everywhere else in the house.
+        </p>
+
+        <figure>
+          <img
+            src="/images/guides/rotation-cadence.svg"
+            alt="Diagram of three rotation lanes for stored food, water, and medication; food and self-stored water rotate oldest-first, while medication is replaced at its expiry date, the opposite direction."
+            width="960"
+            height="480"
+          />
+          <figcaption>Food and self-stored water rotate oldest-first. Medication rotates backwards: it is replaced at expiry.</figcaption>
+        </figure>
+
+        <p>
+          Below is one rotation routine covering all three. Each rule is quoted from the government source that states
+          it, so you can check it yourself.
+        </p>
+
+        <h2 id="short-version">The short version</h2>
+        <ul>
+          <li>
+            <strong>Food</strong> rotates oldest-first &mdash; first-in, first-out &mdash; with shelf life in three
+            buckets: <a href="#food">six months, one year, or indefinite</a> in proper containers and conditions.
+            <em>(FEMA 477 / A5055)</em>
+          </li>
+          <li>
+            <strong>Water you store yourself</strong> is <a href="#water">replaced every six months</a>.
+            <em>(Ready.gov)</em>
+          </li>
+          <li>
+            <strong>Medication is replaced at expiry, not consumed oldest-first.</strong>
+            <a href="#medication">(FDA)</a>
+          </li>
+        </ul>
+        <p>
+          That is the whole system. The rest of this page is the mechanics: what each rule actually says, how to shelve
+          and label stock so the rule executes itself, and how to run the check on a calendar instead of on memory.
+        </p>
+
+        <h2 id="food">How long stored food lasts</h2>
+        <p>
+          The authoritative rotation rule for stored food sits in a preparedness booklet rather than on a live food
+          page. <strong>FEMA 477 / A5055, &ldquo;Food and Water in an Emergency,&rdquo;</strong> produced by FEMA with
+          the American Red Cross, states the practice plainly: &ldquo;Be sure to check expiration dates and follow the
+          practice of first-in, first-out.&rdquo;
+        </p>
+        <p>The same booklet states the mechanic:</p>
+        <blockquote>
+          <p>
+            &ldquo;Use foods before they go bad, and replace them with fresh supplies, dated with ink or marker. Place
+            new items at the back of the storage area and older ones in front.&rdquo;
+          </p>
+        </blockquote>
+        <p>
+          That one sentence is the entire physical method: <strong>new to the back, old to the front, every date
+          written on the container.</strong>
+        </p>
+        <p>
+          The booklet does not give a single shelf life, because stored food does not have one. It groups items under
+          three interval headers:
+        </p>
+        <ul>
+          <li><strong>&ldquo;Use within six months:&rdquo;</strong></li>
+          <li><strong>&ldquo;Use within one year, or before the date indicated on the label:&rdquo;</strong></li>
+          <li><strong>&ldquo;May be stored indefinitely (in proper containers and conditions):&rdquo;</strong></li>
+        </ul>
+        <p>
+          Each header carries its own item list in the booklet. Match your stock to the bucket it falls in, and the
+          question &ldquo;how long does stored food last&rdquo; becomes a lookup rather than a guess.
+        </p>
+        <p class="source-line">
+          Source: FEMA 477 / A5055, <em>Food and Water in an Emergency</em>, stated August 2004 &mdash;
+          <a href="https://www.fema.gov/pdf/library/f&amp;web.pdf" rel="noopener">https://www.fema.gov/pdf/library/f&amp;web.pdf</a>
+        </p>
+        <p class="note">
+          <em>A note on what this page is not:</em> the Ready.gov food page carries no stored-food rotation or
+          replacement-interval rule sentence. If you have looked for the food rotation rule on Ready.gov and not found
+          it, this is why &mdash; it lives in the FEMA booklet.
+        </p>
+        <p class="note">
+          For the kit-maintenance half of the routine, Ready.gov&rsquo;s &ldquo;Build a Kit&rdquo; page carries the
+          replacement and maintenance guidance:
+          <a href="https://www.ready.gov/kit" rel="noopener">https://www.ready.gov/kit</a>
+          <em>(page-stated: Last Updated 07/01/2026)</em>
+        </p>
+
+        <h3 id="food-table">Shelf-life reference table</h3>
+        <p>
+          Use this as the chart view of the FEMA buckets. Populate it from the item lists in your own storage so it
+          matches what you actually hold.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Shelf-life bucket</th>
+                <th scope="col">Rotation action</th>
+                <th scope="col">Check cadence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Use within six months</td>
+                <td>Consume first; replace on use</td>
+                <td class="num">Every 6 months</td>
+              </tr>
+              <tr>
+                <td>Use within one year, or before the label date</td>
+                <td>Pull to the front as its date approaches</td>
+                <td class="num">Every 6 months</td>
+              </tr>
+              <tr>
+                <td>May be stored indefinitely (proper containers and conditions)</td>
+                <td>Keep behind the dated stock</td>
+                <td class="num">Annually</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">Source for bucket labels and the FIFO rule: FEMA 477 / A5055 (August 2004).</p>
+
+        <figure>
+          <img
+            src="/images/guides/shelf-life-buckets.svg"
+            alt="Three stacked bands showing the food shelf-life groups from the FEMA booklet: use within six months; use within one year or before the label date; may be stored indefinitely in proper containers and conditions."
+            width="860"
+            height="520"
+          />
+          <figcaption>Stored food does not have one shelf life. FEMA 477 / A5055 groups it into three intervals.</figcaption>
+        </figure>
+
+        <h2 id="water">How long stored water lasts</h2>
+        <figure>
+          <img
+            src="/images/guides/water-six-month-rule.svg"
+            alt="Comparison of two water containers: water filled and stored by the household, marked replace every six months, next to commercially bottled water kept sealed in its original container, marked with no replacement interval."
+            width="960"
+            height="430"
+          />
+          <figcaption>
+            The six-month rule applies to water you store yourself. Commercially bottled water stays sealed in its
+            original container.
+          </figcaption>
+        </figure>
+        <p>Water is the category where the interval people repeat is usually applied to the wrong container.</p>
+        <p>
+          Ready.gov states the interval:
+          <strong>&ldquo;Water that has not been commercially bottled should be replaced every six months.&rdquo;</strong>
+        </p>
+        <p>
+          Read the qualifier carefully. That six-month rule applies to water <strong>you store yourself</strong> &mdash;
+          filled containers, whatever their size. Commercially bottled water is treated differently on the same page:
+          Ready.gov directs storing it <strong>in the sealed original container</strong>, in a cool, dark place, and
+          gives <strong>no replacement interval</strong> for it. Ready.gov also gives no replacement interval for bulk
+          containers treated on site beyond the preparation instruction below.
+        </p>
+        <p>
+          So the correct statement is: <strong>replace self-stored water every six months; keep commercially bottled
+          water sealed in its original container.</strong> Do not rotate commercially bottled water on the six-month
+          clock &mdash; that is not what the source says.
+        </p>
+        <p>Ready.gov&rsquo;s storage preparation instruction, quoted in full:</p>
+        <blockquote>
+          <p>
+            &ldquo;Buy commercially bottled water and store it in the sealed original container in cool, dark place. If
+            you must prepare your own containers of water, purchase food-grade water storage containers. Before filling
+            with chlorinated water, thoroughly clean the containers with dishwashing soap and sanitize the bottles by
+            cleaning with a solution of one teaspoon of non-scented liquid household chlorine bleach to a quart of
+            water.&rdquo;
+          </p>
+        </blockquote>
+        <p>
+          And the quantity figure for your duration math:
+          <strong>&ldquo;Store at least one gallon of water per person per day for several days, for drinking and
+          sanitation.&rdquo;</strong> A four-person household is therefore storing at least four gallons per day of
+          coverage it wants to hold.
+        </p>
+        <p class="source-line">
+          Source: Ready.gov, <em>Water</em> &mdash; <a href="https://www.ready.gov/water" rel="noopener">https://www.ready.gov/water</a>
+          <em>(page-stated date observed as Last Updated 06/12/2025)</em>
+        </p>
+
+        <h3 id="water-table">Water rotation table</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">What you store</th>
+                <th scope="col">Rule</th>
+                <th scope="col">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Water you store yourself (filled containers)</td>
+                <td>Replace every six months</td>
+                <td><a href="https://www.ready.gov/water" rel="noopener">Ready.gov, Water</a></td>
+              </tr>
+              <tr>
+                <td>Commercially bottled water, sealed in its original container</td>
+                <td>Keep sealed in the original container, cool and dark; no replacement interval stated</td>
+                <td><a href="https://www.ready.gov/water" rel="noopener">Ready.gov, Water</a></td>
+              </tr>
+              <tr>
+                <td>Bulk containers prepared on site</td>
+                <td>Food-grade containers, cleaned and pre-chlorinated before filling</td>
+                <td><a href="https://www.ready.gov/water" rel="noopener">Ready.gov, Water</a></td>
+              </tr>
+              <tr>
+                <td>Quantity baseline</td>
+                <td>At least one gallon per person per day, for drinking and sanitation</td>
+                <td><a href="https://www.ready.gov/water" rel="noopener">Ready.gov, Water</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="medication">How long stored medication lasts &mdash; and why it rotates backwards</h2>
+        <figure>
+          <img
+            src="/images/guides/medication-rotates-backwards.svg"
+            alt="Side-by-side comparison showing food and water rotate oldest-first, while medication follows the opposite rule and is replaced once its expiration date passes."
+            width="960"
+            height="420"
+          />
+          <figcaption>
+            The oldest item in the food shelf is the one to use. The oldest item in the medication shelf is the one to
+            replace.
+          </figcaption>
+        </figure>
+        <p>Everywhere else on this page, the rule is first-in, first-out. Medication inverts it.</p>
+        <p>The FDA states the rule directly:</p>
+        <blockquote>
+          <p>&ldquo;Expired medical products can be less effective or risky due to a change in chemical composition or a decrease in strength.&rdquo;</p>
+          <p>
+            &ldquo;Certain expired medications are at risk of bacterial growth and sub-potent antibiotics can fail to
+            treat infections, leading to more serious illnesses and antibiotic resistance.&rdquo;
+          </p>
+          <p>&ldquo;Once the expiration date has passed, there is no guarantee that the medicine is safe and effective.&rdquo;</p>
+        </blockquote>
+        <p>
+          The operational consequence is the one people get wrong: <strong>the oldest medication in the cabinet is not
+          the one to use first. It is the one to replace.</strong> Do not run a FIFO rotation on your medical supplies.
+          Date-check them, and when the printed date has passed, replace the item.
+        </p>
+        <p>
+          Why this matters in a preparedness context specifically: the reason a household stores medication is that it
+          expects to need it when it cannot easily buy more. That is exactly the moment when &ldquo;no guarantee that
+          the medicine is safe and effective&rdquo; stops being an abstract statement. The replacement rule is not
+          paperwork; it is the part of the stockpile that has to be true on the day you open it.
+        </p>
+        <p>
+          To be precise about what the FDA page says and does not say: it describes expired medication as
+          <em>less effective or risky</em> and as carrying <em>no guarantee</em> of safety and effectiveness. It does not
+          state that expired medication is dangerous in general, and this page does not claim that.
+        </p>
+        <p class="source-line">
+          Source: U.S. Food and Drug Administration, <em>Don&rsquo;t Be Tempted to Use Expired Medicines</em> &mdash;
+          <a href="https://www.fda.gov/drugs/safe-disposal-medicines/dont-be-tempted-use-expired-medicines" rel="noopener"
+            >https://www.fda.gov/drugs/safe-disposal-medicines/dont-be-tempted-use-expired-medicines</a
+          >
+          <em>(page-stated content date observed as 11/21/2024)</em>
+        </p>
+
+        <h3 id="expired-medication">The expired-medication question, answered plainly</h3>
+        <p>
+          <strong>Can you use expired medication?</strong> Per the FDA, once the expiration date has passed there is no
+          guarantee the medicine is safe and effective. Replace it at the date rather than working through it.
+        </p>
+
+        <h2 id="cadence">One rotation cadence for food, water, and medication</h2>
+        <p>
+          This is the table to print and pin up. Every row cites its own authority, because the three rules do not come
+          from the same place.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Rule</th>
+                <th scope="col">Interval / trigger</th>
+                <th scope="col">Rotation direction</th>
+                <th scope="col">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Food</strong></td>
+                <td>Check expiration dates and follow first-in, first-out; new items to the back, older items in front, dated with ink or marker</td>
+                <td>Shelf life bucketed: use within six months / use within one year or before the label date / may be stored indefinitely in proper containers and conditions</td>
+                <td><strong>Oldest first</strong></td>
+                <td>FEMA 477 / A5055, <em>Food and Water in an Emergency</em> (August 2004)</td>
+              </tr>
+              <tr>
+                <td><strong>Water &mdash; self-stored</strong></td>
+                <td>Replace water that has not been commercially bottled</td>
+                <td><strong>Every six months</strong></td>
+                <td>Oldest first</td>
+                <td><a href="https://www.ready.gov/water" rel="noopener">Ready.gov, Water</a> (Last Updated 06/12/2025)</td>
+              </tr>
+              <tr>
+                <td><strong>Water &mdash; commercially bottled, sealed</strong></td>
+                <td>Store in the sealed original container in a cool, dark place</td>
+                <td><strong>No replacement interval stated</strong> on that page</td>
+                <td>Keep sealed</td>
+                <td><a href="https://www.ready.gov/water" rel="noopener">Ready.gov, Water</a></td>
+              </tr>
+              <tr>
+                <td><strong>Medication</strong></td>
+                <td>Once the expiration date has passed, there is no guarantee that the medicine is safe and effective</td>
+                <td><strong>At the printed expiration date</strong></td>
+                <td><strong>Replace at expiry &mdash; do not consume oldest-first</strong></td>
+                <td>
+                  <a href="https://www.fda.gov/drugs/safe-disposal-medicines/dont-be-tempted-use-expired-medicines" rel="noopener"
+                    >FDA, Don&rsquo;t Be Tempted to Use Expired Medicines</a
+                  >
+                  (content current as of 11/21/2024)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="shelving">The shelving and labeling method that makes the rule run itself</h2>
+        <p>
+          A rotation rule you have to remember is a rotation rule you will skip. The fix is physical: build the shelf so
+          the correct item is the easiest one to reach.
+        </p>
+        <ol>
+          <li>
+            <strong>Write the date on every container, in ink or marker, at the moment it enters storage.</strong>
+            Freshly replaced food gets its replacement date. Nothing enters the shelf undated.
+          </li>
+          <li>
+            <strong>Load new stock at the back.</strong> Older stock moves forward. The item closest to the door is
+            always the one closest to its date.
+          </li>
+        </ol>
+        <figure>
+          <img
+            src="/images/guides/fifo-shelf-order.svg"
+            alt="Side view of a storage shelf with newly added dated containers at the back and older dated containers at the front, with an arrow showing the older container is reached first."
+            width="960"
+            height="420"
+          />
+          <figcaption>New to the back, old to the front, every container dated in ink or marker &mdash; the FEMA booklet&rsquo;s mechanic, drawn.</figcaption>
+        </figure>
+        <ol start="3">
+          <li>
+            <strong>Give medication its own shelf, not the food shelf.</strong> Medication does not belong in a
+            front-to-back queue. Keep it separate, check it at the same cadence, and replace at the printed date.
+          </li>
+          <li>
+            <strong>Separate the two water types.</strong> Self-stored water carries a six-month replacement date on the
+            container. Commercially bottled water stays sealed and in its original container &mdash; do not label it
+            with a six-month date you will then have to service.
+          </li>
+          <li>
+            <strong>Keep medication, water, and food on the same calendar event, not three.</strong> One reminder, three
+            quick passes. The community practice observed around rotation is exactly this: a recurring check, older and
+            short-dated stock pulled forward, newer stock kept back, and a calendar reminder covering the non-food
+            categories including water and medication.
+          </li>
+          <li>
+            <strong>Walk the shelf with last-in mind.</strong> If you can reach a newer item without moving an older
+            one, the shelf order has drifted.
+          </li>
+        </ol>
+
+        <h3 id="calendar">The cadence to put on your calendar</h3>
+        <ul>
+          <li>
+            <strong>Every six months</strong> &mdash; rotate food, replace self-stored water, date-check medication and
+            replace anything expired.
+          </li>
+          <li>
+            <strong>Annually</strong> &mdash; walk the indefinite-storage items, confirm containers and conditions still
+            hold, and re-date what you keep.
+          </li>
+          <li>
+            <strong>On every use</strong> &mdash; pull the item that was in front, and put the replacement at the back
+            with a fresh date.
+          </li>
+        </ul>
+        <p>
+          That is a household routine you can start this week without buying anything: one marker, one calendar event,
+          and the front of the shelf.
+        </p>
+
+        <h2 id="tracking">How do you know what you have without a paper list?</h2>
+        <p>
+          The routine above creates a paper problem. Front-to-back shelving works until you want to know &mdash; from a
+          different room, or from a different property &mdash; which items are close to their date, whether the medical
+          category is actually covered, or whether the food bucket has drifted behind the water bucket.
+        </p>
+        <p>
+          Map and printed inventory sheets are the traditional answer, and they are the answer most rotation guides stop
+          at. A paper list is also the thing that gets lost, stays out of date the moment an item is used, and cannot
+          tell you anything about the shelf you are not standing in front of.
+        </p>
+        <p>
+          <a href="/">PrepVault</a> is the offline-first alternative to that list. It tracks supplies across six
+          categories &mdash; Water, Food, Medical, Power, Security, and Documents &mdash; with quantity, location, and
+          <strong>expiry</strong> per item, holds a barcode scanner for fast entry, and turns those records into two
+          views that directly back the routine on this page:
+        </p>
+        <ul>
+          <li>
+            <strong>An expiry heatmap</strong> &mdash; which stock is approaching its date, at a glance, so the
+            six-month pass is a review rather than a scavenger hunt.
+          </li>
+          <li>
+            <strong>Category coverage</strong> &mdash; whether Medical, Water, and Food are actually represented, so the
+            category with the inverted rule (medication) does not silently fall out of the stockpile.
+          </li>
+        </ul>
+        <figure>
+          <img
+            src="/images/guides/prepvault-expiry-views.svg"
+            alt="PrepVault dashboard on a phone showing a readiness score, an expiry heatmap highlighting supplies close to their dates, and coverage across the Water, Food, Medical, Power, Security, and Documents categories."
+            width="960"
+            height="500"
+          />
+          <figcaption>
+            The expiry heatmap and category coverage are how the twice-yearly pass becomes a review instead of a
+            scavenger hunt. On your device, offline.
+          </figcaption>
+        </figure>
+        <p>
+          It runs on your own device, offline, with a 4-digit PIN lock and client-side AES-256-GCM local encryption for
+          your records, and an encrypted export/import path for backups. There is no account required to use it and no
+          cloud dependency; nothing about the routine above needs a connection to work.
+        </p>
+        <p>
+          If you would rather see it before you enter anything, the demo opens the app with sample data so you can look
+          at the expiry view against a stocked shelf.
+        </p>
+        <div class="cta-row">
+          <a class="btn-primary" href="/?demo=1">Try the demo &rarr;</a>
+          <a class="btn-ghost" href="/?signup=1">Create a free account</a>
+        </div>
+        <p class="tagline">No credit card &middot; Works offline &middot; Your data stays yours.</p>
+
+        <h2 id="faq">Frequently asked</h2>
+        <div class="faq">
+          <h3>How often should I rotate stored food?</h3>
+          <p>
+            Follow first-in, first-out and check expiration dates, per FEMA 477 / A5055. In practice that means a dated,
+            front-loaded shelf reviewed on a twice-yearly pass, with items used before they go bad and replaced with
+            fresh, dated supplies.
+          </p>
+          <h3>How long does stored food last?</h3>
+          <p>
+            It depends on the item. The FEMA booklet groups stored food under three headers &mdash; use within six
+            months, use within one year or before the label date, and may be stored indefinitely in proper containers
+            and conditions.
+          </p>
+          <h3>How often should I replace stored water?</h3>
+          <p>
+            Water that has not been commercially bottled should be replaced every six months, per Ready.gov.
+            Commercially bottled water kept sealed in its original container is stored as-is, with no replacement
+            interval given on that page.
+          </p>
+          <h3>How much water should I store?</h3>
+          <p>
+            Ready.gov&rsquo;s figure is at least one gallon of water per person per day for several days, for drinking
+            and sanitation.
+          </p>
+          <h3>Can I use expired medication from my stockpile?</h3>
+          <p>
+            Per the FDA, there is no guarantee that medicine is safe and effective once the expiration date has passed.
+            Replace it at the date instead of consuming oldest-first.
+          </p>
+          <h3>Does medication rotate like food?</h3>
+          <p>
+            No. Food and self-stored water rotate oldest-first. Medication is replaced at expiry &mdash; the opposite
+            direction.
+          </p>
+        </div>
+
+        <h2 id="chart">Printable rotation chart</h2>
+        <p>Print this and keep it where the stock is. The three columns are the whole system.</p>
+        <pre class="chart" aria-label="Printable household rotation chart">PREPVAULT &mdash; HOUSEHOLD ROTATION CHART
+
+CATEGORY        RULE                                     CHECK         DIRECTION
+Food            FIFO: new to back, old to front,         6 months      Oldest first
+                every container dated in ink
+Water           Replace self-stored water                6 months      Oldest first
+(self-stored)   (not commercially bottled)
+Water           Keep sealed in original container        (no interval   Keep sealed
+(bottled)       in a cool, dark place                    stated)
+Medication      Replace at the printed expiry date       At expiry     REPLACE,
+                (no guarantee of safety/effectiveness                  not FIFO
+                after the date)
+
+CADENCE
+  Every 6 months ....... rotate food, replace self-stored water,
+                         date-check medication, replace expired
+  Annually ............. review indefinite-storage items, confirm
+                         containers and conditions, re-date
+  On every use ......... pull from the front, replace at the back
+                         with a fresh date
+
+SOURCES
+  Food ........ FEMA 477 / A5055 (August 2004)
+  Water ....... Ready.gov, Water
+  Medication .. FDA, Don't Be Tempted to Use Expired Medicines
+
+SHELF ORDER RULE
+  If you can reach a newer item without moving an older one,
+  the shelf order has drifted. Fix it before you walk away.</pre>
+        <figure>
+          <img
+            src="/images/guides/printable-rotation-chart.svg"
+            alt="Printable household rotation chart listing food, self-stored water, commercially bottled water, and medication, with each category's rule, check cadence, rotation direction, and government source."
+            width="900"
+            height="810"
+          />
+          <figcaption>Print one page. The direction column is the part to read twice.</figcaption>
+        </figure>
+
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>
+            FEMA with the American Red Cross, <em>Food and Water in an Emergency</em> (FEMA 477 / A5055), stated August
+            2004 &mdash; <a href="https://www.fema.gov/pdf/library/f&amp;web.pdf" rel="noopener">https://www.fema.gov/pdf/library/f&amp;web.pdf</a>
+          </li>
+          <li>
+            Ready.gov (FEMA/DHS), <em>Water</em>, page-stated Last Updated 06/12/2025 &mdash;
+            <a href="https://www.ready.gov/water" rel="noopener">https://www.ready.gov/water</a>
+          </li>
+          <li>
+            Ready.gov (FEMA/DHS), <em>Build a Kit</em>, page-stated Last Updated 07/01/2026 &mdash;
+            <a href="https://www.ready.gov/kit" rel="noopener">https://www.ready.gov/kit</a>
+          </li>
+          <li>
+            U.S. Food and Drug Administration, <em>Don&rsquo;t Be Tempted to Use Expired Medicines</em>, content current
+            as of 11/21/2024 &mdash;
+            <a href="https://www.fda.gov/drugs/safe-disposal-medicines/dont-be-tempted-use-expired-medicines" rel="noopener"
+              >https://www.fda.gov/drugs/safe-disposal-medicines/dont-be-tempted-use-expired-medicines</a
+            >
+          </li>
+          <li>
+            Utah Be Ready (state .gov), food &mdash;
+            <a href="https://beready.utah.gov/be-informed/food/" rel="noopener">https://beready.utah.gov/be-informed/food/</a>
+          </li>
+          <li>
+            Mountain House, &ldquo;How to rotate emergency food&rdquo; &mdash; representative of the retailer-blog
+            format currently ranking for the rotation query &mdash;
+            <a href="https://mountainhouse.com/blogs/emergency-prep-survival/how-to-rotate-emergency-food" rel="noopener"
+              >https://mountainhouse.com/blogs/emergency-prep-survival/how-to-rotate-emergency-food</a
+            >
+          </li>
+        </ul>
+        <p class="note">
+          Community practice on rotation cadence, shelving, and calendar reminders was observed in prepper community
+          threads:
+          <a href="https://www.reddit.com/r/preppers/comments/17rafeg/" rel="noopener">r/preppers rotation-schedule thread</a>,
+          <a href="https://www.reddit.com/r/preppers/comments/6ygf3n/" rel="noopener">r/preppers stored-water thread</a>,
+          <a href="https://www.reddit.com/r/preppers/comments/kfw3y7/" rel="noopener">r/preppers stored-water thread</a>,
+          <a href="https://www.reddit.com/r/TwoXPreppers/comments/1wftg5w/" rel="noopener">r/TwoXPreppers water-prep thread</a>.
+        </p>
+
+        <div class="callout">
+          <p class="kicker">Run the routine on your own device</p>
+          <h3>Track expiry and category coverage offline</h3>
+          <p>
+            PrepVault keeps the six categories, per-item expiry, quantity and location on the device itself &mdash; no
+            account needed, no cloud dependency.
+          </p>
+          <div class="cta-row">
+            <a class="btn-primary" href="/?demo=1">Try the demo &rarr;</a>
+            <a class="btn-ghost" href="/?signup=1">Create a free account</a>
+          </div>
+          <p class="tagline">No credit card &middot; Works offline &middot; Your data stays yours.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="chip-row">
+        <span>PrepVault &mdash; Personal Continuity System</span>
+      </div>
+      <nav aria-label="Footer">
+        <a href="/">Open the app</a>
+        <a href="/?demo=1">Try the demo</a>
+        <a href="/?signup=1">Create free account</a>
+      </nav>
+      <div class="chip-row">
+        <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
+      </div>
+    </footer>
+  </body>
+</html>
