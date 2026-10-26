@@ -20,7 +20,10 @@ function setup({ result = {}, error = null, user = owner, clock = time } = {}) {
     auth: { getUser: async bearer => { authCalls.push(bearer); return { data: { user: bearer === 'valid-jwt' ? user : null }, error: null }; } },
     rpc: async (name, args) => { calls.push({ name, args }); return { data: result, error }; },
   }, { now: () => clock, token: () => tokens.shift() });
-  return { service, calls, authCalls, handler: createTrackingHandler({ getService: () => service }) };
+  return { service, calls, authCalls, handler: createTrackingHandler({ getService: () => service, authenticate: req => {
+    const match = /^Bearer (\S+)$/i.exec(String(req.headers.authorization || ''));
+    return match ? service.authenticate(match[1]) : null;
+  } }) };
 }
 
 async function request(handler, body, { headers = {}, method = 'POST' } = {}) {

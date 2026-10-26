@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { supabase, supabaseConfigured } from './supabase.js';
 import { Icon } from './brand.jsx';
+import TrackingOwnerSignIn from './TrackingOwnerSignIn.jsx';
+import { getTrackingOwner, signOutTrackingOwner } from './tracking-auth.js';
 import { useDialogFocus } from './useDialogFocus.js';
 import { invitationLink, normalizePhone, smsLink, trackingRequest, trackingStatus, visiblePosition, TRACKING_POLL_MS } from './tracking.js';
 import './tracking.css';
@@ -113,55 +114,64 @@ function InviteDialog({ contacts, request, onCreated, onClose }) {
   </div>;
 }
 
-export default function LiveTracker({ user, contacts = [], onSignIn }) {
-  const canTrack = supabaseConfigured && user && !user.isLocal;
+function OwnerTracker({ contacts, owner, onSessionExpired, onSignOut }) {
   const [sessions, setSessions] = useState([]);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(Boolean(canTrack));
+  const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [lastChecked, setLastChecked] = useState(null);
   const [now, setNow] = useState(Date.now);
   const revision = useRef(0);
+  const activeRequest = useRef(false);
   const request = async (action, payload = {}, signal) => {
-    const { data, error: authError } = await supabase.auth.getSession();
-    if (authError || !data.session?.access_token) throw new Error('Sign in to your cloud account to use private location sharing.');
-    return trackingRequest(action, payload, data.session.access_token, { signal });
+    try {
+      const result = await trackingRequest(action, payload, undefined, { signal });
+      if (!activeRequest.current) throw new DOMException('The owner session changed.', 'AbortError');
+      return result;
+    } catch (err) {
+      if (activeRequest.current && (err.status === 401 || err.status === 403)) onSessionExpired();
+      throw err;
+    }
   };
   useEffect(() => {
+    activeRequest.current = true;
     const controller = new AbortController();
     let timeout;
     const poll = async () => {
-      if (canTrack) {
-        const requestedRevision = revision.current;
-        try {
-          const { data, error: authError } = await supabase.auth.getSession();
-          if (authError || !data.session?.access_token) throw new Error('Your session ended. Sign in again to see shared locations.');
-          const result = await trackingRequest('list', {}, data.session.access_token, { signal: controller.signal });
-          if (controller.signal.aborted) return;
-          if (revision.current !== requestedRevision) { timeout = setTimeout(poll, TRACKING_POLL_MS); return; }
-          setSessions(result.sessions); setError(''); setLastChecked(Date.now());
-        } catch (err) { if (!controller.signal.aborted) { setError(err.message); if (err.status === 401 || err.status === 403) setSessions([]); } }
-        finally { if (!controller.signal.aborted) setLoading(false); }
+      const requestedRevision = revision.current;
+      try {
+        const result = await trackingRequest('list', {}, undefined, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        if (revision.current !== requestedRevision) { timeout = setTimeout(poll, TRACKING_POLL_MS); return; }
+        if (!Array.isArray(result.sessions)) throw new Error('Shared locations could not be loaded. Please try again.');
+        setSessions(result.sessions); setError(''); setLastChecked(Date.now());
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          if (err.status === 401 || err.status === 403) { onSessionExpired(); return; }
+          setError(err.message);
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
       if (!controller.signal.aborted) timeout = setTimeout(poll, TRACKING_POLL_MS);
     };
     void poll();
     const tick = setInterval(() => setNow(Date.now()), 5_000);
-    return () => { controller.abort(); clearTimeout(timeout); clearInterval(tick); };
-  }, [canTrack, user?.id]);
+    return () => { activeRequest.current = false; controller.abort(); clearTimeout(timeout); clearInterval(tick); };
+  }, [onSessionExpired]);
   const revoke = async session => {
     setBusyId(session.id);
     try { await request('revoke', { id: session.id }); revision.current += 1; setSessions(previous => previous.filter(item => item.id !== session.id)); setError(''); }
-    catch (err) { setError(err.message); }
-    finally { setBusyId(null); }
+    catch (err) { if (activeRequest.current) setError(err.message); }
+    finally { if (activeRequest.current) setBusyId(null); }
   };
   const active = sessions.filter(session => !['revoked', 'stopped'].includes(session.status) && Date.parse(session.expiresAt) > now);
   const liveCount = sessions.filter(session => trackingStatus(session, now) === 'Live').length;
   return <section className="pv-tracker" aria-label="Private location tracker">
-    <div className="pv-tracker-heading"><div><span className="pv-tracker-eyebrow">STAY CONNECTED</span><h2>Your people. One map.</h2><p>Invite someone by phone number to share their live position with you.</p></div><button className="pv-button pv-primary" disabled={!canTrack} onClick={() => setShowInvite(true)}><Icon name="plus" size={17} />Invite to share</button></div>
-    {!canTrack && <div className="pv-tracker-notice"><Icon name="shield" size={21} /><div><strong>{supabaseConfigured ? 'Sign in to enable private sharing' : 'Live sharing needs a cloud connection'}</strong><p>{supabaseConfigured ? 'Your account is the only account that can view the people you invite.' : 'This workspace is running in local mode. Connect secure cloud accounts and location storage before sending invitations.'}</p></div>{supabaseConfigured && <button className="pv-button pv-secondary" onClick={onSignIn}>Sign in</button>}</div>}
+    <div className="pv-tracker-heading"><div><span className="pv-tracker-eyebrow">STAY CONNECTED</span><h2>Your people. One map.</h2><p>Invite someone by phone number to share their live position with you.</p></div><button className="pv-button pv-primary" onClick={() => setShowInvite(true)}><Icon name="plus" size={17} />Invite to share</button></div>
+    <div className="pv-tracker-account"><span><Icon name="shield" size={15} />Private owner session · {owner.email}</span><button className="pv-tracker-text-button" onClick={onSignOut}>Sign out of tracking</button></div>
     {error && <p className="pv-tracker-error" role="alert">{error} {sessions.length > 0 && 'Showing the last received positions until the connection returns.'}</p>}
     <div className="pv-tracker-summary"><span><i className={liveCount ? 'is-live' : ''} />{liveCount} sharing live · {active.length} active invitation{active.length === 1 ? '' : 's'}</span><span>{loading ? 'Connecting…' : lastChecked ? `Checked ${new Date(lastChecked).toLocaleTimeString()}` : 'Only shared locations appear here'}</span></div>
     <div className="pv-tracker-grid"><TrackerMap sessions={sessions} now={now} selectedId={selectedId} onSelect={setSelectedId} /><aside className="pv-tracker-people" aria-label="People sharing locations"><h3>Sharing with you <span>{sessions.filter(session => session.status !== 'revoked').length}</span></h3>
@@ -177,5 +187,69 @@ export default function LiveTracker({ user, contacts = [], onSignIn }) {
     </aside></div>
     <p className="pv-tracker-privacy"><Icon name="shield" size={16} /> Only your signed-in account can view these positions. Sharing needs an internet connection and an open page on their phone.</p>
     {showInvite && <InviteDialog contacts={contacts} request={request} onCreated={session => { revision.current += 1; setSessions(previous => [session, ...previous.filter(item => item.id !== session.id)]); }} onClose={() => setShowInvite(false)} />}
+  </section>;
+}
+
+export default function LiveTracker({ contacts = [] }) {
+  const [auth, setAuth] = useState({ phase: 'checking', owner: null, message: '' });
+  const pending = useRef(null);
+  const revision = useRef(0);
+  const checkSession = useCallback(() => {
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
+    const requestedRevision = ++revision.current;
+    return getTrackingOwner({ signal: controller.signal }).then(owner => {
+      if (!controller.signal.aborted && requestedRevision === revision.current) {
+        setAuth({ phase: owner ? 'signed-in' : 'signed-out', owner, message: '' });
+      }
+    }).catch(err => {
+      if (!controller.signal.aborted && requestedRevision === revision.current) {
+        setAuth({ phase: err.status === 403 ? 'signed-out' : 'unavailable', owner: null, message: err.message });
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    void checkSession();
+    return () => { pending.current?.abort(); revision.current += 1; };
+  }, [checkSession]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      if (auth.phase !== 'signed-in') return;
+      // Hide private state before checking a potentially changed browser account.
+      setAuth({ phase: 'checking', owner: null, message: '' });
+      void checkSession();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [auth.phase, checkSession]);
+
+  const onSessionExpired = useCallback(() => {
+    pending.current?.abort(); revision.current += 1;
+    setAuth({ phase: 'signed-out', owner: null, message: 'Your private session ended. Sign in again to view shared locations.' });
+  }, []);
+
+  const signOut = async () => {
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
+    const requestedRevision = ++revision.current;
+    setAuth({ phase: 'signing-out', owner: null, message: '' });
+    try {
+      await signOutTrackingOwner({ signal: controller.signal });
+      if (!controller.signal.aborted && requestedRevision === revision.current) setAuth({ phase: 'signed-out', owner: null, message: 'You are signed out of private tracking.' });
+    } catch (err) {
+      if (!controller.signal.aborted && requestedRevision === revision.current) setAuth({ phase: 'signout-failed', owner: null, message: err.message });
+    }
+  };
+
+  if (auth.phase === 'signed-in') return <OwnerTracker key={auth.owner.id} contacts={contacts} owner={auth.owner} onSessionExpired={onSessionExpired} onSignOut={signOut} />;
+  return <section className="pv-tracker" aria-label="Private location tracker">
+    <div className="pv-tracker-heading"><div><span className="pv-tracker-eyebrow">STAY CONNECTED</span><h2>Your people. One map.</h2><p>Invite someone by phone number to share their live position with you.</p></div></div>
+    {['checking', 'signing-out'].includes(auth.phase) ? <div className="pv-tracker-auth-loading" role="status"><Icon name="shield" size={20} />{auth.phase === 'checking' ? 'Checking your private session…' : 'Signing out…'}</div>
+      : ['unavailable', 'signout-failed'].includes(auth.phase) ? <div className="pv-tracker-notice pv-tracker-auth-error" role="alert"><Icon name="shield" size={21} /><div><strong>{auth.phase === 'signout-failed' ? 'Sign-out has not completed' : 'Secure sign-in is unavailable'}</strong><p>{auth.message}</p></div><button className="pv-button pv-secondary" onClick={auth.phase === 'signout-failed' ? signOut : () => { setAuth({ phase: 'checking', owner: null, message: '' }); void checkSession(); }}>Try again</button></div>
+        : <TrackingOwnerSignIn notice={auth.message} onSignedIn={owner => { pending.current?.abort(); revision.current += 1; setAuth({ phase: 'signed-in', owner, message: '' }); }} />}
   </section>;
 }

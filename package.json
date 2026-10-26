@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "overrides": {
+    "zod": "4.6.6"
+  },
   "scripts": {
     "test": "node --test tests/*.test.js",
     "dev": "vite",
@@ -11,6 +14,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@neondatabase/auth": "0.7.0-beta",
+    "@neondatabase/serverless": "1.2.0",
     "@supabase/supabase-js": "^2.98.0",
     "leaflet": "^1.9.4",
     "pdfjs-dist": "^6.4.299",

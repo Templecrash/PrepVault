@@ -24,7 +24,8 @@ function readToken(value) {
   return value;
 }
 
-export function createTrackingService(client, { now = () => Date.now(), token = newToken } = {}) {
+export function createTrackingService(client, { now = () => Date.now(), token = newToken, authenticate: authenticateOwner } = {}) {
+  if (authenticateOwner !== undefined && typeof authenticateOwner !== 'function') throw new TypeError('Owner authentication must be a function.');
   async function run(args) {
     const { data, error } = await client.rpc('prepvault_tracking_action', args);
     if (error) {
@@ -43,7 +44,13 @@ export function createTrackingService(client, { now = () => Date.now(), token = 
 
   return {
     async authenticate(bearer) {
-      if (!bearer || bearer.length > 8192) return null;
+      if (typeof bearer !== 'string' || !bearer || bearer.length > 8192) return null;
+      if (authenticateOwner) {
+        const owner = await authenticateOwner(bearer);
+        if (typeof owner?.id !== 'string' || !owner.id || owner.id.length > 512) return null;
+        return owner;
+      }
+      if (typeof client.auth?.getUser !== 'function') return null;
       const { data, error } = await client.auth.getUser(bearer);
       if (error || !data?.user?.id || !/^[0-9a-f-]{36}$/i.test(data.user.id)) return null;
       return data.user;

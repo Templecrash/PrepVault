@@ -49,7 +49,9 @@ Overview’s essential cards show full days of coverage. Water and food use the 
 
 The existing Vercel `api/` handlers and integrations are retained. Plain Vite development does not emulate those serverless endpoints. Use the existing Vercel project or a properly configured local Vercel environment to exercise them.
 
-For a fresh Supabase install, review and run `supabase-schema.sql`, then configure the public client settings from `.env.example`. Keep service-role and provider credentials on the server; never use a `VITE_` prefix for secrets.
+Private live tracking uses the existing Neon database with an isolated schema and a restricted runtime role. Owner access uses Neon Managed Better Auth email codes, first-party secure cookies, an explicit verified-email allowlist, and fresh server-side session checks. See `neon/README.md` for setup, grants and retention. Recipient invitations are one-use links; recipients must allow location sharing and can stop at any time. Sharing requires an open browser page and internet access. The phone number addresses the SMS invitation; it does not locate a phone by itself.
+
+Legacy Supabase cloud sync remains optional and separate from tracking. For that integration, review `supabase-schema.sql` and configure its public client settings from `.env.example`. Keep database-owner, runtime, service-role and provider credentials on the server; never use a `VITE_` prefix for secrets.
 
 For an existing database, review `supabase/migrations/README.md` and apply the included membership-policy migration in staging first. It fixes a recursive membership SELECT policy while retaining the same membership visibility. The redesign does **not** automatically migrate the remote database.
 

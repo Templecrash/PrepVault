@@ -1,7 +1,9 @@
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
-import { createClient } from '@supabase/supabase-js';
+import { neon } from '@neondatabase/serverless';
 import { createTrackingService, TrackingError } from './_lib/tracking-service.js';
+import { createNeonTrackingStore } from './_lib/neon-tracking-store.js';
+import { authenticateNeonOwner } from './_lib/neon-owner-auth.js';
 
 const MAX_BODY_BYTES = 8192;
 const actions = new Set(['list', 'create', 'revoke', 'inspect', 'start', 'update', 'stop']);
@@ -9,10 +11,9 @@ let defaultService;
 
 function getDefaultService() {
   if (defaultService) return defaultService;
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new TrackingError(503, 'not_configured', 'Live location sharing is not configured yet.');
-  defaultService = createTrackingService(createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }));
+  const url = process.env.TRACKING_DATABASE_URL;
+  if (!url) throw new TrackingError(503, 'not_configured', 'Live location sharing is not configured yet.');
+  defaultService = createTrackingService(createNeonTrackingStore(neon(url)));
   return defaultService;
 }
 
@@ -39,7 +40,7 @@ async function readBody(req) {
   return body;
 }
 
-export function createTrackingHandler({ getService = getDefaultService } = {}) {
+export function createTrackingHandler({ getService = getDefaultService, authenticate = authenticateNeonOwner } = {}) {
   return async function tracking(req, res) {
     res.setHeader('Cache-Control', 'no-store, private, max-age=0');
     res.setHeader('Pragma', 'no-cache');
@@ -65,13 +66,12 @@ export function createTrackingHandler({ getService = getDefaultService } = {}) {
       }
       const body = await readBody(req);
       if (!actions.has(body.action)) throw new TrackingError(400, 'invalid_request', 'Choose a valid location-sharing action.');
-      const service = getService();
       let owner;
       if (['list', 'create', 'revoke'].includes(body.action)) {
-        const match = /^Bearer (\S+)$/i.exec(String(req.headers.authorization || ''));
-        owner = match ? await service.authenticate(match[1]) : null;
+        owner = await authenticate(req);
         if (!owner) throw new TrackingError(401, 'unauthorized', 'Sign in to your online account to manage live location sharing.');
       }
+      const service = getService();
       return res.status(200).json(await service.perform(body.action, body, owner));
     } catch (error) {
       const known = error instanceof TrackingError;
