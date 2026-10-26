@@ -2,7 +2,7 @@
 
 **Ready for real life.** A household preparedness workspace for supplies, properties, people and practical planning.
 
-The 2.0 redesign adds a consistent forest-green identity, a responsive workspace, clear onboarding, an inventory-first overview and searchable supplies. The original specialist tools remain available within seven main sections.
+The 2.0 redesign adds a consistent forest-green identity, a responsive workspace, clear onboarding, an inventory-first overview and searchable supplies. The original specialist tools remain available alongside dedicated emergency and offline libraries.
 
 | Destination | Included tools |
 | --- | --- |
@@ -14,6 +14,8 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
 | Scenario lab | Original scenarios, household/climate controls, duration estimates and scenario guidance |
 | Resource planning | Stock estimates, conversions, trade-offs and opportunities |
+| Emergency | Searchable original handbooks, in-site PDF reader, publisher/edition/license details, individual PDF downloads and a portable ZIP pack |
+| Information resources | Verified offline copies, save-all with progress, per-guide removal and offline reopening |
 
 ## Run locally
 
@@ -33,7 +35,7 @@ Rationing is available on Overview and Your people. Both views share the current
 
 ## Data and backups
 
-- The working plan lives in browser storage. Keep the tab open to use the loaded local tools without a connection; reloading, maps, weather and internet services may need the network. There is no service worker guaranteeing offline startup.
+- The working plan lives in browser storage. **Save offline** in Emergency or Information resources explicitly saves the app shell and selected handbooks for reopening this same site without a connection. Browser cleanup or clearing site data can remove them. Online maps, weather, radio streams, cloud sync and other internet services still need a connection.
 - **Settings & backups** can save a separate local snapshot or download an encrypted complete backup. Encrypting a backup does not encrypt the active browser storage. Property tools open directly; individual access codes remain hidden until revealed.
 - Backups preserve the main household collections and local feature settings. Account credentials and sync baselines are excluded. V3 inventory backups remain readable; V4 adds complete state and settings.
 - Encrypted backups retain the original AES-256-GCM format and PBKDF2-SHA256 derivation with 310,000 iterations. There is no passphrase recovery.
@@ -51,9 +53,21 @@ For an existing database, review `supabase/migrations/README.md` and apply the i
 
 Community chat uses the selected joined community. Device-only notes are stored locally; local images are explicitly identified. Live radio plays verified HTTPS MP3/AAC sources directly: a Buffalo NOAA weather relay supplied by weatherUSA, WNYC news, KEXP and Toronto’s JAZZ.FM91. The player starts from a click, reports actual media playback/buffering/failure, supports volume and custom saved streams, and releases the connection when paused or unmounted. The frequency list is a reference for physical radios, separate from internet audio. Hardware access, remote authentication, community chat and provider APIs require their existing configured services.
 
+## Emergency handbooks and offline library
+
+Nine unmodified PDFs cover WHO/ICRC emergency medicine, Stanford perioperative crises, FEMA CERT and household preparedness, EPA drinking water, FDA food safety, and CDC wound care, generator safety and disaster cleanup. Clinical and surgical references are identified for trained professionals; edition and source notes remain visible. These are reference publications, not a live clinical guideline service. In particular, the 2018 WHO workbook predates its publisher's 2025 postpartum haemorrhage update.
+
+The catalog at `public/handbooks/sources.json` records original publisher/download URLs, attribution, rights evidence, edition, verification date, size and SHA-256. WHO and Stanford materials have **noncommercial licenses**; the collection is provided for personal, noncommercial use. Review each license before commercial distribution. No publisher endorses PrepVault. PDFs are preserved without edits.
+
+- **Read guide** renders the original PDF in the site with PDF.js, including page selection, zoom and extractable page text. The reader and its worker are saved with the app shell for offline use. Original-PDF links and direct downloads remain available.
+- **Save all offline** prepares the production app shell and verifies each complete PDF before adding it to this browser's cache. Actual cache contents determine saved status. Interrupted or failed downloads can be retried; completed copies remain.
+- **Information resources** lists saved guides. These copies are local to this browser and origin, and are separate from account sync and household backups. A different preview hostname has a different offline library.
+- **Download all PDFs (ZIP)** gives an independent archive with a local HTML index and source/rights metadata. Extract it before opening `OPEN-ME.html`. Regenerate after catalog changes with `python3 scripts/build-handbook-pack.py`.
+- The build generates `handbook-sw.js` with exact-build HTML and static assets. The worker handles PDF byte ranges and never caches API requests, authentication responses, third-party services or private data. Offline saving is available in the HTTPS deployment and localhost production preview; development mode deliberately does not register a worker.
+
 ## Verification
 
-- `npm test`: regression tests for radio playback, saved map/route validation, migration, merge/conflict behavior, deletion, offline/reconnect handling, account cancellation, encrypted round trips, corrupted backups and the membership-policy source contract.
+- `npm test`: regression tests for handbook integrity and offline startup/PDF ranges/cache failures, radio playback, saved map/route validation, migration, merge/conflict behavior, deletion, offline/reconnect handling, account cancellation, encrypted round trips, corrupted backups and the membership-policy source contract.
 - Targeted ESLint passes for the new components and data modules.
 - Production build passes. Vite still reports a large application chunk inherited from the monolithic specialist interface; React/vendor and Leaflet are separate chunks.
 - Browser checks cover desktop and 390px mobile layouts, navigation, filters, editing and reload persistence, scenario controls, and dialogs.

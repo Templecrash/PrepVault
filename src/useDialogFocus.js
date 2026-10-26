@@ -10,7 +10,7 @@ export function useDialogFocus(onClose) {
     const previous = document.activeElement;
     const selector = 'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]';
     const focusable = () => [...panel.querySelectorAll(selector)].filter(el => el.getClientRects().length);
-    const first = panel.querySelector('input:not([type="hidden"]),select,textarea') || focusable()[0];
+    const first = panel.querySelector('input:not([type="hidden"]):not(:disabled),select:not(:disabled),textarea:not(:disabled)') || focusable()[0];
     first?.focus();
     const onKey = event => {
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current?.(); }
