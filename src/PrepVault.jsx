@@ -7,6 +7,7 @@ import WorkspaceShell from "./WorkspaceShell.jsx";
 import Welcome from "./Welcome.jsx";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
+import RadioPlayer from "./RadioPlayer.jsx";
 import { Icon } from "./brand.jsx";
 import { useDialogFocus } from "./useDialogFocus.js";
 import { validateSnapshot } from "./storage.js";
@@ -1023,55 +1024,6 @@ const EMERGENCY_FREQUENCIES = [
   { freq: "156.650", name: "Marine Ch 13 — Bridge", mode: "FM 1W", use: "Bridge-to-bridge navigation safety", license: "marine", band: "marine", priority: "med" },
 ];
 
-/* ── Live Scanner Feed Catalog (Broadcastify CDN streams) ── */
-const LIVE_SCANNER_FEEDS = [
-  // ── United States ──
-  { id: "32189", name: "Chicago Police Zone 6", type: "police", region: "Chicago, IL", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/32189", country: "US" },
-  { id: "6173", name: "LAPD Dispatch", type: "police", region: "Los Angeles, CA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/6173", country: "US" },
-  { id: "30083", name: "NYPD Citywide 1", type: "police", region: "New York, NY", bands: ["police"], url: "https://broadcastify.cdnstream1.com/30083", country: "US" },
-  { id: "26422", name: "FDNY Dispatch", type: "fire", region: "New York, NY", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/26422", country: "US" },
-  { id: "15614", name: "Denver Police/Fire", type: "police", region: "Denver, CO", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/15614", country: "US" },
-  { id: "13533", name: "Houston Police Dispatch", type: "police", region: "Houston, TX", bands: ["police"], url: "https://broadcastify.cdnstream1.com/13533", country: "US" },
-  { id: "31215", name: "San Francisco Police/Fire", type: "police", region: "San Francisco, CA", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/31215", country: "US" },
-  { id: "17437", name: "Atlanta Police Zone 5", type: "police", region: "Atlanta, GA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/17437", country: "US" },
-  { id: "33216", name: "Seattle Police Dispatch", type: "police", region: "Seattle, WA", bands: ["police"], url: "https://broadcastify.cdnstream1.com/33216", country: "US" },
-  { id: "14439", name: "Dallas Police/Fire", type: "police", region: "Dallas, TX", bands: ["police","fire"], url: "https://broadcastify.cdnstream1.com/14439", country: "US" },
-  { id: "36403", name: "Las Vegas Metro Police", type: "police", region: "Las Vegas, NV", bands: ["police"], url: "https://broadcastify.cdnstream1.com/36403", country: "US" },
-  { id: "25489", name: "Miami-Dade Police", type: "police", region: "Miami, FL", bands: ["police"], url: "https://broadcastify.cdnstream1.com/25489", country: "US" },
-  { id: "14580", name: "NOAA Weather Radio (KEC49)", type: "weather", region: "National", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/14580", country: "US" },
-  { id: "37498", name: "NWS Weather (Tampa)", type: "weather", region: "Tampa, FL", bands: ["noaa"], url: "https://broadcastify.cdnstream1.com/37498", country: "US" },
-  { id: "18493", name: "Boston Fire Dispatch", type: "fire", region: "Boston, MA", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/18493", country: "US" },
-  { id: "22698", name: "Phoenix Fire/EMS", type: "ems", region: "Phoenix, AZ", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/22698", country: "US" },
-  { id: "20367", name: "W5SRC 2m Repeater", type: "ham", region: "Dallas, TX", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/20367", country: "US" },
-  { id: "29948", name: "HAM 2m Repeater (SoCal)", type: "ham", region: "Southern CA", bands: ["ham2m"], url: "https://broadcastify.cdnstream1.com/29948", country: "US" },
-  { id: "27014", name: "USCG Sector Houston", type: "marine", region: "Houston, TX", bands: ["marine"], url: "https://broadcastify.cdnstream1.com/27014", country: "US" },
-  { id: "14752", name: "BNSF Rail Dispatch", type: "railroad", region: "Midwest", bands: ["railroad"], url: "https://broadcastify.cdnstream1.com/14752", country: "US" },
-  { id: "16867", name: "LAX Tower/Ground", type: "aviation", region: "Los Angeles, CA", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/16867", country: "US" },
-  { id: "19990", name: "ORD Tower (Chicago)", type: "aviation", region: "Chicago, IL", bands: ["aviation"], url: "https://broadcastify.cdnstream1.com/19990", country: "US" },
-  // ── Canada ──
-  { id: "ca-tor-police", name: "Toronto Police Dispatch", type: "police", region: "Toronto, ON", bands: ["police"], url: "https://broadcastify.cdnstream1.com/26498", country: "CA" },
-  { id: "ca-van-fire", name: "Vancouver Fire/Rescue", type: "fire", region: "Vancouver, BC", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/19396", country: "CA" },
-  { id: "ca-mtl-ems", name: "Montreal EMS (Urgences-santé)", type: "ems", region: "Montreal, QC", bands: ["ems"], url: "https://broadcastify.cdnstream1.com/28442", country: "CA" },
-  { id: "ca-cal-police", name: "Calgary Police Service", type: "police", region: "Calgary, AB", bands: ["police"], url: "https://broadcastify.cdnstream1.com/24210", country: "CA" },
-  { id: "ca-ott-fire", name: "Ottawa Fire/EMS", type: "fire", region: "Ottawa, ON", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/30218", country: "CA" },
-  { id: "ca-edm-police", name: "Edmonton Police Service", type: "police", region: "Edmonton, AB", bands: ["police"], url: "https://broadcastify.cdnstream1.com/21453", country: "CA" },
-  { id: "ca-wpg-fire", name: "Winnipeg Fire/Paramedic", type: "fire", region: "Winnipeg, MB", bands: ["fire","ems"], url: "https://broadcastify.cdnstream1.com/18290", country: "CA" },
-  { id: "ca-hfx-police", name: "Halifax Regional Police", type: "police", region: "Halifax, NS", bands: ["police"], url: "https://broadcastify.cdnstream1.com/27163", country: "CA" },
-  { id: "ca-vic-fire", name: "Victoria Fire Dispatch", type: "fire", region: "Victoria, BC", bands: ["fire"], url: "https://broadcastify.cdnstream1.com/22847", country: "CA" },
-  { id: "ca-ham-ems", name: "Hamilton Paramedic Service", type: "ems", region: "Hamilton, ON", bands: ["ems"], url: "https://broadcastify.cdnstream1.com/25571", country: "CA" },
-];
-
-const FEED_TYPE_META = {
-  police: { icon: "🚔", color: "#3b82f6", label: "Police" },
-  fire: { icon: "🚒", color: "#ef4444", label: "Fire" },
-  ems: { icon: "🚑", color: "#f59e0b", label: "EMS" },
-  weather: { icon: "🌦️", color: "#06b6d4", label: "Weather" },
-  ham: { icon: "📻", color: "#a855f7", label: "HAM Radio" },
-  marine: { icon: "⚓", color: "#0ea5e9", label: "Marine" },
-  railroad: { icon: "🚂", color: "#84cc16", label: "Railroad" },
-  aviation: { icon: "✈️", color: "#ec4899", label: "Aviation" },
-};
-
 const CRISIS_TYPES = [
   { id: "natural_disaster", name: "Natural Disaster", icon: "🌪️", color: "#0ea5e9", actions: ["Shelter in place or evacuate per local guidance", "Fill all water containers immediately", "Charge all devices and batteries now", "Move critical supplies to ground level (flood) or interior room (tornado/hurricane)", "Activate weather radio monitoring on all NOAA channels"] },
   { id: "grid_failure", name: "Grid Failure / Blackout", icon: "⚡", color: "#f59e0b", actions: ["Start generator — load-shed to essentials only", "Minimize fridge/freezer openings (stays cold 24-48h sealed)", "Switch to wood/propane heat if available", "Conserve water — well pump requires power", "Activate HAM radio check-in schedule with contacts"] },
@@ -1592,47 +1544,6 @@ function GenericModal({ title, fields, onSave, onClose }) {
             <button onClick={() => onSave(data)} style={{ ...btnSt, flex: 1, background: "#214c39", color: "#243d30", fontWeight: 700 }}>Save</button>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function PinLock({ onUnlock }) {
-  const [pin, setPin] = useState("");
-  const [err, setErr] = useState(false);
-  const savedPin = (() => { try { return localStorage.getItem("prepvault-pin"); } catch { return null; } })();
-  const [stored, setStored] = useState(savedPin || "");
-  const [setup, setSetup] = useState(!savedPin);
-  const handleDigit = (d) => {
-    if (pin.length >= 4) return;
-    const next = pin + d;
-    setPin(next);
-    setErr(false);
-    if (next.length === 4) {
-      if (setup) { setStored(next); setSetup(false); setPin(""); try { localStorage.setItem("prepvault-pin", next); } catch {} }
-      else if (next === stored) { setTimeout(() => onUnlock(), 200); }
-      else { setErr(true); setTimeout(() => { setPin(""); setErr(false); }, 800); }
-    }
-  };
-  const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, "del"];
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 20px" }}>
-      <div style={{ fontSize: 28, marginBottom: 16 }}>🔒</div>
-      <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>Private property details</h2>
-      <p style={{ margin: "0 0 28px", fontSize: 12, color: "rgba(36,61,48,0.58)" }}>{setup ? "Set a 4-digit PIN" : "Enter PIN"}</p>
-      <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ width: 16, height: 16, borderRadius: 8, background: i < pin.length ? (err ? "#ef4444" : "#22c55e") : "rgba(36,61,48,0.1)", border: `2px solid ${i < pin.length ? (err ? "#ef4444" : "#22c55e") : "rgba(36,61,48,0.15)"}`, transition: "all 0.2s" }} />
-        ))}
-      </div>
-      {err && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 12 }}>Wrong PIN</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,68px)", gap: 8 }}>
-        {keys.map((d, i) => d === null ? <div key={i} /> : (
-          <button key={i} onClick={() => d === "del" ? setPin((p) => p.slice(0, -1)) : handleDigit(String(d))}
-            style={{ width: 68, height: 52, borderRadius: 12, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.04)", color: d === "del" ? "rgba(36,61,48,0.4)" : "#243d30", fontSize: d === "del" ? 14 : 20, fontWeight: 600, cursor: "pointer", fontFamily: d === "del" ? "inherit" : M, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, textAlign: "center" }}>
-            {d === "del" ? "⌫" : d}
-          </button>
-        ))}
       </div>
     </div>
   );
@@ -4072,7 +3983,7 @@ function CameraFeedCanvas({ cam, expanded }) {
   return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
 }
 
-function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, amenities, revealedCodes, setRevealedCodes, user, items }) {
+function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, amenities, revealedCodes, setRevealedCodes, user, items }) {
   const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
@@ -4108,8 +4019,6 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
       { id: "co_detector", name: "CO / Smoke Detectors", icon: "🔋", depends: "Battery", dep: "battery", backup: hasBattery ? "Replacement batteries" : null, hidden: true, risk: "critical", desc: "No working CO detector during generator use is lethal.", fix: "Replace batteries every 6 months. Keep spare 9V batteries." },
     ];
   }, [items]);
-
-  if (!propUnlocked) return <PinLock onUnlock={() => setPropUnlocked(true)} />;
 
   const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
   const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "deps", l: "Dependencies", i: "🔌" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "systems", l: "Systems", i: "🏠" }];
@@ -5393,7 +5302,6 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   const [securePinState, setSecurePinState] = useState("");
   const [securePinErrorState, setSecurePinErrorState] = useState(false);
   const [rpMapModal, setRpMapModal] = useState(null);
-  const [scanning, setScanning] = useState(true);
   const [scanIdx, setScanIdx] = useState(0);
   const [bandFilter, setBandFilter] = useState("all");
   const [freqSearch, setFreqSearch] = useState("");
@@ -5418,25 +5326,6 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   const [newFreq, setNewFreq] = useState("");
   const [newFreqName, setNewFreqName] = useState("");
 
-  // Live scanner audio state
-  const [audioEnabled, setAudioEnabled] = useState(false);
-  const [volume, setVolume] = useState(0.5);
-  const [selectedFeedId, setSelectedFeedId] = useState(() => {
-    try { return localStorage.getItem("prepvault-scanner-feed") || LIVE_SCANNER_FEEDS[0].id; } catch { return LIVE_SCANNER_FEEDS[0].id; }
-  });
-  const [liveStreamActive, setLiveStreamActive] = useState(false);
-  const [streamError, setStreamError] = useState(null);
-  const [feedFilter, setFeedFilter] = useState("all");
-  const [countryFilter, setCountryFilter] = useState("all");
-  const [customStreamUrl, setCustomStreamUrl] = useState("");
-  const [showFeedBrowser, setShowFeedBrowser] = useState(false);
-  const [userChannels, setUserChannels] = useState(() => { try { const r = localStorage.getItem("prepvault-user-channels"); return r ? JSON.parse(r) : []; } catch { return []; } });
-  useEffect(() => { try { localStorage.setItem("prepvault-user-channels", JSON.stringify(userChannels)); } catch {} }, [userChannels]);
-  const liveAudioRef = useRef(null);
-  const audioCtxRef = useRef(null);
-  const audioNoiseRef = useRef(null);
-  const audioGainRef = useRef(null);
-
   // 7C: Channel activity log state
   const [activityLog, setActivityLog] = useState(() => {
     try { const s = localStorage.getItem("prepvault-radio-log"); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -5445,7 +5334,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   const [logChannel, setLogChannel] = useState("");
 
   const subTabs = [
-    { id: "scanner", l: "Scanner", i: "📡" },
+    { id: "scanner", l: "Radio", i: "📡" },
     { id: "codes", l: "Codes", i: "🔐" },
     { id: "equipment", l: "Equipment", i: "🔧" },
     { id: "chat", l: "Chat", i: "💬" },
@@ -5617,82 +5506,6 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     return { assignments, countdownDisplay, secsUntilNext, nextSchedule: COMMS_PLAN.schedule[nextIdx] };
   }, [callSigns, crTick]);
 
-  // Scanner animation — cycle through channels
-  useEffect(() => {
-    if (!scanning) return;
-    const timer = setInterval(() => {
-      setScanIdx(i => (i + 1) % monitoredChannels.length);
-    }, 2200);
-    return () => clearInterval(timer);
-  }, [scanning, monitoredChannels.length]);
-
-  // Persist selected feed
-  useEffect(() => {
-    try { localStorage.setItem("prepvault-scanner-feed", selectedFeedId); } catch { /* ignore */ }
-  }, [selectedFeedId]);
-
-  // Live scanner audio stream
-  useEffect(() => {
-    if (!audioEnabled) {
-      // Stop everything when audio disabled
-      if (liveAudioRef.current) { liveAudioRef.current.pause(); liveAudioRef.current.src = ""; liveAudioRef.current = null; }
-      setLiveStreamActive(false);
-      setStreamError(null);
-      return;
-    }
-    const feed = LIVE_SCANNER_FEEDS.find(f => f.id === selectedFeedId);
-    if (!feed) { setStreamError("No feed selected"); return; }
-
-    // Create or reuse Audio element
-    let audio = liveAudioRef.current;
-    if (!audio) {
-      audio = new Audio();
-      audio.crossOrigin = "anonymous";
-      liveAudioRef.current = audio;
-    }
-
-    // Set up event handlers
-    const onPlaying = () => { setLiveStreamActive(true); setStreamError(null); };
-    const onError = () => { setLiveStreamActive(false); setStreamError("Stream unavailable — try another feed"); };
-    const onWaiting = () => { setStreamError("Buffering..."); };
-    const onStalled = () => { setStreamError("Stream stalled — reconnecting..."); };
-
-    audio.addEventListener("playing", onPlaying);
-    audio.addEventListener("error", onError);
-    audio.addEventListener("waiting", onWaiting);
-    audio.addEventListener("stalled", onStalled);
-
-    // Start streaming
-    audio.src = feed.url;
-    audio.volume = volume;
-    audio.play().catch(() => {
-      setStreamError("Click anywhere to start audio (browser autoplay policy)");
-      // Add one-time click handler to resume
-      const resumeAudio = () => {
-        if (liveAudioRef.current) liveAudioRef.current.play().catch(() => {});
-        document.removeEventListener("click", resumeAudio);
-      };
-      document.addEventListener("click", resumeAudio);
-    });
-
-    return () => {
-      audio.removeEventListener("playing", onPlaying);
-      audio.removeEventListener("error", onError);
-      audio.removeEventListener("waiting", onWaiting);
-      audio.removeEventListener("stalled", onStalled);
-      audio.pause();
-      audio.src = "";
-    };
-  }, [audioEnabled, selectedFeedId]);
-
-  // Update volume on live stream
-  useEffect(() => {
-    if (liveAudioRef.current) liveAudioRef.current.volume = volume;
-  }, [volume]);
-
-  const selectedFeed = LIVE_SCANNER_FEEDS.find(f => f.id === selectedFeedId);
-  const feedMeta = selectedFeed ? (FEED_TYPE_META[selectedFeed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" }) : null;
-
   // 7C: Persist activity log to localStorage
   useEffect(() => {
     try { localStorage.setItem("prepvault-radio-log", JSON.stringify(activityLog)); } catch { /* ignore */ }
@@ -5722,7 +5535,6 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     return () => clearInterval(iv);
   }, []);
 
-  const currentChannel = monitoredChannels[scanIdx] || monitoredChannels[0];
 
   // Band filter for frequency database
   const bands = [
@@ -5740,7 +5552,6 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   // Equipment from inventory
   const commsEquip = items.filter(i => i.category === "comms");
 
-  const statusColor = (s) => s === "active" ? "#22c55e" : s === "monitoring" ? "#f59e0b" : "rgba(36,61,48,0.15)";
   const priorityColor = (p) => p === "emergency" ? "#ef4444" : p === "high" ? "#f59e0b" : p === "med" ? "#0ea5e9" : "rgba(36,61,48,0.25)";
   const licenseLabel = (l) => l === "ham" ? "HAM License" : l === "gmrs" ? "GMRS License" : l === "marine" ? "Marine License" : l === "none" ? "License-Free" : l;
 
@@ -5756,23 +5567,13 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     setMonitoredChannels(prev => prev.filter(c => c.freq !== freq));
   };
 
-  const signalBars = (level) => {
-    return (
-      <div style={{ display: "flex", gap: 1, alignItems: "flex-end", height: 14 }}>
-        {[1, 2, 3, 4, 5].map(n => (
-          <div key={n} style={{ width: 3, height: 3 + n * 2, borderRadius: 1, background: n <= level ? "#22c55e" : "rgba(36,61,48,0.08)", transition: "background 0.3s" }} />
-        ))}
-      </div>
-    );
-  };
-
   return (
     <div>
       {/* Region indicator */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "6px 12px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd" }}>
         <span style={{ fontSize: 11 }}>🌎</span>
         <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Region: <strong style={{ color: "rgba(36,61,48,0.6)" }}>North America (US/Canada)</strong></span>
-        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginLeft: "auto" }}>NOAA: US/CA · HAM/GMRS/FRS/CB: Universal · Marine VHF: International</span>
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginLeft: "auto" }}>Internet radio · Weather, news and saved streams</span>
       </div>
       {/* Sub-tab nav */}
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e0e6da", marginBottom: 16, overflowX: "auto" }}>
@@ -5786,170 +5587,18 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
       {/* ═══ SCANNER ═══ */}
       {commsSub === "scanner" && (
         <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ fontSize: 12, color: "#65765c", lineHeight: 1.6 }}><strong>{liveStreamActive && audioEnabled ? "Internet audio stream" : "Sample scanner"}</strong> · The frequency display and signal levels are a reference simulation, not a physical radio receiver. Live audio plays the selected internet feed independently.</div>
-          {/* Live Scanner Display */}
-          <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "#f0f3ec", border: liveStreamActive ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(34,197,94,0.15)" }}>
-            <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(34,197,94,0.08)" }}>
-              {/* Top bar: status + controls */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {liveStreamActive && audioEnabled ? (
-                    <>
-                      <div style={{ width: 8, height: 8, borderRadius: 4, background: "#ef4444", boxShadow: "0 0 10px rgba(239,68,68,0.6)", animation: "pulse 1s infinite" }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>LIVE</span>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ width: 8, height: 8, borderRadius: 4, background: scanning ? "#22c55e" : "#ef4444", boxShadow: scanning ? "0 0 8px rgba(34,197,94,0.5)" : "none", animation: scanning ? "pulse 1.5s infinite" : "none" }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: scanning ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>PREVIEW</span>
-                    </>
-                  )}
-                </div>
-                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <button onClick={() => setScanning(!scanning)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (scanning ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"), background: scanning ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", color: scanning ? "#ef4444" : "#22c55e", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{scanning ? "PAUSE PREVIEW" : "PLAY PREVIEW"}</button>
-                  <button onClick={() => setAudioEnabled(!audioEnabled)} style={{ padding: "4px 10px", borderRadius: 6, border: audioEnabled ? "1px solid rgba(239,68,68,0.3)" : "1px solid #dce3d5", background: audioEnabled ? "rgba(239,68,68,0.08)" : "rgba(36,61,48,0.03)", color: audioEnabled ? "#ef4444" : "rgba(36,61,48,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }} title={audioEnabled ? "Stop live audio" : "Start live audio"}>{audioEnabled ? "🔴" : "🔇"}</button>
-                </div>
-              </div>
+          <RadioPlayer />
 
-              {/* Live feed source indicator */}
-              {audioEnabled && selectedFeed && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 10, borderRadius: 8, background: liveStreamActive ? "rgba(239,68,68,0.05)" : "rgba(36,61,48,0.02)", border: liveStreamActive ? "1px solid rgba(239,68,68,0.12)" : "1px solid #e5eadd" }}>
-                  <span style={{ fontSize: 14 }}>{feedMeta?.icon || "📡"}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: liveStreamActive ? "#243d30" : "rgba(36,61,48,0.5)" }}>{selectedFeed.name}</div>
-                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{selectedFeed.region} · {feedMeta?.label || selectedFeed.type}</div>
-                  </div>
-                  {liveStreamActive && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                      {[1,2,3,4].map(n => (
-                        <div key={n} style={{ width: 2, height: 6 + Math.random() * 10, background: "#ef4444", borderRadius: 1, animation: `pulse ${0.3 + n * 0.15}s infinite alternate` }} />
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid #dce3d5", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
-                </div>
-              )}
-
-              {/* Stream error/status */}
-              {audioEnabled && streamError && (
-                <div style={{ fontSize: 11, color: "#f59e0b", textAlign: "center", padding: "4px 8px", marginBottom: 6, background: "rgba(245,158,11,0.06)", borderRadius: 6, border: "1px solid rgba(245,158,11,0.1)" }}>{streamError}</div>
-              )}
-
-              {/* Volume control */}
-              {audioEnabled && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2, padding: "4px 0" }}>
-                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🔈</span>
-                  <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} style={{ flex: 1, accentColor: liveStreamActive ? "#ef4444" : "#22c55e", height: 4 }} />
-                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🔊</span>
-                  <span style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", minWidth: 28, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
-                </div>
-              )}
-
-              {!audioEnabled && (
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textAlign: "center", marginTop: 2, fontStyle: "italic" }}>Tap the audio button to stream live scanner feeds via Broadcastify</div>
-              )}
-
-              {/* Large frequency display */}
-              <div style={{ textAlign: "center", padding: "8px 0" }}>
-                <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#22c55e", letterSpacing: 2, textShadow: "0 0 20px rgba(34,197,94,0.3)", lineHeight: 1 }}>
-                  {currentChannel.freq}<span style={{ fontSize: 14, marginLeft: 4, color: "rgba(34,197,94,0.5)" }}>MHz</span>
-                </div>
-                <div style={{ fontSize: 12, color: "rgba(34,197,94,0.6)", marginTop: 6, fontWeight: 600 }}>{currentChannel.name}</div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 }}>
-                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: statusColor(currentChannel.status) + "15", color: statusColor(currentChannel.status), fontWeight: 700, textTransform: "uppercase" }}>Sample {currentChannel.status}</span>
-                  {signalBars(currentChannel.signal)}
-                </div>
-              </div>
-              {/* Scan progress bar */}
-              <div style={{ height: 2, background: "rgba(34,197,94,0.08)", borderRadius: 1, marginTop: 10, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: ((scanIdx + 1) / monitoredChannels.length * 100) + "%", background: "linear-gradient(90deg, #22c55e, rgba(34,197,94,0.3))", transition: "width 0.5s ease", borderRadius: 1 }} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Live Feed Browser ── */}
-          {showFeedBrowser && (
-            <div style={{ ...cardSt, padding: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Live Scanner Feeds</h3>
-                <button onClick={() => setShowFeedBrowser(false)} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid #dce3d5", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
-              </div>
-              {/* Country filter */}
-              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                {[{ id: "all", l: "All", flag: "🌎" }, { id: "US", l: "United States", flag: "🇺🇸" }, { id: "CA", l: "Canada", flag: "🇨🇦" }].map(c => (
-                  <button key={c.id} onClick={() => setCountryFilter(c.id)} style={{ padding: "3px 8px", borderRadius: 5, border: countryFilter === c.id ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da", background: countryFilter === c.id ? "rgba(33,76,57,0.1)" : "rgba(36,61,48,0.02)", color: countryFilter === c.id ? "#214c39" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{c.flag} {c.l}</button>
-                ))}
-              </div>
-              {/* Feed type filters */}
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
-                {[{ id: "all", l: "All" }, ...Object.entries(FEED_TYPE_META).map(([k, v]) => ({ id: k, l: v.label, icon: v.icon }))].map(f => (
-                  <button key={f.id} onClick={() => setFeedFilter(f.id)} style={{ padding: "3px 8px", borderRadius: 5, border: feedFilter === f.id ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da", background: feedFilter === f.id ? "rgba(33,76,57,0.1)" : "rgba(36,61,48,0.02)", color: feedFilter === f.id ? "#214c39" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{f.icon ? f.icon + " " : ""}{f.l}</button>
-                ))}
-              </div>
-              {/* My Channels */}
-              {userChannels.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>My Saved Channels ({userChannels.length})</div>
-                  <div style={{ display: "grid", gap: 2 }}>
-                    {userChannels.map(feed => {
-                      const meta = FEED_TYPE_META[feed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" };
-                      const isActive = feed.id === selectedFeedId;
-                      return (
-                        <div key={feed.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(33,76,57,0.03)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(33,76,57,0.08)", cursor: "pointer" }}
-                          onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }}>
-                          <span style={{ fontSize: 14 }}>{meta.icon}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
-                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
-                          </div>
-                          <button onClick={(e) => { e.stopPropagation(); setUserChannels(prev => prev.filter(f => f.id !== feed.id)); }} style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(239,68,68,0.15)", background: "none", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {/* Feed list */}
-              <div style={{ display: "grid", gap: 3, maxHeight: 280, overflowY: "auto" }}>
-                {LIVE_SCANNER_FEEDS.filter(f => (feedFilter === "all" || f.type === feedFilter) && (countryFilter === "all" || f.country === countryFilter)).map(feed => {
-                  const meta = FEED_TYPE_META[feed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" };
-                  const isActive = feed.id === selectedFeedId;
-                  const isSaved = userChannels.some(uc => uc.id === feed.id);
-                  return (
-                    <div key={feed.id} onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(36,61,48,0.01)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid #e5eadd", cursor: "pointer", transition: "all 0.15s" }}>
-                      <span style={{ fontSize: 16 }}>{meta.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#243d30" : "rgba(36,61,48,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); if (isSaved) { setUserChannels(prev => prev.filter(uc => uc.id !== feed.id)); } else { setUserChannels(prev => [...prev, feed]); } }} style={{ padding: "2px 6px", borderRadius: 4, border: isSaved ? "1px solid rgba(234,179,8,0.2)" : "1px solid rgba(34,197,94,0.15)", background: "none", color: isSaved ? "#eab308" : "#22c55e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{isSaved ? "★ Saved" : "+ Save"}</button>
-                      <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: meta.color + "15", color: meta.color, fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{meta.label}</span>
-                      {isActive && liveStreamActive && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.5)", animation: "pulse 1s infinite" }} />}
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Custom stream URL */}
-              <div style={{ marginTop: 10, padding: "10px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd" }}>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Custom Stream URL</div>
-                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <input value={customStreamUrl} onChange={e => setCustomStreamUrl(e.target.value)} placeholder="https://broadcastify.cdnstream1.com/FEED_ID" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: M }} />
-                  <button onClick={() => { if (customStreamUrl.trim()) { const customFeed = { id: "custom-" + Date.now(), name: "Custom Feed", type: "police", region: "Custom", bands: [], url: customStreamUrl.trim(), country: "US" }; setUserChannels(prev => [...prev, customFeed]); setSelectedFeedId(customFeed.id); if (!audioEnabled) setAudioEnabled(true); setCustomStreamUrl(""); } }} style={{ padding: "6px 10px", borderRadius: 6, background: "#214c39", border: "none", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>Paste any Broadcastify or Icecast MP3 stream URL. Find feeds at broadcastify.com</div>
-              </div>
-            </div>
-          )}
-
-          {/* Monitored Channels List */}
+          {/* Saved frequency reference, separate from internet audio */}
           <div style={{ ...cardSt, padding: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Reference Channels ({monitoredChannels.length})</h3>
               <div style={{ display: "flex", gap: 4 }}>
-                <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.04)", color: "rgba(239,68,68,0.6)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Live Feeds</button>
+                <a href="#live-radio" style={{padding:"6px 10px",fontSize:12,color:"#426638"}}>Live radio ↑</a>
                 <button onClick={() => setShowAddFreq(!showAddFreq)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(255,255,255,0.1)", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ Add</button>
               </div>
             </div>
+            <p style={{fontSize:12,color:"#6d7865",margin:"0 0 12px"}}>Your frequency reference for physical radios. Listening above uses the selected internet station.</p>
             {showAddFreq && (
               <div style={{ display: "flex", gap: 4, marginBottom: 10, alignItems: "center" }}>
                 <input value={newFreq} onChange={e => setNewFreq(e.target.value)} placeholder="Freq (MHz)" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#22c55e", fontSize: 11, fontFamily: M }} />
@@ -5959,34 +5608,12 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
             )}
             <div style={{ display: "grid", gap: 2 }}>
               {monitoredChannels.map((ch, i) => (
-                <div key={ch.freq + i} onClick={() => { setScanIdx(i); setScanning(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 6, background: scanIdx === i ? "rgba(34,197,94,0.06)" : "rgba(36,61,48,0.01)", border: scanIdx === i ? "1px solid rgba(34,197,94,0.15)" : "1px solid transparent", cursor: "pointer", transition: "all 0.15s" }}>
-                  <div style={{ width: 6, height: 6, borderRadius: 3, background: statusColor(ch.status), boxShadow: ch.status === "active" ? `0 0 6px ${statusColor(ch.status)}50` : "none", flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: M, color: scanIdx === i ? "#22c55e" : "rgba(36,61,48,0.6)" }}>{ch.freq}</span>
-                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.name}</span>
-                    </div>
-                  </div>
-                  {signalBars(ch.signal)}
-                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M, flexShrink: 0, width: 45, textAlign: "right" }}>{ch.lastHeard}</span>
-                  <span onClick={(e) => { e.stopPropagation(); removeMonitoredFreq(ch.freq); }} style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", cursor: "pointer", padding: "2px 4px", borderRadius: 3, transition: "color 0.15s" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(36,61,48,0.15)"}>×</span>
+                <div key={ch.freq + i} style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 6, background: scanIdx === i ? "#edf3e7" : "transparent", border: "1px solid #e5eadd" }}>
+                  <button aria-pressed={scanIdx === i} onClick={() => setScanIdx(i)} style={{flex:1,display:"flex",alignItems:"center",gap:12,padding:"10px 12px",border:0,background:"none",textAlign:"left"}}><strong style={{fontSize:12,color:"#365931",minWidth:64}}>{ch.freq}</strong><span style={{fontSize:12,color:"#6c7865"}}>{ch.name}</span></button>
+                  <button aria-label={"Remove reference " + ch.name} onClick={() => removeMonitoredFreq(ch.freq)} style={{padding:"8px 12px",border:0,background:"none",color:"#78836e"}}>×</button>
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
-            {[
-              { label: "Active", value: monitoredChannels.filter(c => c.status === "active").length, color: "#22c55e" },
-              { label: "Monitoring", value: monitoredChannels.filter(c => c.status === "monitoring").length, color: "#f59e0b" },
-              { label: "Quiet", value: monitoredChannels.filter(c => c.status === "quiet").length, color: "rgba(36,61,48,0.58)" },
-            ].map((s, i) => (
-              <div key={i} style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
-              </div>
-            ))}
           </div>
 
           {/* 7C: Channel Activity Log */}
@@ -8441,7 +8068,6 @@ export default function PrepVault() {
   const [editItem, setEditItem] = useState(null);
   const [selScen, setSelScen] = useState("economic");
   const [simDuration, setSimDuration] = useState(180);
-  const [propUnlocked, setPropUnlocked] = useState(false);
   const [propSub, setPropSub] = useState("map");
   const [propAddress, setPropAddress] = useState(() => saved.current?.propAddress || "");
   const [pins, setPins] = useState(() => saved.current?.pins || SAMPLE_MAP_PINS);
@@ -8722,7 +8348,6 @@ export default function PrepVault() {
       try { const dismissed = JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"); setDismissedOpps(Array.isArray(dismissed) ? dismissed : []); } catch { setDismissedOpps([]); }
       const until = Number(localStorage.getItem("prepvault-alerts-dismissed-until"));
       setAlertsDismissedUntil(Number.isFinite(until) && until > Date.now() ? until : null);
-      setPropUnlocked(false);
       setRestoreVersion(version => version + 1);
     }
     saved.current = data;
@@ -8963,7 +8588,7 @@ export default function PrepVault() {
       case "dashboard":
         return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onSetup={openSetup} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} profile={propertyProfile}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "property":
-        return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
+        return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "preps":
         return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":

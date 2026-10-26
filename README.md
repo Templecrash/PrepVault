@@ -8,9 +8,9 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | --- | --- |
 | Overview | Recorded category coverage, essential supplies, priority alerts, household setup, detailed readiness analysis, weather and activity |
 | Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar and category calculations |
-| Property | PIN gate, maps and pins, access codes, manuals/routes, security, cameras and connected-home controls |
+| Property | Maps and pins, access codes with reveal controls, manuals/routes, security, cameras and connected-home controls |
 | Your people | Contacts, medical/skill information, location tracker, skills and rationing |
-| Communications | Frequency reference, sample scanner, internet feeds, codes, equipment, local notes, community chat, comms plans and rally points |
+| Communications | Live radio, saved custom streams, frequency reference, codes, equipment, local notes, community chat, comms plans and rally points |
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
 | Scenario lab | Original scenarios, household/climate controls, duration estimates and scenario guidance |
 | Resource planning | Stock estimates, conversions, trade-offs, system dependencies and opportunities |
@@ -32,7 +32,7 @@ The app opens without backend credentials. Choose **Explore the workspace** for 
 ## Data and backups
 
 - The working plan lives in browser storage. Keep the tab open to use the loaded local tools without a connection; reloading, maps, weather and internet services may need the network. There is no service worker guaranteeing offline startup.
-- **Settings & backups** can save a separate local snapshot or download an encrypted complete backup. Encrypting a backup does not encrypt the active browser storage. A property PIN is a UI gate, not encryption.
+- **Settings & backups** can save a separate local snapshot or download an encrypted complete backup. Encrypting a backup does not encrypt the active browser storage. Property tools open directly; individual access codes remain hidden until revealed.
 - Backups preserve the main household collections and local feature settings. Account credentials and sync baselines are excluded. V3 inventory backups remain readable; V4 adds complete state and settings.
 - Encrypted backups retain the original AES-256-GCM format and PBKDF2-SHA256 derivation with 310,000 iterations. There is no passphrase recovery.
 - Existing duplicate sample IDs are repaired without dropping records. Zero stock and empty inventories remain empty across saves and restores.
@@ -46,11 +46,11 @@ For a fresh Supabase install, review and run `supabase-schema.sql`, then configu
 
 For an existing database, review `supabase/migrations/README.md` and apply the included membership-policy migration in staging first. It fixes a recursive membership SELECT policy while retaining the same membership visibility. The redesign does **not** automatically migrate the remote database.
 
-Community chat uses the selected joined community. Device-only notes are stored locally; local images are explicitly identified. The scanner display is a reference simulation; internet audio is an independent feed. Hardware access, remote authentication, community chat and provider APIs require their existing configured services.
+Community chat uses the selected joined community. Device-only notes are stored locally; local images are explicitly identified. Live radio plays verified HTTPS MP3/AAC sources directly: a Buffalo NOAA weather relay supplied by weatherUSA, WNYC news, KEXP and Toronto’s JAZZ.FM91. The player starts from a click, reports actual media playback/buffering/failure, supports volume and custom saved streams, and releases the connection when paused or unmounted. The frequency list is a reference for physical radios, separate from internet audio. Hardware access, remote authentication, community chat and provider APIs require their existing configured services.
 
 ## Verification
 
-- `npm test`: 33 regression tests for migration, merge/conflict behavior, deletion, offline/reconnect handling, account cancellation, encrypted round trips, corrupted backups and the membership-policy source contract.
+- `npm test`: 50 regression tests for radio playback, migration, merge/conflict behavior, deletion, offline/reconnect handling, account cancellation, encrypted round trips, corrupted backups and the membership-policy source contract.
 - Targeted ESLint passes for the new components and data modules.
 - Production build passes. Vite still reports a large application chunk inherited from the monolithic specialist interface; React/vendor and Leaflet are separate chunks.
 - Browser checks cover desktop and 390px mobile layouts, navigation, filters, editing and reload persistence, scenario controls, and dialogs.
