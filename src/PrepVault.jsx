@@ -198,8 +198,8 @@ const CATEGORIES = {
     label: "Power", icon: "⚡", color: "#eab308", desc: "Power generation & lighting",
     subTypes: {
       solarPanel: { label: "Solar", icon: "☀️", fields: ["watts", "inverter"], dailyYield: 8, unit: "panels" },
-      generator: { label: "Generator", icon: "⚙️", fields: ["watts", "fuelType"], dailyYield: 24, unit: "gen" },
-      powerBank: { label: "Power Bank", icon: "🪫", fields: ["mah", "isRechargeable"], unit: "units" },
+      generator: { label: "Generator", icon: "⚙️", fields: ["watts", "fuelType", "runtimeHours"], dailyYield: 24, unit: "gen" },
+      powerBank: { label: "Power Bank", icon: "🪫", fields: ["mah", "isRechargeable", "runtimeHours"], unit: "units" },
       headlamp: { label: "Flashlights", icon: "🔦", fields: [], unit: "lights" },
       candles: { label: "Candles", icon: "🕯️", fields: [], unit: "items", consumable: true },
     },
@@ -605,7 +605,7 @@ const FIELD_META = {
   varieties: { label: "Varieties", type: "number", placeholder: "15" }, animalType: { label: "Animal", type: "select", options: ["Chickens", "Goats", "Rabbits", "Cattle", "Ducks"] },
   count: { label: "Count", type: "number", placeholder: "6" }, gearType: { label: "Gear", type: "text", placeholder: "Rod, bow" },
   kitLevel: { label: "Level", type: "select", options: ["Basic", "Intermediate", "Advanced", "Professional"] },
-  medication: { label: "Med", type: "text", placeholder: "Lisinopril" }, daysSupply: { label: "Days", type: "number", placeholder: "90" },
+  medication: { label: "Med", type: "text", placeholder: "Lisinopril" }, daysSupply: { label: "Supply remaining (days)", type: "number", placeholder: "90", help: "Total days remaining for this medication entry at its prescribed use, across the quantity recorded." },
   type: { label: "Type", type: "text", placeholder: "..." }, certLevel: { label: "Training", type: "select", options: ["First aid", "Wilderness", "EMT", "Doctor", "Books"] },
   cords: { label: "Cords", type: "number", placeholder: "2" }, seasoned: { label: "Seasoned", type: "select", options: ["Well seasoned", "Partial", "Green"] },
   woodSpecies: { label: "Species", type: "select", options: ["Oak", "Maple", "Birch", "Ash", "Cherry", "Hickory", "Pine", "Mixed hardwood", "Mixed"] },
@@ -629,6 +629,7 @@ const FIELD_META = {
   level: { label: "Level", type: "select", options: ["II", "IIIA", "III", "IV"] },
   watts: { label: "Watts", type: "number", placeholder: "200" }, inverter: { label: "Inverter", type: "select", options: ["Yes", "Separate", "None"] },
   mah: { label: "mAh", type: "number", placeholder: "20000" },
+  runtimeHours: { label: "Backup runtime (hours)", type: "number", placeholder: "24", help: "Total hours this entry can support your planned devices with its current fuel or charge. Include all units once; use a tested or manufacturer-rated runtime at that load. Overview uses the longest recorded backup, not a sum of separate sources." },
   /* Firearms */
   firearmAction: { label: "Action", type: "select", options: ["Semi-auto", "Bolt", "Pump", "Lever", "Revolver", "Break-action", "Full-auto"] },
   gauge: { label: "Gauge", type: "select", options: ["12ga", "20ga", "410", ".410"] },
@@ -1688,7 +1689,7 @@ function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
                 {subFields.map((fk) => { const meta = FIELD_META[fk]; if (!meta) return null; return meta.type === "select" ? (
                   <div key={fk}><label htmlFor={"supply-field-" + fk} style={labelSt}>{meta.label}</label><select id={"supply-field-" + fk} style={inp} value={flds[fk] ?? ""} onChange={(e) => uf(fk, e.target.value)}><option value="">...</option>{meta.options.map((o) => <option key={o}>{o}</option>)}</select></div>
                 ) : (
-                  <div key={fk}><label htmlFor={"supply-field-" + fk} style={labelSt}>{meta.label}</label><input id={"supply-field-" + fk} style={inp} type={meta.type} value={flds[fk] ?? ""} onChange={(e) => uf(fk, e.target.value)} placeholder={meta.placeholder || ""} /></div>
+                  <div key={fk}><label htmlFor={"supply-field-" + fk} style={labelSt}>{meta.label}</label><input id={"supply-field-" + fk} style={inp} type={meta.type} value={flds[fk] ?? ""} onChange={(e) => uf(fk, e.target.value)} placeholder={meta.placeholder || ""} aria-describedby={meta.help ? "supply-help-" + fk : undefined} />{meta.help && <p id={"supply-help-" + fk} style={{ fontSize: 11, color: "#687660", lineHeight: 1.6, margin: "6px 0 0" }}>{meta.help}</p>}</div>
                 ); })}
               </div>
             </div>

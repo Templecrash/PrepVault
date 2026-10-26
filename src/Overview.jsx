@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./brand.jsx";
 import RationingOverview from "./RationingOverview.jsx";
+import { computeEssentialCoverage } from "./essential-coverage.js";
 import "./overview.css";
 
 const ESSENTIALS = [
@@ -21,21 +22,22 @@ function Contours() {
   </svg>;
 }
 
-function CategoryProgress({ category, items, icon, tone, onClick }) {
+function EssentialCoverage({ category, items, coverage, icon, tone, onClick }) {
   const types = Object.keys(category?.subTypes || {});
   const recorded = new Set(items.filter(item => Number(item.quantity ?? 1) > 0).map(item => item.subType));
   const covered = types.filter(type => recorded.has(type)).length;
-  const percent = types.length ? covered / types.length * 100 : 0;
   return <button type="button" className={`pv-essential pv-tone-${tone}`} onClick={onClick}>
     <span className="pv-essential-top"><span className="pv-icon-tile"><Icon name={icon} size={19} /></span><span>{category?.label}</span><Icon name="arrow" size={15} /></span>
-    <span className="pv-essential-count">{items.length}<span>{items.length === 1 ? "entry" : "entries"}</span></span>
-    <span className="pv-progress-track" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>
-    <span className="pv-essential-foot">{covered} of {types.length} supply types in stock</span>
+    <span className="pv-essential-count">{coverage.days == null ? '—' : coverage.days.toLocaleString()}<span>{coverage.days === 1 ? 'full day' : 'full days'}</span></span>
+    <span className="pv-essential-basis">{coverage.basis}</span>
+    <span className="pv-essential-detail">{coverage.detail}</span>
+    <span className="pv-essential-foot">{items.length} {items.length === 1 ? 'entry' : 'entries'} · {covered}/{types.length} types in stock</span>
   </button>;
 }
 
 export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onCrisis, onScan, members = [], rationPeople = [], setRationPeople, dailyCalTarget = 2000, setDailyCalTarget, onResetPeople }) {
   const [showAllPriorities, setShowAllPriorities] = useState(false);
+  const coverage = useMemo(() => computeEssentialCoverage(items, rationPeople.length, dailyCalTarget), [items, rationPeople.length, dailyCalTarget]);
   const overview = useMemo(() => {
     const categoryKeys = Object.keys(categories);
     const coveredKeys = new Set(items.filter(item => Number(item.quantity ?? 1) > 0 && categories[item.category]).map(item => item.category));
@@ -72,8 +74,9 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
     <RationingOverview items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />
 
     <section className="pv-essentials-section" aria-labelledby="pv-essentials-title">
-      <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>The foundations of a well-prepared home.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("preps")}>All supplies <Icon name="arrow" size={15} /></button></div>
-      <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <CategoryProgress key={essential.key} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} items={items.filter(item => item.category === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
+      <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>How long your recorded supplies could last.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("preps")}>All supplies <Icon name="arrow" size={15} /></button></div>
+      <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <EssentialCoverage key={essential.key} coverage={coverage[essential.key]} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} items={items.filter(item => item.category === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
+      <p className="pv-essential-note">Food and water follow your rationing plan. Open a card to update its supplies and coverage details.</p>
     </section>
 
     <div className="pv-overview-columns">

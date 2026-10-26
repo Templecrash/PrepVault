@@ -6,7 +6,7 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 
 | Destination | Included tools |
 | --- | --- |
-| Overview | Recorded category coverage, expandable rationing calculator, food/water duration summary, essential supplies, priority alerts, household setup, detailed readiness analysis, weather and activity |
+| Overview | Recorded category coverage, expandable rationing calculator, essential supply days, food/water duration summary, priority alerts, household setup, detailed readiness analysis, weather and activity |
 | Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations |
 | Dependencies | Searchable dependency checks with priority/backup filters, sorting and expandable guidance, directly below Supplies in the sidebar |
 | Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
@@ -32,6 +32,8 @@ npm run preview
 The app opens without backend credentials. Choose **Explore the workspace** for sample data, or **Build my plan** to start a household. Inventory changes save automatically in the current browser. Sample data is identified in the interface.
 
 Rationing is available on Overview and Your people. Both views share the current session’s people and calorie target, use the selected property’s inventory, and calculate stored water directly from recorded gallons. The default roster follows household size until customized; **Use household size** restores it.
+
+Overview’s essential cards show full days of coverage. Water and food use the same people and calorie settings as Rationing. Medical shows the shortest recorded prescription supply, without multiplying days by quantity; first-aid kits do not imply a duration. Power uses the longest generator or power-bank **Backup runtime (hours)** at the planned load, divided by 24. Runtime describes the complete entry with current fuel or charge, not each unit. Missing prescription/runtime details show an unknown estimate with a prompt to fill them in. Separate backups are not added together, and solar wattage alone is not converted into stored days.
 
 ## Data and backups
 
