@@ -8,6 +8,7 @@ import Welcome from "./Welcome.jsx";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
 import DependenciesView from "./DependenciesView.jsx";
+import ManualsView from "./ManualsView.jsx";
 import ResourcePlanningView from "./ResourcePlanningView.jsx";
 import ResourceOpportunitiesView from "./ResourceOpportunitiesView.jsx";
 import { computeResourcePools } from "./resource-planning.js";
@@ -3737,10 +3738,6 @@ function CodesTab({ codes, setCodes, members, revealedCodes, setRevealedCodes })
   );
 }
 
-function ManualsTab({ manuals }) {
-  return (<div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 11, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>);
-}
-
 function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, user, items }) {
   const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
@@ -7117,7 +7114,7 @@ export default function PrepVault() {
       case "codes":
         return <CodesTab codes={codes} setCodes={setCodes} members={members} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} />;
       case "manuals":
-        return <ManualsTab manuals={manuals} />;
+        return <ManualsView manuals={manuals} onSetup={openSetup} onEmergency={() => navigate("emergency")} />;
       case "property":
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} />;
       case "dependencies":
@@ -7202,7 +7199,6 @@ export default function PrepVault() {
   const pageMeta = {
     property: ["Your property", "Maps, routes, defenses, and connected systems. All in one place."],
     codes: ["Codes", "Access codes, recorded holders, and rotation reminders."],
-    manuals: ["Manuals", "Your reference list for household systems and equipment."],
     community: ["Your people", "Stay connected to the people you count on."],
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
     comms: ["Stay in touch", "A shared plan for communicating when it matters."],
@@ -7387,7 +7383,7 @@ export default function PrepVault() {
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing", "systems"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing", "systems", "manuals"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
