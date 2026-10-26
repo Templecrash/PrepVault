@@ -34,7 +34,7 @@ function CategoryProgress({ category, items, icon, tone, onClick }) {
   </button>;
 }
 
-export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onSetup, onCrisis, onScan, members = [], profile, rationPeople = [], setRationPeople, dailyCalTarget = 2000, setDailyCalTarget, onResetPeople }) {
+export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onCrisis, onScan, members = [], rationPeople = [], setRationPeople, dailyCalTarget = 2000, setDailyCalTarget, onResetPeople }) {
   const [showAllPriorities, setShowAllPriorities] = useState(false);
   const overview = useMemo(() => {
     const categoryKeys = Object.keys(categories);
@@ -48,7 +48,6 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
   const essentialsKeys = new Set(ESSENTIALS.map(essential => essential.key));
   const otherCategories = overview.categoryKeys.filter(key => !essentialsKeys.has(key)).slice(0, 6);
   const displayedPriorities = showAllPriorities ? overview.priorities : overview.priorities.slice(0, 4);
-  const hasProfile = Boolean(profile?.completedAt);
   const reviewAlert = (alert) => categories[alert.category] ? onCategory(alert.category) : onNavigate("property");
   const propertyName = property?.name || (typeof property === "string" ? property : "Your properties");
   const today = new Date();
@@ -60,7 +59,6 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
       <div className="pv-overview-date"><Icon name="compass" size={17} /><time dateTime={localDate}>{today.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</time></div>
     </header>
 
-    <div className="pv-overview-lead">
       <section className="pv-readiness-hero" aria-labelledby="pv-coverage-title">
         <Contours />
         <div className="pv-hero-meta"><span><span className="pv-status-point" />{propertyName}</span><span>AT A GLANCE</span></div>
@@ -70,15 +68,6 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
         <div className="pv-hero-bottom"><span><strong>{overview.coveredKeys.size} of {overview.categoryKeys.length}</strong> categories with stock</span><button type="button" onClick={() => onNavigate("preps")}>Explore your inventory <Icon name="arrow" size={17} /></button></div>
         <p className="pv-hero-note">Coverage reflects recorded categories, not a guarantee of emergency readiness.</p>
       </section>
-
-      <section className="pv-next-step" aria-labelledby="pv-next-step-title">
-        <div className="pv-next-step-top"><span className="pv-icon-tile"><Icon name={hasProfile ? "compass" : "home"} size={20} /></span><span className="pv-eyebrow">BUILD YOUR FOUNDATION</span></div>
-        <h2 id="pv-next-step-title">{hasProfile ? "A plan for your place." : "Make it yours."}</h2>
-        <p>{hasProfile ? "Your property profile helps put your supplies, systems, and household needs in context." : "A few details about your home and household make your preparation more relevant."}</p>
-        <div className="pv-profile-steps"><span className={hasProfile ? "complete" : ""}><Icon name={hasProfile ? "check" : "home"} size={14} /> Your home</span><span className={hasProfile ? "complete" : ""}><Icon name={hasProfile ? "check" : "users"} size={14} /> Your household</span><span className={hasProfile ? "complete" : ""}><Icon name={hasProfile ? "check" : "bolt"} size={14} /> Your systems</span></div>
-        <button type="button" className="pv-overview-button" onClick={onSetup}>{hasProfile ? "Review property profile" : "Set up your property"}<Icon name="arrow" size={16} /></button>
-      </section>
-    </div>
 
     <RationingOverview items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />
 
