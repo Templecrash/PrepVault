@@ -84,7 +84,7 @@ function InviteDialog({ contacts, request, onCreated, onClose }) {
     setBusy(true); setError('');
     try {
       const result = await request('create', { name: name.trim(), phone: normalizePhone(phone), durationMinutes: Number(duration) });
-      const link = invitationLink(result.token, window.location.origin);
+      const link = invitationLink(result.token, import.meta.env.VITE_TRACKING_SHARE_ORIGIN || window.location.origin);
       setCreated({ ...result.session, link });
       onCreated(result.session);
     } catch (err) { setError(err.message); }
