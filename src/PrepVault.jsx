@@ -9,6 +9,7 @@ import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
 import DependenciesView from "./DependenciesView.jsx";
 import PeopleDirectory from "./PeopleDirectory.jsx";
+import LiveTracker from "./LiveTracker.jsx";
 import RationingPlanner from "./RationingPlanner.jsx";
 import RadioPlayer from "./RadioPlayer.jsx";
 import HandbookLibrary from "./HandbookLibrary.jsx";
@@ -4154,165 +4155,19 @@ function RallyMiniMap({ coords, color }) {
   return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
-function CommunityTab({ members, setMembers, items, user, contacts, setContacts, rationPeople, setRationPeople, dailyCalTarget, setDailyCalTarget, onResetPeople }) {
+function CommunityTab({ items, user, contacts, setContacts, rationPeople, setRationPeople, dailyCalTarget, setDailyCalTarget, onResetPeople, onSignIn }) {
   const [comSub, setComSub] = useState("people");
-  const statColors = { home: "#22c55e", nearby: "#84cc16", away: "#f59e0b", offline: "#6b7280" };
-  const [liveMembers, setLiveMembers] = useState(null);
-  const [locationSyncError, setLocationSyncError] = useState("");
-  const [showAddMember, setShowAddMember] = useState(false);
-  const [newMember, setNewMember] = useState({ name: "", role: "", avatar: "👤" });
-  const [fullscreenMap, setFullscreenMap] = useState(false);
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
-
   const subTabs = [{ id: "people", label: "People" }, { id: "tracker", label: "Tracker" }, { id: "rationing", label: "Rationing" }];
-
-
-  /* ── Supabase Realtime: Location sharing ── */
-  useEffect(() => {
-    if (!supabaseConfigured || !user || user.isLocal) { setLiveMembers(null); setLocationSyncError(""); return; }
-    let cancelled = false;
-    const fetchLocations = async () => {
-      try {
-        const { data, error } = await supabase.from("location_shares").select("user_id, community_id, lat, lng, battery, status, sharing, updated_at, profiles(display_name)").eq("sharing", true);
-        if (error) throw error;
-        if (cancelled) return;
-        setLocationSyncError("");
-        setLiveMembers((data || []).map(l => ({
-          id: l.user_id === user.id ? "p1" : l.user_id, name: l.profiles?.display_name || "Member",
-          lat: l.lat, lng: l.lng, battery: l.battery ?? 100,
-          status: l.status || "nearby", sharing: l.sharing, lastPing: new Date(l.updated_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-          avatar: "👤", color: "#0ea5e9", role: "Member",
-        })));
-      } catch (error) {
-        if (!cancelled) { setLiveMembers([]); setLocationSyncError("Location updates unavailable: " + (error.message || "Please check your connection.")); }
-      }
-    };
-    fetchLocations();
-    const channel = supabase.channel("locations-" + user.id).on("postgres_changes", { event: "*", schema: "public", table: "location_shares" }, () => {
-      fetchLocations(); // Re-fetch all on any change
-    }).subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
-  }, [user]);
-
-
-  const displayMembers = liveMembers || members;
-
-  /* ── Leaflet Satellite Map ── */
-  useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
-    const firstWithCoords = displayMembers.find(m => m.lat && m.lng);
-    const center = firstWithCoords ? [firstWithCoords.lat, firstWithCoords.lng] : [45.421, -75.690];
-    const map = L.map(mapRef.current, { center, zoom: 13, zoomControl: false });
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Esri", maxZoom: 19 }).addTo(map);
-    L.control.zoom({ position: "topright" }).addTo(map);
-    mapInstanceRef.current = map;
-    return () => { map.remove(); mapInstanceRef.current = null; };
-  }, [comSub]);
-
-  /* ── Update map markers when members change ── */
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    markersRef.current.forEach(m => map.removeLayer(m));
-    markersRef.current = [];
-    displayMembers.filter(m => m.lat && m.sharing).forEach(m => {
-      const icon = L.divIcon({ html: `<div style="width:30px;height:30px;border-radius:15px;background:${m.color}30;border:2px solid ${m.color};display:flex;align-items:center;justify-content:center;font-size:15px">${m.avatar}</div>`, iconSize: [30, 30], className: "" });
-      const marker = L.marker([m.lat, m.lng], { icon }).addTo(map).bindTooltip(`<b>${m.name}</b><br/>${m.role || "Member"}<br/>🔋 ${m.battery}%`, { className: "", direction: "top" });
-      markersRef.current.push(marker);
-    });
-    // Home marker
-    const homeIcon = L.divIcon({ html: `<div style="width:26px;height:26px;border-radius:13px;background:rgba(34,197,94,0.2);border:2px solid rgba(34,197,94,0.5);display:flex;align-items:center;justify-content:center;font-size:13px">🏠</div>`, iconSize: [26, 26], className: "" });
-    const home = L.marker([45.421, -75.690], { icon: homeIcon }).addTo(map).bindTooltip("Home Base", { direction: "top" });
-    markersRef.current.push(home);
-  }, [displayMembers, comSub]);
-
-  /* ── Resize map when fullscreen toggles ── */
-  useEffect(() => {
-    if (mapInstanceRef.current) setTimeout(() => mapInstanceRef.current.invalidateSize(), 100);
-  }, [fullscreenMap]);
-
-  /* ── Browser Geolocation for self-tracking ── */
-  useEffect(() => {
-    if (!navigator.geolocation || !setMembers) return;
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setMembers(prev => prev.map(m => m.id === "p1" ? { ...m, lat: pos.coords.latitude, lng: pos.coords.longitude, lastPing: "Now", sharing: true, status: "home" } : m));
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [setMembers]);
-
-  const addMember = () => {
-    if (!newMember.name.trim()) return;
-    const id = "p" + Date.now();
-    setMembers(prev => [...prev, { id, name: newMember.name.trim(), avatar: newMember.avatar || "👤", role: newMember.role.trim() || "Member", status: "offline", lat: null, lng: null, lastPing: "—", battery: 100, sharing: false, color: "#" + Math.floor(Math.random()*16777215).toString(16).padStart(6,"0") }]);
-    setNewMember({ name: "", role: "", avatar: "👤" });
-    setShowAddMember(false);
-  };
-
-  const removeMember = (id) => {
-    if (id === "p1") return; // Can't remove yourself
-    setMembers(prev => prev.filter(m => m.id !== id));
-  };
-
-
   return (
     <div>
-
       <nav className="pv-people-sections" aria-label="People sections">
         {subTabs.map(section => (
           <button key={section.id} className={comSub === section.id ? "is-active" : ""} aria-current={comSub === section.id ? "page" : undefined} onClick={() => setComSub(section.id)}>{section.label}</button>
         ))}
       </nav>
-
-      {comSub === "tracker" && (
-        <div className="pcs-tracker-grid" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
-          {locationSyncError && <p role="alert" style={{ gridColumn: "1 / -1", margin: 0, color: "#9f503a", fontSize: 12 }}>{locationSyncError}</p>}
-          <div style={{ ...cardSt, padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid #e0e6da", fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span>📡 LIVE MAP — Satellite</span>
-              <button onClick={() => setFullscreenMap(!fullscreenMap)} style={{ padding: "3px 8px", borderRadius: 4, background: "rgba(47,76,39,0.04)", border: "1px solid #dce3d5", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{fullscreenMap ? "Minimize" : "⛶ Expand"}</button>
-            </div>
-            <div ref={mapRef} style={{ height: fullscreenMap ? 600 : 320 }} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <button onClick={() => setShowAddMember(!showAddMember)} style={{ ...btnSt, padding: "6px 12px", fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.08)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)", width: "100%", marginBottom: 2 }}>{showAddMember ? "Cancel" : "+ Add Member"}</button>
-            {showAddMember && (
-              <div style={{ ...cardSt, padding: "10px 12px", marginBottom: 4 }}>
-                <input value={newMember.name} onChange={e => setNewMember(p => ({ ...p, name: e.target.value }))} placeholder="Name" style={{ ...inp, padding: "6px 8px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                <input value={newMember.role} onChange={e => setNewMember(p => ({ ...p, role: e.target.value }))} placeholder="Role" style={{ ...inp, padding: "6px 8px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                <div style={{ display: "flex", gap: 4 }}>
-                  <input value={newMember.avatar} onChange={e => setNewMember(p => ({ ...p, avatar: e.target.value }))} placeholder="Avatar emoji" style={{ ...inp, padding: "6px 8px", fontSize: 11, width: 60, boxSizing: "border-box" }} />
-                  <button onClick={addMember} style={{ ...btnSt, padding: "6px 12px", fontSize: 11, fontWeight: 700, background: "#214c39", color: "#243d30", flex: 1 }}>Add</button>
-                </div>
-              </div>
-            )}
-            {displayMembers.map((m) => (
-              <div key={m.id} style={{ ...cardSt, padding: "10px 12px", borderLeft: "3px solid " + (statColors[m.status] || "#6b7280") }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>{m.avatar}</span>
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 700 }}>{m.name}</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{m.role}</div></div>
-                  <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: (statColors[m.status] || "#6b7280") + "15", color: statColors[m.status] || "#6b7280", fontWeight: 700 }}>{m.status}</span>
-                  {m.id !== "p1" && <button onClick={() => removeMember(m.id)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove member">×</button>}
-                </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-                  <span>📱{m.lastPing}</span>
-                  <span style={{ color: m.battery < 20 ? "#ef4444" : "#22c55e" }}>🔋{m.battery}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {comSub === "tracker" && <LiveTracker key={user?.id || "visitor"} user={user} contacts={contacts} onSignIn={onSignIn} />}
       {comSub === "rationing" && <RationingPlanner items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />}
-
       {comSub === "people" && <PeopleDirectory contacts={contacts} setContacts={setContacts} />}
-
     </div>
   );
 }
@@ -7841,7 +7696,7 @@ export default function PrepVault() {
       case "preps":
         return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":
-        return <CommunityTab members={members} setMembers={setMembers} items={propItems} user={user} contacts={contacts} setContacts={setContacts} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople} />;
+        return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} items={propItems} user={user} contacts={contacts} setContacts={setContacts} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
