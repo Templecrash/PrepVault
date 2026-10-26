@@ -1,12 +1,21 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import WorkspaceShell from "./WorkspaceShell.jsx";
+import Welcome from "./Welcome.jsx";
+import Overview from "./Overview.jsx";
+import InventoryView from "./InventoryView.jsx";
+import { Icon } from "./brand.jsx";
+import { useDialogFocus } from "./useDialogFocus.js";
+import { validateSnapshot } from "./storage.js";
+import { encryptBackup as encryptData, decryptBackup as decryptData } from "./crypto-backup.js";
 
 /* ═══════════════════════════════════════════════════════════
    DATA CONSTANTS
    ═══════════════════════════════════════════════════════════ */
-const M = "'Geist Mono','JetBrains Mono', monospace";
+const M = "'DM Sans',sans-serif";
 
 const CATEGORIES = {
   water: {
@@ -1492,10 +1501,10 @@ function getExpiryStatus(e) {
   return { l: `${(d / 365).toFixed(1)}yr`, c: "#22c55e", u: false };
 }
 
-const inp = { width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
-const labelSt = { display: "block", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, fontWeight: 600 };
+const inp = { width: "100%", padding: "12px 14px", background: "rgba(47,76,39,0.04)", border: "1px solid #dce3d5", borderRadius: 10, color: "#243d30", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
+const labelSt = { display: "block", fontSize: 11, color: "rgba(36,61,48,0.58)", letterSpacing: 0.2, marginBottom: 7, fontWeight: 600 };
 const btnSt = { padding: "10px 20px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, transition: "all 0.15s ease", fontFamily: "inherit" };
-const cardSt = { background: "rgba(255,255,255,0.025)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 20 };
+const cardSt = { background: "#ffffff", backdropFilter: "blur(12px)", border: "1px solid #e0e6da", borderRadius: 14, padding: 20 };
 
 /* ═══════════════════════════════════════════════════════════
    COMPONENTS
@@ -1508,12 +1517,12 @@ function ScoreRing({ score, size = 160, strokeWidth = 10 }) {
   return (
     <div style={{ position: "relative", width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(36,61,48,0.06)" strokeWidth={strokeWidth} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={strokeWidth} strokeDasharray={c} strokeDashoffset={o} strokeLinecap="round" style={{ transition: "all 0.8s" }} />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontSize: size * 0.26, fontWeight: 800, color: col, fontFamily: M }}>{Math.round(score)}</span>
-        <span style={{ fontSize: size * 0.07, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 2, fontWeight: 600 }}>{SL(score)}</span>
+        <span style={{ fontSize: size * 0.07, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2, fontWeight: 600 }}>{SL(score)}</span>
       </div>
     </div>
   );
@@ -1528,21 +1537,21 @@ function NewsTicker({ news, expanded, setExpanded }) {
     <div style={{ position: "relative" }}>
       <div onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "5px 12px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 10, maxWidth: 440, overflow: "hidden" }}>
         <div style={{ width: 7, height: 7, borderRadius: 4, background: sv[n?.sev] || "#6b7280", flexShrink: 0, animation: "pulse 2s infinite" }} />
-        <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>INTEL</span>
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n?.headline}</span>
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>INTEL</span>
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.65)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n?.headline}</span>
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
       </div>
       {expanded && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 480, background: "#1a1d23", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, boxShadow: "0 20px 50px rgba(0,0,0,0.6)", zIndex: 999, maxHeight: 400, overflowY: "auto", padding: 4 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 480, background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 14, boxShadow: "0 20px 50px rgba(0,0,0,0.6)", zIndex: 999, maxHeight: 400, overflowY: "auto", padding: 4 }}>
           <div style={{ padding: "12px 16px 6px" }}><span style={{ fontSize: 12, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>Threat Intel</span></div>
           {news.map((item) => (
-            <div key={item.id} style={{ padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 10 }}>
+            <div key={item.id} style={{ padding: "10px 16px", borderBottom: "1px solid #e5eadd", display: "flex", gap: 10 }}>
               <div style={{ width: 7, height: 7, borderRadius: 4, background: sv[item.sev], marginTop: 5, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.4, marginBottom: 4 }}>{item.headline}</div>
+                <div style={{ fontSize: 12, color: "rgba(36,61,48,0.75)", lineHeight: 1.4, marginBottom: 4 }}>{item.headline}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {item.tags.map((tag, idx) => (<span key={idx} style={{ fontSize: 10, padding: "4px 5px", borderRadius: 3, background: tag.c + "15", color: tag.c, fontWeight: 700 }}>{tag.l}</span>))}
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>{item.time} ago</span>
+                  {item.tags.map((tag, idx) => (<span key={idx} style={{ fontSize: 11, padding: "4px 5px", borderRadius: 3, background: tag.c + "15", color: tag.c, fontWeight: 700 }}>{tag.l}</span>))}
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginLeft: "auto" }}>{item.time} ago</span>
                 </div>
               </div>
             </div>
@@ -1555,31 +1564,32 @@ function NewsTicker({ news, expanded, setExpanded }) {
 }
 
 function GenericModal({ title, fields, onSave, onClose }) {
+  const dialogRef = useDialogFocus(onClose);
   const [data, setData] = useState({});
   const upd = (key, val) => setData((prev) => ({ ...prev, [key]: val }));
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#1a1d23", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 500 }}>
+    <div ref={dialogRef} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} style={{ background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 16, padding: 28, width: "100%", maxWidth: 500 }}>
         <h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 700 }}>{title}</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {fields.map((f) => (
             <div key={f.key}>
-              <label style={labelSt}>{f.label}</label>
+              <label htmlFor={"modal-" + f.key} style={labelSt}>{f.label}</label>
               {f.type === "select" ? (
-                <select style={inp} value={data[f.key] || ""} onChange={(e) => upd(f.key, e.target.value)}>
+                <select id={"modal-" + f.key} style={inp} value={data[f.key] || ""} onChange={(e) => upd(f.key, e.target.value)}>
                   <option value="">...</option>
                   {(f.options || []).map((o) => { const val = typeof o === "string" ? o : o.value; const lab = typeof o === "string" ? o : o.label; return <option key={val} value={val}>{lab}</option>; })}
                 </select>
               ) : f.type === "textarea" ? (
-                <textarea style={{ ...inp, minHeight: 60, resize: "vertical" }} value={data[f.key] || ""} onChange={(e) => upd(f.key, e.target.value)} placeholder={f.placeholder || ""} />
+                <textarea id={"modal-" + f.key} style={{ ...inp, minHeight: 60, resize: "vertical" }} value={data[f.key] || ""} onChange={(e) => upd(f.key, e.target.value)} placeholder={f.placeholder || ""} />
               ) : (
-                <input style={inp} type={f.type || "text"} value={data[f.key] || ""} onChange={(e) => upd(f.key, e.target.value)} placeholder={f.placeholder || ""} />
+                <input id={"modal-" + f.key} style={inp} type={f.type || "text"} value={data[f.key] || ""} onChange={(e) => upd(f.key, e.target.value)} placeholder={f.placeholder || ""} />
               )}
             </div>
           ))}
           <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-            <button onClick={onClose} style={{ ...btnSt, flex: 1, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>Cancel</button>
-            <button onClick={() => onSave(data)} style={{ ...btnSt, flex: 1, background: "#1e3a5f", color: "#fff", fontWeight: 700 }}>Save</button>
+            <button onClick={onClose} style={{ ...btnSt, flex: 1, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.6)" }}>Cancel</button>
+            <button onClick={() => onSave(data)} style={{ ...btnSt, flex: 1, background: "#214c39", color: "#243d30", fontWeight: 700 }}>Save</button>
           </div>
         </div>
       </div>
@@ -1608,18 +1618,18 @@ function PinLock({ onUnlock }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 20px" }}>
       <div style={{ fontSize: 28, marginBottom: 16 }}>🔒</div>
-      <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>Property Intel Locked</h2>
-      <p style={{ margin: "0 0 28px", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{setup ? "Set a 4-digit PIN" : "Enter PIN"}</p>
+      <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>Private property details</h2>
+      <p style={{ margin: "0 0 28px", fontSize: 12, color: "rgba(36,61,48,0.58)" }}>{setup ? "Set a 4-digit PIN" : "Enter PIN"}</p>
       <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ width: 16, height: 16, borderRadius: 8, background: i < pin.length ? (err ? "#ef4444" : "#22c55e") : "rgba(255,255,255,0.1)", border: `2px solid ${i < pin.length ? (err ? "#ef4444" : "#22c55e") : "rgba(255,255,255,0.15)"}`, transition: "all 0.2s" }} />
+          <div key={i} style={{ width: 16, height: 16, borderRadius: 8, background: i < pin.length ? (err ? "#ef4444" : "#22c55e") : "rgba(36,61,48,0.1)", border: `2px solid ${i < pin.length ? (err ? "#ef4444" : "#22c55e") : "rgba(36,61,48,0.15)"}`, transition: "all 0.2s" }} />
         ))}
       </div>
       {err && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 12 }}>Wrong PIN</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,68px)", gap: 8 }}>
         {keys.map((d, i) => d === null ? <div key={i} /> : (
           <button key={i} onClick={() => d === "del" ? setPin((p) => p.slice(0, -1)) : handleDigit(String(d))}
-            style={{ width: 68, height: 52, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: d === "del" ? "rgba(255,255,255,0.4)" : "#fff", fontSize: d === "del" ? 14 : 20, fontWeight: 600, cursor: "pointer", fontFamily: d === "del" ? "inherit" : M, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, textAlign: "center" }}>
+            style={{ width: 68, height: 52, borderRadius: 12, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.04)", color: d === "del" ? "rgba(36,61,48,0.4)" : "#243d30", fontSize: d === "del" ? 14 : 20, fontWeight: 600, cursor: "pointer", fontFamily: d === "del" ? "inherit" : M, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, textAlign: "center" }}>
             {d === "del" ? "⌫" : d}
           </button>
         ))}
@@ -1688,7 +1698,7 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
               />
               <button
                 onClick={handleSetAddress}
-                style={{ ...btnSt, padding: "8px 18px", fontSize: 12, background: "#3b82f6", color: "#fff", fontWeight: 700, whiteSpace: "nowrap" }}
+                style={{ ...btnSt, padding: "8px 18px", fontSize: 12, background: "#3b82f6", color: "#243d30", fontWeight: 700, whiteSpace: "nowrap" }}
               >
                 {propAddress ? "Update" : "Load Map"}
               </button>
@@ -1697,19 +1707,19 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
         </div>
         {propAddress && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
               📌 <strong style={{ color: "#3b82f6" }}>{propAddress}</strong>
             </div>
             <div style={{ display: "flex", gap: 4 }}>
               {[{ id: "satellite", l: "Satellite", i: "🛰️" }, { id: "roadmap", l: "Road", i: "🗺️" }, { id: "terrain", l: "Terrain", i: "⛰️" }].map((v) => (
-                <button key={v.id} onClick={() => setMapView(v.id)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 9, fontWeight: 700, cursor: "pointer", border: mapView === v.id ? "1px solid rgba(59,130,246,0.4)" : "1px solid rgba(255,255,255,0.06)", background: mapView === v.id ? "rgba(59,130,246,0.12)" : "rgba(255,255,255,0.02)", color: mapView === v.id ? "#3b82f6" : "rgba(255,255,255,0.3)" }}>
+                <button key={v.id} onClick={() => setMapView(v.id)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: mapView === v.id ? "1px solid rgba(59,130,246,0.4)" : "1px solid #e0e6da", background: mapView === v.id ? "rgba(59,130,246,0.12)" : "rgba(36,61,48,0.02)", color: mapView === v.id ? "#3b82f6" : "rgba(36,61,48,0.3)" }}>
                   {v.i} {v.l}
                 </button>
               ))}
               <div style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: 8 }}>
-                <button onClick={() => setMapZoom((z) => Math.max(14, z - 1))} style={{ ...btnSt, padding: "4px 8px", fontSize: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}>−</button>
-                <span style={{ fontSize: 9, fontFamily: M, color: "rgba(255,255,255,0.3)", minWidth: 20, textAlign: "center" }}>{mapZoom}</span>
-                <button onClick={() => setMapZoom((z) => Math.min(21, z + 1))} style={{ ...btnSt, padding: "4px 8px", fontSize: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}>+</button>
+                <button onClick={() => setMapZoom((z) => Math.max(14, z - 1))} style={{ ...btnSt, padding: "4px 8px", fontSize: 12, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>−</button>
+                <span style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", minWidth: 20, textAlign: "center" }}>{mapZoom}</span>
+                <button onClick={() => setMapZoom((z) => Math.min(21, z + 1))} style={{ ...btnSt, padding: "4px 8px", fontSize: 12, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>+</button>
               </div>
             </div>
           </div>
@@ -1720,10 +1730,10 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Property Map</h3>
-          <p style={{ margin: "3px 0 0", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Click map to place pins. {visiblePins.length} pins visible.</p>
+          <p style={{ margin: "3px 0 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Click map to place pins. {visiblePins.length} pins visible.</p>
         </div>
         <button onClick={() => { setTacticalMode((p) => !p); setActiveLayers((p) => ({ ...p, defense: !p.defense })); }}
-          style={{ ...btnSt, padding: "8px 16px", fontSize: 12, background: tacticalMode ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)", color: tacticalMode ? "#ef4444" : "rgba(255,255,255,0.5)", border: tacticalMode ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(255,255,255,0.08)", fontWeight: 700 }}>
+          style={{ ...btnSt, padding: "8px 16px", fontSize: 12, background: tacticalMode ? "rgba(239,68,68,0.15)" : "rgba(36,61,48,0.04)", color: tacticalMode ? "#ef4444" : "rgba(36,61,48,0.5)", border: tacticalMode ? "1px solid rgba(239,68,68,0.3)" : "1px solid #dce3d5", fontWeight: 700 }}>
           {tacticalMode ? "🛡️ TACTICAL" : "🗺️ Standard"}
         </button>
       </div>
@@ -1731,7 +1741,7 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
       {/* ── Layers ── */}
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
         {Object.entries(MAP_LAYERS).map(([k, layer]) => (
-          <button key={k} onClick={() => toggleLayer(k)} style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, background: activeLayers[k] ? layer.color + "15" : "rgba(255,255,255,0.02)", border: activeLayers[k] ? "1px solid " + layer.color + "40" : "1px solid rgba(255,255,255,0.06)", color: activeLayers[k] ? layer.color : "rgba(255,255,255,0.3)" }}>
+          <button key={k} onClick={() => toggleLayer(k)} style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, background: activeLayers[k] ? layer.color + "15" : "rgba(36,61,48,0.02)", border: activeLayers[k] ? "1px solid " + layer.color + "40" : "1px solid #e0e6da", color: activeLayers[k] ? layer.color : "rgba(36,61,48,0.3)" }}>
             {layer.icon} {layer.label} ({pins.filter((p) => p.layer === k).length})
           </button>
         ))}
@@ -1740,10 +1750,10 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
       {/* ── Pin Types ── */}
       {Object.entries(MAP_LAYERS).filter(([k]) => activeLayers[k]).map(([layerKey, layer]) => (
         <div key={layerKey} style={{ display: "flex", gap: 4, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 9, color: layer.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, minWidth: 70 }}>{layer.label}:</span>
+          <span style={{ fontSize: 11, color: layer.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, minWidth: 70 }}>{layer.label}:</span>
           {(MAP_PIN_TYPES[layerKey] || []).map((pt) => (
             <button key={pt.v} onClick={() => setPlacing(placing?.type === pt.v && placing?.layer === layerKey ? null : { layer: layerKey, type: pt.v })}
-              style={{ padding: "5px 8px", borderRadius: 6, fontSize: 10, cursor: "pointer", border: (placing?.type === pt.v && placing?.layer === layerKey) ? "1px solid " + layer.color : "1px solid rgba(255,255,255,0.06)", background: (placing?.type === pt.v && placing?.layer === layerKey) ? layer.color + "20" : "rgba(255,255,255,0.02)", color: (placing?.type === pt.v && placing?.layer === layerKey) ? layer.color : "rgba(255,255,255,0.4)" }}>
+              style={{ padding: "5px 8px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: (placing?.type === pt.v && placing?.layer === layerKey) ? "1px solid " + layer.color : "1px solid #e0e6da", background: (placing?.type === pt.v && placing?.layer === layerKey) ? layer.color + "20" : "rgba(36,61,48,0.02)", color: (placing?.type === pt.v && placing?.layer === layerKey) ? layer.color : "rgba(36,61,48,0.4)" }}>
               {pt.i} {pt.l}
             </button>
           ))}
@@ -1752,7 +1762,7 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
       {placing && <div style={{ padding: "8px 14px", background: "rgba(239,68,68,0.08)", borderRadius: 8, marginBottom: 10, fontSize: 12, color: "#f59e0b", fontWeight: 600 }}>📍 Click map to place: {(MAP_PIN_TYPES[placing.layer] || []).find((p) => p.v === placing.type)?.i} {(MAP_PIN_TYPES[placing.layer] || []).find((p) => p.v === placing.type)?.l}</div>}
 
       {/* ── Map Container ── */}
-      <div ref={mapRef} onClick={handleMapClick} style={{ position: "relative", width: "100%", height: 520, borderRadius: 16, overflow: "hidden", cursor: placing ? "crosshair" : "default", border: tacticalMode ? "2px solid rgba(239,68,68,0.2)" : "1px solid rgba(255,255,255,0.06)" }}>
+      <div ref={mapRef} onClick={handleMapClick} style={{ position: "relative", width: "100%", height: 520, borderRadius: 16, overflow: "hidden", cursor: placing ? "crosshair" : "default", border: tacticalMode ? "2px solid rgba(239,68,68,0.2)" : "1px solid #e0e6da" }}>
         {/* Google Maps Embed or Fallback */}
         {propAddress && mapLoaded ? (<>
           <iframe
@@ -1775,8 +1785,8 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
             {!tacticalMode && (
               <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 100 100" preserveAspectRatio="none">
                 <path d="M5,30 Q12,40 15,50 Q18,60 25,70 Q28,75 30,80" fill="none" stroke="rgba(14,165,233,0.2)" strokeWidth="0.5" strokeDasharray="1,1" />
-                <path d="M35,0 Q45,5 50,15" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" />
-                <rect x="5" y="5" width="90" height="90" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="0.3" strokeDasharray="2,2" rx="1" />
+                <path d="M35,0 Q45,5 50,15" fill="none" stroke="rgba(36,61,48,0.08)" strokeWidth="0.8" />
+                <rect x="5" y="5" width="90" height="90" fill="none" stroke="rgba(36,61,48,0.04)" strokeWidth="0.3" strokeDasharray="2,2" rx="1" />
                 <ellipse cx="15" cy="25" rx="12" ry="8" fill="rgba(34,197,94,0.03)" />
                 <ellipse cx="75" cy="60" rx="15" ry="10" fill="rgba(34,197,94,0.03)" />
               </svg>
@@ -1793,8 +1803,8 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
             {/* Prompt to enter address */}
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
               <div style={{ fontSize: 44, marginBottom: 12, opacity: 0.3 }}>🗺️</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Enter your property address above</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.12)" }}>Google Maps satellite view will load with your exact plot</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>Enter your property address above</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Google Maps satellite view will load with your exact plot</div>
             </div>
           </div>
         )}
@@ -1808,9 +1818,9 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
           </svg>
         )}
 
-        {tacticalMode && <div style={{ position: "absolute", top: 10, left: 10, fontSize: 10, color: "rgba(239,68,68,0.5)", fontWeight: 700, fontFamily: M, letterSpacing: 2, zIndex: 10, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>TACTICAL OVERLAY</div>}
-        {!tacticalMode && !propAddress && <div style={{ position: "absolute", top: 10, left: 10, fontSize: 9, color: "rgba(255,255,255,0.1)" }}>N ↑</div>}
-        {propAddress && !tacticalMode && <div style={{ position: "absolute", top: 10, left: 10, padding: "4px 10px", borderRadius: 6, background: "rgba(0,0,0,0.6)", fontSize: 9, color: "rgba(255,255,255,0.5)", zIndex: 10, backdropFilter: "blur(4px)" }}>📍 {propAddress}</div>}
+        {tacticalMode && <div style={{ position: "absolute", top: 10, left: 10, fontSize: 11, color: "rgba(239,68,68,0.5)", fontWeight: 700, fontFamily: M, letterSpacing: 2, zIndex: 10, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>TACTICAL OVERLAY</div>}
+        {!tacticalMode && !propAddress && <div style={{ position: "absolute", top: 10, left: 10, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>N ↑</div>}
+        {propAddress && !tacticalMode && <div style={{ position: "absolute", top: 10, left: 10, padding: "4px 10px", borderRadius: 6, background: "rgba(0,0,0,0.6)", fontSize: 11, color: "rgba(36,61,48,0.58)", zIndex: 10, backdropFilter: "blur(4px)" }}>📍 {propAddress}</div>}
 
         {/* Pin Overlay — pointer-events transparent background so map is still interactive */}
         <div style={{ position: "absolute", inset: 0, zIndex: 8, pointerEvents: "none" }}>
@@ -1825,15 +1835,15 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
                   {pt?.i || "📍"}
                 </div>
                 <div style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", marginTop: 2, textAlign: "center" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: layer.color || "#888", textShadow: "0 1px 4px rgba(0,0,0,.9)", opacity: isSel ? 1 : 0.8 }}>{pin.label}</div>
-                  {pin.assignee && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textShadow: "0 1px 3px rgba(0,0,0,.8)" }}>{pin.assignee}</div>}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: layer.color || "#888", textShadow: "0 1px 4px rgba(0,0,0,.9)", opacity: isSel ? 1 : 0.8 }}>{pin.label}</div>
+                  {pin.assignee && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textShadow: "0 1px 3px rgba(0,0,0,.8)" }}>{pin.assignee}</div>}
                 </div>
                 {isSel && pin.notes && (
-                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", padding: "8px 12px", background: "#1a1d23", border: "1px solid " + (layer.color || "#888") + "40", borderRadius: 8, whiteSpace: "nowrap", zIndex: 200, boxShadow: "0 8px 20px rgba(0,0,0,0.5)" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{pin.label}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{pin.notes}</div>
+                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", padding: "8px 12px", background: "#ffffff", border: "1px solid " + (layer.color || "#888") + "40", borderRadius: 8, whiteSpace: "nowrap", zIndex: 200, boxShadow: "0 8px 20px rgba(0,0,0,0.5)" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#243d30", marginBottom: 2 }}>{pin.label}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{pin.notes}</div>
                     <button onClick={(e) => { e.stopPropagation(); setPins((p) => p.filter((x) => x.id !== pin.id)); setSelectedPin(null); }}
-                      style={{ ...btnSt, padding: "4px 8px", fontSize: 9, background: "rgba(239,68,68,0.1)", color: "#ef4444", marginTop: 4, pointerEvents: "auto" }}>Remove</button>
+                      style={{ ...btnSt, padding: "4px 8px", fontSize: 11, background: "rgba(239,68,68,0.1)", color: "#ef4444", marginTop: 4, pointerEvents: "auto" }}>Remove</button>
                   </div>
                 )}
               </div>
@@ -1851,10 +1861,10 @@ function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
               <div key={r.id} style={{ ...cardSt, padding: "12px 14px", borderLeft: "3px solid #ef4444" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: 20 }}>{r.avatar}</span>
-                  <div><div style={{ fontSize: 13, fontWeight: 700 }}>{r.name}</div><div style={{ fontSize: 10, color: "#ef4444", fontWeight: 600 }}>{r.role}</div></div>
+                  <div><div style={{ fontSize: 13, fontWeight: 700 }}>{r.name}</div><div style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>{r.role}</div></div>
                 </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>📍 {r.position}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>🔫 {r.weapon}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>📍 {r.position}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🔫 {r.weapon}</div>
               </div>
             ))}
           </div>
@@ -1896,6 +1906,7 @@ const BARCODE_DB = {
 };
 
 function BarcodeScanner({ onScan, onClose }) {
+  const dialogRef = useDialogFocus(onClose);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [manualCode, setManualCode] = useState("");
@@ -1965,39 +1976,39 @@ function BarcodeScanner({ onScan, onClose }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)", zIndex: 1100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "30px 20px", overflowY: "auto" }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#1a1d23", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24, width: "100%", maxWidth: 480 }}>
+    <div ref={dialogRef} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)", zIndex: 1100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "30px 20px", overflowY: "auto" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 16, padding: 24, width: "100%", maxWidth: 480 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 20 }}>📷</span> Barcode Scanner
           </h3>
-          <button onClick={onClose} style={{ ...btnSt, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 16, padding: "4px 10px" }}>✕</button>
+          <button onClick={onClose} style={{ ...btnSt, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)", fontSize: 16, padding: "4px 10px" }}>✕</button>
         </div>
 
         {/* Camera View */}
-        <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 14, background: "#000", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 14, background: "#000", border: "1px solid #e0e6da" }}>
           <video ref={videoRef} style={{ width: "100%", height: 240, objectFit: "cover", display: "block" }} muted playsInline />
           <canvas ref={canvasRef} style={{ display: "none" }} />
           {/* Scan overlay crosshairs */}
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <div style={{ width: "70%", height: 80, border: "2px solid rgba(200,85,58,0.6)", borderRadius: 8, position: "relative" }}>
-              <div style={{ position: "absolute", top: -1, left: -1, width: 20, height: 20, borderTop: "3px solid #c8553a", borderLeft: "3px solid #c8553a", borderRadius: "4px 0 0 0" }} />
-              <div style={{ position: "absolute", top: -1, right: -1, width: 20, height: 20, borderTop: "3px solid #c8553a", borderRight: "3px solid #c8553a", borderRadius: "0 4px 0 0" }} />
-              <div style={{ position: "absolute", bottom: -1, left: -1, width: 20, height: 20, borderBottom: "3px solid #c8553a", borderLeft: "3px solid #c8553a", borderRadius: "0 0 0 4px" }} />
-              <div style={{ position: "absolute", bottom: -1, right: -1, width: 20, height: 20, borderBottom: "3px solid #c8553a", borderRight: "3px solid #c8553a", borderRadius: "0 0 4px 0" }} />
-              {scanning && <div style={{ position: "absolute", top: "50%", left: 8, right: 8, height: 2, background: "#c8553a", borderRadius: 1, animation: "pulse 1.5s infinite" }} />}
+            <div style={{ width: "70%", height: 80, border: "2px solid rgba(33,76,57,0.6)", borderRadius: 8, position: "relative" }}>
+              <div style={{ position: "absolute", top: -1, left: -1, width: 20, height: 20, borderTop: "3px solid #214c39", borderLeft: "3px solid #214c39", borderRadius: "4px 0 0 0" }} />
+              <div style={{ position: "absolute", top: -1, right: -1, width: 20, height: 20, borderTop: "3px solid #214c39", borderRight: "3px solid #214c39", borderRadius: "0 4px 0 0" }} />
+              <div style={{ position: "absolute", bottom: -1, left: -1, width: 20, height: 20, borderBottom: "3px solid #214c39", borderLeft: "3px solid #214c39", borderRadius: "0 0 0 4px" }} />
+              <div style={{ position: "absolute", bottom: -1, right: -1, width: 20, height: 20, borderBottom: "3px solid #214c39", borderRight: "3px solid #214c39", borderRadius: "0 0 4px 0" }} />
+              {scanning && <div style={{ position: "absolute", top: "50%", left: 8, right: 8, height: 2, background: "#214c39", borderRadius: 1, animation: "pulse 1.5s infinite" }} />}
             </div>
           </div>
           {flash && <div style={{ position: "absolute", inset: 0, background: "rgba(34,197,94,0.2)", transition: "opacity 0.3s" }} />}
-          {scanning && <div style={{ position: "absolute", top: 8, left: 8, display: "flex", alignItems: "center", gap: 4, background: "rgba(0,0,0,0.6)", padding: "5px 8px", borderRadius: 6 }}><div style={{ width: 6, height: 6, borderRadius: 3, background: "#ef4444", animation: "pulse 1s infinite" }} /><span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>SCANNING</span></div>}
+          {scanning && <div style={{ position: "absolute", top: 8, left: 8, display: "flex", alignItems: "center", gap: 4, background: "rgba(0,0,0,0.6)", padding: "5px 8px", borderRadius: 6 }}><div style={{ width: 6, height: 6, borderRadius: 3, background: "#ef4444", animation: "pulse 1s infinite" }} /><span style={{ fontSize: 11, color: "#243d30", fontWeight: 700 }}>SCANNING</span></div>}
         </div>
 
-        {cameraError && <div style={{ fontSize: 10, color: "#f59e0b", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{cameraError}</div>}
+        {cameraError && <div style={{ fontSize: 11, color: "#f59e0b", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{cameraError}</div>}
 
         {/* Manual Entry */}
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
           <input value={manualCode} onChange={(e) => setManualCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitManual()} placeholder="Enter barcode manually (UPC/EAN)..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12, fontFamily: M }} />
-          <button onClick={submitManual} style={{ ...btnSt, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", fontSize: 11, padding: "8px 14px", flexShrink: 0 }}>Look Up</button>
+          <button onClick={submitManual} style={{ ...btnSt, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.6)", fontSize: 11, padding: "8px 14px", flexShrink: 0 }}>Look Up</button>
         </div>
 
         {/* Scan Result */}
@@ -2008,27 +2019,27 @@ function BarcodeScanner({ onScan, onClose }) {
                 <span style={{ fontSize: 22 }}>{CATEGORIES[lastScanned.category]?.icon}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{lastScanned.name}</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{CATEGORIES[lastScanned.category]?.label} → {CATEGORIES[lastScanned.category]?.subTypes[lastScanned.subType]?.label}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{CATEGORIES[lastScanned.category]?.label} → {CATEGORIES[lastScanned.category]?.subTypes[lastScanned.subType]?.label}</div>
                 </div>
-                <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>FOUND</span>
+                <span style={{ fontSize: 11, padding: "4px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>FOUND</span>
               </div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: M, marginBottom: 10 }}>UPC: {lastScanned.code} · Qty: {lastScanned.qty}</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M, marginBottom: 10 }}>UPC: {lastScanned.code} · Qty: {lastScanned.qty}</div>
               <button onClick={confirmScan} style={{ ...btnSt, width: "100%", background: "#22c55e", color: "#000", fontWeight: 700, fontSize: 13, padding: "10px 0" }}>✓ Add to Inventory</button>
             </>) : (<>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: 18 }}>❓</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>Unknown Barcode</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: M }}>{lastScanned.code}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{lastScanned.code}</div>
                 </div>
               </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Not in product database. You can add it manually with + Supply.</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Not in product database. You can add it manually with + Supply.</div>
             </>)}
           </div>
         )}
 
         {/* Quick stats */}
-        <div style={{ textAlign: "center", marginTop: 12, fontSize: 9, color: "rgba(255,255,255,0.3)" }}>
+        <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
           {Object.keys(BARCODE_DB).length} products in database · Point camera at UPC barcode
         </div>
       </div>
@@ -2037,12 +2048,14 @@ function BarcodeScanner({ onScan, onClose }) {
 }
 
 function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
+  const dialogRef = useDialogFocus(onClose);
   const [cat, setCat] = useState(editItem?.category || initialCategory || "water");
   const [sub, setSub] = useState(editItem?.subType || "");
   const [qty, setQty] = useState(editItem?.quantity?.toString() || "1");
   const [nm, setNm] = useState(editItem?.name || "");
   const [loc, setLoc] = useState(editItem?.location || "");
   const [flds, setFlds] = useState(editItem?.fields || {});
+  const [notes, setNotes] = useState(editItem?.notes || "");
 
   const catData = CATEGORIES[cat];
   const subTypes = catData?.subTypes || {};
@@ -2053,48 +2066,39 @@ function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
   useEffect(() => { if (selSub && !editItem) setNm(selSub.label); }, [sub]);
 
   const save = () => {
-    if (!sub) return;
-    onAdd({ id: editItem?.id || uid(), category: cat, subType: sub, name: nm || selSub?.label || "Item", quantity: parseFloat(qty) || 1, location: loc || "?", notes: "", fields: flds, addedDate: editItem?.addedDate || new Date().toISOString().split("T")[0] });
+    if (!sub || !Number.isFinite(Number(qty)) || Number(qty) < 0) return;
+    onAdd({ ...editItem, id: editItem?.id || uid(), category: cat, subType: sub, name: nm || selSub?.label || "Item", quantity: Number(qty), location: loc, notes, fields: flds, addedDate: editItem?.addedDate || new Date().toISOString().split("T")[0] });
     onClose();
   };
   const uf = (k, v) => setFlds((f) => ({ ...f, [k]: v }));
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#1a1d23", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 520 }}>
-        <h3 style={{ margin: "0 0 18px", fontSize: 18, fontWeight: 700 }}>{editItem ? "Edit" : "Add"} Supply</h3>
+    <div ref={dialogRef} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="supply-dialog-title" onClick={(e) => e.stopPropagation()} style={{ background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 16, padding: 28, width: "100%", maxWidth: 560 }}>
+        <h3 id="supply-dialog-title" style={{ margin: "0 0 18px", fontSize: 22, fontWeight: 600 }}>{editItem ? "Edit supply" : "Add a supply"}</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <label style={labelSt}>Category</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(58px,1fr))", gap: 4 }}>
-              {Object.entries(CATEGORIES).map(([k, v]) => (
-                <button key={k} onClick={() => setCat(k)} style={{ padding: "5px 2px", background: cat === k ? v.color + "20" : "rgba(255,255,255,0.03)", border: cat === k ? "1px solid " + v.color : "1px solid rgba(255,255,255,0.06)", borderRadius: 6, cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ fontSize: 14 }}>{v.icon}</div>
-                  <div style={{ fontSize: 9, color: cat === k ? v.color : "rgba(255,255,255,0.4)", fontWeight: 600 }}>{v.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div><label style={labelSt}>Type</label><select style={inp} value={sub} onChange={(e) => { setSub(e.target.value); if (!editItem) setNm(subTypes[e.target.value]?.label || ""); }}>{Object.entries(subTypes).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+          <div><label htmlFor="supply-category" style={labelSt}>Category</label><select id="supply-category" style={inp} value={cat} onChange={e => { const next = e.target.value; setCat(next); setSub(Object.keys(CATEGORIES[next].subTypes)[0] || ""); setFlds({}); }}>{Object.entries(CATEGORIES).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select><p style={{fontSize:12,color:"#78836e",margin:"6px 0 0"}}>{catData.desc}</p></div>
+          <div><label htmlFor="supply-type" style={labelSt}>Type</label><select id="supply-type" style={inp} value={sub} onChange={(e) => { setSub(e.target.value); if (!editItem) setNm(subTypes[e.target.value]?.label || ""); }}>{Object.entries(subTypes).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
-            <div><label style={labelSt}>Name</label><input style={inp} value={nm} onChange={(e) => setNm(e.target.value)} /></div>
-            <div><label style={labelSt}>Qty</label><input style={inp} type="number" min="0" value={qty} onChange={(e) => setQty(e.target.value)} /></div>
+            <div><label htmlFor="supply-name" style={labelSt}>Name</label><input id="supply-name" style={inp} value={nm} onChange={(e) => setNm(e.target.value)} /></div>
+            <div><label htmlFor="supply-qty" style={labelSt}>Quantity</label><input id="supply-qty" style={inp} type="number" min="0" value={qty} onChange={(e) => setQty(e.target.value)} /></div>
           </div>
           {subFields.length > 0 && (
-            <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 10, padding: 12, border: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ background: "rgba(47,76,39,0.02)", borderRadius: 10, padding: 12, border: "1px solid #e5eadd" }}>
               <div style={{ display: "grid", gridTemplateColumns: subFields.length > 2 ? "1fr 1fr" : "1fr", gap: 10 }}>
                 {subFields.map((fk) => { const meta = FIELD_META[fk]; if (!meta) return null; return meta.type === "select" ? (
-                  <div key={fk}><label style={labelSt}>{meta.label}</label><select style={inp} value={flds[fk] || ""} onChange={(e) => uf(fk, e.target.value)}><option value="">...</option>{meta.options.map((o) => <option key={o}>{o}</option>)}</select></div>
+                  <div key={fk}><label htmlFor={"supply-field-" + fk} style={labelSt}>{meta.label}</label><select id={"supply-field-" + fk} style={inp} value={flds[fk] ?? ""} onChange={(e) => uf(fk, e.target.value)}><option value="">...</option>{meta.options.map((o) => <option key={o}>{o}</option>)}</select></div>
                 ) : (
-                  <div key={fk}><label style={labelSt}>{meta.label}</label><input style={inp} type={meta.type} value={flds[fk] || ""} onChange={(e) => uf(fk, e.target.value)} placeholder={meta.placeholder || ""} /></div>
+                  <div key={fk}><label htmlFor={"supply-field-" + fk} style={labelSt}>{meta.label}</label><input id={"supply-field-" + fk} style={inp} type={meta.type} value={flds[fk] ?? ""} onChange={(e) => uf(fk, e.target.value)} placeholder={meta.placeholder || ""} /></div>
                 ); })}
               </div>
             </div>
           )}
-          <div><label style={labelSt}>Location</label><input style={inp} value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="Where?" /></div>
+          <div><label htmlFor="supply-location" style={labelSt}>Location</label><input id="supply-location" style={inp} value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="e.g. Pantry, shelf 2" /></div>
+          <div><label style={labelSt}>Notes</label><textarea aria-label="Supply notes" style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything else worth remembering" rows={2}/></div>
           <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
-            <button onClick={onClose} style={{ ...btnSt, flex: 1, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>Cancel</button>
-            <button onClick={save} style={{ ...btnSt, flex: 1, background: "#c8553a", color: "#fff", fontWeight: 700 }}>{editItem ? "Save" : "Add"}</button>
+            <button onClick={onClose} style={{ ...btnSt, flex: 1, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.6)" }}>Cancel</button>
+            <button onClick={save} style={{ ...btnSt, flex: 1, background: "#214c39", color: "#243d30", fontWeight: 700 }}>{editItem ? "Save" : "Add"}</button>
           </div>
         </div>
       </div>
@@ -2106,7 +2110,7 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
   const cat = CATEGORIES[catKey];
   const ci = items.filter((i) => i.category === catKey);
   const grouped = useMemo(() => { const g = {}; Object.keys(cat.subTypes).forEach((k) => { g[k] = ci.filter((i) => i.subType === k); }); return g; }, [ci, catKey]);
-  const M = "'JetBrains Mono',monospace";
+  const M = "'DM Sans',sans-serif";
   const p = people || 4;
   const clim = CLIMATES[climate] || CLIMATES.temperate;
   const climMod = clim.waterMod || 1;
@@ -2432,11 +2436,11 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
 
   return (
     <div>
-      <button onClick={onBack} style={{ ...btnSt, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", marginBottom: 16, fontSize: 12 }}>← Back</button>
+      <button onClick={onBack} style={{ ...btnSt, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", marginBottom: 16, fontSize: 12 }}>← Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
         <span style={{ fontSize: 36 }}>{cat.icon}</span>
-        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{cat.label}</h2><p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{cat.desc}</p></div>
-        <button onClick={() => onAdd(catKey)} style={{ ...btnSt, marginLeft: "auto", background: cat.color, color: "#fff", fontWeight: 700, fontSize: 13 }}>+ Add</button>
+        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{cat.label}</h2><p style={{ margin: 0, fontSize: 12, color: "rgba(36,61,48,0.58)" }}>{cat.desc}</p></div>
+        <button onClick={() => onAdd(catKey)} style={{ ...btnSt, marginLeft: "auto", background: cat.color, color: "#243d30", fontWeight: 700, fontSize: 13 }}>+ Add</button>
       </div>
 
       {/* ── Continuity Calculation Banner ── */}
@@ -2445,20 +2449,20 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
             <div style={{ textAlign: "center", minWidth: 80 }}>
               <div style={{ fontSize: 32, fontWeight: 800, fontFamily: M, color: calc.color, lineHeight: 1 }}>{calc.bigNum}</div>
-              <div style={{ fontSize: 9, color: calc.color, fontWeight: 600, textTransform: "uppercase", marginTop: 2 }}>{calc.bigUnit}</div>
+              <div style={{ fontSize: 11, color: calc.color, fontWeight: 600, textTransform: "uppercase", marginTop: 2 }}>{calc.bigUnit}</div>
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700 }}>{calc.icon} {calc.title}</div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{p} people · {climate || "temperate"} climate · {ci.reduce((s, i) => s + (i.quantity || 0), 0)} items logged</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{p} people · {climate || "temperate"} climate · {ci.reduce((s, i) => s + (i.quantity || 0), 0)} items logged</div>
             </div>
           </div>
           <div style={{ display: "grid", gap: 0 }}>
             {calc.rows.map((row, ri) => (
-              <div key={ri} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: row.highlight ? calc.color + "10" : ri % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent", borderRadius: row.highlight ? 6 : 0, borderLeft: row.highlight ? "3px solid " + calc.color : "3px solid transparent" }}>
-                <span style={{ fontSize: 11, color: row.highlight ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.4)", fontWeight: row.highlight ? 700 : 400 }}>{row.label}</span>
+              <div key={ri} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: row.highlight ? calc.color + "10" : ri % 2 === 0 ? "rgba(36,61,48,0.01)" : "transparent", borderRadius: row.highlight ? 6 : 0, borderLeft: row.highlight ? "3px solid " + calc.color : "3px solid transparent" }}>
+                <span style={{ fontSize: 11, color: row.highlight ? "rgba(36,61,48,0.8)" : "rgba(36,61,48,0.4)", fontWeight: row.highlight ? 700 : 400 }}>{row.label}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {row.note && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>{row.note}</span>}
-                  <span style={{ fontSize: 12, fontWeight: 700, fontFamily: M, color: row.highlight ? calc.color : "rgba(255,255,255,0.6)" }}>{row.value}</span>
+                  {row.note && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontStyle: "italic" }}>{row.note}</span>}
+                  <span style={{ fontSize: 12, fontWeight: 700, fontFamily: M, color: row.highlight ? calc.color : "rgba(36,61,48,0.6)" }}>{row.value}</span>
                 </div>
               </div>
             ))}
@@ -2470,9 +2474,9 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
       {ci.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px 20px", border: "2px dashed rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 20 }}>
           <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.3 }}>{cat.icon}</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>No items yet</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 14 }}>Add your first {cat.label.toLowerCase()} items to start tracking</div>
-          <button onClick={() => onAdd(catKey)} style={{ ...btnSt, background: cat.color, color: "#fff", fontWeight: 700, fontSize: 12, padding: "10px 20px" }}>+ Add {cat.label}</button>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>No items yet</div>
+          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 14 }}>Add your first {cat.label.toLowerCase()} items to start tracking</div>
+          <button onClick={() => onAdd(catKey)} style={{ ...btnSt, background: cat.color, color: "#243d30", fontWeight: 700, fontSize: 12, padding: "10px 20px" }}>+ Add {cat.label}</button>
         </div>
       )}
 
@@ -2482,16 +2486,16 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
           <div key={sk} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
               <span style={{ fontSize: 14 }}>{sub.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{sub.label}</span>
-              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: M }}>{si.length > 0 ? si.reduce((s, i) => s + i.quantity, 0) + " " + sub.unit : "—"}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.6)" }}>{sub.label}</span>
+              <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{si.length > 0 ? si.reduce((s, i) => s + i.quantity, 0) + " " + sub.unit : "—"}</span>
             </div>
             {si.length === 0 ? (
-              <div onClick={() => onAdd(catKey)} style={{ padding: "10px 14px", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 8, color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", transition: "border-color 0.15s" }} onMouseOver={e => e.currentTarget.style.borderColor = cat.color + "40"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"}>+ Add {sub.label}</div>
+              <div onClick={() => onAdd(catKey)} style={{ padding: "10px 14px", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 8, color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", transition: "border-color 0.15s" }} onMouseOver={e => e.currentTarget.style.borderColor = cat.color + "40"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(36,61,48,0.06)"}>+ Add {sub.label}</div>
             ) : si.map((item) => {
               const rs = item.fields?.lastRefreshed ? getRefreshStatus(item.fields.lastRefreshed) : null;
               const es = item.fields?.expiryDate ? getExpiryStatus(item.fields.expiryDate) : null;
               return (
-                <div key={item.id} style={{ padding: "10px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 4 }}>
+                <div key={item.id} style={{ padding: "10px 14px", background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", borderRadius: 10, marginBottom: 4 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid " + cat.color + "30" }}>
                       <button onClick={() => onQtyChange && onQtyChange(item.id, -1)} style={{ background: cat.color + "10", border: "none", color: cat.color, fontSize: 16, padding: "0", width: 36, height: 36, cursor: "pointer", fontWeight: 700, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
@@ -2499,16 +2503,16 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
                       <button onClick={() => onQtyChange && onQtyChange(item.id, 1)} style={{ background: cat.color + "10", border: "none", color: cat.color, fontSize: 16, padding: "0", width: 36, height: 36, cursor: "pointer", fontWeight: 700, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
-                    {es && <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 10, background: es.c + "15", color: es.c, fontFamily: M, fontWeight: 600 }}>{es.l}</span>}
-                    {rs && <span style={{ fontSize: 9, padding: "3px 6px", borderRadius: 10, background: rs.c + "12", color: rs.c, fontFamily: M }}>{rs.l}</span>}
-                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", flexShrink: 0 }}>📍{item.location}</span>
-                    <button onClick={() => onEdit(item)} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>Edit</button>
-                    <button onClick={() => onRemove(item.id)} style={{ ...btnSt, padding: "6px 8px", fontSize: 14, background: "none", color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>×</button>
+                    {es && <span style={{ fontSize: 11, padding: "4px 8px", borderRadius: 10, background: es.c + "15", color: es.c, fontFamily: M, fontWeight: 600 }}>{es.l}</span>}
+                    {rs && <span style={{ fontSize: 11, padding: "3px 6px", borderRadius: 10, background: rs.c + "12", color: rs.c, fontFamily: M }}>{rs.l}</span>}
+                    <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>📍{item.location}</span>
+                    <button onClick={() => onEdit(item)} style={{ ...btnSt, padding: "6px 10px", fontSize: 11, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>Edit</button>
+                    <button onClick={() => onRemove(item.id)} style={{ ...btnSt, padding: "6px 8px", fontSize: 14, background: "none", color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>×</button>
                   </div>
                   {item.fields && Object.entries(item.fields).filter(([k, v]) => v && k !== "expiryDate" && k !== "lastRefreshed").length > 0 && (
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", paddingTop: 6, marginTop: 6, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", paddingTop: 6, marginTop: 6, borderTop: "1px solid #e5eadd" }}>
                       {Object.entries(item.fields).filter(([k, v]) => v && k !== "expiryDate" && k !== "lastRefreshed").map(([k, v]) => (
-                        <div key={k} style={{ fontSize: 9 }}><span style={{ color: "rgba(255,255,255,0.35)" }}>{FIELD_META[k]?.label || k}: </span><span style={{ color: "rgba(255,255,255,0.5)", fontFamily: M }}>{v}</span></div>
+                        <div key={k} style={{ fontSize: 11 }}><span style={{ color: "rgba(36,61,48,0.58)" }}>{FIELD_META[k]?.label || k}: </span><span style={{ color: "rgba(36,61,48,0.58)", fontFamily: M }}>{v}</span></div>
                       ))}
                     </div>
                   )}
@@ -2526,10 +2530,11 @@ function CategoryDetail({ catKey, items, people, climate, onBack, onAdd, onRemov
    QUICK START WIZARD
    ═══════════════════════════════════════════════════════════ */
 function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeople, climate, setClimate, propAddress, setPropAddress, onComplete, onSkip }) {
-  const M = "'JetBrains Mono',monospace";
-  const cardSt = { background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" };
-  const labelSt = { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "block" };
-  const inp = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 13, fontFamily: M, outline: "none", boxSizing: "border-box" };
+  const dialogRef = useDialogFocus(onSkip);
+  const M = "'DM Sans',sans-serif";
+  const cardSt = { background: "#ffffff", borderRadius: 12, border: "1px solid #e0e6da" };
+  const labelSt = { fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "block" };
+  const inp = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "#243d30", fontSize: 13, fontFamily: M, outline: "none", boxSizing: "border-box" };
 
   const upd = (key, val) => setProfile(p => ({ ...p, [key]: val }));
   const toggleArr = (key, val) => setProfile(p => {
@@ -2540,7 +2545,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
   const Pill = ({ opts, value, field }) => (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
       {opts.map(o => (
-        <button key={o.v} onClick={() => upd(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: value === o.v ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: value === o.v ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: value === o.v ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+        <button key={o.v} onClick={() => upd(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: value === o.v ? "rgba(33,76,57,0.12)" : "rgba(36,61,48,0.03)", border: value === o.v ? "1px solid rgba(33,76,57,0.5)" : "1px solid #dce3d5", color: value === o.v ? "#214c39" : "rgba(36,61,48,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
           {o.i && <span style={{ marginRight: 6 }}>{o.i}</span>}{o.l}
         </button>
       ))}
@@ -2552,7 +2557,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
       {opts.map(o => {
         const sel = (values || []).includes(o.v);
         return (
-          <button key={o.v} onClick={() => toggleArr(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: sel ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: sel ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: sel ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+          <button key={o.v} onClick={() => toggleArr(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: sel ? "rgba(33,76,57,0.12)" : "rgba(36,61,48,0.03)", border: sel ? "1px solid rgba(33,76,57,0.5)" : "1px solid #dce3d5", color: sel ? "#214c39" : "rgba(36,61,48,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
             {sel ? "✓ " : ""}{o.i && <span style={{ marginRight: 4 }}>{o.i}</span>}{o.l}
           </button>
         );
@@ -2617,12 +2622,12 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
         <label style={labelSt}>Property Address</label>
         <input style={{ ...inp, marginBottom: 16 }} type="text" value={propAddress || ""} onChange={e => setPropAddress(e.target.value)} placeholder="123 Rural Route 7, Muskoka, ON" />
         <label style={labelSt}>Population Density</label>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16 }}>
+        <div ref={dialogRef} style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16 }}>
           {[{ v: "urban", l: "Urban", i: "🏙️", d: "City center, high density" }, { v: "suburban", l: "Suburban", i: "🏘️", d: "Residential area" }, { v: "rural", l: "Rural", i: "🌾", d: "Countryside, farms" }, { v: "remote", l: "Remote", i: "🏔️", d: "Isolated, off-road" }].map(o => (
-            <button key={o.v} onClick={() => upd("populationDensity", o.v)} style={{ ...cardSt, padding: "14px 12px", cursor: "pointer", textAlign: "center", background: profile.populationDensity === o.v ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", border: profile.populationDensity === o.v ? "1px solid rgba(200,85,58,0.4)" : "1px solid rgba(255,255,255,0.06)", transition: "all 0.15s" }}>
+            <button key={o.v} onClick={() => upd("populationDensity", o.v)} style={{ ...cardSt, padding: "14px 12px", cursor: "pointer", textAlign: "center", background: profile.populationDensity === o.v ? "rgba(33,76,57,0.1)" : "rgba(36,61,48,0.02)", border: profile.populationDensity === o.v ? "1px solid rgba(33,76,57,0.4)" : "1px solid #e0e6da", transition: "all 0.15s" }}>
               <div style={{ fontSize: 24, marginBottom: 4 }}>{o.i}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: profile.populationDensity === o.v ? "#c8553a" : "#fff" }}>{o.l}</div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{o.d}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: profile.populationDensity === o.v ? "#214c39" : "#243d30" }}>{o.l}</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{o.d}</div>
             </button>
           ))}
         </div>
@@ -2646,14 +2651,14 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
       case 3: return (<>
         <label style={labelSt}>Number of People</label>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>−</button>
+          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "#243d30", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>−</button>
           <span style={{ fontSize: 28, fontWeight: 800, fontFamily: M, minWidth: 36, textAlign: "center" }}>{people}</span>
-          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</button>
+          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "#243d30", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</button>
         </div>
         <label style={labelSt}>Climate Zone</label>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
           {[{ v: "arctic", l: "Arctic", i: "🧊" }, { v: "cold", l: "Cold", i: "❄️" }, { v: "temperate", l: "Temperate", i: "🌿" }, { v: "hot_dry", l: "Hot & Dry", i: "🏜️" }, { v: "tropical", l: "Tropical", i: "🌴" }, { v: "coastal", l: "Coastal", i: "🌊" }].map(o => (
-            <button key={o.v} onClick={() => setClimate(o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: climate === o.v ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.03)", border: climate === o.v ? "1px solid rgba(200,85,58,0.5)" : "1px solid rgba(255,255,255,0.08)", color: climate === o.v ? "#c8553a" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+            <button key={o.v} onClick={() => setClimate(o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: climate === o.v ? "rgba(33,76,57,0.12)" : "rgba(36,61,48,0.03)", border: climate === o.v ? "1px solid rgba(33,76,57,0.5)" : "1px solid #dce3d5", color: climate === o.v ? "#214c39" : "rgba(36,61,48,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
               <span style={{ marginRight: 6 }}>{o.i}</span>{o.l}
             </button>
           ))}
@@ -2702,37 +2707,37 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onSkip}>
-      <div style={{ background: "#13151a", borderRadius: 16, maxWidth: 540, width: "100%", maxHeight: "85vh", overflow: "auto", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: "#ffffff", borderRadius: 16, maxWidth: 540, width: "100%", maxHeight: "85vh", overflow: "auto", border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={e => e.stopPropagation()}>
         {/* Progress bar */}
-        <div style={{ height: 3, background: "rgba(255,255,255,0.04)", borderRadius: "16px 16px 0 0", overflow: "hidden" }}>
-          <div style={{ height: 3, background: "linear-gradient(90deg,#c8553a,#e8724a)", width: ((step + 1) / STEPS.length * 100) + "%", transition: "width 0.3s ease" }} />
+        <div style={{ height: 3, background: "rgba(47,76,39,0.04)", borderRadius: "16px 16px 0 0", overflow: "hidden" }}>
+          <div style={{ height: 3, background: "linear-gradient(90deg,#214c39,#e8724a)", width: ((step + 1) / STEPS.length * 100) + "%", transition: "width 0.3s ease" }} />
         </div>
         {/* Header */}
         <div style={{ padding: "28px 32px 0", textAlign: "center" }}>
           <div style={{ fontSize: 44, marginBottom: 10 }}>{STEPS[step].icon}</div>
           <h3 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{STEPS[step].title}</h3>
-          <p style={{ margin: "0 0 24px", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{STEPS[step].desc} · Step {step + 1} of {STEPS.length}</p>
+          <p style={{ margin: "0 0 24px", fontSize: 12, color: "rgba(36,61,48,0.58)" }}>{STEPS[step].desc} · Step {step + 1} of {STEPS.length}</p>
         </div>
         {/* Content */}
         <div style={{ padding: "0 32px 16px" }}>{renderStep()}</div>
         {/* Navigation */}
         <div style={{ padding: "12px 32px 20px", display: "flex", justifyContent: "space-between", gap: 8 }}>
           {step > 0 ? (
-            <button onClick={() => setStep(step - 1)} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
+            <button onClick={() => setStep(step - 1)} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "rgba(36,61,48,0.58)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
           ) : (
-            <button onClick={onSkip} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.3)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Skip for now</button>
+            <button onClick={onSkip} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid #dce3d5", background: "transparent", color: "rgba(36,61,48,0.58)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Skip for now</button>
           )}
           <button onClick={() => {
             if (step < STEPS.length - 1) setStep(step + 1);
             else onComplete({ ...profile, completedAt: new Date().toISOString() });
-          }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: step < STEPS.length - 1 ? "linear-gradient(135deg,#c8553a,#a3412d)" : "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(200,85,58,0.25)" }}>
+          }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: step < STEPS.length - 1 ? "linear-gradient(135deg,#214c39,#183d2b)" : "linear-gradient(135deg,#22c55e,#16a34a)", color: "#243d30", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(33,76,57,0.25)" }}>
             {step < STEPS.length - 1 ? "Next →" : "✓ Complete Setup"}
           </button>
         </div>
         {/* Step dots */}
         <div style={{ display: "flex", gap: 6, justifyContent: "center", paddingBottom: 20 }}>
           {STEPS.map((_, i) => (
-            <div key={i} onClick={() => setStep(i)} style={{ width: 8, height: 8, borderRadius: 4, cursor: "pointer", background: i === step ? "#c8553a" : i < step ? "rgba(200,85,58,0.35)" : "rgba(255,255,255,0.08)", transition: "background 0.2s" }} />
+            <div key={i} onClick={() => setStep(i)} style={{ width: 8, height: 8, borderRadius: 4, cursor: "pointer", background: i === step ? "#214c39" : i < step ? "rgba(33,76,57,0.35)" : "rgba(36,61,48,0.08)", transition: "background 0.2s" }} />
           ))}
         </div>
       </div>
@@ -2744,7 +2749,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
 function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, setPropSub, dismissResetKey }) {
-  const M = "'JetBrains Mono',monospace";
+  const M = "'DM Sans',sans-serif";
 
   /* ── Live Weather State ── */
   const [weather, setWeather] = useState(null);
@@ -3012,41 +3017,41 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
     <div style={{ display: "grid", gap: 16 }}>
       {/* ── Quick Start Banner ── */}
       {!propertyProfile?.completedAt && onOpenQuickStart && !dismissedProfileCTA && (
-        <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+        <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.15)"}>
           <div style={{ fontSize: 28, flexShrink: 0 }}>🏠</div>
           <div style={{ flex: 1, cursor: "pointer" }} onClick={onOpenQuickStart}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Complete Your Property Profile</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Answer a few questions about your property infrastructure, water, and location to unlock personalized readiness insights.</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Complete Your Property Profile</div>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Answer a few questions about your property infrastructure, water, and location to unlock personalized readiness insights.</div>
           </div>
-          <div onClick={onOpenQuickStart} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Get Started</div>
-          <button onClick={(e) => { e.stopPropagation(); setDismissedProfileCTA(true); localStorage.setItem("prepvault-dismiss-profile-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+          <div onClick={onOpenQuickStart} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Get Started</div>
+          <button onClick={(e) => { e.stopPropagation(); setDismissedProfileCTA(true); localStorage.setItem("prepvault-dismiss-profile-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
         </div>
       )}
 
       {/* ── Readiness Overview ── */}
-      <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "linear-gradient(135deg, rgba(200,85,58,0.04), rgba(200,85,58,0.01))", border: "1px solid rgba(200,85,58,0.1)" }}>
+      <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "linear-gradient(135deg, rgba(33,76,57,0.04), rgba(33,76,57,0.01))", border: "1px solid rgba(33,76,57,0.1)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
           {[
             { icon: null, label: "Score", value: SL(prepScore), color: SC(prepScore), score: prepScore },
             { icon: "⚡", label: "Power", value: cont.powerHrs >= 24 ? cont.powerHrs.toFixed(0) + "h backup" : cont.powerHrs > 0 ? cont.powerHrs.toFixed(0) + "h backup" : "No backup", color: cont.powerHrs >= 72 ? "#22c55e" : cont.powerHrs >= 24 ? "#f59e0b" : "#ef4444" },
             { icon: "💧", label: "Water", value: cont.waterDays >= 14 ? cont.waterDays.toFixed(0) + " days" : cont.waterDays > 0 ? cont.waterDays.toFixed(1) + " days" : "No stored water", color: cont.waterDays >= 14 ? "#22c55e" : cont.waterDays >= 3 ? "#f59e0b" : "#ef4444" },
-            { icon: "🔥", label: "Heat", value: cont.heatDays >= 999 ? "N/A" : cont.heatDays.toFixed(0) + " days", color: cont.heatDays >= 999 ? "rgba(255,255,255,0.3)" : cont.heatDays >= 30 ? "#22c55e" : cont.heatDays >= 7 ? "#f59e0b" : "#ef4444" },
+            { icon: "🔥", label: "Heat", value: cont.heatDays >= 999 ? "N/A" : cont.heatDays.toFixed(0) + " days", color: cont.heatDays >= 999 ? "rgba(36,61,48,0.3)" : cont.heatDays >= 30 ? "#22c55e" : cont.heatDays >= 7 ? "#f59e0b" : "#ef4444" },
             { icon: "🍽️", label: "Food", value: cont.calDays >= 30 ? cont.calDays.toFixed(0) + " days" : cont.calDays > 0 ? cont.calDays.toFixed(1) + " days" : "No stored food", color: cont.calDays >= 30 ? "#22c55e" : cont.calDays >= 7 ? "#f59e0b" : "#ef4444" },
           ].map((s, i) => (
-            <div key={i} style={{ padding: "14px 16px", borderRight: i < 4 ? "1px solid rgba(255,255,255,0.04)" : "none", display: "flex", alignItems: "center", gap: 10 }}>
+            <div key={i} style={{ padding: "14px 16px", borderRight: i < 4 ? "1px solid #e5eadd" : "none", display: "flex", alignItems: "center", gap: 10 }}>
               {s.score != null ? (
                 <div style={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
                   <svg width="32" height="32" viewBox="0 0 32 32">
-                    <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                    <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(36,61,48,0.06)" strokeWidth="3" />
                     <circle cx="16" cy="16" r="13" fill="none" stroke={s.color} strokeWidth="3" strokeDasharray={`${s.score / 100 * 81.7} 81.7`} strokeLinecap="round" transform="rotate(-90 16 16)" style={{ transition: "stroke-dasharray 0.8s ease" }} />
                   </svg>
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, fontFamily: M, color: s.color }}>{s.score}</div>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, fontFamily: M, color: s.color }}>{s.score}</div>
                 </div>
               ) : (
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: s.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{s.icon}</div>
               )}
               <div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.value}</div>
               </div>
             </div>
@@ -3059,41 +3064,41 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         const camerasConnected = localStorage.getItem("prepvault-cameras-connected") === "1";
         if (!camerasConnected) {
           return (
-            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.15)"}>
               <div style={{ fontSize: 28, flexShrink: 0 }}>📷</div>
               <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Connect Trail Cameras</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Link your Tactacam or trail cameras for live perimeter monitoring and motion alerts.</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Connect Trail Cameras</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Link your Tactacam or trail cameras for live perimeter monitoring and motion alerts.</div>
               </div>
-              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
-              <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
+              <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
             </div>
           );
         }
         const onlineCams = SAMPLE_CAMERAS.filter(c => c.status === "online").slice(0, 3);
         return (
-          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)" }}>
+          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 20 }}>📷</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Trail Cameras</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{onlineCams.length} online — last captures</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Trail Cameras</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{onlineCams.length} online — last captures</div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>View All</div>
-                <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>View All</div>
+                <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
               </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
               {onlineCams.map(cam => (
-                <div key={cam.id} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
+                <div key={cam.id} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e0e6da", background: "#f0f3ec" }}>
                   <CameraFeedCanvas cam={cam} expanded={false} />
                   <div style={{ padding: "5px 8px" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cam.name}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cam.name}</div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
-                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{cam.last}</span>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{cam.last}</span>
                       <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", flexShrink: 0 }} />
                     </div>
                   </div>
@@ -3109,14 +3114,14 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         const alarmsConnected = localStorage.getItem("prepvault-alarms-connected") === "1";
         if (!alarmsConnected) {
           return (
-            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"}>
+            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.15)"}>
               <div style={{ fontSize: 28, flexShrink: 0 }}>🚨</div>
               <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Connect Alarm System</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Link Alarm.com, EyezOn, Nest, or other providers to monitor zones and device status.</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Connect Alarm System</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Link Alarm.com, EyezOn, Nest, or other providers to monitor zones and device status.</div>
               </div>
-              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
-              <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
+              <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
             </div>
           );
         }
@@ -3129,82 +3134,82 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         const allLocked = locks.every(d => d.status === "Locked");
         const allSensorsOk = sensors.every(d => d.bat === "Good");
         return (
-          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(200,85,58,0.06), rgba(200,85,58,0.02))", border: "1px solid rgba(200,85,58,0.15)" }}>
+          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alarmMinimized ? 0 : 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 20 }}>🚨</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8553a" }}>Alarm Systems</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{alarm.provider} · {alarm.status} · {alarm.zones.length + nestDevices.length} devices</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Alarm Systems</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{alarm.provider} · {alarm.status} · {alarm.zones.length + nestDevices.length} devices</div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Manage</div>
-                <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
+                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Manage</div>
+                <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
               </div>
             </div>
             <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allZonesSecure ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", color: allZonesSecure ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{allZonesSecure ? "✓ Zones Secure" : "⚠ Zone Alert"}</span>
-              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allLocked ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allLocked ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allLocked ? "✓ Locks Engaged" : "⚠ Lock Open"}</span>
-              <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: allSensorsOk ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allSensorsOk ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allSensorsOk ? "✓ Sensors Armed" : "⚠ Sensor Alert"}</span>
-              {thermos.length > 0 && <span style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", fontWeight: 700 }}>🌡️ {thermos.map(t => t.temp).join(" / ")}</span>}
+              <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: allZonesSecure ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", color: allZonesSecure ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{allZonesSecure ? "✓ Zones Secure" : "⚠ Zone Alert"}</span>
+              <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: allLocked ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allLocked ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allLocked ? "✓ Locks Engaged" : "⚠ Lock Open"}</span>
+              <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: allSensorsOk ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allSensorsOk ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allSensorsOk ? "✓ Sensors Armed" : "⚠ Sensor Alert"}</span>
+              {thermos.length > 0 && <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", fontWeight: 700 }}>🌡️ {thermos.map(t => t.temp).join(" / ")}</span>}
             </div>
             {!alarmMinimized && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {/* Alarm Zones */}
-              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allZonesSecure ? "#22c55e" : "#ef4444") }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: allZonesSecure ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allZonesSecure ? "✓ All Zones Secure" : "⚠ Zone Alert"}</div>
+              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allZonesSecure ? "#22c55e" : "#ef4444") }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: allZonesSecure ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allZonesSecure ? "✓ All Zones Secure" : "⚠ Zone Alert"}</div>
                 <div style={{ display: "grid", gap: 3 }}>
                   {alarm.zones.map((z, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
                       <span style={{ width: 5, height: 5, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444", flexShrink: 0 }} />
-                      {z.n} — <span style={{ color: "rgba(255,255,255,0.3)" }}>{z.s}</span>
+                      {z.n} — <span style={{ color: "rgba(36,61,48,0.58)" }}>{z.s}</span>
                     </div>
                   ))}
                 </div>
               </div>
               {/* Smart Locks */}
-              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allLocked ? "#22c55e" : "#f59e0b") }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: allLocked ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allLocked ? "✓ Locks Secured" : "⚠ Lock Open"}</div>
+              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allLocked ? "#22c55e" : "#f59e0b") }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: allLocked ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allLocked ? "✓ Locks Secured" : "⚠ Lock Open"}</div>
                 <div style={{ display: "grid", gap: 3 }}>
                   {locks.map((d, i) => (
-                    <div key={"l" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-                      <span style={{ fontSize: 10 }}>🔐</span>
+                    <div key={"l" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
+                      <span style={{ fontSize: 11 }}>🔐</span>
                       {d.n} — <span style={{ color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{d.status}</span>
-                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(255,255,255,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 9 }}>{d.bat}</span>}
+                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(36,61,48,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 11 }}>{d.bat}</span>}
                     </div>
                   ))}
                 </div>
               </div>
               {/* Smoke / CO Sensors */}
-              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allSensorsOk ? "#22c55e" : "#f59e0b") }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: allSensorsOk ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allSensorsOk ? "✓ Sensors OK" : "⚠ Sensor Alert"}</div>
+              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allSensorsOk ? "#22c55e" : "#f59e0b") }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: allSensorsOk ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allSensorsOk ? "✓ Sensors OK" : "⚠ Sensor Alert"}</div>
                 <div style={{ display: "grid", gap: 3 }}>
                   {sensors.map((d, i) => (
-                    <div key={"s" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-                      <span style={{ fontSize: 10 }}>🔥</span>
-                      {d.n} — <span style={{ color: "rgba(255,255,255,0.3)" }}>CO: {d.co}</span>
-                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(255,255,255,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 9 }}>{d.bat}</span>}
+                    <div key={"s" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
+                      <span style={{ fontSize: 11 }}>🔥</span>
+                      {d.n} — <span style={{ color: "rgba(36,61,48,0.58)" }}>CO: {d.co}</span>
+                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(36,61,48,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 11 }}>{d.bat}</span>}
                     </div>
                   ))}
                 </div>
               </div>
               {/* Thermostats */}
-              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid #0ea5e9" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🌡️ Climate</div>
+              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid #0ea5e9" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🌡️ Climate</div>
                 <div style={{ display: "grid", gap: 3 }}>
                   {thermos.map((d, i) => (
-                    <div key={"t" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-                      <span style={{ fontSize: 10 }}>🌡️</span>
+                    <div key={"t" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
+                      <span style={{ fontSize: 11 }}>🌡️</span>
                       {d.n} — <span style={{ color: "#0ea5e9", fontWeight: 600 }}>{d.temp}</span>
-                      <span style={{ color: "rgba(255,255,255,0.25)" }}>set {d.set} · {d.hum} · {d.mode}</span>
+                      <span style={{ color: "rgba(36,61,48,0.58)" }}>set {d.set} · {d.hum} · {d.mode}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
             )}
-            <button onClick={() => setAlarmMinimized(m => !m)} style={{ marginTop: 8, padding: "8px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center", width: "100%" }}>
+            <button onClick={() => setAlarmMinimized(m => !m)} style={{ marginTop: 8, padding: "8px 0", borderRadius: 8, border: "1px solid #e0e6da", background: "rgba(47,76,39,0.02)", color: "rgba(36,61,48,0.58)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center", width: "100%" }}>
               {alarmMinimized ? "Show More" : "Show Less"}
             </button>
           </div>
@@ -3243,43 +3248,43 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         return (
           <div style={{ ...cardSt, padding: 16 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Action Items ({pending.length})</h3>
-              {(actionLog || []).length > 0 && <button onClick={() => setShowActHistory(h => !h)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(255,255,255,0.08)", background: "none", color: "rgba(255,255,255,0.3)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{showActHistory ? "Hide" : "Show"} History ({(actionLog || []).length})</button>}
+              <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Action Items ({pending.length})</h3>
+              {(actionLog || []).length > 0 && <button onClick={() => setShowActHistory(h => !h)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid #dce3d5", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{showActHistory ? "Hide" : "Show"} History ({(actionLog || []).length})</button>}
             </div>
             {pending.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 20, color: "rgba(255,255,255,0.2)", fontSize: 11 }}>All caught up — no pending action items</div>
+              <div style={{ textAlign: "center", padding: 20, color: "rgba(36,61,48,0.58)", fontSize: 11 }}>All caught up — no pending action items</div>
             ) : (
               <div style={{ display: "grid", gap: 4 }}>
                 {(showAllActions ? pending : pending.slice(0, 3)).map(task => (
-                  <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.04)", borderLeft: "3px solid " + (pColor[task.priority] || "#22c55e") }}>
+                  <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(47,76,39,0.01)", border: "1px solid #e5eadd", borderLeft: "3px solid " + (pColor[task.priority] || "#22c55e") }}>
                     <input type="checkbox" onChange={() => { const by = (members || [])[0]?.name || "You"; setActionLog(prev => [...(prev || []), { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), taskId: task.id, desc: task.desc, completedBy: by, completedAt: new Date().toISOString() }]); }} style={{ accentColor: pColor[task.priority] || "#22c55e", cursor: "pointer" }} />
                     <span style={{ fontSize: 14, flexShrink: 0 }}>{task.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{task.desc}</div>
-                      {task.assignee && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>Assigned: {task.assignee}</div>}
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{task.desc}</div>
+                      {task.assignee && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Assigned: {task.assignee}</div>}
                     </div>
-                    <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: (pColor[task.priority] || "#22c55e") + "15", color: pColor[task.priority] || "#22c55e", fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{task.priority}</span>
+                    <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: (pColor[task.priority] || "#22c55e") + "15", color: pColor[task.priority] || "#22c55e", fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{task.priority}</span>
                   </div>
                 ))}
                 {pending.length > 3 && (
-                  <button onClick={() => setShowAllActions(a => !a)} style={{ padding: "8px 0", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                  <button onClick={() => setShowAllActions(a => !a)} style={{ padding: "8px 0", borderRadius: 8, border: "1px solid #e0e6da", background: "rgba(47,76,39,0.02)", color: "rgba(36,61,48,0.58)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
                     {showAllActions ? "Show Less" : "See More"}
                   </button>
                 )}
               </div>
             )}
             {showActHistory && (actionLog || []).length > 0 && (
-              <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 10 }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Completed History</div>
+              <div style={{ marginTop: 12, borderTop: "1px solid #e0e6da", paddingTop: 10 }}>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Completed History</div>
                 {(actionLog || []).slice().reverse().map(log => (
-                  <div key={log.id} style={{ display: "flex", gap: 8, padding: "4px 0", fontSize: 10, color: "rgba(255,255,255,0.3)", borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
+                  <div key={log.id} style={{ display: "flex", gap: 8, padding: "4px 0", fontSize: 11, color: "rgba(36,61,48,0.58)", borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
                     <span style={{ color: "#22c55e" }}>✓</span>
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.desc}</span>
                     <span style={{ flexShrink: 0, fontWeight: 600 }}>{log.completedBy}</span>
                     <span style={{ flexShrink: 0, fontFamily: M }}>{new Date(log.completedAt).toLocaleDateString()}</span>
                   </div>
                 ))}
-                <button onClick={() => { if (confirm("Clear all completed history?")) setActionLog([]); }} style={{ marginTop: 8, padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(239,68,68,0.1)", background: "none", color: "rgba(239,68,68,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Clear History</button>
+                <button onClick={() => { if (confirm("Clear all completed history?")) setActionLog([]); }} style={{ marginTop: 8, padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(239,68,68,0.1)", background: "none", color: "rgba(239,68,68,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Clear History</button>
               </div>
             )}
           </div>
@@ -3291,47 +3296,47 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         {/* Local Weather */}
         <div style={{ ...cardSt, padding: 16, background: "linear-gradient(135deg, rgba(14,165,233,0.04), rgba(14,165,233,0.01))", border: "1px solid rgba(14,165,233,0.08)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>🌤️ Local Weather</h3>
+            <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>🌤️ Local Weather</h3>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: weatherSource === "live" ? "rgba(34,197,94,0.1)" : weatherSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(255,255,255,0.06)", color: weatherSource === "live" ? "#22c55e" : weatherSource === "cached" ? "#0ea5e9" : "rgba(255,255,255,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{weatherSource === "live" ? "LIVE" : weatherSource === "cached" ? "CACHED" : "SAMPLE"}</span>
-              {currentWeather.city && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: M }}>{currentWeather.city}</span>}
+              <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: weatherSource === "live" ? "rgba(34,197,94,0.1)" : weatherSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(36,61,48,0.06)", color: weatherSource === "live" ? "#22c55e" : weatherSource === "cached" ? "#0ea5e9" : "rgba(36,61,48,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{weatherSource === "live" ? "LIVE" : weatherSource === "cached" ? "CACHED" : "SAMPLE"}</span>
+              {currentWeather.city && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{currentWeather.city}</span>}
             </div>
           </div>
           {weatherLoading && !weather ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>⟳ Loading weather...</div>
+            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⟳ Loading weather...</div>
           ) : (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
                 <div>
                   <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#0ea5e9", lineHeight: 1 }}>{currentWeather.temp}°</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Feels like {currentWeather.feels_like}°</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Feels like {currentWeather.feels_like}°</div>
                 </div>
                 <div style={{ fontSize: 40, lineHeight: 1 }}>{currentWeather.icon || "🌤️"}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{currentWeather.description}</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Wind: {currentWeather.wind_dir} {currentWeather.wind_speed} km/h · Humidity: {currentWeather.humidity}%</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.6)" }}>{currentWeather.description}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Wind: {currentWeather.wind_dir} {currentWeather.wind_speed} km/h · Humidity: {currentWeather.humidity}%</div>
                 </div>
               </div>
               {forecast.length > 0 && (
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(forecast.length, 5)}, 1fr)`, gap: 4 }}>
                   {forecast.slice(0, 5).map((d, i) => (
-                    <div key={i} style={{ textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)" }}>{d.day}</div>
+                    <div key={i} style={{ textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "rgba(47,76,39,0.02)" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>{d.day}</div>
                       <div style={{ fontSize: 16, margin: "3px 0" }}>{d.icon}</div>
-                      <div style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.5)" }}>{d.hi}°</div>
-                      <div style={{ fontSize: 8, fontFamily: M, color: "rgba(255,255,255,0.2)" }}>{d.lo}°</div>
+                      <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)" }}>{d.hi}°</div>
+                      <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)" }}>{d.lo}°</div>
                     </div>
                   ))}
                 </div>
               )}
               {weatherAlerts.length > 0 && weatherAlerts.map((alert, i) => (
-                <div key={i} style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 9, color: "rgba(245,158,11,0.6)" }}>
+                <div key={i} style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 11, color: "rgba(245,158,11,0.6)" }}>
                   ⚠ {alert.title || alert.desc || "Weather alert active"}
                   {alert.desc && alert.title && <span> — {alert.desc.slice(0, 120)}</span>}
                 </div>
               ))}
               {weatherAlerts.length === 0 && climate === "cold" && weatherSource === "sample" && (
-                <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 9, color: "rgba(245,158,11,0.6)" }}>
+                <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 11, color: "rgba(245,158,11,0.6)" }}>
                   ⚠ Extreme cold warning — wind chill to -25°C tonight. Check heating fuel and insulate pipes.
                 </div>
               )}
@@ -3342,11 +3347,11 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         {/* Local News */}
         <div style={{ ...cardSt, padding: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📰 Local News</h3>
-            <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: newsSource === "live" ? "rgba(34,197,94,0.1)" : newsSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(255,255,255,0.06)", color: newsSource === "live" ? "#22c55e" : newsSource === "cached" ? "#0ea5e9" : "rgba(255,255,255,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{newsSource === "live" ? "LIVE" : newsSource === "cached" ? "CACHED" : "SAMPLE"}</span>
+            <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>📰 Local News</h3>
+            <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: newsSource === "live" ? "rgba(34,197,94,0.1)" : newsSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(36,61,48,0.06)", color: newsSource === "live" ? "#22c55e" : newsSource === "cached" ? "#0ea5e9" : "rgba(36,61,48,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{newsSource === "live" ? "LIVE" : newsSource === "cached" ? "CACHED" : "SAMPLE"}</span>
           </div>
           {newsLoading && !news ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>⟳ Loading news...</div>
+            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⟳ Loading news...</div>
           ) : (
             <div style={{ display: "grid", gap: 3 }}>
               {newsItems.slice(0, 6).map((n, i) => {
@@ -3354,13 +3359,13 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
                 const col = sevColors[n.severity] || "#6b7280";
                 const isClickable = !!n.url;
                 return (
-                  <div key={i} onClick={() => isClickable && window.open(n.url, "_blank", "noopener,noreferrer")} style={{ display: "flex", gap: 10, padding: "5px 10px", borderRadius: 8, background: "rgba(255,255,255,0.015)", borderLeft: "2px solid " + col + "40", transition: "background 0.15s", cursor: isClickable ? "pointer" : "default" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}>
+                  <div key={i} onClick={() => isClickable && window.open(n.url, "_blank", "noopener,noreferrer")} style={{ display: "flex", gap: 10, padding: "5px 10px", borderRadius: 8, background: "rgba(47,76,39,0.015)", borderLeft: "2px solid " + col + "40", transition: "background 0.15s", cursor: isClickable ? "pointer" : "default" }} onMouseOver={e => e.currentTarget.style.background = "rgba(36,61,48,0.04)"} onMouseOut={e => e.currentTarget.style.background = "rgba(36,61,48,0.015)"}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: isClickable ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{n.title}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: isClickable ? "rgba(36,61,48,0.75)" : "rgba(36,61,48,0.65)", lineHeight: 1.4 }}>{n.title}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>{n.source}</span>
-                        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: M }}>{n.time}</span>
-                        {isClickable && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>↗</span>}
+                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{n.source}</span>
+                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{n.time}</span>
+                        {isClickable && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>↗</span>}
                       </div>
                     </div>
                     <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 4, background: col + "10", color: col, fontWeight: 700, alignSelf: "flex-start", flexShrink: 0, letterSpacing: 0.5 }}>{n.tag}</span>
@@ -3375,45 +3380,45 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
       {/* ── Action Bar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, padding: "4px 0" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ position: "relative" }}>
-          <button onClick={() => setShowAlerts(!showAlerts)} style={{ ...btnSt, background: (allAlerts.length > 0 && !alertsDismissed) ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.04)", color: (allAlerts.length > 0 && !alertsDismissed) ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: (allAlerts.length > 0 && !alertsDismissed) ? "1px solid rgba(239,68,68,0.15)" : "1px solid rgba(255,255,255,0.06)", position: "relative", opacity: alertsDismissed ? 0.5 : 1 }} title={alertsDismissed ? `Alerts dismissed — returns in ${Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h` : allAlerts.length + " alerts"}>
+          <button onClick={() => setShowAlerts(!showAlerts)} style={{ ...btnSt, background: (allAlerts.length > 0 && !alertsDismissed) ? "rgba(239,68,68,0.06)" : "rgba(36,61,48,0.04)", color: (allAlerts.length > 0 && !alertsDismissed) ? "#ef4444" : "rgba(36,61,48,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: (allAlerts.length > 0 && !alertsDismissed) ? "1px solid rgba(239,68,68,0.15)" : "1px solid #e0e6da", position: "relative", opacity: alertsDismissed ? 0.5 : 1 }} title={alertsDismissed ? `Alerts dismissed — returns in ${Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h` : allAlerts.length + " alerts"}>
             🔔
-            {allAlerts.length > 0 && !alertsDismissed && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, padding: "0 3px", boxShadow: "0 2px 6px rgba(239,68,68,0.4)" }}>{allAlerts.length}</span>}
+            {allAlerts.length > 0 && !alertsDismissed && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#243d30", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, padding: "0 3px", boxShadow: "0 2px 6px rgba(239,68,68,0.4)" }}>{allAlerts.length}</span>}
           </button>
           {showAlerts && allAlerts.length > 0 && !alertsDismissed && (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 400, overflowY: "auto", background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: 6 }}>
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 400, overflowY: "auto", background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: 6 }}>
               <div style={{ padding: "8px 12px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>⚠ {allAlerts.length} Alerts</span>
-                <button onClick={() => setShowAlerts(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 14, cursor: "pointer", padding: 0 }}>×</button>
+                <button onClick={() => setShowAlerts(false)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 14, cursor: "pointer", padding: 0 }}>×</button>
               </div>
               {allAlerts.map((a, i) => (
-                <div key={i} onClick={() => { setShowAlerts(false); if (a.category) setSelCat(a.category); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+                <div key={i} onClick={() => { setShowAlerts(false); if (a.category) setSelCat(a.category); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(36,61,48,0.04)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}>
                   <span style={{ fontSize: 16, flexShrink: 0 }}>{CATEGORIES[a.category]?.icon || "⚠"}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
-                    <div style={{ fontSize: 9, color: a.ac, fontFamily: M }}>{a.al}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
+                    <div style={{ fontSize: 11, color: a.ac, fontFamily: M }}>{a.al}</div>
                   </div>
                 </div>
               ))}
-              <div style={{ padding: "6px 12px 8px", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 4 }}>
-                <button onClick={() => { onDismissAlerts(); setShowAlerts(false); }} style={{ ...btnSt, width: "100%", padding: "6px 0", fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+              <div style={{ padding: "6px 12px 8px", borderTop: "1px solid #e0e6da", marginTop: 4 }}>
+                <button onClick={() => { onDismissAlerts(); setShowAlerts(false); }} style={{ ...btnSt, width: "100%", padding: "6px 0", fontSize: 11, fontWeight: 700, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #e0e6da", borderRadius: 6 }}>
                   Dismiss all for 24h
                 </button>
               </div>
             </div>
           )}
           {showAlerts && alertsDismissed && (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 240, background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: "12px 16px" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>🔕 Alerts dismissed · returns in {Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h</div>
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 240, background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: "12px 16px" }}>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textAlign: "center" }}>🔕 Alerts dismissed · returns in {Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h</div>
             </div>
           )}
         </div>
-        <button onClick={() => setShowScanner(true)} style={{ ...btnSt, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontWeight: 700, fontSize: 15, padding: "8px 11px", border: "1px solid rgba(255,255,255,0.06)" }} title="Scan Barcode">📷</button>
-        <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#c8553a,#a03e28)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(200,85,58,0.25)" }}>+ Add</button>
+        <button onClick={() => setShowScanner(true)} style={{ ...btnSt, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", fontWeight: 700, fontSize: 15, padding: "8px 11px", border: "1px solid #e0e6da" }} title="Scan Barcode">📷</button>
+        <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#214c39,#a03e28)", color: "#243d30", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(33,76,57,0.25)" }}>+ Add</button>
       </div>
 
       {/* ── Prep Inventory Grid ── */}
       <div>
-        <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📦 Prep Inventory</h3>
+        <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>📦 Prep Inventory</h3>
         <div className="pcs-cat-grid">
           {Object.entries(CATEGORIES).map(([k, cat]) => {
             const ci = items.filter((i) => i.category === k);
@@ -3528,24 +3533,24 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
               metric = { val: "$" + (totalVal >= 1000 ? (totalVal / 1000).toFixed(1) + "k" : totalVal.toFixed(0)), unit: parts.join(" · ") || "none", color: totalVal >= 10000 ? "#22c55e" : totalVal >= 1000 ? "#f59e0b" : "#ef4444" };
             } else if (k === "shelter" || k === "tools" || k === "equipment") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
-              metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
+              metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(36,61,48,0.15)" };
             }
 
             const statusColor = metric ? metric.color : (filled / total >= 0.6 ? "#22c55e" : filled / total >= 0.3 ? "#f59e0b" : "#ef4444");
             return (
-              <button key={k} onClick={() => { setActiveTab("preps"); setSelCat(k); window.scrollTo(0, 0); }} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
+              <button key={k} onClick={() => { setActiveTab("preps"); setSelCat(k); window.scrollTo(0, 0); }} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(36,61,48,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(36,61,48,0.02)"; }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
                   <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{cat.icon}</div>
                   {metric && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: metric.color, lineHeight: 1 }}>{metric.val}</div>
-                      <div style={{ fontSize: 9, color: metric.color, opacity: 0.7, whiteSpace: "nowrap" }}>{metric.unit}</div>
+                      <div style={{ fontSize: 11, color: metric.color, opacity: 0.7, whiteSpace: "nowrap" }}>{metric.unit}</div>
                     </div>
                   )}
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
-                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
+                <div style={{ height: 3, background: "rgba(47,76,39,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
               </button>
             );
           })}
@@ -3574,7 +3579,7 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         if (expiringItems.length === 0) return null;
         return (
           <div style={{ marginTop: 2 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Expiry Calendar</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Expiry Calendar</h3>
             <div style={{ ...cardSt, padding: 16 }}>
               <div className="pcs-expiry-grid" style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 4 }}>
                 {months.map((m) => {
@@ -3582,28 +3587,28 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
                   const count = mItems.length;
                   const intensity = count / maxCount;
                   const expired = mItems.filter((i) => i.expDate < now).length;
-                  const bgColor = count === 0 ? "rgba(255,255,255,0.02)" : expired > 0 ? `rgba(239,68,68,${0.1 + intensity * 0.35})` : intensity > 0.6 ? `rgba(245,158,11,${0.1 + intensity * 0.3})` : `rgba(34,197,94,${0.05 + intensity * 0.15})`;
-                  const borderColor = count === 0 ? "rgba(255,255,255,0.04)" : expired > 0 ? "rgba(239,68,68,0.2)" : intensity > 0.6 ? "rgba(245,158,11,0.2)" : "rgba(34,197,94,0.15)";
+                  const bgColor = count === 0 ? "rgba(36,61,48,0.02)" : expired > 0 ? `rgba(239,68,68,${0.1 + intensity * 0.35})` : intensity > 0.6 ? `rgba(245,158,11,${0.1 + intensity * 0.3})` : `rgba(34,197,94,${0.05 + intensity * 0.15})`;
+                  const borderColor = count === 0 ? "rgba(36,61,48,0.04)" : expired > 0 ? "rgba(239,68,68,0.2)" : intensity > 0.6 ? "rgba(245,158,11,0.2)" : "rgba(34,197,94,0.15)";
                   const isNow = m.month === now.getMonth() && m.year === now.getFullYear();
                   return (
-                    <div key={m.key} style={{ padding: "8px 4px", borderRadius: 8, background: bgColor, border: isNow ? "2px solid rgba(200,85,58,0.4)" : "1px solid " + borderColor, textAlign: "center", minHeight: 58, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative" }} title={count > 0 ? mItems.map(i => i.name + " (" + CATEGORIES[i.category]?.icon + ")").join(", ") : "Nothing expiring"}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: isNow ? "#c8553a" : "rgba(255,255,255,0.3)", marginBottom: 3 }}>{m.label}</div>
-                      <div style={{ fontSize: count > 0 ? 18 : 12, fontWeight: 800, fontFamily: M, color: count === 0 ? "rgba(255,255,255,0.08)" : expired > 0 ? "#ef4444" : intensity > 0.6 ? "#f59e0b" : "#22c55e", lineHeight: 1 }}>{count > 0 ? count : "—"}</div>
-                      {count > 0 && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{expired > 0 ? <span style={{ color: "#ef4444" }}>{expired} exp</span> : "items"}</div>}
+                    <div key={m.key} style={{ padding: "8px 4px", borderRadius: 8, background: bgColor, border: isNow ? "2px solid rgba(33,76,57,0.4)" : "1px solid " + borderColor, textAlign: "center", minHeight: 58, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative" }} title={count > 0 ? mItems.map(i => i.name + " (" + CATEGORIES[i.category]?.icon + ")").join(", ") : "Nothing expiring"}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isNow ? "#214c39" : "rgba(36,61,48,0.3)", marginBottom: 3 }}>{m.label}</div>
+                      <div style={{ fontSize: count > 0 ? 18 : 12, fontWeight: 800, fontFamily: M, color: count === 0 ? "rgba(36,61,48,0.08)" : expired > 0 ? "#ef4444" : intensity > 0.6 ? "#f59e0b" : "#22c55e", lineHeight: 1 }}>{count > 0 ? count : "—"}</div>
+                      {count > 0 && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{expired > 0 ? <span style={{ color: "#ef4444" }}>{expired} exp</span> : "items"}</div>}
                     </div>
                   );
                 })}
               </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
-                <span>🟢 Low</span><span>🟡 Moderate</span><span>🔴 Urgent</span><span style={{ color: "#c8553a" }}>◻ Now</span>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
+                <span>🟢 Low</span><span>🟡 Moderate</span><span>🔴 Urgent</span><span style={{ color: "#214c39" }}>◻ Now</span>
               </div>
               {expiringItems.filter(i => { const d = (i.expDate - now) / 864e5; return d <= 90 && d >= -30; }).length > 0 && (
                 <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.08)" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>⚠ Expiring within 90 days</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>⚠ Expiring within 90 days</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {expiringItems.filter(i => { const d = (i.expDate - now) / 864e5; return d <= 90 && d >= -30; }).sort((a, b) => a.expDate - b.expDate).slice(0, 8).map((i, idx) => {
                       const d = Math.ceil((i.expDate - now) / 864e5);
-                      return <span key={idx} style={{ fontSize: 9, padding: "4px 8px", borderRadius: 6, background: d < 0 ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)", color: d < 0 ? "#ef4444" : "#f59e0b", fontFamily: M }}>{CATEGORIES[i.category]?.icon} {i.name} · {d < 0 ? Math.abs(d) + "d ago" : d + "d"}</span>;
+                      return <span key={idx} style={{ fontSize: 11, padding: "4px 8px", borderRadius: 6, background: d < 0 ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)", color: d < 0 ? "#ef4444" : "#f59e0b", fontFamily: M }}>{CATEGORIES[i.category]?.icon} {i.name} · {d < 0 ? Math.abs(d) + "d ago" : d + "d"}</span>;
                     })}
                   </div>
                 </div>
@@ -3620,8 +3625,8 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
 /* ═══ PREPS TAB ═══                         */
 /* ═══════════════════════════════════════════ */
 function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, setShowScanner, alertsDismissed, alertsDismissedUntil, onDismissAlerts }) {
-  const M = "'JetBrains Mono',monospace";
-  const cardSt = { background: "rgba(255,255,255,0.025)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 20 };
+  const M = "'DM Sans',sans-serif";
+  const cardSt = { background: "#ffffff", backdropFilter: "blur(12px)", border: "1px solid #e0e6da", borderRadius: 14, padding: 20 };
 
   /* ── Prep Inventory Score (items-only) ── */
   const invScore = useMemo(() => {
@@ -3669,15 +3674,15 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
       <div style={{ ...cardSt, padding: "20px 24px", display: "flex", alignItems: "center", gap: 20 }}>
         <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
           <svg width="64" height="64" viewBox="0 0 64 64">
-            <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+            <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(36,61,48,0.06)" strokeWidth="5" />
             <circle cx="32" cy="32" r="28" fill="none" stroke={SC(invScore)} strokeWidth="5" strokeDasharray={`${(invScore / 100) * 175.9} 175.9`} strokeLinecap="round" transform="rotate(-90 32 32)" style={{ transition: "stroke-dasharray 0.6s ease" }} />
           </svg>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, fontSize: 18, fontWeight: 800, color: SC(invScore) }}>{invScore}</div>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 2 }}>Prep Inventory</div>
+          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 2 }}>Prep Inventory</div>
           <div style={{ fontSize: 16, fontWeight: 800, color: SC(invScore), fontFamily: M }}>{SL(invScore)}</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>
             {items.length} items · {new Set(items.map(i => i.category)).size}/{Object.keys(CATEGORIES).length} categories covered
           </div>
         </div>
@@ -3687,7 +3692,7 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
             { l: "Total Items", v: items.reduce((s, i) => s + (i.quantity || 1), 0), c: "#0ea5e9" },
             { l: "Expired", v: items.filter(i => i.fields?.expiryDate && new Date(i.fields.expiryDate) < new Date()).length, c: items.filter(i => i.fields?.expiryDate && new Date(i.fields.expiryDate) < new Date()).length > 0 ? "#ef4444" : "#22c55e" },
           ].map((s, i) => (
-            <div key={i} style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{s.l}: <span style={{ color: s.c, fontWeight: 700, fontFamily: M }}>{s.v}</span></div>
+            <div key={i} style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{s.l}: <span style={{ color: s.c, fontWeight: 700, fontFamily: M }}>{s.v}</span></div>
           ))}
         </div>
       </div>
@@ -3714,7 +3719,7 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
         if (expiringItems.length === 0) return null;
         return (
           <div style={{ marginTop: 2 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Expiry Calendar</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Expiry Calendar</h3>
             <div style={{ ...cardSt, padding: 16 }}>
               <div className="pcs-expiry-grid" style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 4 }}>
                 {months.map((m) => {
@@ -3722,28 +3727,28 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
                   const count = mItems.length;
                   const intensity = count / maxCount;
                   const expired = mItems.filter((i) => i.expDate < now).length;
-                  const bgColor = count === 0 ? "rgba(255,255,255,0.02)" : expired > 0 ? `rgba(239,68,68,${0.1 + intensity * 0.35})` : intensity > 0.6 ? `rgba(245,158,11,${0.1 + intensity * 0.3})` : `rgba(34,197,94,${0.05 + intensity * 0.15})`;
-                  const borderColor = count === 0 ? "rgba(255,255,255,0.04)" : expired > 0 ? "rgba(239,68,68,0.2)" : intensity > 0.6 ? "rgba(245,158,11,0.2)" : "rgba(34,197,94,0.15)";
+                  const bgColor = count === 0 ? "rgba(36,61,48,0.02)" : expired > 0 ? `rgba(239,68,68,${0.1 + intensity * 0.35})` : intensity > 0.6 ? `rgba(245,158,11,${0.1 + intensity * 0.3})` : `rgba(34,197,94,${0.05 + intensity * 0.15})`;
+                  const borderColor = count === 0 ? "rgba(36,61,48,0.04)" : expired > 0 ? "rgba(239,68,68,0.2)" : intensity > 0.6 ? "rgba(245,158,11,0.2)" : "rgba(34,197,94,0.15)";
                   const isNow = m.month === now.getMonth() && m.year === now.getFullYear();
                   return (
-                    <div key={m.key} style={{ padding: "8px 4px", borderRadius: 8, background: bgColor, border: isNow ? "2px solid rgba(200,85,58,0.4)" : "1px solid " + borderColor, textAlign: "center", minHeight: 58, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative" }} title={count > 0 ? mItems.map(i => i.name + " (" + CATEGORIES[i.category]?.icon + ")").join(", ") : "Nothing expiring"}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: isNow ? "#c8553a" : "rgba(255,255,255,0.3)", marginBottom: 3 }}>{m.label}</div>
-                      <div style={{ fontSize: count > 0 ? 18 : 12, fontWeight: 800, fontFamily: M, color: count === 0 ? "rgba(255,255,255,0.08)" : expired > 0 ? "#ef4444" : intensity > 0.6 ? "#f59e0b" : "#22c55e", lineHeight: 1 }}>{count > 0 ? count : "—"}</div>
-                      {count > 0 && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{expired > 0 ? <span style={{ color: "#ef4444" }}>{expired} exp</span> : "items"}</div>}
+                    <div key={m.key} style={{ padding: "8px 4px", borderRadius: 8, background: bgColor, border: isNow ? "2px solid rgba(33,76,57,0.4)" : "1px solid " + borderColor, textAlign: "center", minHeight: 58, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative" }} title={count > 0 ? mItems.map(i => i.name + " (" + CATEGORIES[i.category]?.icon + ")").join(", ") : "Nothing expiring"}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isNow ? "#214c39" : "rgba(36,61,48,0.3)", marginBottom: 3 }}>{m.label}</div>
+                      <div style={{ fontSize: count > 0 ? 18 : 12, fontWeight: 800, fontFamily: M, color: count === 0 ? "rgba(36,61,48,0.08)" : expired > 0 ? "#ef4444" : intensity > 0.6 ? "#f59e0b" : "#22c55e", lineHeight: 1 }}>{count > 0 ? count : "—"}</div>
+                      {count > 0 && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{expired > 0 ? <span style={{ color: "#ef4444" }}>{expired} exp</span> : "items"}</div>}
                     </div>
                   );
                 })}
               </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
-                <span>🟢 Low</span><span>🟡 Moderate</span><span>🔴 Urgent</span><span style={{ color: "#c8553a" }}>◻ Now</span>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
+                <span>🟢 Low</span><span>🟡 Moderate</span><span>🔴 Urgent</span><span style={{ color: "#214c39" }}>◻ Now</span>
               </div>
               {expiringItems.filter(i => { const d = (i.expDate - now) / 864e5; return d <= 90 && d >= -30; }).length > 0 && (
                 <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.08)" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>⚠ Expiring within 90 days</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>⚠ Expiring within 90 days</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {expiringItems.filter(i => { const d = (i.expDate - now) / 864e5; return d <= 90 && d >= -30; }).sort((a, b) => a.expDate - b.expDate).slice(0, 8).map((i, idx) => {
                       const d = Math.ceil((i.expDate - now) / 864e5);
-                      return <span key={idx} style={{ fontSize: 9, padding: "4px 8px", borderRadius: 6, background: d < 0 ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)", color: d < 0 ? "#ef4444" : "#f59e0b", fontFamily: M }}>{CATEGORIES[i.category]?.icon} {i.name} · {d < 0 ? Math.abs(d) + "d ago" : d + "d"}</span>;
+                      return <span key={idx} style={{ fontSize: 11, padding: "4px 8px", borderRadius: 6, background: d < 0 ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)", color: d < 0 ? "#ef4444" : "#f59e0b", fontFamily: M }}>{CATEGORIES[i.category]?.icon} {i.name} · {d < 0 ? Math.abs(d) + "d ago" : d + "d"}</span>;
                     })}
                   </div>
                 </div>
@@ -3756,45 +3761,45 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
       {/* ── Action Bar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, padding: "4px 0" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ position: "relative" }}>
-          <button onClick={() => setShowAlerts(!showAlerts)} style={{ ...btnSt, background: (allAlerts.length > 0 && !alertsDismissed) ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.04)", color: (allAlerts.length > 0 && !alertsDismissed) ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: (allAlerts.length > 0 && !alertsDismissed) ? "1px solid rgba(239,68,68,0.15)" : "1px solid rgba(255,255,255,0.06)", position: "relative", opacity: alertsDismissed ? 0.5 : 1 }} title={alertsDismissed ? `Alerts dismissed — returns in ${Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h` : allAlerts.length + " alerts"}>
+          <button onClick={() => setShowAlerts(!showAlerts)} style={{ ...btnSt, background: (allAlerts.length > 0 && !alertsDismissed) ? "rgba(239,68,68,0.06)" : "rgba(36,61,48,0.04)", color: (allAlerts.length > 0 && !alertsDismissed) ? "#ef4444" : "rgba(36,61,48,0.4)", fontWeight: 700, fontSize: 14, padding: "8px 11px", border: (allAlerts.length > 0 && !alertsDismissed) ? "1px solid rgba(239,68,68,0.15)" : "1px solid #e0e6da", position: "relative", opacity: alertsDismissed ? 0.5 : 1 }} title={alertsDismissed ? `Alerts dismissed — returns in ${Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h` : allAlerts.length + " alerts"}>
             🔔
-            {allAlerts.length > 0 && !alertsDismissed && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, padding: "0 3px", boxShadow: "0 2px 6px rgba(239,68,68,0.4)" }}>{allAlerts.length}</span>}
+            {allAlerts.length > 0 && !alertsDismissed && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#243d30", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: M, padding: "0 3px", boxShadow: "0 2px 6px rgba(239,68,68,0.4)" }}>{allAlerts.length}</span>}
           </button>
           {showAlerts && allAlerts.length > 0 && !alertsDismissed && (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 400, overflowY: "auto", background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: 6 }}>
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 400, overflowY: "auto", background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: 6 }}>
               <div style={{ padding: "8px 12px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>⚠ {allAlerts.length} Alerts</span>
-                <button onClick={() => setShowAlerts(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 14, cursor: "pointer", padding: 0 }}>×</button>
+                <button onClick={() => setShowAlerts(false)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 14, cursor: "pointer", padding: 0 }}>×</button>
               </div>
               {allAlerts.map((a, i) => (
-                <div key={i} onClick={() => { setShowAlerts(false); if (a.category) setSelCat(a.category); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+                <div key={i} onClick={() => { setShowAlerts(false); if (a.category) setSelCat(a.category); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer", transition: "background 0.1s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(36,61,48,0.04)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}>
                   <span style={{ fontSize: 16, flexShrink: 0 }}>{CATEGORIES[a.category]?.icon || "⚠"}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
-                    <div style={{ fontSize: 9, color: a.ac, fontFamily: M }}>{a.al}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
+                    <div style={{ fontSize: 11, color: a.ac, fontFamily: M }}>{a.al}</div>
                   </div>
                 </div>
               ))}
-              <div style={{ padding: "6px 12px 8px", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 4 }}>
-                <button onClick={() => { onDismissAlerts(); setShowAlerts(false); }} style={{ ...btnSt, width: "100%", padding: "6px 0", fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+              <div style={{ padding: "6px 12px 8px", borderTop: "1px solid #e0e6da", marginTop: 4 }}>
+                <button onClick={() => { onDismissAlerts(); setShowAlerts(false); }} style={{ ...btnSt, width: "100%", padding: "6px 0", fontSize: 11, fontWeight: 700, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #e0e6da", borderRadius: 6 }}>
                   Dismiss all for 24h
                 </button>
               </div>
             </div>
           )}
           {showAlerts && alertsDismissed && (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 240, background: "#13151a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: "12px 16px" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>🔕 Alerts dismissed · returns in {Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h</div>
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 240, background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", zIndex: 999, padding: "12px 16px" }}>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textAlign: "center" }}>🔕 Alerts dismissed · returns in {Math.ceil((alertsDismissedUntil - Date.now()) / 3600000)}h</div>
             </div>
           )}
         </div>
-        <button onClick={() => setShowScanner(true)} style={{ ...btnSt, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontWeight: 700, fontSize: 15, padding: "8px 11px", border: "1px solid rgba(255,255,255,0.06)" }} title="Scan Barcode">📷</button>
-        <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#c8553a,#a03e28)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(200,85,58,0.25)" }}>+ Add</button>
+        <button onClick={() => setShowScanner(true)} style={{ ...btnSt, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", fontWeight: 700, fontSize: 15, padding: "8px 11px", border: "1px solid #e0e6da" }} title="Scan Barcode">📷</button>
+        <button onClick={() => openAdd()} style={{ ...btnSt, background: "linear-gradient(135deg,#214c39,#a03e28)", color: "#243d30", fontWeight: 700, fontSize: 12, padding: "8px 16px", boxShadow: "0 2px 10px rgba(33,76,57,0.25)" }}>+ Add</button>
       </div>
 
       {/* ── Categories Grid ── */}
       <div>
-        <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Categories</h3>
+        <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Categories</h3>
         <div className="pcs-cat-grid">
           {Object.entries(CATEGORIES).map(([k, cat]) => {
             const ci = items.filter((i) => i.category === k);
@@ -3908,24 +3913,24 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
               metric = { val: "$" + (totalVal >= 1000 ? (totalVal / 1000).toFixed(1) + "k" : totalVal.toFixed(0)), unit: parts.join(" · ") || "none", color: totalVal >= 10000 ? "#22c55e" : totalVal >= 1000 ? "#f59e0b" : "#ef4444" };
             } else if (k === "shelter" || k === "tools" || k === "equipment") {
               const qty = ci.reduce((s, i) => s + (i.quantity || 0), 0);
-              metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(255,255,255,0.15)" };
+              metric = { val: qty, unit: "items", color: qty > 0 ? "#22c55e" : "rgba(36,61,48,0.15)" };
             }
 
             const statusColor = metric ? metric.color : (filled / total >= 0.6 ? "#22c55e" : filled / total >= 0.3 ? "#f59e0b" : "#ef4444");
             return (
-              <button key={k} onClick={() => setSelCat(k)} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
+              <button key={k} onClick={() => setSelCat(k)} style={{ ...cardSt, padding: 14, cursor: "pointer", textAlign: "left", borderLeft: "3px solid " + statusColor, minWidth: 0, overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.background = "rgba(36,61,48,0.04)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "rgba(36,61,48,0.02)"; }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
                   <div style={{ fontSize: 22, marginBottom: 3, flexShrink: 0 }}>{cat.icon}</div>
                   {metric && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: metric.color, lineHeight: 1 }}>{metric.val}</div>
-                      <div style={{ fontSize: 9, color: metric.color, opacity: 0.7, whiteSpace: "nowrap" }}>{metric.unit}</div>
+                      <div style={{ fontSize: 11, color: metric.color, opacity: 0.7, whiteSpace: "nowrap" }}>{metric.unit}</div>
                     </div>
                   )}
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
-                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{ci.length} items · {filled}/{total}</div>
+                <div style={{ height: 3, background: "rgba(47,76,39,0.06)", borderRadius: 2, marginTop: 5 }}><div style={{ height: "100%", width: (filled / total) * 100 + "%", background: statusColor, borderRadius: 2, transition: "width 0.3s ease" }} /></div>
               </button>
             );
           })}
@@ -3948,7 +3953,7 @@ function AuthPanel({ title, icon, color, auth, setAuth, provider, helpUrl, provi
               <div style={{ fontSize: 13, fontWeight: 700 }}>{provider}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                 <div style={{ width: 7, height: 7, borderRadius: 4, background: color, animation: "pulse 2s infinite" }} />
-                <span style={{ fontSize: 10, color: color, fontWeight: 600 }}>Connected as {auth.email}</span>
+                <span style={{ fontSize: 11, color: color, fontWeight: 600 }}>Connected as {auth.email}</span>
               </div>
             </div>
           </div>
@@ -3963,7 +3968,7 @@ function AuthPanel({ title, icon, color, auth, setAuth, provider, helpUrl, provi
         <span style={{ fontSize: 22 }}>{icon}</span>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Sign in with your {provider} account to enable live feeds</div>
+          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Sign in with your {provider} account to enable live feeds</div>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 10 }}>
@@ -3975,16 +3980,16 @@ function AuthPanel({ title, icon, color, auth, setAuth, provider, helpUrl, provi
           <label style={labelSt}>Password</label>
           <div style={{ position: "relative" }}>
             <input style={{ ...inp, paddingRight: 36, border: focusField === "password" ? `1px solid ${color}` : inp.border, boxShadow: focusField === "password" ? `0 0 0 2px ${color}33` : "none" }} type={auth.showPw ? "text" : "password"} value={auth.password} onChange={(e) => setAuth((p) => ({ ...p, password: e.target.value, error: "" }))} onFocus={() => setFocusField("password")} onBlur={() => setFocusField(null)} placeholder="••••••••" />
-            <button onClick={() => setAuth((p) => ({ ...p, showPw: !p.showPw }))} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "rgba(255,255,255,0.3)", padding: 0 }}>{auth.showPw ? "🙈" : "👁️"}</button>
+            <button onClick={() => setAuth((p) => ({ ...p, showPw: !p.showPw }))} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "rgba(36,61,48,0.58)", padding: 0 }}>{auth.showPw ? "🙈" : "👁️"}</button>
           </div>
         </div>
       </div>
       {auth.error && <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 8 }}>{auth.error}</div>}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <button onClick={() => onAuth(setAuth, auth, providerId)} disabled={auth.loading} style={{ ...btnSt, padding: "8px 20px", fontSize: 12, background: auth.loading ? "rgba(255,255,255,0.06)" : color, color: "#fff", fontWeight: 700, opacity: auth.loading ? 0.6 : 1 }}>
+        <button onClick={() => onAuth(setAuth, auth, providerId)} disabled={auth.loading} style={{ ...btnSt, padding: "8px 20px", fontSize: 12, background: auth.loading ? "rgba(36,61,48,0.06)" : color, color: "#243d30", fontWeight: 700, opacity: auth.loading ? 0.6 : 1 }}>
           {auth.loading ? "Connecting..." : "Connect"}
         </button>
-        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Credentials are stored locally behind your PIN</span>
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Credentials are sent only when you choose Connect</span>
       </div>
     </div>
   );
@@ -4042,12 +4047,12 @@ function CameraFeedCanvas({ cam, expanded }) {
     ctx.beginPath();
     ctx.arc(14, h - 12, 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillStyle = "rgba(36,61,48,0.6)";
     ctx.font = "bold 9px JetBrains Mono, monospace";
     ctx.fillText("REC", 22, h - 8);
 
     // Model + location bottom-right
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillStyle = "rgba(36,61,48,0.3)";
     const locText = `${cam.model} | ${cam.location}`;
     const locW = ctx.measureText(locText).width;
     ctx.fillText(locText, w - locW - 8, h - 8);
@@ -4147,11 +4152,9 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           return;
         }
       }
-      // Fallback: simulate connection with sample data
-      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); } if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); } }, 1500);
+      setter(p => ({ ...p, loading: false, connected: false, error: "Sign in to a cloud account to connect this service. Sample devices below remain available for preview." }));
     } catch (err) {
-      // Fallback: simulate connection
-      setTimeout(() => { setter((p) => ({ ...p, loading: false, connected: true, error: "" })); if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); } if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); } }, 1500);
+      setter(p => ({ ...p, loading: false, connected: false, error: "Could not connect. Check your connection and try again." }));
     }
   };
 
@@ -4191,7 +4194,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
   const signalBars = (level) => {
     const bars = [];
     for (let i = 0; i < 5; i++) {
-      bars.push(<div key={i} style={{ width: 3, height: 4 + i * 2, borderRadius: 1, background: i < level ? "#22c55e" : "rgba(255,255,255,0.1)" }} />);
+      bars.push(<div key={i} style={{ width: 3, height: 4 + i * 2, borderRadius: 1, background: i < level ? "#22c55e" : "rgba(36,61,48,0.1)" }} />);
     }
     return <div style={{ display: "flex", alignItems: "flex-end", gap: 1 }}>{bars}</div>;
   };
@@ -4200,11 +4203,11 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "rgba(255,255,255,0.02)", borderRadius: 10, padding: 3, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "rgba(47,76,39,0.02)", borderRadius: 10, padding: 3, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
         {subTabs.map((st) => (
-          <button key={st.id} onClick={() => setPropSub(st.id)} style={{ flex: "0 0 auto", minWidth: 60, padding: "8px 8px", background: propSub === st.id ? "rgba(255,255,255,0.08)" : "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "center" }}>
+          <button key={st.id} onClick={() => setPropSub(st.id)} style={{ flex: "0 0 auto", minWidth: 60, padding: "8px 8px", background: propSub === st.id ? "rgba(36,61,48,0.08)" : "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "center" }}>
             <div style={{ fontSize: 14 }}>{st.i}</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: propSub === st.id ? "#fff" : "rgba(255,255,255,0.35)", marginTop: 2, whiteSpace: "nowrap" }}>{st.l}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: propSub === st.id ? "#243d30" : "rgba(36,61,48,0.35)", marginTop: 2, whiteSpace: "nowrap" }}>{st.l}</div>
           </button>
         ))}
       </div>
@@ -4223,37 +4226,37 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{c.label}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <div style={{ fontFamily: M, fontSize: 15, fontWeight: 700, color: revealedCodes[c.id] ? "#22c55e" : "rgba(255,255,255,0.1)", background: revealedCodes[c.id] ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.03)", padding: "5px 10px", borderRadius: 6, userSelect: revealedCodes[c.id] ? "text" : "none" }}>
+                    <div style={{ fontFamily: M, fontSize: 15, fontWeight: 700, color: revealedCodes[c.id] ? "#22c55e" : "rgba(36,61,48,0.1)", background: revealedCodes[c.id] ? "rgba(34,197,94,0.08)" : "rgba(36,61,48,0.03)", padding: "5px 10px", borderRadius: 6, userSelect: revealedCodes[c.id] ? "text" : "none" }}>
                       {revealedCodes[c.id] ? c.code : "••••••"}
                     </div>
-                    <button onClick={() => setRevealedCodes((p) => ({ ...p, [c.id]: !p[c.id] }))} style={{ ...btnSt, padding: "5px 8px", fontSize: 12, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>
+                    <button onClick={() => setRevealedCodes((p) => ({ ...p, [c.id]: !p[c.id] }))} style={{ ...btnSt, padding: "5px 8px", fontSize: 12, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)" }}>
                       {revealedCodes[c.id] ? "🙈" : "👁️"}
                     </button>
                   </div>
-                  {c.notes && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>{c.location} · {c.notes}</div>}
+                  {c.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>{c.location} · {c.notes}</div>}
                   {daysSinceChange !== null && (
-                    <div style={{ fontSize: 9, fontFamily: M, marginTop: 5, color: rotationOverdue ? "#ef4444" : rotationWarning ? "#f59e0b" : "rgba(255,255,255,0.3)", fontWeight: rotationOverdue ? 700 : 400 }}>
+                    <div style={{ fontSize: 11, fontFamily: M, marginTop: 5, color: rotationOverdue ? "#ef4444" : rotationWarning ? "#f59e0b" : "rgba(36,61,48,0.3)", fontWeight: rotationOverdue ? 700 : 400 }}>
                       {rotationOverdue ? `⚠ ${daysSinceChange}d since change — ROTATE` : `Changed ${daysSinceChange}d ago · rotate in ${30 - daysSinceChange}d`}
                     </div>
                   )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0, minWidth: 90 }}>
-                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Access</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Access</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "flex-end", maxWidth: 200 }}>
                     {(c.access || []).map((person) => (
-                      <span key={person} style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 6px", borderRadius: 10, fontSize: 9, fontWeight: 600, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <span key={person} style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 6px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>
                         {(members || []).find(m => m.name === person)?.avatar || "👤"} {person}
-                        <button onClick={() => setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: (cd.access || []).filter(a => a !== person) } : cd))} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.6)", cursor: "pointer", padding: 0, fontSize: 9, marginLeft: 1, lineHeight: 1 }}>×</button>
+                        <button onClick={() => setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: (cd.access || []).filter(a => a !== person) } : cd))} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.6)", cursor: "pointer", padding: 0, fontSize: 11, marginLeft: 1, lineHeight: 1 }}>×</button>
                       </span>
                     ))}
                     <div style={{ position: "relative" }}>
-                      <button onClick={() => setAccessDropdown(accessDropdown === c.id ? null : c.id)} style={{ padding: "2px 6px", borderRadius: 10, fontSize: 9, fontWeight: 700, background: "rgba(200,85,58,0.1)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", cursor: "pointer" }}>+</button>
+                      <button onClick={() => setAccessDropdown(accessDropdown === c.id ? null : c.id)} style={{ padding: "2px 6px", borderRadius: 10, fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.1)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)", cursor: "pointer" }}>+</button>
                       {accessDropdown === c.id && (
-                        <div style={{ position: "absolute", top: "100%", right: 0, background: "#13151a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: 4, zIndex: 50, minWidth: 120, marginTop: 4, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                        <div style={{ position: "absolute", top: "100%", right: 0, background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 8, padding: 4, zIndex: 50, minWidth: 120, marginTop: 4, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
                           {(members || []).filter(m => !(c.access || []).includes(m.name)).length === 0 ? (
-                            <div style={{ padding: "6px 8px", fontSize: 10, color: "rgba(255,255,255,0.3)" }}>All members added</div>
+                            <div style={{ padding: "6px 8px", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>All members added</div>
                           ) : (members || []).filter(m => !(c.access || []).includes(m.name)).map(m => (
-                            <button key={m.id} onClick={() => { setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: [...(cd.access || []), m.name] } : cd)); setAccessDropdown(null); }} style={{ display: "block", width: "100%", padding: "5px 8px", background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 10, cursor: "pointer", textAlign: "left", borderRadius: 4 }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                            <button key={m.id} onClick={() => { setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: [...(cd.access || []), m.name] } : cd)); setAccessDropdown(null); }} style={{ display: "block", width: "100%", padding: "5px 8px", background: "none", border: "none", color: "rgba(36,61,48,0.6)", fontSize: 11, cursor: "pointer", textAlign: "left", borderRadius: 4 }} onMouseOver={e => e.currentTarget.style.background = "rgba(36,61,48,0.06)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
                               {m.avatar} {m.name}
                             </button>
                           ))}
@@ -4286,23 +4289,23 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
             {/* Section A: Defense Systems Overview */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>🛡️ Defense Systems Overview</h3>
-                <span style={{ fontSize: 11, color: activeCount > 0 ? "#22c55e" : "rgba(255,255,255,0.3)", fontFamily: M, fontWeight: 700 }}>{activeCount} in inventory</span>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(36,61,48,0.6)" }}>🛡️ Defense Systems Overview</h3>
+                <span style={{ fontSize: 11, color: activeCount > 0 ? "#22c55e" : "rgba(36,61,48,0.3)", fontFamily: M, fontWeight: 700 }}>{activeCount} in inventory</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8 }}>
                 {Object.entries(allSubTypes).map(([key, st]) => {
                   const matching = defItems.filter(i => i.subType === key);
                   const has = matching.length > 0;
                   return (
-                    <div key={key} style={{ ...cardSt, padding: "12px 14px", borderLeft: "3px solid " + (has ? "#22c55e" : "rgba(255,255,255,0.06)"), opacity: has ? 1 : 0.45 }}>
+                    <div key={key} style={{ ...cardSt, padding: "12px 14px", borderLeft: "3px solid " + (has ? "#22c55e" : "rgba(36,61,48,0.06)"), opacity: has ? 1 : 0.45 }}>
                       <div style={{ fontSize: 20, marginBottom: 4 }}>{st.icon}</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: has ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.35)" }}>{st.label}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: has ? "rgba(36,61,48,0.85)" : "rgba(36,61,48,0.35)" }}>{st.label}</div>
                       {has ? matching.map(m => (
-                        <div key={m.id} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
+                        <div key={m.id} style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>
                           ×{m.quantity} · {m.name}{m.location ? " · 📍 " + m.location : ""}
                         </div>
                       )) : (
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 3, fontStyle: "italic" }}>Not in inventory</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3, fontStyle: "italic" }}>Not in inventory</div>
                       )}
                     </div>
                   );
@@ -4313,14 +4316,14 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
             {/* Section B: Traps & Obstacles */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>🪤 Traps & Obstacles</h3>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: M, fontWeight: 700 }}>{trapItems.length + trapPins.length} placed</span>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(36,61,48,0.6)" }}>🪤 Traps & Obstacles</h3>
+                <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M, fontWeight: 700 }}>{trapItems.length + trapPins.length} placed</span>
               </div>
               {trapItems.length === 0 && trapPins.length === 0 ? (
                 <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed" }}>
                   <div style={{ fontSize: 28, marginBottom: 6, opacity: 0.3 }}>🪤</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No traps or obstacles placed</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Add trip wires, road spikes, or barricades to inventory, or mark trap pins on the map</div>
+                  <div style={{ fontSize: 12, color: "rgba(36,61,48,0.58)" }}>No traps or obstacles placed</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>Add trip wires, road spikes, or barricades to inventory, or mark trap pins on the map</div>
                 </div>
               ) : (
                 <div style={{ display: "grid", gap: 8 }}>
@@ -4331,12 +4334,12 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                       <div key={item.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + (armed ? "#22c55e" : "#6b7280") }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                           <div style={{ fontSize: 13, fontWeight: 700 }}>{st.icon || "🛡️"} {item.name}</div>
-                          <div style={{ fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: armed ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)" }}>{armed ? "🟢 ARMED" : "⚪ DISARMED"}</div>
+                          <div style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: armed ? "rgba(34,197,94,0.15)" : "rgba(36,61,48,0.05)", color: armed ? "#22c55e" : "rgba(36,61,48,0.35)" }}>{armed ? "🟢 ARMED" : "⚪ DISARMED"}</div>
                         </div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Qty: {item.quantity}{item.fields?.wireLength ? " · " + item.fields.wireLength + "ft wire" : ""}{item.location ? " · 📍 " + item.location : ""}</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 8 }}>Qty: {item.quantity}{item.fields?.wireLength ? " · " + item.fields.wireLength + "ft wire" : ""}{item.location ? " · 📍 " + item.location : ""}</div>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => setTrapStatus(p => ({ ...p, [item.id]: true }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: armed ? "2px solid #22c55e" : "1px solid rgba(255,255,255,0.08)", background: armed ? "rgba(34,197,94,0.1)" : "transparent", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>🟢 Arm</button>
-                          <button onClick={() => setTrapStatus(p => ({ ...p, [item.id]: false }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: !armed ? "2px solid #6b7280" : "1px solid rgba(255,255,255,0.08)", background: !armed ? "rgba(107,114,128,0.1)" : "transparent", color: !armed ? "#9ca3af" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>⚪ Disarm</button>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [item.id]: true }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: armed ? "2px solid #22c55e" : "1px solid #dce3d5", background: armed ? "rgba(34,197,94,0.1)" : "transparent", color: armed ? "#22c55e" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>🟢 Arm</button>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [item.id]: false }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: !armed ? "2px solid #6b7280" : "1px solid #dce3d5", background: !armed ? "rgba(107,114,128,0.1)" : "transparent", color: !armed ? "#9ca3af" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>⚪ Disarm</button>
                         </div>
                       </div>
                     );
@@ -4348,12 +4351,12 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                       <div key={pin.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + (armed ? "#22c55e" : "#6b7280") }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                           <div style={{ fontSize: 13, fontWeight: 700 }}>{pt.i || "📍"} {pin.label}</div>
-                          <div style={{ fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: armed ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)" }}>{armed ? "🟢 ARMED" : "⚪ DISARMED"}</div>
+                          <div style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: armed ? "rgba(34,197,94,0.15)" : "rgba(36,61,48,0.05)", color: armed ? "#22c55e" : "rgba(36,61,48,0.35)" }}>{armed ? "🟢 ARMED" : "⚪ DISARMED"}</div>
                         </div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>{pin.notes || "Map pin"}{pin.assignee ? " · 👤 " + pin.assignee : ""}</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 8 }}>{pin.notes || "Map pin"}{pin.assignee ? " · 👤 " + pin.assignee : ""}</div>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => setTrapStatus(p => ({ ...p, [pin.id]: true }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: armed ? "2px solid #22c55e" : "1px solid rgba(255,255,255,0.08)", background: armed ? "rgba(34,197,94,0.1)" : "transparent", color: armed ? "#22c55e" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>🟢 Arm</button>
-                          <button onClick={() => setTrapStatus(p => ({ ...p, [pin.id]: false }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: !armed ? "2px solid #6b7280" : "1px solid rgba(255,255,255,0.08)", background: !armed ? "rgba(107,114,128,0.1)" : "transparent", color: !armed ? "#9ca3af" : "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>⚪ Disarm</button>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [pin.id]: true }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: armed ? "2px solid #22c55e" : "1px solid #dce3d5", background: armed ? "rgba(34,197,94,0.1)" : "transparent", color: armed ? "#22c55e" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>🟢 Arm</button>
+                          <button onClick={() => setTrapStatus(p => ({ ...p, [pin.id]: false }))} style={{ flex: 1, padding: "6px 0", borderRadius: 8, border: !armed ? "2px solid #6b7280" : "1px solid #dce3d5", background: !armed ? "rgba(107,114,128,0.1)" : "transparent", color: !armed ? "#9ca3af" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: M }}>⚪ Disarm</button>
                         </div>
                       </div>
                     );
@@ -4365,16 +4368,16 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
             {/* Section C: Defensive Positions */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>🎯 Defensive Positions</h3>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: M, fontWeight: 700 }}>{positionPins.length} marked</span>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(36,61,48,0.6)" }}>🎯 Defensive Positions</h3>
+                <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M, fontWeight: 700 }}>{positionPins.length} marked</span>
               </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginBottom: 12, fontStyle: "italic" }}>Positions are marked on the Property Map — enable Defense layer to view.</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 12, fontStyle: "italic" }}>Positions are marked on the Property Map — enable Defense layer to view.</div>
 
               {positionPins.length === 0 && DEFENSE_ROLES.length === 0 ? (
                 <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed" }}>
                   <div style={{ fontSize: 28, marginBottom: 6, opacity: 0.3 }}>🎯</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No defensive positions marked</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Add defense pins to the Property Map to lay out positions</div>
+                  <div style={{ fontSize: 12, color: "rgba(36,61,48,0.58)" }}>No defensive positions marked</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>Add defense pins to the Property Map to lay out positions</div>
                 </div>
               ) : (
                 <div style={{ display: "grid", gap: 8 }}>
@@ -4387,9 +4390,9 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                       <div key={pin.id} style={{ ...cardSt, padding: "14px 16px", borderLeft: "3px solid " + borderCol }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div style={{ fontSize: 13, fontWeight: 700 }}>{pt.i || "📍"} {pin.label}</div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: assigned ? "#22c55e" : "#ef4444" }}>{assigned ? "👤 " + pin.assignee : "⚠️ Unassigned"}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: assigned ? "#22c55e" : "#ef4444" }}>{assigned ? "👤 " + pin.assignee : "⚠️ Unassigned"}</div>
                         </div>
-                        {pin.notes && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>{pin.notes}</div>}
+                        {pin.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>{pin.notes}</div>}
                       </div>
                     );
                   })}
@@ -4399,14 +4402,14 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
               {/* Defense Roles */}
               {DEFENSE_ROLES.length > 0 && (
                 <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.5)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>👥 Assigned Roles</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(36,61,48,0.58)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>👥 Assigned Roles</div>
                   <div style={{ display: "grid", gap: 6 }}>
                     {DEFENSE_ROLES.map(r => (
                       <div key={r.id} style={{ ...cardSt, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, borderLeft: "3px solid #3b82f6" }}>
                         <div style={{ fontSize: 22 }}>{r.avatar}</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700 }}>{r.name} <span style={{ fontSize: 10, color: "#3b82f6", fontWeight: 600 }}>— {r.role}</span></div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>📍 {r.position} · {r.weapon}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700 }}>{r.name} <span style={{ fontSize: 11, color: "#3b82f6", fontWeight: 600 }}>— {r.role}</span></div>
+                          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>📍 {r.position} · {r.weapon}</div>
                         </div>
                       </div>
                     ))}
@@ -4423,7 +4426,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
         <div>
           <div style={{ marginBottom: 12 }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔌 Hidden Dependency Map</h3>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Appliances and amenities that silently fail when their dependencies go down</div>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Appliances and amenities that silently fail when their dependencies go down</div>
           </div>
           <div className="pcs-sys-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
             {[
@@ -4433,8 +4436,8 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
             ].map((s, i) => (
               <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + s.color }}>
                 <div style={{ fontSize: 28, fontWeight: 800, fontFamily: M, color: s.color }}>{s.count}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{s.desc}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{s.desc}</div>
               </div>
             ))}
           </div>
@@ -4445,33 +4448,33 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
               const isExp = expandedDep === dep.id;
               return (
                 <div key={dep.id}>
-                  <button onClick={() => setExpandedDep(isExp ? null : dep.id)} style={{ width: "100%", ...cardSt, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#fff", borderLeft: "4px solid " + riskCol, background: isExp ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)" }}>
+                  <button onClick={() => setExpandedDep(isExp ? null : dep.id)} style={{ width: "100%", ...cardSt, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#243d30", borderLeft: "4px solid " + riskCol, background: isExp ? "rgba(36,61,48,0.03)" : "rgba(36,61,48,0.02)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontSize: 20 }}>{dep.icon}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontSize: 12, fontWeight: 700 }}>{dep.name}</span>
-                          {dep.hidden && <span style={{ fontSize: 9, padding: "4px 5px", borderRadius: 4, background: "rgba(168,85,247,0.15)", color: "#a855f7", fontWeight: 700 }}>HIDDEN</span>}
-                          <span style={{ fontSize: 9, padding: "4px 5px", borderRadius: 4, background: riskCol + "15", color: riskCol, fontWeight: 700, textTransform: "uppercase" }}>{dep.risk}</span>
+                          {dep.hidden && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(168,85,247,0.15)", color: "#a855f7", fontWeight: 700 }}>HIDDEN</span>}
+                          <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: riskCol + "15", color: riskCol, fontWeight: 700, textTransform: "uppercase" }}>{dep.risk}</span>
                         </div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Requires: <span style={{ color: "rgba(255,255,255,0.5)", fontFamily: M }}>{dep.depends}</span></div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Requires: <span style={{ color: "rgba(36,61,48,0.58)", fontFamily: M }}>{dep.depends}</span></div>
                       </div>
-                      <div style={{ textAlign: "right" }}>{hasBackup ? <div style={{ fontSize: 9, color: "#22c55e" }}>✓ {dep.backup}</div> : <div style={{ fontSize: 9, color: "#ef4444", fontWeight: 700 }}>✗ NO BACKUP</div>}</div>
-                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", transform: isExp ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+                      <div style={{ textAlign: "right" }}>{hasBackup ? <div style={{ fontSize: 11, color: "#22c55e" }}>✓ {dep.backup}</div> : <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>✗ NO BACKUP</div>}</div>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transform: isExp ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
                     </div>
                   </button>
                   {isExp && (
-                    <div style={{ marginLeft: 20, borderLeft: "2px solid " + riskCol + "30", padding: "12px 16px", background: "rgba(255,255,255,0.01)" }}>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 10 }}>{dep.desc}</div>
+                    <div style={{ marginLeft: 20, borderLeft: "2px solid " + riskCol + "30", padding: "12px 16px", background: "rgba(47,76,39,0.01)" }}>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.7, marginBottom: 10 }}>{dep.desc}</div>
                       <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, borderLeft: "3px solid #22c55e" }}>
-                        <div style={{ fontSize: 10, color: "#22c55e", fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Mitigation</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>{dep.fix}</div>
+                        <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Mitigation</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>{dep.fix}</div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 10 }}>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: riskCol + "10", border: "1px solid " + riskCol + "30", fontSize: 9, fontWeight: 700, color: riskCol }}>{dep.name}</div>
-                        <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" /><polygon points="22,2 30,6 22,10" fill="rgba(255,255,255,0.15)" /></svg>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 9, fontWeight: 600, color: "rgba(239,68,68,0.6)" }}>{dep.depends}</div>
-                        {hasBackup && (<><svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(34,197,94,0.2)" strokeWidth="1.5" strokeDasharray="3,2" /><polygon points="22,2 30,6 22,10" fill="rgba(34,197,94,0.3)" /></svg><div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 9, fontWeight: 600, color: "#22c55e" }}>↻ {dep.backup}</div></>)}
+                        <div style={{ padding: "4px 10px", borderRadius: 6, background: riskCol + "10", border: "1px solid " + riskCol + "30", fontSize: 11, fontWeight: 700, color: riskCol }}>{dep.name}</div>
+                        <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(36,61,48,0.1)" strokeWidth="1.5" /><polygon points="22,2 30,6 22,10" fill="rgba(36,61,48,0.15)" /></svg>
+                        <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 11, fontWeight: 600, color: "rgba(239,68,68,0.6)" }}>{dep.depends}</div>
+                        {hasBackup && (<><svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(34,197,94,0.2)" strokeWidth="1.5" strokeDasharray="3,2" /><polygon points="22,2 30,6 22,10" fill="rgba(34,197,94,0.3)" /></svg><div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 11, fontWeight: 600, color: "#22c55e" }}>↻ {dep.backup}</div></>)}
                       </div>
                     </div>
                   )}
@@ -4482,7 +4485,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
         </div>
       )}
 
-      {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 10, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
+      {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 11, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
 
       {propSub === "systems" && (
         <div>
@@ -4491,8 +4494,8 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           {revealAuth.connected && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{displayCameras.length} cameras · {displayCameras.filter((c) => c.status === "online").length} online</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Auto-refresh every 30s</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>{displayCameras.length} cameras · {displayCameras.filter((c) => c.status === "online").length} online</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Auto-refresh every 30s</div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
                 {displayCameras.map((cam) => {
@@ -4507,29 +4510,29 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <div style={{ textAlign: "center" }}>
                               <div style={{ fontSize: 20, opacity: 0.3 }}>📷</div>
-                              <div style={{ fontSize: 9, color: "rgba(239,68,68,0.5)", marginTop: 4 }}>OFFLINE</div>
+                              <div style={{ fontSize: 11, color: "rgba(239,68,68,0.5)", marginTop: 4 }}>OFFLINE</div>
                             </div>
                           </div>
                         )}
                         <div style={{ position: "absolute", top: 6, left: 8, display: "flex", alignItems: "center", gap: 4 }}>
                           <div style={{ width: 5, height: 5, borderRadius: 3, background: isOnline ? "#22c55e" : "#ef4444", animation: isOnline ? "pulse 2s infinite" : "none" }} />
-                          <span style={{ fontSize: 10, color: isOnline ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{isOnline ? "LIVE" : "OFFLINE"}</span>
+                          <span style={{ fontSize: 11, color: isOnline ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{liveCameras ? (isOnline ? "CONNECTED" : "OFFLINE") : "SAMPLE"}</span>
                         </div>
                         <div style={{ position: "absolute", top: 6, right: 8, display: "flex", alignItems: "center", gap: 6 }}>
                           {signalBars(cam.signal)}
-                          <span style={{ fontSize: 10, color: cam.battery < 20 ? "#ef4444" : cam.battery < 50 ? "#f59e0b" : "#22c55e", fontFamily: M }}>🔋{cam.battery}%</span>
+                          <span style={{ fontSize: 11, color: cam.battery < 20 ? "#ef4444" : cam.battery < 50 ? "#f59e0b" : "#22c55e", fontFamily: M }}>🔋{cam.battery}%</span>
                         </div>
-                        {isOnline && !isExpanded && <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 9, color: "rgba(255,255,255,0.3)" }}>Click to expand</div>}
+                        {isOnline && !isExpanded && <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Click to expand</div>}
                       </div>
                       <div style={{ padding: "10px 14px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700 }}>{cam.name}</div>
-                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{cam.model} · {cam.location}</div>
+                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{cam.model} · {cam.location}</div>
                           </div>
                           <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>📸 {cam.captures}/24h</div>
-                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>{cam.last}</div>
+                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>📸 {cam.captures}/24h</div>
+                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{cam.last}</div>
                           </div>
                         </div>
                       </div>
@@ -4551,15 +4554,15 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
                   <div style={{ fontSize: 11, color: "#22c55e" }}>{displayAlarm.status}</div>
                 </div>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 10, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Arm Away</button>
-                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 10, background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>Disarm</button>
+                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 11, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Arm Away</button>
+                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 11, background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>Disarm</button>
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 6 }}>
                 {(displayAlarm.zones || []).map((z, i) => (
-                  <div key={i} style={{ padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <div key={i} style={{ padding: "8px 10px", background: "rgba(47,76,39,0.02)", borderRadius: 6, display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ width: 6, height: 6, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444" }} />
-                    <div style={{ fontSize: 11 }}>{z.n} — <span style={{ color: "rgba(255,255,255,0.4)" }}>{z.s}</span></div>
+                    <div style={{ fontSize: 11 }}>{z.n} — <span style={{ color: "rgba(36,61,48,0.58)" }}>{z.s}</span></div>
                   </div>
                 ))}
               </div>
@@ -4567,7 +4570,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           ) : (
             <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed", marginBottom: 16 }}>
               <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🚨</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.3)" }}>Connect EyezOn to view alarm status and control zones</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(36,61,48,0.58)" }}>Connect EyezOn to view alarm status and control zones</div>
             </div>
           )}
 
@@ -4578,31 +4581,31 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <span style={{ fontSize: 22 }}>🏠</span>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>Nest Devices</div>
-                <span style={{ fontSize: 9, padding: "4px 8px", borderRadius: 8, background: "rgba(6,182,212,0.1)", color: "#06b6d4", fontWeight: 700 }}>{displayNestDevices.length} devices</span>
+                <span style={{ fontSize: 11, padding: "4px 8px", borderRadius: 8, background: "rgba(6,182,212,0.1)", color: "#06b6d4", fontWeight: 700 }}>{displayNestDevices.length} devices</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
                 {displayNestDevices.map((d, i) => (
-                  <div key={i} style={{ padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: d.type === "lock" ? (d.status === "Locked" ? "3px solid #22c55e" : "3px solid #f59e0b") : "3px solid rgba(255,255,255,0.06)" }}>
+                  <div key={i} style={{ padding: "12px 14px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: d.type === "lock" ? (d.status === "Locked" ? "3px solid #22c55e" : "3px solid #f59e0b") : "3px solid rgba(255,255,255,0.06)" }}>
                     <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
                       {d.type === "lock" ? "🔐" : d.type === "smoke" ? "🔥" : "🌡️"} {d.n}
                     </div>
                     {d.type === "lock" ? (
                       <div>
-                        <div style={{ fontSize: 10, color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>
+                        <div style={{ fontSize: 11, color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>
                           {d.status === "Locked" ? "✓ Locked" : "⚠ Unlocked"} · 🔋 {d.bat}
                         </div>
                         <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                          <button style={{ ...btnSt, padding: "5px 10px", fontSize: 9, background: d.status === "Locked" ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", color: d.status === "Locked" ? "#ef4444" : "#22c55e", border: "1px solid " + (d.status === "Locked" ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)") }}>
+                          <button style={{ ...btnSt, padding: "5px 10px", fontSize: 11, background: d.status === "Locked" ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", color: d.status === "Locked" ? "#ef4444" : "#22c55e", border: "1px solid " + (d.status === "Locked" ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)") }}>
                             {d.status === "Locked" ? "Unlock" : "Lock"}
                           </button>
                         </div>
                       </div>
                     ) : d.type === "smoke" ? (
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>✓ OK · 🔋 {d.bat} · CO: {d.co}</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>✓ OK · 🔋 {d.bat} · CO: {d.co}</div>
                     ) : (
                       <div>
                         <div style={{ fontSize: 24, fontWeight: 800, fontFamily: M }}>{d.temp}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Set: {d.set} · {d.hum} · {d.mode}</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Set: {d.set} · {d.hum} · {d.mode}</div>
                       </div>
                     )}
                   </div>
@@ -4612,7 +4615,7 @@ function PropertyTab({ propUnlocked, setPropUnlocked, propSub, setPropSub, propA
           ) : (
             <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed" }}>
               <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🏠</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.3)" }}>Connect Google Nest to view locks, thermostats, and smoke detectors</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(36,61,48,0.58)" }}>Connect Google Nest to view locks, thermostats, and smoke detectors</div>
             </div>
           )}
         </div>
@@ -4650,6 +4653,7 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
   const [rationPersonName, setRationPersonName] = useState("");
   const statColors = { home: "#22c55e", nearby: "#84cc16", away: "#f59e0b", offline: "#6b7280" };
   const [liveMembers, setLiveMembers] = useState(null);
+  const [locationSyncError, setLocationSyncError] = useState("");
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: "", role: "", avatar: "👤" });
   const [fullscreenMap, setFullscreenMap] = useState(false);
@@ -4672,23 +4676,29 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
 
   /* ── Supabase Realtime: Location sharing ── */
   useEffect(() => {
-    if (!supabaseConfigured || !user) return;
+    if (!supabaseConfigured || !user || user.isLocal) { setLiveMembers(null); setLocationSyncError(""); return; }
+    let cancelled = false;
     const fetchLocations = async () => {
-      const { data } = await supabase.from("location_shares").select("*, profiles(display_name)").eq("active", true);
-      if (data?.length > 0) {
-        setLiveMembers(data.map(l => ({
-          id: l.user_id, name: l.profiles?.display_name || "Member",
-          lat: l.latitude, lng: l.longitude, battery: l.battery_pct || 100,
-          status: "nearby", sharing: true, lastPing: new Date(l.updated_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      try {
+        const { data, error } = await supabase.from("location_shares").select("user_id, community_id, lat, lng, battery, status, sharing, updated_at, profiles(display_name)").eq("sharing", true);
+        if (error) throw error;
+        if (cancelled) return;
+        setLocationSyncError("");
+        setLiveMembers((data || []).map(l => ({
+          id: l.user_id === user.id ? "p1" : l.user_id, name: l.profiles?.display_name || "Member",
+          lat: l.lat, lng: l.lng, battery: l.battery ?? 100,
+          status: l.status || "nearby", sharing: l.sharing, lastPing: new Date(l.updated_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
           avatar: "👤", color: "#0ea5e9", role: "Member",
         })));
+      } catch (error) {
+        if (!cancelled) { setLiveMembers([]); setLocationSyncError("Location updates unavailable: " + (error.message || "Please check your connection.")); }
       }
     };
     fetchLocations();
-    const channel = supabase.channel("locations").on("postgres_changes", { event: "*", schema: "public", table: "location_shares" }, () => {
+    const channel = supabase.channel("locations-" + user.id).on("postgres_changes", { event: "*", schema: "public", table: "location_shares" }, () => {
       fetchLocations(); // Re-fetch all on any change
     }).subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { cancelled = true; supabase.removeChannel(channel); };
   }, [user]);
 
 
@@ -4757,10 +4767,10 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
 
   return (
     <div>
-      <h2 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 800 }}>👥 Team</h2>
-      <div style={{ display: "flex", gap: 0, marginBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+
+      <div style={{ display: "flex", gap: 0, marginBottom: 16, borderBottom: "1px solid #e0e6da" }}>
         {subTabs.map((t) => (
-          <button key={t.id} onClick={() => setComSub(t.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: comSub === t.id ? "2px solid #c8553a" : "2px solid transparent", color: comSub === t.id ? "#fff" : "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
+          <button key={t.id} onClick={() => setComSub(t.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: comSub === t.id ? "2px solid #214c39" : "2px solid transparent", color: comSub === t.id ? "#243d30" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
             <span style={{ fontSize: 12 }}>{t.i}</span>{t.l}
           </button>
         ))}
@@ -4768,22 +4778,23 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
 
       {comSub === "tracker" && (
         <div className="pcs-tracker-grid" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
+          {locationSyncError && <p role="alert" style={{ gridColumn: "1 / -1", margin: 0, color: "#9f503a", fontSize: 12 }}>{locationSyncError}</p>}
           <div style={{ ...cardSt, padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid #e0e6da", fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span>📡 LIVE MAP — Satellite</span>
-              <button onClick={() => setFullscreenMap(!fullscreenMap)} style={{ padding: "3px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>{fullscreenMap ? "Minimize" : "⛶ Expand"}</button>
+              <button onClick={() => setFullscreenMap(!fullscreenMap)} style={{ padding: "3px 8px", borderRadius: 4, background: "rgba(47,76,39,0.04)", border: "1px solid #dce3d5", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{fullscreenMap ? "Minimize" : "⛶ Expand"}</button>
             </div>
             <div ref={mapRef} style={{ height: fullscreenMap ? 600 : 320 }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <button onClick={() => setShowAddMember(!showAddMember)} style={{ ...btnSt, padding: "6px 12px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", width: "100%", marginBottom: 2 }}>{showAddMember ? "Cancel" : "+ Add Member"}</button>
+            <button onClick={() => setShowAddMember(!showAddMember)} style={{ ...btnSt, padding: "6px 12px", fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.08)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)", width: "100%", marginBottom: 2 }}>{showAddMember ? "Cancel" : "+ Add Member"}</button>
             {showAddMember && (
               <div style={{ ...cardSt, padding: "10px 12px", marginBottom: 4 }}>
                 <input value={newMember.name} onChange={e => setNewMember(p => ({ ...p, name: e.target.value }))} placeholder="Name" style={{ ...inp, padding: "6px 8px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
                 <input value={newMember.role} onChange={e => setNewMember(p => ({ ...p, role: e.target.value }))} placeholder="Role" style={{ ...inp, padding: "6px 8px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
                 <div style={{ display: "flex", gap: 4 }}>
                   <input value={newMember.avatar} onChange={e => setNewMember(p => ({ ...p, avatar: e.target.value }))} placeholder="Avatar emoji" style={{ ...inp, padding: "6px 8px", fontSize: 11, width: 60, boxSizing: "border-box" }} />
-                  <button onClick={addMember} style={{ ...btnSt, padding: "6px 12px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff", flex: 1 }}>Add</button>
+                  <button onClick={addMember} style={{ ...btnSt, padding: "6px 12px", fontSize: 11, fontWeight: 700, background: "#214c39", color: "#243d30", flex: 1 }}>Add</button>
                 </div>
               </div>
             )}
@@ -4791,11 +4802,11 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
               <div key={m.id} style={{ ...cardSt, padding: "10px 12px", borderLeft: "3px solid " + (statColors[m.status] || "#6b7280") }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 20 }}>{m.avatar}</span>
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 700 }}>{m.name}</div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{m.role}</div></div>
-                  <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: (statColors[m.status] || "#6b7280") + "15", color: statColors[m.status] || "#6b7280", fontWeight: 700 }}>{m.status}</span>
-                  {m.id !== "p1" && <button onClick={() => removeMember(m.id)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove member">×</button>}
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 700 }}>{m.name}</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{m.role}</div></div>
+                  <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: (statColors[m.status] || "#6b7280") + "15", color: statColors[m.status] || "#6b7280", fontWeight: 700 }}>{m.status}</span>
+                  {m.id !== "p1" && <button onClick={() => removeMember(m.id)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove member">×</button>}
                 </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
                   <span>📱{m.lastPing}</span>
                   <span style={{ color: m.battery < 20 ? "#ef4444" : "#22c55e" }}>🔋{m.battery}%</span>
                 </div>
@@ -4826,24 +4837,24 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
           <div>
             <div style={{ marginBottom: 12 }}>
               <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🍽️ Rationing Calculator</h3>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>How long your prep inventory feeds your team</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>How long your prep inventory feeds your team</div>
             </div>
             {/* Duration cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
               <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + durationColor(foodDays) }}>
                 <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: durationColor(foodDays) }}>{foodDays}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>🥫 Food Days</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{Math.round(totalCalories).toLocaleString()} cal total</div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>🥫 Food Days</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{Math.round(totalCalories).toLocaleString()} cal total</div>
               </div>
               <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + durationColor(waterDays) }}>
                 <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: durationColor(waterDays) }}>{waterDays}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>💧 Water Days</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{totalWaterGal.toFixed(0)} gal total</div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>💧 Water Days</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{totalWaterGal.toFixed(0)} gal total</div>
               </div>
               <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid #8b5cf6" }}>
                 <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: "#8b5cf6" }}>{numPeople}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>👤 People</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{dailyCalTarget} cal/day each</div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>👤 People</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{dailyCalTarget} cal/day each</div>
               </div>
             </div>
 
@@ -4851,12 +4862,12 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
             <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 700 }}>Daily Calorie Target</span>
-                <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#c8553a" }}>{dailyCalTarget} cal/person</span>
+                <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#214c39" }}>{dailyCalTarget} cal/person</span>
               </div>
-              <input type="range" min={1000} max={3000} step={100} value={dailyCalTarget} onChange={e => setDailyCalTarget(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#c8553a" }} />
+              <input type="range" min={1000} max={3000} step={100} value={dailyCalTarget} onChange={e => setDailyCalTarget(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#214c39" }} />
               <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                 {[{ l: "Normal", v: 2000 }, { l: "Rationing", v: 1500 }, { l: "Severe", v: 1200 }].map(p => (
-                  <button key={p.v} onClick={() => setDailyCalTarget(p.v)} style={{ ...btnSt, fontSize: 9, padding: "4px 10px", background: dailyCalTarget === p.v ? "rgba(200,85,58,0.2)" : "rgba(255,255,255,0.04)", color: dailyCalTarget === p.v ? "#c8553a" : "rgba(255,255,255,0.4)", fontWeight: 700, border: dailyCalTarget === p.v ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)" }}>{p.l} ({p.v})</button>
+                  <button key={p.v} onClick={() => setDailyCalTarget(p.v)} style={{ ...btnSt, fontSize: 11, padding: "4px 10px", background: dailyCalTarget === p.v ? "rgba(33,76,57,0.2)" : "rgba(36,61,48,0.04)", color: dailyCalTarget === p.v ? "#214c39" : "rgba(36,61,48,0.4)", fontWeight: 700, border: dailyCalTarget === p.v ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da" }}>{p.l} ({p.v})</button>
                 ))}
               </div>
             </div>
@@ -4868,24 +4879,24 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                 {rationPeople.map(p => (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 10 }}>
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6, background: "rgba(47,76,39,0.04)", border: "1px solid #e0e6da", fontSize: 11 }}>
                     <span>{p.name}</span>
-                    <button onClick={() => setRationPeople(prev => prev.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 10, padding: 0 }}>✕</button>
+                    <button onClick={() => setRationPeople(prev => prev.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 11, padding: 0 }}>✕</button>
                   </div>
                 ))}
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <input value={rationPersonName} onChange={e => setRationPersonName(e.target.value)} placeholder="Add person..." style={{ ...inp, flex: 1 }} onKeyDown={e => { if (e.key === "Enter" && rationPersonName.trim()) { setRationPeople(prev => [...prev, { id: "rp" + Date.now(), name: rationPersonName.trim() }]); setRationPersonName(""); } }} />
-                <button onClick={() => { if (rationPersonName.trim()) { setRationPeople(prev => [...prev, { id: "rp" + Date.now(), name: rationPersonName.trim() }]); setRationPersonName(""); } }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px", background: "#c8553a", color: "#fff" }}>Add</button>
+                <button onClick={() => { if (rationPersonName.trim()) { setRationPeople(prev => [...prev, { id: "rp" + Date.now(), name: rationPersonName.trim() }]); setRationPersonName(""); } }} style={{ ...btnSt, fontSize: 11, padding: "6px 12px", background: "#214c39", color: "#243d30" }}>Add</button>
               </div>
             </div>
 
             {/* Food inventory breakdown */}
             <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
               <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>🥫 Food Inventory</h4>
-              {foodItems.length === 0 ? <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No food items in prep inventory</div> : (
+              {foodItems.length === 0 ? <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No food items in prep inventory</div> : (
                 <div>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, marginBottom: 6, fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: 700 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, marginBottom: 6, fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 700 }}>
                     <div>Item</div><div style={{ textAlign: "right" }}>Qty</div><div style={{ textAlign: "right" }}>Cal/Srv</div><div style={{ textAlign: "right" }}>Total Cal</div>
                   </div>
                   {foodItems.map(item => {
@@ -4894,18 +4905,18 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
                     const qty = item.quantity || 1;
                     const total = cal * srv * qty;
                     return (
-                      <div key={item.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-                        <div style={{ color: "#fff", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name || CATEGORIES.food?.subTypes?.[item.subType]?.label || "Food"}</div>
+                      <div key={item.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
+                        <div style={{ color: "#243d30", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name || CATEGORIES.food?.subTypes?.[item.subType]?.label || "Food"}</div>
                         <div style={{ textAlign: "right" }}>{qty}</div>
                         <div style={{ textAlign: "right" }}>{cal}</div>
-                        <div style={{ textAlign: "right", fontWeight: 700, color: total > 5000 ? "#22c55e" : "rgba(255,255,255,0.5)" }}>{Math.round(total).toLocaleString()}</div>
+                        <div style={{ textAlign: "right", fontWeight: 700, color: total > 5000 ? "#22c55e" : "rgba(36,61,48,0.5)" }}>{Math.round(total).toLocaleString()}</div>
                       </div>
                     );
                   })}
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "6px 0", borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: 10, fontWeight: 700, marginTop: 4 }}>
-                    <div>Total</div><div></div><div></div><div style={{ textAlign: "right", color: "#c8553a" }}>{Math.round(totalCalories).toLocaleString()}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "6px 0", borderTop: "1px solid #dce3d5", fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+                    <div>Total</div><div></div><div></div><div style={{ textAlign: "right", color: "#214c39" }}>{Math.round(totalCalories).toLocaleString()}</div>
                   </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>Per person per day: <span style={{ fontWeight: 700, color: dailyCalPP >= dailyCalTarget ? "#22c55e" : "#ef4444" }}>{dailyCalPP.toLocaleString()} cal</span> (target: {dailyCalTarget})</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 6 }}>Per person per day: <span style={{ fontWeight: 700, color: dailyCalPP >= dailyCalTarget ? "#22c55e" : "#ef4444" }}>{dailyCalPP.toLocaleString()} cal</span> (target: {dailyCalTarget})</div>
                 </div>
               )}
             </div>
@@ -4913,15 +4924,15 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
             {/* Water inventory breakdown */}
             <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
               <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>💧 Water Inventory</h4>
-              {waterItems.length === 0 ? <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No stored water in prep inventory</div> : (
+              {waterItems.length === 0 ? <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No stored water in prep inventory</div> : (
                 <div>
                   {waterItems.map(item => (
-                    <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 10 }}>
-                      <span style={{ color: "#fff", fontWeight: 600 }}>{item.name || "Stored Water"}</span>
-                      <span style={{ color: "rgba(255,255,255,0.5)" }}>{item.quantity || 0} × {parseFloat(item.fields?.capacity) || 1} gal = <span style={{ fontWeight: 700 }}>{((item.quantity || 0) * (parseFloat(item.fields?.capacity) || 1)).toFixed(0)} gal</span></span>
+                    <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 11 }}>
+                      <span style={{ color: "#243d30", fontWeight: 600 }}>{item.name || "Stored Water"}</span>
+                      <span style={{ color: "rgba(36,61,48,0.58)" }}>{item.quantity || 0} × {parseFloat(item.fields?.capacity) || 1} gal = <span style={{ fontWeight: 700 }}>{((item.quantity || 0) * (parseFloat(item.fields?.capacity) || 1)).toFixed(0)} gal</span></span>
                     </div>
                   ))}
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>Per person per day: <span style={{ fontWeight: 700, color: parseFloat(dailyWaterPP) >= 1 ? "#22c55e" : "#ef4444" }}>{dailyWaterPP} gal</span> (FEMA min: 1 gal)</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 8 }}>Per person per day: <span style={{ fontWeight: 700, color: parseFloat(dailyWaterPP) >= 1 ? "#22c55e" : "#ef4444" }}>{dailyWaterPP} gal</span> (FEMA min: 1 gal)</div>
                 </div>
               )}
             </div>
@@ -4929,20 +4940,20 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
             {/* Meal suggestions */}
             <div style={{ ...cardSt, padding: 14 }}>
               <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>🍳 Meal Suggestions</h4>
-              {foodItems.length === 0 ? <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Add food items to your prep inventory for suggestions</div> : (
+              {foodItems.length === 0 ? <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Add food items to your prep inventory for suggestions</div> : (
                 <div style={{ display: "grid", gap: 6 }}>
                   {foodItems.filter(i => (i.quantity || 0) > 0 && parseFloat(i.fields?.calories || 0) > 0).sort((a, b) => parseFloat(b.fields?.calories || 0) - parseFloat(a.fields?.calories || 0)).slice(0, 6).map(item => {
                     const srv = parseFloat(item.fields?.servings || 1);
                     const unitsNeeded = Math.ceil(numPeople / Math.max(srv, 1));
                     const subLabel = CATEGORIES.food?.subTypes?.[item.subType]?.unit || "units";
                     return (
-                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd" }}>
                         <div style={{ fontSize: 18 }}>{CATEGORIES.food?.subTypes?.[item.subType]?.icon || "🥫"}</div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 11, fontWeight: 600 }}>Use {unitsNeeded} {subLabel} of {item.name || "food"}</div>
-                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Feeds {numPeople} people · {parseFloat(item.fields?.calories || 0)} cal/serving · {item.quantity} {subLabel} in stock</div>
+                          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Feeds {numPeople} people · {parseFloat(item.fields?.calories || 0)} cal/serving · {item.quantity} {subLabel} in stock</div>
                         </div>
-                        {item.quantity < unitsNeeded && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444", fontWeight: 700 }}>LOW</span>}
+                        {item.quantity < unitsNeeded && <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444", fontWeight: 700 }}>LOW</span>}
                       </div>
                     );
                   })}
@@ -4969,12 +4980,12 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
             {/* ═══ Contact Directory ═══ */}
             <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
               <input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder="Search name, group, role, condition..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>{filtered.length} people</span>
-              <button onClick={() => setShowAddContact(!showAddContact)} style={{ ...btnSt, padding: "6px 14px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)", flexShrink: 0 }}>{showAddContact ? "Cancel" : "+ Add Person"}</button>
+              <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>{filtered.length} people</span>
+              <button onClick={() => setShowAddContact(!showAddContact)} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.08)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)", flexShrink: 0 }}>{showAddContact ? "Cancel" : "+ Add Person"}</button>
             </div>
             {showAddContact && (
               <div style={{ ...cardSt, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>New Person</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>New Person</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
                   <input value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} placeholder="Full name *" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
                   <select value={newContact.group} onChange={e => setNewContact(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
@@ -4998,12 +5009,12 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
                   <input value={newContact.skills} onChange={e => setNewContact(p => ({ ...p, skills: e.target.value }))} placeholder="Skills" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
                   <input value={newContact.notes} onChange={e => setNewContact(p => ({ ...p, notes: e.target.value }))} placeholder="Notes" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
                 </div>
-                <button onClick={() => { if (!newContact.name.trim()) return; setContacts(prev => [...prev, { ...newContact, id: "ct" + Date.now(), age: newContact.age ? parseInt(newContact.age) || newContact.age : "" }]); setNewContact({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" }); setShowAddContact(false); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Add Person</button>
+                <button onClick={() => { if (!newContact.name.trim()) return; setContacts(prev => [...prev, { ...newContact, id: "ct" + Date.now(), age: newContact.age ? parseInt(newContact.age) || newContact.age : "" }]); setNewContact({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" }); setShowAddContact(false); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 11, fontWeight: 700, background: "#214c39", color: "#243d30" }}>Add Person</button>
               </div>
             )}
             {groups.map((g) => (
               <div key={g} style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: groupColors[g] || "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: groupColors[g] || "rgba(36,61,48,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: 4, background: groupColors[g] || "#6b7280" }} />
                   {g} ({filtered.filter((c) => c.group === g).length})
                 </div>
@@ -5014,41 +5025,41 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
                     const hasAllergy = c.allergies && c.allergies !== "None" && c.allergies !== "Unknown";
                     return (
                       <div key={c.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderLeft: "3px solid " + (groupColors[c.group] || "#6b7280") }}>
-                        <button onClick={() => setExpandedContact(isExpanded ? null : c.id)} style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#fff", fontFamily: "inherit" }}>
+                        <div style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#243d30", fontFamily: "inherit" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 36, height: 36, borderRadius: 18, background: (groupColors[c.group] || "#6b7280") + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: groupColors[c.group] || "#6b7280" }}>{c.name.charAt(0)}</div>
-                            <div style={{ flex: 1 }}>
+                            <button aria-expanded={isExpanded} aria-label={"Details for " + c.name} onClick={() => setExpandedContact(isExpanded ? null : c.id)} style={{ flex: 1, border: 0, background: "none", textAlign: "left", padding: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</div>
-                              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", display: "flex", gap: 8, marginTop: 1 }}>
+                              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", display: "flex", gap: 8, marginTop: 1 }}>
                                 <span>{c.role}</span>
                                 {c.phone && c.phone !== "N/A — runner only" && c.phone !== "N/A — HAM only" && <span>📱 {c.phone}</span>}
                                 {c.phone && c.phone.includes("HAM") && <span>📻 HAM only</span>}
                                 {c.phone && c.phone.includes("runner") && <span>🏃 Runner only</span>}
                               </div>
-                            </div>
+                            </button>
                             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                              {hasMedical && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>⚕️ medical</span>}
-                              {hasAllergy && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>⚠ allergy</span>}
-                              {c.bloodType && c.bloodType !== "Unknown" && <span style={{ fontSize: 10, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", fontFamily: M }}>{c.bloodType}</span>}
+                              {hasMedical && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>⚕️ medical</span>}
+                              {hasAllergy && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>⚠ allergy</span>}
+                              {c.bloodType && c.bloodType !== "Unknown" && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", fontFamily: M }}>{c.bloodType}</span>}
                             </div>
-                            <button onClick={(e) => { e.stopPropagation(); setEditingContact(c.id); setEditContactData({ ...c }); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">✏️</button>
-                            <button onClick={(e) => { e.stopPropagation(); setContacts(prev => prev.filter(ct => ct.id !== c.id)); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">×</button>
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingContact(c.id); setEditContactData({ ...c }); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} aria-label={"Edit " + c.name} title="Edit">✏️</button>
+                            <button onClick={(e) => { e.stopPropagation(); setContacts(prev => prev.filter(ct => ct.id !== c.id)); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} aria-label={"Remove " + c.name} title="Remove">×</button>
+                            <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
                           </div>
-                        </button>
+                        </div>
                         {isExpanded && (
-                          <div style={{ padding: "0 14px 14px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                          <div style={{ padding: "0 14px 14px", borderTop: "1px solid #e5eadd" }}>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 16px", marginTop: 10 }}>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Phone</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.phone}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Address</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.address}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Age</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.age}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Blood Type</div><div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>{c.bloodType}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Medical Conditions</div><div style={{ fontSize: 11, color: hasMedical ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: hasMedical ? 600 : 400 }}>{c.medical}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Allergies</div><div style={{ fontSize: 11, color: hasAllergy ? "#f59e0b" : "rgba(255,255,255,0.4)", fontWeight: hasAllergy ? 600 : 400 }}>{c.allergies}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Phone</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.phone}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Address</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.address}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Age</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.age}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Blood Type</div><div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>{c.bloodType}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Medical Conditions</div><div style={{ fontSize: 11, color: hasMedical ? "#ef4444" : "rgba(36,61,48,0.4)", fontWeight: hasMedical ? 600 : 400 }}>{c.medical}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Allergies</div><div style={{ fontSize: 11, color: hasAllergy ? "#f59e0b" : "rgba(36,61,48,0.4)", fontWeight: hasAllergy ? 600 : 400 }}>{c.allergies}</div></div>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", marginTop: 8 }}>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Skills</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{c.skills}</div></div>
-                              <div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Notes</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>{c.notes}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Skills</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.skills}</div></div>
+                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Notes</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontStyle: "italic" }}>{c.notes}</div></div>
                             </div>
                           </div>
                         )}
@@ -5062,55 +5073,55 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
             {/* Contact Edit Modal */}
             {editingContact && editContactData && (
               <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => { setEditingContact(null); setEditContactData(null); }}>
-                <div style={{ background: "#1a1f2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: 20, width: 480, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                <div style={{ background: "#edf2e8", border: "1px solid #dce3d5", borderRadius: 14, padding: 20, width: 480, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>Edit Person</div>
-                    <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>×</button>
+                    <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 18 }}>×</button>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Name</div><input value={editContactData.name} onChange={e => setEditContactData(p => ({ ...p, name: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Group</div><select value={editContactData.group} onChange={e => setEditContactData(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Role</div><input value={editContactData.role} onChange={e => setEditContactData(p => ({ ...p, role: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Phone</div><input value={editContactData.phone} onChange={e => setEditContactData(p => ({ ...p, phone: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Address</div><input value={editContactData.address} onChange={e => setEditContactData(p => ({ ...p, address: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Age</div><input value={editContactData.age} onChange={e => setEditContactData(p => ({ ...p, age: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Blood Type</div><select value={editContactData.bloodType} onChange={e => setEditContactData(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}</select></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Medical</div><input value={editContactData.medical} onChange={e => setEditContactData(p => ({ ...p, medical: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Allergies</div><input value={editContactData.allergies} onChange={e => setEditContactData(p => ({ ...p, allergies: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Skills</div><input value={editContactData.skills} onChange={e => setEditContactData(p => ({ ...p, skills: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Name</div><input value={editContactData.name} onChange={e => setEditContactData(p => ({ ...p, name: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Group</div><select value={editContactData.group} onChange={e => setEditContactData(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Role</div><input value={editContactData.role} onChange={e => setEditContactData(p => ({ ...p, role: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Phone</div><input value={editContactData.phone} onChange={e => setEditContactData(p => ({ ...p, phone: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Address</div><input value={editContactData.address} onChange={e => setEditContactData(p => ({ ...p, address: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Age</div><input value={editContactData.age} onChange={e => setEditContactData(p => ({ ...p, age: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Blood Type</div><select value={editContactData.bloodType} onChange={e => setEditContactData(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}</select></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Medical</div><input value={editContactData.medical} onChange={e => setEditContactData(p => ({ ...p, medical: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Allergies</div><input value={editContactData.allergies} onChange={e => setEditContactData(p => ({ ...p, allergies: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Skills</div><input value={editContactData.skills} onChange={e => setEditContactData(p => ({ ...p, skills: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
                   </div>
-                  <div style={{ marginBottom: 12 }}><div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Notes</div><input value={editContactData.notes} onChange={e => setEditContactData(p => ({ ...p, notes: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
+                  <div style={{ marginBottom: 12 }}><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Notes</div><input value={editContactData.notes} onChange={e => setEditContactData(p => ({ ...p, notes: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>Cancel</button>
-                    <button onClick={() => { setContacts(prev => prev.map(c => c.id === editingContact ? { ...editContactData } : c)); setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 10, fontWeight: 700, background: "#c8553a", color: "#fff" }}>Save</button>
+                    <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 11, fontWeight: 600, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>Cancel</button>
+                    <button onClick={() => { setContacts(prev => prev.map(c => c.id === editingContact ? { ...editContactData } : c)); setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 11, fontWeight: 700, background: "#214c39", color: "#243d30" }}>Save</button>
                   </div>
                 </div>
               </div>
             )}
 
             {/* ═══ Team Skills Matrix ═══ */}
-            <div style={{ marginTop: 24, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 20 }}>
+            <div style={{ marginTop: 24, borderTop: "1px solid #e0e6da", paddingTop: 20 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>🎖️ Team Skills & Certifications</h3>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{totalBadges}/{totalPossible} badges</span>
-                  <div style={{ width: 80, height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
-                    <div style={{ width: (totalBadges / totalPossible) * 100 + "%", height: "100%", background: "linear-gradient(90deg, #c8553a, #f59e0b)", borderRadius: 3 }} />
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{totalBadges}/{totalPossible} badges</span>
+                  <div style={{ width: 80, height: 6, background: "rgba(47,76,39,0.06)", borderRadius: 3 }}>
+                    <div style={{ width: (totalBadges / totalPossible) * 100 + "%", height: "100%", background: "linear-gradient(90deg, #214c39, #f59e0b)", borderRadius: 3 }} />
                   </div>
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, marginBottom: 16 }}>
                 {SKILLS_DATA.map((sk) => (
-                  <button key={sk.id} onClick={() => setExpandedSkill(expandedSkill === sk.id ? null : sk.id)} style={{ ...cardSt, padding: 16, cursor: "pointer", textAlign: "center", borderTop: "3px solid " + sk.color, background: expandedSkill === sk.id ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)" }}>
+                  <button key={sk.id} onClick={() => setExpandedSkill(expandedSkill === sk.id ? null : sk.id)} style={{ ...cardSt, padding: 16, cursor: "pointer", textAlign: "center", borderTop: "3px solid " + sk.color, background: expandedSkill === sk.id ? "rgba(36,61,48,0.04)" : "rgba(36,61,48,0.02)" }}>
                     <div style={{ fontSize: 32, marginBottom: 6 }}>{sk.icon}</div>
                     <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{sk.label}</div>
                     <div style={{ display: "flex", justifyContent: "center", gap: 3, marginBottom: 6 }}>
                       {Array.from({ length: sk.maxLevel }).map((_, i) => (
-                        <div key={i} style={{ width: 10, height: 10, borderRadius: 5, background: i < sk.level ? sk.color : "rgba(255,255,255,0.08)", border: i < sk.level ? "none" : "1px solid rgba(255,255,255,0.06)" }} />
+                        <div key={i} style={{ width: 10, height: 10, borderRadius: 5, background: i < sk.level ? sk.color : "rgba(36,61,48,0.08)", border: i < sk.level ? "none" : "1px solid #e0e6da" }} />
                       ))}
                     </div>
-                    <div style={{ fontSize: 9, color: sk.color, fontWeight: 700 }}>Level {sk.level}/{sk.maxLevel}</div>
+                    <div style={{ fontSize: 11, color: sk.color, fontWeight: 700 }}>Level {sk.level}/{sk.maxLevel}</div>
                   </button>
                 ))}
               </div>
@@ -5122,37 +5133,37 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
                       <span style={{ fontSize: 28 }}>{sk.icon}</span>
                       <div>
                         <div style={{ fontSize: 16, fontWeight: 800 }}>{sk.label}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{sk.desc}</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{sk.desc}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>Badge Track</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>Badge Track</div>
                     <div style={{ display: "flex", gap: 0, marginBottom: 18, position: "relative" }}>
-                      <div style={{ position: "absolute", top: 16, left: 24, right: 24, height: 2, background: "rgba(255,255,255,0.06)", zIndex: 0 }} />
+                      <div style={{ position: "absolute", top: 16, left: 24, right: 24, height: 2, background: "rgba(47,76,39,0.06)", zIndex: 0 }} />
                       <div style={{ position: "absolute", top: 16, left: 24, width: ((sk.level / sk.maxLevel) * 100) + "%", maxWidth: "calc(100% - 48px)", height: 2, background: sk.color, zIndex: 1 }} />
                       {sk.badges.map((b, i) => (
                         <div key={i} style={{ flex: 1, textAlign: "center", position: "relative", zIndex: 2 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 17, background: b.unlocked ? sk.color : "rgba(255,255,255,0.04)", border: b.unlocked ? "2px solid " + sk.color : "2px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: b.unlocked ? 14 : 11, color: b.unlocked ? "#fff" : "rgba(255,255,255,0.2)", fontWeight: 800 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 17, background: b.unlocked ? sk.color : "rgba(36,61,48,0.04)", border: b.unlocked ? "2px solid " + sk.color : "2px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: b.unlocked ? 14 : 11, color: b.unlocked ? "#243d30" : "rgba(36,61,48,0.2)", fontWeight: 800 }}>
                             {b.unlocked ? "✓" : b.level}
                           </div>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: b.unlocked ? sk.color : "rgba(255,255,255,0.25)" }}>{b.name}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, lineHeight: 1.3, padding: "0 2px" }}>{b.desc}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: b.unlocked ? sk.color : "rgba(36,61,48,0.25)" }}>{b.name}</div>
+                          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2, lineHeight: 1.3, padding: "0 2px" }}>{b.desc}</div>
                         </div>
                       ))}
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Micro Lessons</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Micro Lessons</div>
                     {sk.lessons.map((lesson, li) => (
                       <div key={li} style={{ marginBottom: 6 }}>
-                        <button onClick={() => setShowLesson(showLesson === sk.id + "-" + li ? null : sk.id + "-" + li)} style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, cursor: "pointer", textAlign: "left", color: "#fff", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10 }}>
+                        <button onClick={() => setShowLesson(showLesson === sk.id + "-" + li ? null : sk.id + "-" + li)} style={{ width: "100%", padding: "10px 14px", background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", borderRadius: 8, cursor: "pointer", textAlign: "left", color: "#243d30", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10 }}>
                           <div style={{ width: 28, height: 28, borderRadius: 8, background: sk.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sk.icon}</div>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 12, fontWeight: 700 }}>{lesson.title}</div>
-                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>⏱️ {lesson.duration} read</div>
+                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⏱️ {lesson.duration} read</div>
                           </div>
-                          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", transform: showLesson === sk.id + "-" + li ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+                          <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transform: showLesson === sk.id + "-" + li ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
                         </button>
                         {showLesson === sk.id + "-" + li && (
-                          <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.01)", borderLeft: "2px solid " + sk.color, marginTop: 4, marginLeft: 20, borderRadius: "0 8px 8px 0" }}>
-                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>{lesson.content}</div>
+                          <div style={{ padding: "12px 16px", background: "rgba(47,76,39,0.01)", borderLeft: "2px solid " + sk.color, marginTop: 4, marginLeft: 20, borderRadius: "0 8px 8px 0" }}>
+                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)", lineHeight: 1.8 }}>{lesson.content}</div>
                           </div>
                         )}
                       </div>
@@ -5236,40 +5247,40 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
 
   return (
     <div>
-      <h2 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 800 }}>Scenario Simulation</h2>
+
       {/* ── People & Climate Controls ── */}
       <div style={{ ...cardSt, padding: 14, marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "end" }}>
-          <div><label style={labelSt}>People</label><div style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="range" min={1} max={20} value={people} onChange={(e) => setPeople(+e.target.value)} style={{ flex: 1, accentColor: "#c8553a" }} /><span style={{ fontFamily: M, fontSize: 18, fontWeight: 800, color: "#c8553a", minWidth: 24, textAlign: "right" }}>{people}</span></div></div>
-          <div><label style={labelSt}>Climate</label><select style={inp} value={climate} onChange={(e) => setClimate(e.target.value)}>{Object.entries(CLIMATES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+          <div><label style={labelSt}>People</label><div style={{ display: "flex", alignItems: "center", gap: 8 }}><input aria-label="Household size" type="range" min={1} max={20} value={people} onChange={(e) => setPeople(+e.target.value)} style={{ flex: 1, accentColor: "#214c39" }} /><span style={{ fontFamily: M, fontSize: 18, fontWeight: 800, color: "#214c39", minWidth: 24, textAlign: "right" }}>{people}</span></div></div>
+          <div><label style={labelSt}>Climate</label><select aria-label="Climate" style={inp} value={climate} onChange={(e) => setClimate(e.target.value)}>{Object.entries(CLIMATES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 6, marginBottom: 16 }}>
         {Object.entries(SCENARIOS).map(([k, s]) => (
-          <button key={k} onClick={() => { setSelScen(k); setSimDuration(s.defaultDur); }} style={{ padding: "10px 6px", background: selScen === k ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.02)", border: selScen === k ? "1px solid #c8553a" : "1px solid rgba(255,255,255,0.06)", borderRadius: 8, cursor: "pointer", textAlign: "center" }}>
+          <button key={k} aria-pressed={selScen === k} onClick={() => { setSelScen(k); setSimDuration(s.defaultDur); }} style={{ padding: "10px 6px", background: selScen === k ? "rgba(33,76,57,0.15)" : "rgba(36,61,48,0.02)", border: selScen === k ? "1px solid #214c39" : "1px solid #e0e6da", borderRadius: 8, cursor: "pointer", textAlign: "center" }}>
             <div style={{ fontSize: 22, marginBottom: 3 }}>{s.icon}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: selScen === k ? "#c8553a" : "rgba(255,255,255,0.5)" }}>{s.label}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: selScen === k ? "#214c39" : "rgba(36,61,48,0.5)" }}>{s.label}</div>
           </button>
         ))}
       </div>
       <div style={{ ...cardSt, padding: 16, marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <label style={labelSt}>Duration</label>
-          <span style={{ fontFamily: M, fontSize: 20, fontWeight: 800, color: "#c8553a" }}>
+          <span style={{ fontFamily: M, fontSize: 20, fontWeight: 800, color: "#214c39" }}>
             {simDuration >= 365 ? (simDuration / 365).toFixed(1) + " yr" : simDuration >= 30 ? Math.round(simDuration / 30) + " mo" : simDuration + " d"}
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>({simDuration} days)</span>
+            <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginLeft: 8 }}>({simDuration} days)</span>
           </span>
         </div>
-        <input type="range" min={30} max={1095} step={30} value={simDuration} onChange={(e) => setSimDuration(+e.target.value)} style={{ width: "100%", accentColor: "#c8553a" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}><span>30d</span><span>6mo</span><span>1yr</span><span>2yr</span><span>3yr</span></div>
+        <input aria-label="Scenario duration in days" type="range" min={30} max={1095} step={30} value={simDuration} onChange={(e) => setSimDuration(+e.target.value)} style={{ width: "100%", accentColor: "#214c39" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}><span>30d</span><span>6mo</span><span>1yr</span><span>2yr</span><span>3yr</span></div>
       </div>
       <div style={{ ...cardSt, padding: 20, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
           <ScoreRing score={result.score} size={120} />
           <div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{scen?.icon} {scen?.label}</h3>
-            <p style={{ margin: "4px 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{scen?.desc}</p>
-            <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{simDuration} days · {people} people</p>
+            <p style={{ margin: "4px 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{scen?.desc}</p>
+            <p style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{simDuration} days · {people} people</p>
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 18px" }}>
@@ -5278,10 +5289,10 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
               <span style={{ fontSize: 12 }}>{CATEGORIES[cat]?.icon}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{CATEGORIES[cat]?.label}</span>
-                  <span style={{ fontSize: 9, color: SC(v), fontFamily: M }}>{Math.round(v)}%</span>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{CATEGORIES[cat]?.label}</span>
+                  <span style={{ fontSize: 11, color: SC(v), fontFamily: M }}>{Math.round(v)}%</span>
                 </div>
-                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
+                <div style={{ height: 3, background: "rgba(47,76,39,0.06)", borderRadius: 2 }}>
                   <div style={{ height: "100%", width: v + "%", background: SC(v), borderRadius: 2, transition: "width 0.5s" }} />
                 </div>
               </div>
@@ -5292,16 +5303,16 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
       {recs && (
         <div>
           <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 800 }}>📋 Recommendations for {scen?.label}</h3>
-          <div style={{ ...cardSt, marginBottom: 12, borderLeft: "3px solid #c8553a" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#c8553a", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>General Actions</div>
+          <div style={{ ...cardSt, marginBottom: 12, borderLeft: "3px solid #214c39" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#214c39", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>General Actions</div>
             {recs.general.map((r, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, marginBottom: 4 }}>
-                <span style={{ fontSize: 10, fontFamily: M, color: "#c8553a", fontWeight: 700, flexShrink: 0, marginTop: 2 }}>{i + 1}.</span>
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "rgba(36,61,48,0.6)", lineHeight: 1.5, marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontFamily: M, color: "#214c39", fontWeight: 700, flexShrink: 0, marginTop: 2 }}>{i + 1}.</span>
                 <span>{r}</span>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Priority Areas</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Priority Areas</div>
           {weakest.map(([cat, score]) => {
             const rec = recs.byCategory?.[cat];
             if (!rec) return null;
@@ -5310,10 +5321,10 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: 18 }}>{CATEGORIES[cat]?.icon}</span>
                   <span style={{ fontSize: 13, fontWeight: 700 }}>{CATEGORIES[cat]?.label}</span>
-                  <span style={{ fontSize: 10, color: SC(score), fontFamily: M, fontWeight: 700 }}>{Math.round(score)}%</span>
-                  {score < 30 && <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 4, background: "rgba(239,68,68,0.12)", color: "#ef4444", fontWeight: 700 }}>CRITICAL</span>}
+                  <span style={{ fontSize: 11, color: SC(score), fontFamily: M, fontWeight: 700 }}>{Math.round(score)}%</span>
+                  {score < 30 && <span style={{ fontSize: 11, padding: "4px 6px", borderRadius: 4, background: "rgba(239,68,68,0.12)", color: "#ef4444", fontWeight: 700 }}>CRITICAL</span>}
                 </div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{rec}</div>
+                <div style={{ fontSize: 12, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>{rec}</div>
               </div>
             );
           })}
@@ -5324,10 +5335,10 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
               <div key={cat} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, opacity: 0.7 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                   <span style={{ fontSize: 14 }}>{CATEGORIES[cat]?.icon}</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{CATEGORIES[cat]?.label}</span>
-                  <span style={{ fontSize: 9, color: SC(score), fontFamily: M }}>{Math.round(score)}%</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(36,61,48,0.58)" }}>{CATEGORIES[cat]?.label}</span>
+                  <span style={{ fontSize: 11, color: SC(score), fontFamily: M }}>{Math.round(score)}%</span>
                 </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{rec}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.5 }}>{rec}</div>
               </div>
             );
           })}
@@ -5344,12 +5355,36 @@ function SimulateTab({ items, people, setPeople, climate, setClimate, selScen, s
    COMMS TAB — Emergency Radio Channel Monitor
    ═══════════════════════════════════════════════════════════════ */
 function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, setCodeWords, rallyPoints, setRallyPoints, members, user }) {
-  const M = "'JetBrains Mono',monospace";
-  const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
+  const M = "'DM Sans',sans-serif";
+  const cardSt = { background: "#ffffff", border: "1px solid #e0e6da", borderRadius: 10 };
 
   const [commsSub, setCommsSub] = useState("scanner");
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState(SAMPLE_CHAT);
+  const cloudChatUserId = supabaseConfigured && user && !user.isLocal ? user.id : null;
+  const localChatKey = "prepvault-chat-" + (user?.id || "guest");
+  const readLocalChat = useCallback((key) => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "null");
+      if (Array.isArray(saved)) return saved.filter(m => m && typeof m.id === "string" && typeof m.text === "string").slice(-100);
+    } catch { /* Invalid local history can be replaced by a new conversation. */ }
+    return key === "prepvault-chat-guest" ? SAMPLE_CHAT : [];
+  }, []);
+  const [localChatState, setLocalChatState] = useState(() => ({ key: localChatKey, messages: readLocalChat(localChatKey) }));
+  const [cloudChatState, setCloudChatState] = useState({ key: "", messages: [] });
+  const [chatCommunities, setChatCommunities] = useState([]);
+  const [selectedChatCommunity, setSelectedChatCommunity] = useState("local");
+  const [chatError, setChatError] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatRetryKey, setChatRetryKey] = useState(0);
+  const chatSendingRef = useRef(false);
+  const isCloudChat = !!cloudChatUserId && selectedChatCommunity !== "local";
+  const chatContextKey = isCloudChat ? cloudChatUserId + ":" + selectedChatCommunity : localChatKey;
+  const chatContextRef = useRef(chatContextKey);
+  chatContextRef.current = chatContextKey;
+  const chatMessages = isCloudChat
+    ? (cloudChatState.key === chatContextKey ? cloudChatState.messages : [])
+    : (localChatState.key === localChatKey ? localChatState.messages : []);
   const chatEndRef = useRef(null);
   const [editingCallSign, setEditingCallSign] = useState(null);
   const [editingCodeWord, setEditingCodeWord] = useState(null);
@@ -5417,48 +5452,120 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     { id: "commsplan", l: "Comms Plan", i: "📻" },
   ];
 
-  /* ── Supabase Realtime: Chat messages ── */
+  /* ── On-device history and community chat ── */
   useEffect(() => {
-    if (!supabaseConfigured || !user) return;
-    // Fetch existing messages
-    const fetchMessages = async () => {
-      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100);
-      if (!error && data?.length > 0) {
-        setChatMessages(data.map(m => ({
-          id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
-          text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-          senderName: m.display_name || "Member",
-        })));
+    setLocalChatState(previous => previous.key === localChatKey ? previous : { key: localChatKey, messages: readLocalChat(localChatKey) });
+  }, [localChatKey, readLocalChat]);
+
+  useEffect(() => {
+    try { localStorage.setItem(localChatState.key, JSON.stringify(localChatState.messages)); }
+    catch { setChatError("This device could not save the conversation. Free some browser storage before leaving this page."); }
+  }, [localChatState]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setChatCommunities([]);
+    setSelectedChatCommunity("local");
+    if (!cloudChatUserId) return;
+    const loadCommunities = async () => {
+      try {
+        const { data, error } = await supabase.from("community_members")
+          .select("community_id, communities(name)").eq("user_id", cloudChatUserId).order("joined_at", { ascending: true });
+        if (error) throw error;
+        if (cancelled) return;
+        const options = (data || []).filter(row => row.community_id).map(row => ({
+          id: row.community_id, name: row.communities?.name || "Community " + row.community_id.slice(0, 8),
+        }));
+        setChatCommunities(options);
+        let savedCommunity = "local";
+        try { savedCommunity = localStorage.getItem("prepvault-chat-community-" + cloudChatUserId) || "local"; } catch { /* Selection can remain local. */ }
+        setSelectedChatCommunity(options.some(option => option.id === savedCommunity) ? savedCommunity : "local");
+      } catch (error) {
+        if (!cancelled) setChatError("Could not load your communities: " + (error.message || "Check your connection and try again."));
       }
     };
+    loadCommunities();
+    return () => { cancelled = true; };
+  }, [cloudChatUserId, chatRetryKey]);
+
+  const mapCloudMessage = useCallback(message => ({
+    id: message.id, from: message.user_id === cloudChatUserId ? "p1" : message.user_id,
+    text: message.text || "", createdAt: message.created_at,
+    ts: new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    senderName: message.display_name || "Member",
+  }), [cloudChatUserId]);
+
+  useEffect(() => {
+    if (!isCloudChat) { setChatLoading(false); return; }
+    let cancelled = false;
+    const contextKey = cloudChatUserId + ":" + selectedChatCommunity;
+    setChatLoading(true);
+    setChatError("");
+    const mergeMessages = messages => {
+      if (cancelled) return;
+      setCloudChatState(previous => {
+        const existing = previous.key === contextKey ? previous.messages : [];
+        const merged = new Map([...existing, ...messages].map(message => [message.id, message]));
+        return { key: contextKey, messages: [...merged.values()].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).slice(-100) };
+      });
+    };
+    const fetchMessages = async () => {
+      try {
+        const { data, error } = await supabase.from("messages")
+          .select("id, community_id, user_id, display_name, text, created_at")
+          .eq("community_id", selectedChatCommunity).order("created_at", { ascending: false }).limit(100);
+        if (error) throw error;
+        mergeMessages((data || []).map(mapCloudMessage));
+      } catch (error) {
+        if (!cancelled) setChatError("Could not load this conversation: " + (error.message || "Check your connection and try again."));
+      } finally { if (!cancelled) setChatLoading(false); }
+    };
+    const channel = supabase.channel("messages-" + contextKey).on("postgres_changes", {
+      event: "INSERT", schema: "public", table: "messages", filter: "community_id=eq." + selectedChatCommunity,
+    }, payload => {
+      if (payload.new.community_id === selectedChatCommunity) mergeMessages([mapCloudMessage(payload.new)]);
+    }).subscribe(status => {
+      if (!cancelled && status === "SUBSCRIBED") fetchMessages();
+      if (!cancelled && (status === "CHANNEL_ERROR" || status === "TIMED_OUT")) setChatError("Live message updates disconnected. Retry to reconnect; your draft is still here.");
+    });
     fetchMessages();
-    // Subscribe to new messages
-    const channel = supabase.channel("messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-      const m = payload.new;
-      setChatMessages(prev => [...prev, {
-        id: m.id, from: m.user_id === user.id ? "p1" : m.user_id,
-        text: m.content, ts: new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-        senderName: m.display_name || "Member",
-      }]);
-    }).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [isCloudChat, cloudChatUserId, selectedChatCommunity, mapCloudMessage, chatRetryKey]);
 
   /* Auto-scroll chat */
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
-  const sendChat = () => {
-    if (!chatInput.trim()) return;
-    if (supabaseConfigured && user) {
-      // Send via Supabase (realtime subscription will update state)
-      supabase.from("messages").insert({ content: chatInput.trim(), user_id: user.id, display_name: user.email?.split("@")[0] || "You" }).then(({ error }) => {
-        if (error) console.error("Chat send error:", error);
-      });
-    } else {
-      // Local-only fallback
-      setChatMessages((p) => [...p, { id: "c" + Date.now(), from: "p1", text: chatInput.trim(), ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
+  const appendLocalMessage = message => {
+    setLocalChatState(previous => ({ key: localChatKey, messages: [...(previous.key === localChatKey ? previous.messages : readLocalChat(localChatKey)), message].slice(-100) }));
+  };
+
+  const sendChat = async () => {
+    const text = chatInput.trim();
+    if (!text || chatSendingRef.current) return;
+    setChatError("");
+    if (!isCloudChat) {
+      appendLocalMessage({ id: "local-" + crypto.randomUUID(), from: "p1", text, ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) });
+      setChatInput("");
+      return;
     }
-    setChatInput("");
+    const contextKey = chatContextKey;
+    chatSendingRef.current = true;
+    setChatSending(true);
+    try {
+      const { data, error } = await supabase.from("messages").insert({
+        community_id: selectedChatCommunity, user_id: cloudChatUserId, text,
+        display_name: user.email?.split("@")[0] || "You", message_type: "text",
+      }).select("id, community_id, user_id, display_name, text, created_at").single();
+      if (error) throw error;
+      if (chatContextRef.current !== contextKey) return;
+      if (data) {
+        const message = mapCloudMessage(data);
+        setCloudChatState(previous => ({ key: contextKey, messages: [...(previous.key === contextKey ? previous.messages.filter(existing => existing.id !== message.id) : []), message].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).slice(-100) }));
+      }
+      setChatInput(current => current.trim() === text ? "" : current);
+    } catch (error) {
+      if (chatContextRef.current === contextKey) setChatError("Message was not sent: " + (error.message || "Check your connection and try again."));
+    } finally { chatSendingRef.current = false; setChatSending(false); }
   };
 
 
@@ -5633,8 +5740,8 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   // Equipment from inventory
   const commsEquip = items.filter(i => i.category === "comms");
 
-  const statusColor = (s) => s === "active" ? "#22c55e" : s === "monitoring" ? "#f59e0b" : "rgba(255,255,255,0.15)";
-  const priorityColor = (p) => p === "emergency" ? "#ef4444" : p === "high" ? "#f59e0b" : p === "med" ? "#0ea5e9" : "rgba(255,255,255,0.25)";
+  const statusColor = (s) => s === "active" ? "#22c55e" : s === "monitoring" ? "#f59e0b" : "rgba(36,61,48,0.15)";
+  const priorityColor = (p) => p === "emergency" ? "#ef4444" : p === "high" ? "#f59e0b" : p === "med" ? "#0ea5e9" : "rgba(36,61,48,0.25)";
   const licenseLabel = (l) => l === "ham" ? "HAM License" : l === "gmrs" ? "GMRS License" : l === "marine" ? "Marine License" : l === "none" ? "License-Free" : l;
 
   const addMonitoredFreq = () => {
@@ -5653,7 +5760,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
     return (
       <div style={{ display: "flex", gap: 1, alignItems: "flex-end", height: 14 }}>
         {[1, 2, 3, 4, 5].map(n => (
-          <div key={n} style={{ width: 3, height: 3 + n * 2, borderRadius: 1, background: n <= level ? "#22c55e" : "rgba(255,255,255,0.08)", transition: "background 0.3s" }} />
+          <div key={n} style={{ width: 3, height: 3 + n * 2, borderRadius: 1, background: n <= level ? "#22c55e" : "rgba(36,61,48,0.08)", transition: "background 0.3s" }} />
         ))}
       </div>
     );
@@ -5662,15 +5769,15 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
   return (
     <div>
       {/* Region indicator */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "6px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "6px 12px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd" }}>
         <span style={{ fontSize: 11 }}>🌎</span>
-        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Region: <strong style={{ color: "rgba(255,255,255,0.6)" }}>North America (US/Canada)</strong></span>
-        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginLeft: "auto" }}>NOAA: US/CA · HAM/GMRS/FRS/CB: Universal · Marine VHF: International</span>
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Region: <strong style={{ color: "rgba(36,61,48,0.6)" }}>North America (US/Canada)</strong></span>
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginLeft: "auto" }}>NOAA: US/CA · HAM/GMRS/FRS/CB: Universal · Marine VHF: International</span>
       </div>
       {/* Sub-tab nav */}
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 16, overflowX: "auto" }}>
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e0e6da", marginBottom: 16, overflowX: "auto" }}>
         {subTabs.map(s => (
-          <button key={s.id} onClick={() => setCommsSub(s.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: commsSub === s.id ? "2px solid #c8553a" : "2px solid transparent", color: commsSub === s.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}>
+          <button key={s.id} onClick={() => setCommsSub(s.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: commsSub === s.id ? "2px solid #214c39" : "2px solid transparent", color: commsSub === s.id ? "#243d30" : "rgba(36,61,48,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 13 }}>{s.i}</span>{s.l}
           </button>
         ))}
@@ -5679,8 +5786,9 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
       {/* ═══ SCANNER ═══ */}
       {commsSub === "scanner" && (
         <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ fontSize: 12, color: "#65765c", lineHeight: 1.6 }}><strong>{liveStreamActive && audioEnabled ? "Internet audio stream" : "Sample scanner"}</strong> · The frequency display and signal levels are a reference simulation, not a physical radio receiver. Live audio plays the selected internet feed independently.</div>
           {/* Live Scanner Display */}
-          <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "rgba(0,0,0,0.4)", border: liveStreamActive ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(34,197,94,0.15)" }}>
+          <div style={{ ...cardSt, padding: 0, overflow: "hidden", background: "#f0f3ec", border: liveStreamActive ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(34,197,94,0.15)" }}>
             <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(34,197,94,0.08)" }}>
               {/* Top bar: status + controls */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -5688,28 +5796,28 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                   {liveStreamActive && audioEnabled ? (
                     <>
                       <div style={{ width: 8, height: 8, borderRadius: 4, background: "#ef4444", boxShadow: "0 0 10px rgba(239,68,68,0.6)", animation: "pulse 1s infinite" }} />
-                      <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>LIVE</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>LIVE</span>
                     </>
                   ) : (
                     <>
                       <div style={{ width: 8, height: 8, borderRadius: 4, background: scanning ? "#22c55e" : "#ef4444", boxShadow: scanning ? "0 0 8px rgba(34,197,94,0.5)" : "none", animation: scanning ? "pulse 1.5s infinite" : "none" }} />
-                      <span style={{ fontSize: 9, fontWeight: 700, color: scanning ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>{scanning ? "Scanning" : "Stopped"}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: scanning ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>PREVIEW</span>
                     </>
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <button onClick={() => setScanning(!scanning)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (scanning ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"), background: scanning ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", color: scanning ? "#ef4444" : "#22c55e", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{scanning ? "STOP" : "SCAN"}</button>
-                  <button onClick={() => setAudioEnabled(!audioEnabled)} style={{ padding: "4px 10px", borderRadius: 6, border: audioEnabled ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(255,255,255,0.1)", background: audioEnabled ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)", color: audioEnabled ? "#ef4444" : "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }} title={audioEnabled ? "Stop live audio" : "Start live audio"}>{audioEnabled ? "🔴" : "🔇"}</button>
+                  <button onClick={() => setScanning(!scanning)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (scanning ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"), background: scanning ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", color: scanning ? "#ef4444" : "#22c55e", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{scanning ? "PAUSE PREVIEW" : "PLAY PREVIEW"}</button>
+                  <button onClick={() => setAudioEnabled(!audioEnabled)} style={{ padding: "4px 10px", borderRadius: 6, border: audioEnabled ? "1px solid rgba(239,68,68,0.3)" : "1px solid #dce3d5", background: audioEnabled ? "rgba(239,68,68,0.08)" : "rgba(36,61,48,0.03)", color: audioEnabled ? "#ef4444" : "rgba(36,61,48,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }} title={audioEnabled ? "Stop live audio" : "Start live audio"}>{audioEnabled ? "🔴" : "🔇"}</button>
                 </div>
               </div>
 
               {/* Live feed source indicator */}
               {audioEnabled && selectedFeed && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 10, borderRadius: 8, background: liveStreamActive ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: liveStreamActive ? "1px solid rgba(239,68,68,0.12)" : "1px solid rgba(255,255,255,0.04)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 10, borderRadius: 8, background: liveStreamActive ? "rgba(239,68,68,0.05)" : "rgba(36,61,48,0.02)", border: liveStreamActive ? "1px solid rgba(239,68,68,0.12)" : "1px solid #e5eadd" }}>
                   <span style={{ fontSize: 14 }}>{feedMeta?.icon || "📡"}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: liveStreamActive ? "#fff" : "rgba(255,255,255,0.5)" }}>{selectedFeed.name}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{selectedFeed.region} · {feedMeta?.label || selectedFeed.type}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: liveStreamActive ? "#243d30" : "rgba(36,61,48,0.5)" }}>{selectedFeed.name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{selectedFeed.region} · {feedMeta?.label || selectedFeed.type}</div>
                   </div>
                   {liveStreamActive && (
                     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -5718,27 +5826,27 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                       ))}
                     </div>
                   )}
-                  <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
+                  <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid #dce3d5", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
                 </div>
               )}
 
               {/* Stream error/status */}
               {audioEnabled && streamError && (
-                <div style={{ fontSize: 9, color: "#f59e0b", textAlign: "center", padding: "4px 8px", marginBottom: 6, background: "rgba(245,158,11,0.06)", borderRadius: 6, border: "1px solid rgba(245,158,11,0.1)" }}>{streamError}</div>
+                <div style={{ fontSize: 11, color: "#f59e0b", textAlign: "center", padding: "4px 8px", marginBottom: 6, background: "rgba(245,158,11,0.06)", borderRadius: 6, border: "1px solid rgba(245,158,11,0.1)" }}>{streamError}</div>
               )}
 
               {/* Volume control */}
               {audioEnabled && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2, padding: "4px 0" }}>
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>🔈</span>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🔈</span>
                   <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} style={{ flex: 1, accentColor: liveStreamActive ? "#ef4444" : "#22c55e", height: 4 }} />
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>🔊</span>
-                  <span style={{ fontSize: 8, fontFamily: M, color: "rgba(255,255,255,0.25)", minWidth: 28, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🔊</span>
+                  <span style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", minWidth: 28, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
                 </div>
               )}
 
               {!audioEnabled && (
-                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textAlign: "center", marginTop: 2, fontStyle: "italic" }}>Tap the audio button to stream live scanner feeds via Broadcastify</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textAlign: "center", marginTop: 2, fontStyle: "italic" }}>Tap the audio button to stream live scanner feeds via Broadcastify</div>
               )}
 
               {/* Large frequency display */}
@@ -5748,7 +5856,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                 </div>
                 <div style={{ fontSize: 12, color: "rgba(34,197,94,0.6)", marginTop: 6, fontWeight: 600 }}>{currentChannel.name}</div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 }}>
-                  <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 4, background: statusColor(currentChannel.status) + "15", color: statusColor(currentChannel.status), fontWeight: 700, textTransform: "uppercase" }}>{currentChannel.status}</span>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: statusColor(currentChannel.status) + "15", color: statusColor(currentChannel.status), fontWeight: 700, textTransform: "uppercase" }}>Sample {currentChannel.status}</span>
                   {signalBars(currentChannel.signal)}
                 </div>
               </div>
@@ -5763,38 +5871,38 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           {showFeedBrowser && (
             <div style={{ ...cardSt, padding: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Live Scanner Feeds</h3>
-                <button onClick={() => setShowFeedBrowser(false)} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+                <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Live Scanner Feeds</h3>
+                <button onClick={() => setShowFeedBrowser(false)} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid #dce3d5", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
               </div>
               {/* Country filter */}
               <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                 {[{ id: "all", l: "All", flag: "🌎" }, { id: "US", l: "United States", flag: "🇺🇸" }, { id: "CA", l: "Canada", flag: "🇨🇦" }].map(c => (
-                  <button key={c.id} onClick={() => setCountryFilter(c.id)} style={{ padding: "3px 8px", borderRadius: 5, border: countryFilter === c.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: countryFilter === c.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: countryFilter === c.id ? "#c8553a" : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{c.flag} {c.l}</button>
+                  <button key={c.id} onClick={() => setCountryFilter(c.id)} style={{ padding: "3px 8px", borderRadius: 5, border: countryFilter === c.id ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da", background: countryFilter === c.id ? "rgba(33,76,57,0.1)" : "rgba(36,61,48,0.02)", color: countryFilter === c.id ? "#214c39" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{c.flag} {c.l}</button>
                 ))}
               </div>
               {/* Feed type filters */}
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
                 {[{ id: "all", l: "All" }, ...Object.entries(FEED_TYPE_META).map(([k, v]) => ({ id: k, l: v.label, icon: v.icon }))].map(f => (
-                  <button key={f.id} onClick={() => setFeedFilter(f.id)} style={{ padding: "3px 8px", borderRadius: 5, border: feedFilter === f.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: feedFilter === f.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: feedFilter === f.id ? "#c8553a" : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{f.icon ? f.icon + " " : ""}{f.l}</button>
+                  <button key={f.id} onClick={() => setFeedFilter(f.id)} style={{ padding: "3px 8px", borderRadius: 5, border: feedFilter === f.id ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da", background: feedFilter === f.id ? "rgba(33,76,57,0.1)" : "rgba(36,61,48,0.02)", color: feedFilter === f.id ? "#214c39" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{f.icon ? f.icon + " " : ""}{f.l}</button>
                 ))}
               </div>
               {/* My Channels */}
               {userChannels.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>My Saved Channels ({userChannels.length})</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>My Saved Channels ({userChannels.length})</div>
                   <div style={{ display: "grid", gap: 2 }}>
                     {userChannels.map(feed => {
                       const meta = FEED_TYPE_META[feed.type] || { icon: "📡", color: "#22c55e", label: "Scanner" };
                       const isActive = feed.id === selectedFeedId;
                       return (
-                        <div key={feed.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(200,85,58,0.03)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(200,85,58,0.08)", cursor: "pointer" }}
+                        <div key={feed.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(33,76,57,0.03)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(33,76,57,0.08)", cursor: "pointer" }}
                           onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }}>
                           <span style={{ fontSize: 14 }}>{meta.icon}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
-                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
+                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); setUserChannels(prev => prev.filter(f => f.id !== feed.id)); }} style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(239,68,68,0.15)", background: "none", color: "#ef4444", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+                          <button onClick={(e) => { e.stopPropagation(); setUserChannels(prev => prev.filter(f => f.id !== feed.id)); }} style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(239,68,68,0.15)", background: "none", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
                         </div>
                       );
                     })}
@@ -5808,27 +5916,27 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                   const isActive = feed.id === selectedFeedId;
                   const isSaved = userChannels.some(uc => uc.id === feed.id);
                   return (
-                    <div key={feed.id} onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.01)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "all 0.15s" }}>
+                    <div key={feed.id} onClick={() => { setSelectedFeedId(feed.id); if (!audioEnabled) setAudioEnabled(true); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: isActive ? "rgba(239,68,68,0.06)" : "rgba(36,61,48,0.01)", border: isActive ? "1px solid rgba(239,68,68,0.2)" : "1px solid #e5eadd", cursor: "pointer", transition: "all 0.15s" }}>
                       <span style={{ fontSize: 16 }}>{meta.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#243d30" : "rgba(36,61,48,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{feed.name}</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{feed.region} {feed.country === "CA" ? "🇨🇦" : "🇺🇸"}</div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); if (isSaved) { setUserChannels(prev => prev.filter(uc => uc.id !== feed.id)); } else { setUserChannels(prev => [...prev, feed]); } }} style={{ padding: "2px 6px", borderRadius: 4, border: isSaved ? "1px solid rgba(234,179,8,0.2)" : "1px solid rgba(34,197,94,0.15)", background: "none", color: isSaved ? "#eab308" : "#22c55e", fontSize: 8, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{isSaved ? "★ Saved" : "+ Save"}</button>
-                      <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: meta.color + "15", color: meta.color, fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{meta.label}</span>
+                      <button onClick={(e) => { e.stopPropagation(); if (isSaved) { setUserChannels(prev => prev.filter(uc => uc.id !== feed.id)); } else { setUserChannels(prev => [...prev, feed]); } }} style={{ padding: "2px 6px", borderRadius: 4, border: isSaved ? "1px solid rgba(234,179,8,0.2)" : "1px solid rgba(34,197,94,0.15)", background: "none", color: isSaved ? "#eab308" : "#22c55e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>{isSaved ? "★ Saved" : "+ Save"}</button>
+                      <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: meta.color + "15", color: meta.color, fontWeight: 700, textTransform: "uppercase", flexShrink: 0 }}>{meta.label}</span>
                       {isActive && liveStreamActive && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.5)", animation: "pulse 1s infinite" }} />}
                     </div>
                   );
                 })}
               </div>
               {/* Custom stream URL */}
-              <div style={{ marginTop: 10, padding: "10px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Custom Stream URL</div>
+              <div style={{ marginTop: 10, padding: "10px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd" }}>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Custom Stream URL</div>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <input value={customStreamUrl} onChange={e => setCustomStreamUrl(e.target.value)} placeholder="https://broadcastify.cdnstream1.com/FEED_ID" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 10, fontFamily: M }} />
-                  <button onClick={() => { if (customStreamUrl.trim()) { const customFeed = { id: "custom-" + Date.now(), name: "Custom Feed", type: "police", region: "Custom", bands: [], url: customStreamUrl.trim(), country: "US" }; setUserChannels(prev => [...prev, customFeed]); setSelectedFeedId(customFeed.id); if (!audioEnabled) setAudioEnabled(true); setCustomStreamUrl(""); } }} style={{ padding: "6px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
+                  <input value={customStreamUrl} onChange={e => setCustomStreamUrl(e.target.value)} placeholder="https://broadcastify.cdnstream1.com/FEED_ID" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: M }} />
+                  <button onClick={() => { if (customStreamUrl.trim()) { const customFeed = { id: "custom-" + Date.now(), name: "Custom Feed", type: "police", region: "Custom", bands: [], url: customStreamUrl.trim(), country: "US" }; setUserChannels(prev => [...prev, customFeed]); setSelectedFeedId(customFeed.id); if (!audioEnabled) setAudioEnabled(true); setCustomStreamUrl(""); } }} style={{ padding: "6px 10px", borderRadius: 6, background: "#214c39", border: "none", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
                 </div>
-                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", marginTop: 4 }}>Paste any Broadcastify or Icecast MP3 stream URL. Find feeds at broadcastify.com</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>Paste any Broadcastify or Icecast MP3 stream URL. Find feeds at broadcastify.com</div>
               </div>
             </div>
           )}
@@ -5836,32 +5944,32 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           {/* Monitored Channels List */}
           <div style={{ ...cardSt, padding: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Monitored Channels ({monitoredChannels.length})</h3>
+              <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Reference Channels ({monitoredChannels.length})</h3>
               <div style={{ display: "flex", gap: 4 }}>
-                <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.04)", color: "rgba(239,68,68,0.6)", fontSize: 9, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Live Feeds</button>
-                <button onClick={() => setShowAddFreq(!showAddFreq)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.35)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>+ Add</button>
+                <button onClick={() => setShowFeedBrowser(!showFeedBrowser)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.04)", color: "rgba(239,68,68,0.6)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Live Feeds</button>
+                <button onClick={() => setShowAddFreq(!showAddFreq)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(255,255,255,0.1)", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ Add</button>
               </div>
             </div>
             {showAddFreq && (
               <div style={{ display: "flex", gap: 4, marginBottom: 10, alignItems: "center" }}>
-                <input value={newFreq} onChange={e => setNewFreq(e.target.value)} placeholder="Freq (MHz)" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#22c55e", fontSize: 11, fontFamily: M }} />
-                <input value={newFreqName} onChange={e => setNewFreqName(e.target.value)} placeholder="Name" onKeyDown={e => e.key === "Enter" && addMonitoredFreq()} style={{ flex: 1.5, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
-                <button onClick={addMonitoredFreq} style={{ padding: "6px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
+                <input value={newFreq} onChange={e => setNewFreq(e.target.value)} placeholder="Freq (MHz)" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#22c55e", fontSize: 11, fontFamily: M }} />
+                <input value={newFreqName} onChange={e => setNewFreqName(e.target.value)} placeholder="Name" onKeyDown={e => e.key === "Enter" && addMonitoredFreq()} style={{ flex: 1.5, padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
+                <button onClick={addMonitoredFreq} style={{ padding: "6px 10px", borderRadius: 6, background: "#214c39", border: "none", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
               </div>
             )}
             <div style={{ display: "grid", gap: 2 }}>
               {monitoredChannels.map((ch, i) => (
-                <div key={ch.freq + i} onClick={() => { setScanIdx(i); setScanning(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 6, background: scanIdx === i ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.01)", border: scanIdx === i ? "1px solid rgba(34,197,94,0.15)" : "1px solid transparent", cursor: "pointer", transition: "all 0.15s" }}>
+                <div key={ch.freq + i} onClick={() => { setScanIdx(i); setScanning(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 6, background: scanIdx === i ? "rgba(34,197,94,0.06)" : "rgba(36,61,48,0.01)", border: scanIdx === i ? "1px solid rgba(34,197,94,0.15)" : "1px solid transparent", cursor: "pointer", transition: "all 0.15s" }}>
                   <div style={{ width: 6, height: 6, borderRadius: 3, background: statusColor(ch.status), boxShadow: ch.status === "active" ? `0 0 6px ${statusColor(ch.status)}50` : "none", flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: M, color: scanIdx === i ? "#22c55e" : "rgba(255,255,255,0.6)" }}>{ch.freq}</span>
-                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.name}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: M, color: scanIdx === i ? "#22c55e" : "rgba(36,61,48,0.6)" }}>{ch.freq}</span>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.name}</span>
                     </div>
                   </div>
                   {signalBars(ch.signal)}
-                  <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", fontFamily: M, flexShrink: 0, width: 45, textAlign: "right" }}>{ch.lastHeard}</span>
-                  <span onClick={(e) => { e.stopPropagation(); removeMonitoredFreq(ch.freq); }} style={{ fontSize: 11, color: "rgba(255,255,255,0.15)", cursor: "pointer", padding: "2px 4px", borderRadius: 3, transition: "color 0.15s" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.15)"}>×</span>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M, flexShrink: 0, width: 45, textAlign: "right" }}>{ch.lastHeard}</span>
+                  <span onClick={(e) => { e.stopPropagation(); removeMonitoredFreq(ch.freq); }} style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", cursor: "pointer", padding: "2px 4px", borderRadius: 3, transition: "color 0.15s" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(36,61,48,0.15)"}>×</span>
                 </div>
               ))}
             </div>
@@ -5872,74 +5980,74 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
             {[
               { label: "Active", value: monitoredChannels.filter(c => c.status === "active").length, color: "#22c55e" },
               { label: "Monitoring", value: monitoredChannels.filter(c => c.status === "monitoring").length, color: "#f59e0b" },
-              { label: "Quiet", value: monitoredChannels.filter(c => c.status === "quiet").length, color: "rgba(255,255,255,0.25)" },
+              { label: "Quiet", value: monitoredChannels.filter(c => c.status === "quiet").length, color: "rgba(36,61,48,0.58)" },
             ].map((s, i) => (
               <div key={i} style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
           </div>
 
           {/* 7C: Channel Activity Log */}
           <div style={{ ...cardSt, padding: 12 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📋 Activity Log</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>📋 Activity Log</h3>
             <div style={{ display: "flex", gap: 4, marginBottom: 8, alignItems: "center" }}>
-              <select value={logChannel} onChange={e => setLogChannel(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#22c55e", fontSize: 10, fontFamily: M, minWidth: 110 }}>
+              <select value={logChannel} onChange={e => setLogChannel(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#22c55e", fontSize: 11, fontFamily: M, minWidth: 110 }}>
                 <option value="">Channel...</option>
                 {monitoredChannels.map((ch, i) => (
                   <option key={ch.freq + i} value={ch.freq}>{ch.freq} — {ch.name}</option>
                 ))}
               </select>
-              <input value={logInput} onChange={e => setLogInput(e.target.value)} placeholder="What did you hear?" onKeyDown={e => { if (e.key === "Enter" && logInput.trim() && logChannel) { setActivityLog(prev => [{ id: Date.now(), channel: logChannel, channelName: (monitoredChannels.find(c => c.freq === logChannel) || {}).name || logChannel, text: logInput.trim(), timestamp: new Date().toISOString(), reporter: (people && people[0] && people[0].name) || "Operator" }, ...prev].slice(0, 50)); setLogInput(""); } }} style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
-              <button onClick={() => { if (logInput.trim() && logChannel) { setActivityLog(prev => [{ id: Date.now(), channel: logChannel, channelName: (monitoredChannels.find(c => c.freq === logChannel) || {}).name || logChannel, text: logInput.trim(), timestamp: new Date().toISOString(), reporter: (people && people[0] && people[0].name) || "Operator" }, ...prev].slice(0, 50)); setLogInput(""); } }} style={{ padding: "6px 12px", borderRadius: 6, background: (!logInput.trim() || !logChannel) ? "rgba(200,85,58,0.3)" : "#c8553a", border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: (!logInput.trim() || !logChannel) ? "default" : "pointer", fontFamily: "inherit", opacity: (!logInput.trim() || !logChannel) ? 0.5 : 1 }}>Log</button>
+              <input value={logInput} onChange={e => setLogInput(e.target.value)} placeholder="What did you hear?" onKeyDown={e => { if (e.key === "Enter" && logInput.trim() && logChannel) { setActivityLog(prev => [{ id: Date.now(), channel: logChannel, channelName: (monitoredChannels.find(c => c.freq === logChannel) || {}).name || logChannel, text: logInput.trim(), timestamp: new Date().toISOString(), reporter: (people && people[0] && people[0].name) || "Operator" }, ...prev].slice(0, 50)); setLogInput(""); } }} style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
+              <button onClick={() => { if (logInput.trim() && logChannel) { setActivityLog(prev => [{ id: Date.now(), channel: logChannel, channelName: (monitoredChannels.find(c => c.freq === logChannel) || {}).name || logChannel, text: logInput.trim(), timestamp: new Date().toISOString(), reporter: (people && people[0] && people[0].name) || "Operator" }, ...prev].slice(0, 50)); setLogInput(""); } }} style={{ padding: "6px 12px", borderRadius: 6, background: (!logInput.trim() || !logChannel) ? "rgba(33,76,57,0.3)" : "#214c39", border: "none", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: (!logInput.trim() || !logChannel) ? "default" : "pointer", fontFamily: "inherit", opacity: (!logInput.trim() || !logChannel) ? 0.5 : 1 }}>Log</button>
             </div>
             <div style={{ maxHeight: 300, overflowY: "auto", display: "grid", gap: 2 }}>
               {activityLog.slice(0, 20).map((entry) => (
-                <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 8px", borderRadius: 6, background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 8px", borderRadius: 6, background: "rgba(47,76,39,0.01)", border: "1px solid rgba(255,255,255,0.03)" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, fontFamily: M, color: "#22c55e" }}>{entry.channel}</span>
-                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{entry.channelName}</span>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{entry.channelName}</span>
                     </div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>{entry.text}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)", lineHeight: 1.4 }}>{entry.text}</div>
                     <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
-                      <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", fontFamily: M }}>{new Date(entry.timestamp).toLocaleString()}</span>
-                      <span style={{ fontSize: 8, color: "rgba(200,85,58,0.5)" }}>{entry.reporter}</span>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                      <span style={{ fontSize: 11, color: "rgba(33,76,57,0.5)" }}>{entry.reporter}</span>
                     </div>
                   </div>
-                  <span onClick={() => setActivityLog(prev => prev.filter(e => e.id !== entry.id))} style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", cursor: "pointer", padding: "2px 4px", borderRadius: 3, flexShrink: 0, lineHeight: 1, transition: "color 0.15s" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.15)"}>×</span>
+                  <span onClick={() => setActivityLog(prev => prev.filter(e => e.id !== entry.id))} style={{ fontSize: 12, color: "rgba(36,61,48,0.58)", cursor: "pointer", padding: "2px 4px", borderRadius: 3, flexShrink: 0, lineHeight: 1, transition: "color 0.15s" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(36,61,48,0.15)"}>×</span>
                 </div>
               ))}
               {activityLog.length === 0 && (
                 <div style={{ textAlign: "center", padding: "20px 12px" }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>No activity logged yet. Select a channel and describe what you heard.</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No activity logged yet. Select a channel and describe what you heard.</div>
                 </div>
               )}
             </div>
           </div>
 
             {/* ═══ Frequency Reference ═══ */}
-            <div style={{ marginTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 16 }}>
-              <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📻 Frequency Reference</h3>
-              <input value={freqSearch} onChange={e => setFreqSearch(e.target.value)} placeholder="Search frequencies or names..." style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 12, fontFamily: "inherit", boxSizing: "border-box", marginBottom: 10 }} />
+            <div style={{ marginTop: 16, borderTop: "1px solid #e0e6da", paddingTop: 16 }}>
+              <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>📻 Frequency Reference</h3>
+              <input value={freqSearch} onChange={e => setFreqSearch(e.target.value)} placeholder="Search frequencies or names..." style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 12, fontFamily: "inherit", boxSizing: "border-box", marginBottom: 10 }} />
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
                 {bands.map(b => (
-                  <button key={b.id} onClick={() => setBandFilter(b.id)} style={{ padding: "4px 10px", borderRadius: 6, border: bandFilter === b.id ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: bandFilter === b.id ? "rgba(200,85,58,0.1)" : "rgba(255,255,255,0.02)", color: bandFilter === b.id ? "#c8553a" : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{b.l}</button>
+                  <button key={b.id} onClick={() => setBandFilter(b.id)} style={{ padding: "4px 10px", borderRadius: 6, border: bandFilter === b.id ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da", background: bandFilter === b.id ? "rgba(33,76,57,0.1)" : "rgba(36,61,48,0.02)", color: bandFilter === b.id ? "#214c39" : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{b.l}</button>
                 ))}
               </div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textAlign: "right", marginBottom: 4 }}>{filteredFreqs.length} frequencies</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textAlign: "right", marginBottom: 4 }}>{filteredFreqs.length} frequencies</div>
               <div style={{ display: "grid", gap: 4 }}>
                 {filteredFreqs.map((f, i) => (
                   <div key={f.freq + f.name + i} style={{ ...cardSt, padding: "8px 12px", display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 4, height: 28, borderRadius: 2, background: priorityColor(f.priority), flexShrink: 0 }} />
                     <div style={{ minWidth: 80, flexShrink: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: "#fff", letterSpacing: 0.5 }}>{f.freq}</div>
-                      <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", marginTop: 1 }}>{f.mode}</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: "#243d30", letterSpacing: 0.5 }}>{f.freq}</div>
+                      <div style={{ fontSize: 7, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{f.mode}</div>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.use}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.use}</div>
                     </div>
                     <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 3, background: f.license === "none" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: f.license === "none" ? "#22c55e" : "#f59e0b", fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>{licenseLabel(f.license)}</span>
                   </div>
@@ -5954,19 +6062,19 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
         <div style={{ display: "grid", gap: 12 }}>
           {/* Code Words */}
           <div style={{ ...cardSt, padding: 12 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Code Words</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Code Words</h3>
             <div style={{ display: "grid", gap: 4 }}>
               {codeWords.map((cw, i) => {
                 const colors = { BLACKOUT: "#ef4444", OVERWATCH: "#f59e0b", EXODUS: "#ef4444", SHELTER: "#f59e0b", ANGEL: "#ef4444", IRON: "#ef4444", RIVER: "#0ea5e9", PHOENIX: "#22c55e" };
                 const col = colors[cw.code] || "#6b7280";
                 return (
-                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.01)", borderLeft: `3px solid ${col}` }}>
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 10px", borderRadius: 6, background: "rgba(47,76,39,0.01)", borderLeft: `3px solid ${col}` }}>
                     <div style={{ minWidth: 85 }}>
                       <div style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: col }}>{cw.code}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.6)" }}>{cw.meaning}</div>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{cw.action}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.6)" }}>{cw.meaning}</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{cw.action}</div>
                     </div>
                   </div>
                 );
@@ -5976,16 +6084,16 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
 
           {/* Distress Signals / Prowords */}
           <div style={{ ...cardSt, padding: 12 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Radio Prowords & Distress Signals</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Radio Prowords & Distress Signals</h3>
             <div style={{ display: "grid", gap: 4 }}>
               {PROWORDS.map((pw, i) => {
-                const col = pw.severity === "critical" ? "#ef4444" : pw.severity === "amber" ? "#f59e0b" : "rgba(255,255,255,0.5)";
+                const col = pw.severity === "critical" ? "#ef4444" : pw.severity === "amber" ? "#f59e0b" : "rgba(36,61,48,0.5)";
                 return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 6, background: pw.severity === "critical" ? "rgba(239,68,68,0.03)" : "rgba(255,255,255,0.01)", border: pw.severity === "critical" ? "1px solid rgba(239,68,68,0.08)" : "1px solid rgba(255,255,255,0.03)" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 6, background: pw.severity === "critical" ? "rgba(239,68,68,0.03)" : "rgba(36,61,48,0.01)", border: pw.severity === "critical" ? "1px solid rgba(239,68,68,0.08)" : "1px solid rgba(255,255,255,0.03)" }}>
                     <span style={{ fontSize: 11, fontWeight: 800, fontFamily: M, color: col, minWidth: 85 }}>{pw.word}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>{pw.meaning}</div>
-                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>{pw.use}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.58)" }}>{pw.meaning}</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{pw.use}</div>
                     </div>
                   </div>
                 );
@@ -5995,12 +6103,12 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
 
           {/* NATO Phonetic Alphabet */}
           <div style={{ ...cardSt, padding: 12 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>NATO Phonetic Alphabet</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>NATO Phonetic Alphabet</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(95px, 1fr))", gap: 3 }}>
               {NATO_PHONETIC.map((np, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 4, background: "rgba(255,255,255,0.015)" }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: "#c8553a", width: 16, textAlign: "center" }}>{np.letter}</span>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{np.word}</span>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 4, background: "rgba(47,76,39,0.015)" }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: "#214c39", width: 16, textAlign: "center" }}>{np.letter}</span>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{np.word}</span>
                 </div>
               ))}
             </div>
@@ -6012,37 +6120,37 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
       {commsSub === "equipment" && (
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ ...cardSt, padding: 12 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Communications Equipment ({commsEquip.length})</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Communications Equipment ({commsEquip.length})</h3>
             {commsEquip.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>📻</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>No comms equipment in inventory</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Add radios, walkie-talkies, and sat phones in the Inventory tab</div>
+                <div style={{ fontSize: 12, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>No comms equipment in inventory</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Add radios, walkie-talkies, and sat phones in the Inventory tab</div>
               </div>
             ) : (
               <div style={{ display: "grid", gap: 6 }}>
                 {commsEquip.map((item, i) => {
                   const subInfo = CATEGORIES.comms?.subTypes?.[item.subType];
                   return (
-                    <div key={item.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div key={item.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd" }}>
                       <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{subInfo?.icon || "📡"}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{item.name}</div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.7)" }}>{item.name}</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>
                           {subInfo?.label || item.subType}{item.quantity > 1 && ` × ${item.quantity}`}
                           {item.location && ` · ${item.location}`}
                         </div>
                         {item.fields && Object.keys(item.fields).length > 0 && (
                           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                             {Object.entries(item.fields).map(([k, v]) => v && (
-                              <span key={k} style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(16,185,129,0.06)", color: "rgba(16,185,129,0.7)", fontWeight: 600 }}>{k}: {v}</span>
+                              <span key={k} style={{ fontSize: 11, padding: "1px 6px", borderRadius: 3, background: "rgba(16,185,129,0.06)", color: "rgba(16,185,129,0.7)", fontWeight: 600 }}>{k}: {v}</span>
                             ))}
                           </div>
                         )}
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: "#10b981" }}>{item.quantity}</div>
-                        <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)" }}>{subInfo?.unit || "units"}</div>
+                        <div style={{ fontSize: 7, color: "rgba(36,61,48,0.58)" }}>{subInfo?.unit || "units"}</div>
                       </div>
                     </div>
                   );
@@ -6058,8 +6166,8 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
               return (
                 <div key={key} style={{ ...cardSt, padding: "10px 12px", textAlign: "center", opacity: count > 0 ? 1 : 0.4 }}>
                   <div style={{ fontSize: 16, marginBottom: 4 }}>{sub.icon}</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: count > 0 ? "#10b981" : "rgba(255,255,255,0.2)" }}>{count}</div>
-                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{sub.label}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: count > 0 ? "#10b981" : "rgba(36,61,48,0.2)" }}>{count}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{sub.label}</div>
                 </div>
               );
             })}
@@ -6067,7 +6175,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
 
           {/* 7A: Manuals & References */}
           <div style={{ ...cardSt, padding: 12 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>📖 Manuals & References</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>📖 Manuals & References</h3>
             <div style={{ display: "grid", gap: 4 }}>
               {[
                 { icon: "📻", title: "Baofeng UV-5R Manual", tag: "Baofeng", url: "https://www.miklor.com/uv5r/UV-5R-Manual.pdf" },
@@ -6081,13 +6189,13 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                 { icon: "💻", title: "CHIRP Programming Software", tag: "Software", url: "https://chirp.danplanet.com/projects/chirp/wiki/Home" },
                 { icon: "📡", title: "Radio Reference — Scanner Frequencies", tag: "Reference", url: "https://www.radioreference.com/" },
               ].map((link, i) => (
-                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", textDecoration: "none", cursor: "pointer", transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.background = "rgba(200,85,58,0.06)"; e.currentTarget.style.borderColor = "rgba(200,85,58,0.15)"; }} onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; }}>
+                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 6, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd", textDecoration: "none", cursor: "pointer", transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.background = "rgba(33,76,57,0.06)"; e.currentTarget.style.borderColor = "rgba(33,76,57,0.15)"; }} onMouseOut={e => { e.currentTarget.style.background = "rgba(36,61,48,0.02)"; e.currentTarget.style.borderColor = "rgba(36,61,48,0.04)"; }}>
                   <span style={{ fontSize: 14, flexShrink: 0 }}>{link.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.65)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link.title}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.65)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link.title}</div>
                   </div>
-                  <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 3, background: link.tag === "Reference" ? "rgba(14,165,233,0.08)" : link.tag === "Software" ? "rgba(168,85,247,0.08)" : "rgba(200,85,58,0.08)", color: link.tag === "Reference" ? "#0ea5e9" : link.tag === "Software" ? "#a855f7" : "#c8553a", fontWeight: 700, flexShrink: 0 }}>{link.tag}</span>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", flexShrink: 0 }}>↗</span>
+                  <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 3, background: link.tag === "Reference" ? "rgba(14,165,233,0.08)" : link.tag === "Software" ? "rgba(168,85,247,0.08)" : "rgba(33,76,57,0.08)", color: link.tag === "Reference" ? "#0ea5e9" : link.tag === "Software" ? "#a855f7" : "#214c39", fontWeight: 700, flexShrink: 0 }}>{link.tag}</span>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>↗</span>
                 </a>
               ))}
             </div>
@@ -6125,12 +6233,18 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
         const handleImageAttach = (e) => {
           const file = e.target.files?.[0];
           if (!file || !file.type.startsWith("image/")) return;
+          e.target.value = "";
+          if (isCloudChat) { setChatError("Image attachments are available in on-device chat only. Select On this device to save an image locally."); return; }
+          if (file.size > 2 * 1024 * 1024) { setChatError("Choose an image smaller than 2 MB for on-device storage."); return; }
+          const contextKey = chatContextKey;
           const reader = new FileReader();
           reader.onload = () => {
-            setChatMessages(prev => [...prev, { id: "c" + Date.now(), from: "p1", text: "", image: reader.result, ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }]);
+            if (chatContextRef.current !== contextKey) return;
+            setChatError("");
+            appendLocalMessage({ id: "local-" + crypto.randomUUID(), from: "p1", text: "", image: reader.result, ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) });
           };
+          reader.onerror = () => setChatError("The image could not be read. Please choose it again.");
           reader.readAsDataURL(file);
-          e.target.value = "";
         };
 
         if (!secureUnlocked) {
@@ -6138,35 +6252,52 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
             <div style={{ ...cardSt, padding: "60px 30px", textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
               <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800 }}>Secure Communications</h3>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 20, lineHeight: 1.6 }}>
-                {isSetup ? "Set a 4-digit PIN to encrypt your communications" : "Enter your PIN to access secure comms"}
+              <p style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 20, lineHeight: 1.6 }}>
+                {isSetup ? "Set a 4–6 digit PIN to lock this chat on your device" : "Enter your PIN to access secure comms"}
               </p>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
-                <input type="password" maxLength={6} value={securePin} onChange={e => { setSecurePinState(e.target.value.replace(/[^0-9]/g, "")); setSecurePinErrorState(false); }} onKeyDown={e => e.key === "Enter" && handlePinSubmit()} placeholder="PIN" style={{ ...inp, width: 120, textAlign: "center", fontSize: 20, fontFamily: M, letterSpacing: 8, padding: "10px 14px", borderColor: securePinError ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.1)" }} autoFocus />
-                <button onClick={handlePinSubmit} style={{ ...btnSt, padding: "10px 20px", background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 12 }}>{isSetup ? "Set PIN" : "Unlock"}</button>
+                <input type="password" maxLength={6} value={securePin} onChange={e => { setSecurePinState(e.target.value.replace(/[^0-9]/g, "")); setSecurePinErrorState(false); }} onKeyDown={e => e.key === "Enter" && handlePinSubmit()} placeholder="PIN" style={{ ...inp, width: 120, textAlign: "center", fontSize: 20, fontFamily: M, letterSpacing: 8, padding: "10px 14px", borderColor: securePinError ? "rgba(239,68,68,0.4)" : "rgba(36,61,48,0.1)" }} autoFocus />
+                <button onClick={handlePinSubmit} style={{ ...btnSt, padding: "10px 20px", background: "#214c39", color: "#243d30", fontWeight: 700, fontSize: 12 }}>{isSetup ? "Set PIN" : "Unlock"}</button>
               </div>
-              {securePinError && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Incorrect PIN. Try again.</div>}
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 20 }}>🛡️ AES-256-GCM Encryption · PBKDF2 Key Derivation</div>
+              {securePinError && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>Incorrect PIN. Try again.</div>}
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 20 }}>Device PIN lock · Messages are not end-to-end encrypted</div>
             </div>
           );
         }
 
         return (
           <div style={{ ...cardSt, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", height: 520 }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid #e0e6da", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12 }}>🔒</span>
                 <span style={{ fontSize: 12, fontWeight: 700 }}>Secure Comms</span>
-                <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>AES-256-GCM</span>
+                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>PIN protected</span>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
                 {members.filter((m) => m.status !== "offline").map((m) => (
-                  <div key={m.id} style={{ width: 22, height: 22, borderRadius: 11, background: m.color + "25", border: "1px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }} title={m.name}>{m.avatar}</div>
+                  <div key={m.id} style={{ width: 22, height: 22, borderRadius: 11, background: m.color + "25", border: "1px solid " + m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }} title={m.name}>{m.avatar}</div>
                 ))}
-                <button onClick={() => setSecureUnlockedState(false)} style={{ background: "none", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 6, color: "#ef4444", cursor: "pointer", fontSize: 9, padding: "2px 8px", fontFamily: "inherit" }}>Lock</button>
+                <button onClick={() => setSecureUnlockedState(false)} style={{ background: "none", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 6, color: "#ef4444", cursor: "pointer", fontSize: 11, padding: "2px 8px", fontFamily: "inherit" }}>Lock</button>
               </div>
             </div>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid #e0e6da", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <label style={{ fontSize: 11, fontWeight: 600 }}>Conversation
+                <select aria-label="Chat conversation" value={isCloudChat ? selectedChatCommunity : "local"} disabled={chatSending} onChange={event => {
+                  const next = event.target.value;
+                  setSelectedChatCommunity(next); setChatError("");
+                  if (cloudChatUserId) { try { localStorage.setItem("prepvault-chat-community-" + cloudChatUserId, next); } catch { /* Selection still works without persistence. */ } }
+                }} style={{ ...inp, width: "auto", marginLeft: 8, padding: "6px 8px", fontSize: 11 }}>
+                  <option value="local">On this device</option>
+                  {chatCommunities.map(community => <option key={community.id} value={community.id}>{community.name}</option>)}
+                </select>
+              </label>
+              <span style={{ fontSize: 11, color: "#65765c" }}>{isCloudChat ? "Shared with this community" : "Saved locally · not sent to other people"}</span>
+              {cloudChatUserId && chatCommunities.length === 0 && <span style={{ fontSize: 11, color: "#65765c" }}>No joined communities available.</span>}
+            </div>
+            {chatError && <div role="alert" style={{ padding: "9px 14px", background: "#fcf0e9", color: "#904c34", fontSize: 12 }}>{chatError}{cloudChatUserId && <button onClick={() => { setChatError(""); setChatRetryKey(key => key + 1); }} style={{ marginLeft: 8, border: 0, background: "none", color: "inherit", textDecoration: "underline", cursor: "pointer" }}>Retry connection</button>}</div>}
             <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {chatLoading && <p role="status" style={{ fontSize: 12, color: "#65765c" }}>Loading community messages…</p>}
+              {!chatLoading && chatMessages.length === 0 && <p style={{ fontSize: 12, color: "#65765c" }}>{isCloudChat ? "No messages yet. Start the conversation." : "Keep a note here, or select a community to send a message."}</p>}
               {chatMessages.map((msg) => {
                 const sender = members.find((m) => m.id === msg.from);
                 const isYou = msg.from === "p1";
@@ -6174,25 +6305,25 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                   <div key={msg.id} style={{ display: "flex", flexDirection: isYou ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
                     {!isYou && <div style={{ width: 28, height: 28, borderRadius: 14, background: (sender?.color || "#6b7280") + "25", border: "1px solid " + (sender?.color || "#6b7280"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sender?.avatar || "?"}</div>}
                     <div style={{ maxWidth: "75%" }}>
-                      {!isYou && <div style={{ fontSize: 9, color: sender?.color || "#999", fontWeight: 700, marginBottom: 2 }}>{sender?.name || msg.senderName || "Member"}</div>}
-                      <div style={{ background: isYou ? "rgba(200,85,58,0.15)" : "rgba(255,255,255,0.04)", border: isYou ? "1px solid rgba(200,85,58,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: isYou ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
-                        {msg.image && <img src={msg.image} style={{ maxWidth: 200, maxHeight: 200, borderRadius: 8, marginBottom: msg.text ? 6 : 0, display: "block" }} />}
+                      {!isYou && <div style={{ fontSize: 11, color: sender?.color || "#999", fontWeight: 700, marginBottom: 2 }}>{sender?.name || msg.senderName || "Member"}</div>}
+                      <div style={{ background: isYou ? "rgba(33,76,57,0.15)" : "rgba(36,61,48,0.04)", border: isYou ? "1px solid rgba(33,76,57,0.2)" : "1px solid #e0e6da", borderRadius: isYou ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "8px 12px", fontSize: 11, color: "rgba(36,61,48,0.7)", lineHeight: 1.5 }}>
+                        {msg.image && <img src={msg.image} alt="Image attached to this conversation" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 8, marginBottom: msg.text ? 6 : 0, display: "block" }} />}
                         {msg.text}
                       </div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, textAlign: isYou ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2, textAlign: isYou ? "right" : "left", fontFamily: M }}>{msg.ts}</div>
                     </div>
                   </div>
                 );
               })}
               <div ref={chatEndRef} />
             </div>
-            <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, alignItems: "center" }}>
-              <label style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 14 }} title="Attach image">
+            <div style={{ padding: "10px 14px", borderTop: "1px solid #e0e6da", display: "flex", gap: 8, alignItems: "center" }}>
+              <label style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "rgba(47,76,39,0.04)", border: "1px solid #dce3d5", fontSize: 14 }} title={isCloudChat ? "Images can be saved in on-device chat only" : "Attach an image to on-device chat"}>
                 📷
                 <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageAttach} />
               </label>
-              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="Encrypted message..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-              <button onClick={sendChat} style={{ ...btnSt, background: "#c8553a", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px" }}>Send</button>
+              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChat()} aria-label="Message" placeholder={isCloudChat ? "Message this community…" : "Write an on-device note…"} style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
+              <button onClick={sendChat} disabled={chatSending || !chatInput.trim()} style={{ ...btnSt, background: "#214c39", color: "#fff", fontWeight: 700, fontSize: 11, padding: "8px 16px", opacity: chatSending || !chatInput.trim() ? 0.55 : 1 }}>{chatSending ? "Sending…" : isCloudChat ? "Send" : "Save note"}</button>
             </div>
           </div>
         );
@@ -6202,27 +6333,27 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
         <div style={{ display: "grid", gap: 16 }}>
           {/* ── Frequencies ── */}
           <div style={cardSt}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>📻 Designated Frequencies</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>📻 Designated Frequencies</div>
             {[COMMS_PLAN.primaryFreq, COMMS_PLAN.emergencyFreq].map((f, i) => (
               <div key={i} style={{ padding: "12px 16px", marginBottom: 8, borderRadius: 10, background: i === 1 ? "rgba(239,68,68,0.04)" : "rgba(34,197,94,0.04)", border: "1px solid " + (i === 1 ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)"), display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ textAlign: "center", flexShrink: 0 }}>
                   <div style={{ fontSize: 18, fontWeight: 800, fontFamily: M, color: i === 1 ? "#ef4444" : "#22c55e", lineHeight: 1 }}>{f.freq}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{f.mode}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{f.mode}</div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: i === 1 ? "#ef4444" : "#22c55e" }}>{f.name}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{f.use}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{f.use}</div>
                 </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: M }}>{f.power}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{f.power}</div>
               </div>
             ))}
-            <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, margin: "10px 0 6px" }}>Backup Channels</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, margin: "10px 0 6px" }}>Backup Channels</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>
               {COMMS_PLAN.altFreqs.map((f, i) => (
-                <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
                   <div style={{ fontSize: 13, fontWeight: 700, fontFamily: M, color: "#f59e0b" }}>{f.freq}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{f.name}</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{f.use} · {f.power}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(36,61,48,0.58)" }}>{f.name}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{f.use} · {f.power}</div>
                 </div>
               ))}
             </div>
@@ -6231,15 +6362,15 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           <div className="pcs-comms-2col">
             {/* ── Check-in Schedule ── */}
             <div style={cardSt}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>🕐 Check-in Schedule</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>🕐 Check-in Schedule</div>
               {COMMS_PLAN.schedule.map((s, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < COMMS_PLAN.schedule.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: s.mandatory ? "#c8553a" : "rgba(255,255,255,0.3)", width: 50, flexShrink: 0, textAlign: "center" }}>{s.time}</div>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < COMMS_PLAN.schedule.length - 1 ? "1px solid #e5eadd" : "none" }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: s.mandatory ? "#214c39" : "rgba(36,61,48,0.3)", width: 50, flexShrink: 0, textAlign: "center" }}>{s.time}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{s.desc}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{s.duration} · {s.mandatory ? "Mandatory" : "Optional"}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{s.desc}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{s.duration} · {s.mandatory ? "Mandatory" : "Optional"}</div>
                   </div>
-                  {s.mandatory && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#c8553a", flexShrink: 0 }} />}
+                  {s.mandatory && <div style={{ width: 6, height: 6, borderRadius: 3, background: "#214c39", flexShrink: 0 }} />}
                 </div>
               ))}
             </div>
@@ -6247,28 +6378,28 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
             {/* ── Call Signs ── */}
             <div style={cardSt}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🎙️ Call Signs</div>
-                <button onClick={() => setCallSigns(prev => [...prev, { person: "New Person", sign: "CALL" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5 }}>🎙️ Call Signs</div>
+                <button onClick={() => setCallSigns(prev => [...prev, { person: "New Person", sign: "CALL" }])} style={{ background: "none", border: "1px solid rgba(33,76,57,0.2)", color: "#214c39", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
               </div>
               {callSigns.map((cs, i) => (
                 editingCallSign === i ? (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", borderBottom: i < callSigns.length - 1 ? "1px solid #e5eadd" : "none" }}>
                     <input value={cs.sign} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, sign: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, color: "#0ea5e9", width: 80, boxSizing: "border-box" }} />
                     <input value={cs.person} onChange={e => { const v = e.target.value; setCallSigns(prev => prev.map((c, j) => j === i ? { ...c, person: v } : c)); }} style={{ ...inp, padding: "4px 6px", fontSize: 11, flex: 1, boxSizing: "border-box" }} />
-                    <button onClick={() => setEditingCallSign(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
+                    <button onClick={() => setEditingCallSign(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
                   </div>
                 ) : (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < callSigns.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < callSigns.length - 1 ? "1px solid #e5eadd" : "none" }}>
                     <div style={{ fontSize: 15, fontWeight: 800, fontFamily: M, color: "#0ea5e9", minWidth: 80 }}>{cs.sign}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", flex: 1 }}>{cs.person}</div>
-                    <button onClick={() => setEditingCallSign(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
-                    <button onClick={() => setCallSigns(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flex: 1 }}>{cs.person}</div>
+                    <button onClick={() => setEditingCallSign(i)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                    <button onClick={() => setCallSigns(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
                   </div>
                 )
               ))}
               <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", marginBottom: 3 }}>⚠ DURESS SIGNAL</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{COMMS_PLAN.duress}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", marginBottom: 3 }}>⚠ DURESS SIGNAL</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.5 }}>{COMMS_PLAN.duress}</div>
               </div>
             </div>
           </div>
@@ -6276,27 +6407,27 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           {/* ── Code Words ── */}
           <div style={cardSt}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🔐 Code Words</div>
-              <button onClick={() => setCodeWords(prev => [...prev, { code: "NEWCODE", meaning: "Description", action: "Action to take" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5 }}>🔐 Code Words</div>
+              <button onClick={() => setCodeWords(prev => [...prev, { code: "NEWCODE", meaning: "Description", action: "Action to take" }])} style={{ background: "none", border: "1px solid rgba(33,76,57,0.2)", color: "#214c39", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 6 }}>
               {codeWords.map((cw, i) => (
                 editingCodeWord === i ? (
-                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
+                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(47,76,39,0.04)", border: "1px solid rgba(33,76,57,0.15)" }}>
                     <input value={cw.code} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, code: v } : c)); }} placeholder="Code word" style={{ ...inp, padding: "4px 6px", fontSize: 12, fontWeight: 800, fontFamily: M, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                    <input value={cw.meaning} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, meaning: v } : c)); }} placeholder="Meaning" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                    <input value={cw.action} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, action: v } : c)); }} placeholder="Action" style={{ ...inp, padding: "4px 6px", fontSize: 10, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
-                    <button onClick={() => setEditingCodeWord(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
+                    <input value={cw.meaning} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, meaning: v } : c)); }} placeholder="Meaning" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <input value={cw.action} onChange={e => { const v = e.target.value; setCodeWords(prev => prev.map((c, j) => j === i ? { ...c, action: v } : c)); }} placeholder="Action" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
+                    <button onClick={() => setEditingCodeWord(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
                   </div>
                 ) : (
-                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444") }}>
+                  <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(47,76,39,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444") }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: 13, fontWeight: 800, fontFamily: M, color: cw.code === "PHOENIX" ? "#22c55e" : cw.code === "ANGEL" ? "#0ea5e9" : "#ef4444", flex: 1 }}>{cw.code}</span>
-                      <button onClick={() => setEditingCodeWord(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
-                      <button onClick={() => setCodeWords(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
+                      <button onClick={() => setEditingCodeWord(i)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">\u270f\ufe0f</button>
+                      <button onClick={() => setCodeWords(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">\u00d7</button>
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>{cw.meaning}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>→ {cw.action}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 3 }}>{cw.meaning}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>→ {cw.action}</div>
                   </div>
                 )
               ))}
@@ -6306,12 +6437,12 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           {/* ── Rally Points ── */}
           <div style={cardSt}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>📍 Rally Points</div>
-              <button onClick={() => setRallyPoints(prev => [...prev, { id: "rp" + Date.now(), name: "New Rally Point", location: "", coords: "", use: "", marker: "", supplies: "" }])} style={{ background: "none", border: "1px solid rgba(200,85,58,0.2)", color: "#c8553a", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5 }}>📍 Rally Points</div>
+              <button onClick={() => setRallyPoints(prev => [...prev, { id: "rp" + Date.now(), name: "New Rally Point", location: "", coords: "", use: "", marker: "", supplies: "" }])} style={{ background: "none", border: "1px solid rgba(33,76,57,0.2)", color: "#214c39", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, fontFamily: "inherit" }}>+</button>
             </div>
             {rallyPoints.map((rp, i) => (
               editingRallyPoint === i ? (
-                <div key={rp.id} style={{ padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(200,85,58,0.15)" }}>
+                <div key={rp.id} style={{ padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(47,76,39,0.04)", border: "1px solid rgba(33,76,57,0.15)" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
                     <input value={rp.name} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, name: v } : r)); }} placeholder="Name" style={{ ...inp, padding: "4px 6px", fontSize: 11, boxSizing: "border-box" }} />
                     <input value={rp.coords} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, coords: v } : r)); }} placeholder="Coordinates" style={{ ...inp, padding: "4px 6px", fontSize: 11, fontFamily: M, boxSizing: "border-box" }} />
@@ -6320,28 +6451,28 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                   <input value={rp.marker} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, marker: v } : r)); }} placeholder="Marker/identifier" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
                   <input value={rp.supplies} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, supplies: v } : r)); }} placeholder="Cached supplies" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 4, width: "100%", boxSizing: "border-box" }} />
                   <input value={rp.use} onChange={e => { const v = e.target.value; setRallyPoints(prev => prev.map((r, j) => j === i ? { ...r, use: v } : r)); }} placeholder="Use case" style={{ ...inp, padding: "4px 6px", fontSize: 11, marginBottom: 6, width: "100%", boxSizing: "border-box" }} />
-                  <button onClick={() => setEditingRallyPoint(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
+                  <button onClick={() => setEditingRallyPoint(null)} style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 4, fontFamily: "inherit" }}>Done</button>
                 </div>
               ) : (
-                <div key={rp.id} style={{ display: "flex", gap: 12, padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7") }}>
+                <div key={rp.id} style={{ display: "flex", gap: 12, padding: "12px 16px", marginBottom: i < rallyPoints.length - 1 ? 8 : 0, borderRadius: 10, background: "rgba(47,76,39,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderLeft: "3px solid " + (i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7") }}>
                   {rp.coords && (() => {
                     const rpColor = i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7";
-                    return <div onClick={() => setRpMapModal({ coords: rp.coords, name: rp.name, color: rpColor })} style={{ width: 120, height: 90, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)", position: "relative", background: "#0a1628" }} title="Click to expand map">
+                    return <div onClick={() => setRpMapModal({ coords: rp.coords, name: rp.name, color: rpColor })} style={{ width: 120, height: 90, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", border: "1px solid #dce3d5", position: "relative", background: "#edf2e8" }} title="Click to expand map">
                       <RallyMiniMap coords={rp.coords} color={rpColor} />
-                      <div style={{ position: "absolute", bottom: 4, right: 4, fontSize: 10, background: "rgba(0,0,0,0.6)", borderRadius: 3, padding: "1px 4px", color: "rgba(255,255,255,0.5)" }}>⛶</div>
+                      <div style={{ position: "absolute", bottom: 4, right: 4, fontSize: 11, background: "rgba(0,0,0,0.6)", borderRadius: 3, padding: "1px 4px", color: "rgba(36,61,48,0.58)" }}>⛶</div>
                     </div>;
                   })()}
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#a855f7", flex: 1 }}>{rp.name}</span>
-                      <span style={{ fontSize: 9, fontFamily: M, color: "rgba(255,255,255,0.4)" }}>{rp.coords}</span>
-                      <button onClick={() => setEditingRallyPoint(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">{"\u270f\ufe0f"}</button>
-                      <button onClick={() => setRallyPoints(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">{"\u00d7"}</button>
+                      <span style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)" }}>{rp.coords}</span>
+                      <button onClick={() => setEditingRallyPoint(i)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} title="Edit">{"\u270f\ufe0f"}</button>
+                      <button onClick={() => setRallyPoints(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Remove">{"\u00d7"}</button>
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>📍 {rp.location}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>🔎 Marker: {rp.marker}</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>📦 Cached: {rp.supplies}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>Use: {rp.use}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 3 }}>📍 {rp.location}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🔎 Marker: {rp.marker}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>📦 Cached: {rp.supplies}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>Use: {rp.use}</div>
                   </div>
                 </div>
               )
@@ -6351,7 +6482,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
           {/* ── Printable Wallet Card ── */}
           <div style={cardSt}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5 }}>🪪 Wallet Card Preview</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5 }}>🪪 Wallet Card Preview</div>
               <button onClick={() => {
                 const card = document.getElementById("pcs-wallet-card");
                 if (!card) return;
@@ -6359,26 +6490,26 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                 w.document.write("<html><head><style>body{margin:0;padding:20px;background:#000;font-family:monospace;color:#fff}table{width:100%;border-collapse:collapse;font-size:9px}td{padding:2px 4px;border:1px solid #333}.hdr{background:#1a1a1a;font-weight:bold;text-transform:uppercase;font-size:8px;color:#999}@media print{body{background:#fff;color:#000}td{border-color:#ccc}.hdr{background:#eee;color:#333}}</style></head><body>" + card.innerHTML + "</body></html>");
                 w.document.close();
                 w.print();
-              }} style={{ ...btnSt, padding: "6px 14px", fontSize: 10, fontWeight: 700, background: "rgba(200,85,58,0.08)", color: "#c8553a", border: "1px solid rgba(200,85,58,0.2)" }}>🖨️ Print Card</button>
+              }} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.08)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)" }}>🖨️ Print Card</button>
             </div>
-            <div id="pcs-wallet-card" style={{ background: "#111", borderRadius: 8, padding: 12, border: "1px solid rgba(255,255,255,0.1)", fontFamily: M, fontSize: 9 }}>
-              <div style={{ textAlign: "center", fontSize: 11, fontWeight: 800, letterSpacing: 2, marginBottom: 8, color: "#c8553a" }}>PCS — COMMS CARD</div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
+            <div id="pcs-wallet-card" style={{ background: "#ffffff", borderRadius: 8, padding: 12, border: "1px solid #dce3d5", fontFamily: M, fontSize: 11 }}>
+              <div style={{ textAlign: "center", fontSize: 11, fontWeight: 800, letterSpacing: 2, marginBottom: 8, color: "#214c39" }}>PCS — COMMS CARD</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                 <tbody>
-                  <tr><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, width: 80, color: "rgba(255,255,255,0.4)" }}>PRIMARY</td><td style={{ padding: "5px 6px", color: "#22c55e", fontWeight: 700 }}>{COMMS_PLAN.primaryFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{COMMS_PLAN.primaryFreq.mode}</td></tr>
-                  <tr><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>EMERGENCY</td><td style={{ padding: "5px 6px", color: "#ef4444", fontWeight: 700 }}>{COMMS_PLAN.emergencyFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{COMMS_PLAN.emergencyFreq.mode}</td></tr>
-                  {COMMS_PLAN.altFreqs.map((f, i) => <tr key={i}><td style={{ padding: "5px 6px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>{f.name.toUpperCase()}</td><td style={{ padding: "5px 6px", color: "#f59e0b" }}>{f.freq}</td><td style={{ padding: "5px 6px", color: "rgba(255,255,255,0.3)" }}>{f.mode}</td></tr>)}
+                  <tr><td style={{ padding: "5px 6px", background: "rgba(47,76,39,0.04)", fontWeight: 700, width: 80, color: "rgba(36,61,48,0.58)" }}>PRIMARY</td><td style={{ padding: "5px 6px", color: "#22c55e", fontWeight: 700 }}>{COMMS_PLAN.primaryFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(36,61,48,0.58)" }}>{COMMS_PLAN.primaryFreq.mode}</td></tr>
+                  <tr><td style={{ padding: "5px 6px", background: "rgba(47,76,39,0.04)", fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>EMERGENCY</td><td style={{ padding: "5px 6px", color: "#ef4444", fontWeight: 700 }}>{COMMS_PLAN.emergencyFreq.freq}</td><td style={{ padding: "5px 6px", color: "rgba(36,61,48,0.58)" }}>{COMMS_PLAN.emergencyFreq.mode}</td></tr>
+                  {COMMS_PLAN.altFreqs.map((f, i) => <tr key={i}><td style={{ padding: "5px 6px", background: "rgba(47,76,39,0.04)", fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>{f.name.toUpperCase()}</td><td style={{ padding: "5px 6px", color: "#f59e0b" }}>{f.freq}</td><td style={{ padding: "5px 6px", color: "rgba(36,61,48,0.58)" }}>{f.mode}</td></tr>)}
                 </tbody>
               </table>
               <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <div><span style={{ color: "rgba(255,255,255,0.3)" }}>CHECK-IN:</span> {COMMS_PLAN.schedule.filter(s => s.mandatory).map(s => s.time).join(" / ")}</div>
+                <div><span style={{ color: "rgba(36,61,48,0.58)" }}>CHECK-IN:</span> {COMMS_PLAN.schedule.filter(s => s.mandatory).map(s => s.time).join(" / ")}</div>
               </div>
               <div style={{ marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {codeWords.slice(0, 4).map((cw, i) => <span key={i} style={{ color: "#ef4444" }}>{cw.code}</span>)}
                 <span style={{ color: "#22c55e" }}>PHOENIX</span>
               </div>
-              <div style={{ marginTop: 4, color: "rgba(255,255,255,0.4)" }}>RALLY: {rallyPoints.map(r => r.name.split(" — ")[0]).join(" → ")}</div>
-              <div style={{ marginTop: 4, color: "#ef4444", fontSize: 10 }}>DURESS: Append "COPY THAT, ALL STATIONS"</div>
+              <div style={{ marginTop: 4, color: "rgba(36,61,48,0.58)" }}>RALLY: {rallyPoints.map(r => r.name.split(" — ")[0]).join(" → ")}</div>
+              <div style={{ marginTop: 4, color: "#ef4444", fontSize: 11 }}>DURESS: Append "COPY THAT, ALL STATIONS"</div>
             </div>
           </div>
         </div>
@@ -6389,10 +6520,10 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
         const match = rpMapModal.coords.match(/([\d.]+)\s*°?\s*([NS])\s*[,\s]+([\d.]+)\s*°?\s*([EW])/i);
         return (
           <div onClick={() => setRpMapModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-            <div onClick={e => e.stopPropagation()} style={{ width: "80%", maxWidth: 700, background: "#111", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "default" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div><span style={{ fontSize: 14, fontWeight: 800, color: rpMapModal.color }}>{rpMapModal.name}</span><span style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.4)", marginLeft: 10 }}>{rpMapModal.coords}</span></div>
-                <button onClick={() => setRpMapModal(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>×</button>
+            <div onClick={e => e.stopPropagation()} style={{ width: "80%", maxWidth: 700, background: "#ffffff", borderRadius: 16, overflow: "hidden", border: "1px solid #dce3d5", cursor: "default" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #e0e6da", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div><span style={{ fontSize: 14, fontWeight: 800, color: rpMapModal.color }}>{rpMapModal.name}</span><span style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", marginLeft: 10 }}>{rpMapModal.coords}</span></div>
+                <button onClick={() => setRpMapModal(null)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 18 }}>×</button>
               </div>
               <div style={{ height: 400 }}>
                 {match && <RallyMiniMapLarge lat={parseFloat(match[1]) * (match[2].toUpperCase() === "S" ? -1 : 1)} lng={parseFloat(match[3]) * (match[4].toUpperCase() === "W" ? -1 : 1)} color={rpMapModal.color} />}
@@ -6410,9 +6541,9 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
    OPPORTUNITIES TAB — Score-Based Improvement Recommendations
    ═══════════════════════════════════════════════════════════════ */
 function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps, propertyProfile }) {
-  const M = "'JetBrains Mono',monospace";
-  const accent = "#c8553a";
-  const cardSt = { background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" };
+  const M = "'DM Sans',sans-serif";
+  const accent = "#214c39";
+  const cardSt = { background: "#ffffff", borderRadius: 10, border: "1px solid #e0e6da" };
   const [oppFilter, setOppFilter] = useState("all");
   const [showDismissed, setShowDismissed] = useState(false);
 
@@ -6679,12 +6810,12 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
       {/* ── Fragility Analysis ── */}
       {cont.frag && cont.frag.length > 0 && (
         <div style={{ ...cardSt, padding: "10px 16px" }}>
-          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(239,68,68,0.5)", fontWeight: 700, marginBottom: 6 }}>⚠ Fragility Analysis</div>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(239,68,68,0.5)", fontWeight: 700, marginBottom: 6 }}>⚠ Fragility Analysis</div>
           <div style={{ display: "grid", gap: 4 }}>
             {cont.frag.map((f, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: f.sev === "critical" ? "rgba(239,68,68,0.04)" : "rgba(245,158,11,0.03)", borderRadius: 6, borderLeft: "2px solid " + (f.sev === "critical" ? "#ef4444" : "#f59e0b") }}>
                 <span style={{ fontSize: 12 }}>{f.icon}</span>
-                <span style={{ fontSize: 10, color: f.sev === "critical" ? "rgba(239,68,68,0.7)" : "rgba(245,158,11,0.7)", fontStyle: "italic" }}>{f.msg}</span>
+                <span style={{ fontSize: 11, color: f.sev === "critical" ? "rgba(239,68,68,0.7)" : "rgba(245,158,11,0.7)", fontStyle: "italic" }}>{f.msg}</span>
               </div>
             ))}
           </div>
@@ -6694,25 +6825,25 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
       <div style={{ ...cardSt, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: M }}>CURRENT</span>
+            <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>CURRENT</span>
             <span style={{ fontSize: 20, fontWeight: 900, color: SC(prepScore), fontFamily: M }}>{prepScore}</span>
           </div>
           {activeOpps.length > 0 && <>
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.2)" }}>→</span>
+            <span style={{ fontSize: 14, color: "rgba(36,61,48,0.58)" }}>→</span>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: M }}>POTENTIAL</span>
+              <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>POTENTIAL</span>
               <span style={{ fontSize: 20, fontWeight: 900, color: SC(potentialScore), fontFamily: M }}>{potentialScore}</span>
             </div>
-            <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 700, fontFamily: M, background: "rgba(34,197,94,0.1)", padding: "2px 6px", borderRadius: 4 }}>+{potentialScore - prepScore} pts</span>
+            <span style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, fontFamily: M, background: "rgba(34,197,94,0.1)", padding: "2px 6px", borderRadius: 4 }}>+{potentialScore - prepScore} pts</span>
           </>}
         </div>
-        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{activeOpps.length} opportunit{activeOpps.length === 1 ? "y" : "ies"} found</span>
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{activeOpps.length} opportunit{activeOpps.length === 1 ? "y" : "ies"} found</span>
       </div>
 
       {/* ── Filter Pills ── */}
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
         {filterPills.map(fp => (
-          <button key={fp.id} onClick={() => setOppFilter(fp.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${oppFilter === fp.id ? fp.c : "rgba(255,255,255,0.08)"}`, background: oppFilter === fp.id ? `${fp.c}15` : "transparent", color: oppFilter === fp.id ? fp.c : "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+          <button key={fp.id} onClick={() => setOppFilter(fp.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${oppFilter === fp.id ? fp.c : "rgba(36,61,48,0.08)"}`, background: oppFilter === fp.id ? `${fp.c}15` : "transparent", color: oppFilter === fp.id ? fp.c : "rgba(36,61,48,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
             {fp.l}{fp.id !== "all" && ` (${activeOpps.filter(o => o.priority === fp.id).length})`}
           </button>
         ))}
@@ -6723,13 +6854,13 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
         <div style={{ ...cardSt, padding: "40px 20px", textAlign: "center" }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>All Optimized</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Your preparedness is well-balanced. Keep maintaining your supplies.</div>
+          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Your preparedness is well-balanced. Keep maintaining your supplies.</div>
         </div>
       )}
 
       {filtered.length === 0 && activeOpps.length > 0 && (
         <div style={{ ...cardSt, padding: "20px", textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No {oppFilter} priority opportunities</div>
+          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No {oppFilter} priority opportunities</div>
         </div>
       )}
 
@@ -6742,18 +6873,18 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
                 <span style={{ fontSize: 18 }}>{opp.icon}</span>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>{opp.title}</div>
-                  <span style={{ fontSize: 9, color: opp.prioColor, fontWeight: 700, textTransform: "uppercase", fontFamily: M }}>{opp.priority}</span>
+                  <span style={{ fontSize: 11, color: opp.prioColor, fontWeight: 700, textTransform: "uppercase", fontFamily: M }}>{opp.priority}</span>
                 </div>
               </div>
-              <button onClick={() => setDismissedOpps(p => [...p, opp.id])} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Dismiss">✕</button>
+              <button onClick={() => setDismissedOpps(p => [...p, opp.id])} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Dismiss">✕</button>
             </div>
 
             {/* Description */}
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 8 }}>{opp.desc}</div>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.5, marginBottom: 8 }}>{opp.desc}</div>
 
             {/* Recommended Action */}
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, padding: "6px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 10 }}>
-              <span style={{ fontSize: 9, color: accent, fontWeight: 700, textTransform: "uppercase", fontFamily: M, display: "block", marginBottom: 3 }}>Recommended</span>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.7)", lineHeight: 1.5, padding: "6px 8px", background: "rgba(47,76,39,0.02)", borderRadius: 6, border: "1px solid #e5eadd", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, color: accent, fontWeight: 700, textTransform: "uppercase", fontFamily: M, display: "block", marginBottom: 3 }}>Recommended</span>
               {opp.action}
             </div>
 
@@ -6761,10 +6892,10 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: M }}>{opp.scoreNow} → {opp.scoreAfter}</span>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: "#22c55e", fontFamily: M }}>+{opp.pointsGain} pts</span>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{opp.scoreNow} → {opp.scoreAfter}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e", fontFamily: M }}>+{opp.pointsGain} pts</span>
                 </div>
-                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", position: "relative" }}>
+                <div style={{ height: 4, background: "rgba(47,76,39,0.06)", borderRadius: 2, overflow: "hidden", position: "relative" }}>
                   <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${opp.scoreNow}%`, background: SC(opp.scoreNow), borderRadius: 2, transition: "width 0.3s" }} />
                   <div style={{ position: "absolute", left: `${opp.scoreNow}%`, top: 0, height: "100%", width: `${opp.scoreAfter - opp.scoreNow}%`, background: `${SC(opp.scoreAfter)}60`, borderRadius: "0 2px 2px 0" }} />
                 </div>
@@ -6777,7 +6908,7 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
       {/* ── Dismissed Section ── */}
       {dismissed.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <button onClick={() => setShowDismissed(!showDismissed)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, padding: "4px 0" }}>
+          <button onClick={() => setShowDismissed(!showDismissed)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, padding: "4px 0" }}>
             <span style={{ transition: "transform 0.2s", display: "inline-block", transform: showDismissed ? "rotate(90deg)" : "none" }}>▸</span>
             Dismissed ({dismissed.length})
             {dismissed.length > 0 && <span onClick={(e) => { e.stopPropagation(); setDismissedOpps([]); }} style={{ marginLeft: 8, color: accent, textDecoration: "underline", cursor: "pointer" }}>Restore All</span>}
@@ -6786,10 +6917,10 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
             <div key={opp.id} style={{ ...cardSt, padding: "8px 12px", marginTop: 4, opacity: 0.45, display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `3px solid ${opp.prioColor}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 14 }}>{opp.icon}</span>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{opp.title}</span>
-                <span style={{ fontSize: 9, color: opp.prioColor, fontWeight: 700, fontFamily: M }}>+{opp.pointsGain}</span>
+                <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{opp.title}</span>
+                <span style={{ fontSize: 11, color: opp.prioColor, fontWeight: 700, fontFamily: M }}>+{opp.pointsGain}</span>
               </div>
-              <button onClick={() => setDismissedOpps(p => p.filter(d => d !== opp.id))} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 9, padding: "2px 6px", fontFamily: "inherit" }}>↩ Restore</button>
+              <button onClick={() => setDismissedOpps(p => p.filter(d => d !== opp.id))} style={{ background: "none", border: "1px solid #dce3d5", borderRadius: 4, color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, padding: "2px 6px", fontFamily: "inherit" }}>↩ Restore</button>
             </div>
           ))}
         </div>
@@ -6802,8 +6933,8 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
    SYSTEMS TAB — Resource Conversion, Trade-offs, Dependency Graphs
    ═══════════════════════════════════════════════════════════════ */
 function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps, propertyProfile }) {
-  const M = "'JetBrains Mono',monospace";
-  const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
+  const M = "'DM Sans',sans-serif";
+  const cardSt = { background: "#ffffff", border: "1px solid #e0e6da", borderRadius: 10 };
   const [sysSub, setSysSub] = useState("stock");
   const [divertFrom, setDivertFrom] = useState("power");
   const [divertTo, setDivertTo] = useState("heat");
@@ -6956,9 +7087,9 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 0 }}>
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e0e6da", marginBottom: 0 }}>
         {subs.map((s) => (
-          <button key={s.id} onClick={() => setSysSub(s.id)} style={{ padding: "10px 18px", background: "none", border: "none", borderBottom: sysSub === s.id ? "2px solid #c8553a" : "2px solid transparent", color: sysSub === s.id ? "#fff" : "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
+          <button key={s.id} onClick={() => setSysSub(s.id)} style={{ padding: "10px 18px", background: "none", border: "none", borderBottom: sysSub === s.id ? "2px solid #214c39" : "2px solid transparent", color: sysSub === s.id ? "#243d30" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
             <span>{s.i}</span> {s.l}
           </button>
         ))}
@@ -6992,27 +7123,27 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
           <div>
             <div style={{ marginBottom: 12 }}>
               <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>📊 Resource Stock Levels</h3>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Current supplies and autonomy for {p} people ({_clim.label} climate)</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Current supplies and autonomy for {p} people ({_clim.label} climate)</div>
             </div>
             <div style={{ display: "grid", gap: 8 }}>
               {resources.map((r, i) => {
                 const pct = r.target && r.days !== null ? Math.min(r.days / r.target * 100, 100) : null;
-                const sc = r.days !== null ? (r.days >= (r.target || 14) ? "#22c55e" : r.days >= (r.target || 14) * 0.5 ? "#f59e0b" : "#ef4444") : "rgba(255,255,255,0.3)";
+                const sc = r.days !== null ? (r.days >= (r.target || 14) ? "#22c55e" : r.days >= (r.target || 14) * 0.5 ? "#f59e0b" : "#ef4444") : "rgba(36,61,48,0.3)";
                 return (
                   <div key={i} style={{ ...cardSt, padding: "12px 16px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <span style={{ fontSize: 20 }}>{r.icon}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{r.name}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.7)" }}>{r.name}</span>
                           <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: sc }}>{r.days !== null ? r.days.toFixed(1) + " days" : r.qty + " " + (r.unit || "")}</span>
                         </div>
                         {pct !== null && (
-                          <div style={{ height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 2 }}>
+                          <div style={{ height: 4, background: "rgba(47,76,39,0.04)", borderRadius: 2 }}>
                             <div style={{ height: "100%", width: pct + "%", background: sc, borderRadius: 2, transition: "width 0.5s" }} />
                           </div>
                         )}
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 3 }}>{r.detail}{r.target && r.days !== null ? " · Target: " + r.target + "d" : ""}</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{r.detail}{r.target && r.days !== null ? " · Target: " + r.target + "d" : ""}</div>
                       </div>
                     </div>
                   </div>
@@ -7028,21 +7159,21 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
         <div>
           <div style={{ marginBottom: 12 }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>⚡ Resource Conversion Table</h3>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>How your resources translate into continuity hours, days, and calories</div>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>How your resources translate into continuity hours, days, and calories</div>
           </div>
           <div style={{ display: "grid", gap: 6 }}>
             {Object.entries(CONVERSIONS).map(([k, c]) => (
               <div key={k} style={{ ...cardSt, padding: "12px 16px", display: "grid", gridTemplateColumns: "160px 140px 1fr", gap: 16, alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700 }}>{c.input}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>INPUT</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>INPUT</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>→</span>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#c8553a", fontFamily: M }}>{c.output}</div>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>→</span>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#214c39", fontFamily: M }}>{c.output}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{c.equiv}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{c.equiv}</div>
                 </div>
               </div>
             ))}
@@ -7050,7 +7181,7 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
 
           {/* Current Stock in Conversion Terms */}
           <div style={{ marginTop: 16 }}>
-            <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>Your Stock → Continuity Value</h4>
+            <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>Your Stock → Continuity Value</h4>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
               {[
                 { label: "Gasoline", val: resources.fuelGals.toFixed(1) + " gal", conv: (resources.fuelGals * 5.5).toFixed(1) + " hrs generator", icon: "⛽", color: "#f59e0b" },
@@ -7066,7 +7197,7 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
                     <span style={{ fontSize: 12, fontWeight: 700 }}>{r.label}</span>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: r.color }}>{r.val}</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>= {r.conv}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>= {r.conv}</div>
                 </div>
               ))}
             </div>
@@ -7079,29 +7210,29 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
         <div>
           <div style={{ marginBottom: 12 }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>⚖️ Resource Trade-off Simulator</h3>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Model what happens when you divert resources between systems</div>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Model what happens when you divert resources between systems</div>
           </div>
 
           {/* Controls */}
           <div style={{ ...cardSt, padding: 18, marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>Simulation Parameters</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>Simulation Parameters</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>DIVERT FROM</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>DIVERT FROM</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {["power", "heat", "water", "food", "comms"].map((s) => (
-                    <button key={s} onClick={() => { setDivertFrom(s); if (s === divertTo) setDivertTo(s === "power" ? "heat" : "power"); }} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + (divertFrom === s ? "#ef4444" : "rgba(255,255,255,0.08)"), background: divertFrom === s ? "rgba(239,68,68,0.1)" : "transparent", color: divertFrom === s ? "#ef4444" : "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 10, fontWeight: 600, fontFamily: "inherit" }}>
+                    <button key={s} onClick={() => { setDivertFrom(s); if (s === divertTo) setDivertTo(s === "power" ? "heat" : "power"); }} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + (divertFrom === s ? "#ef4444" : "rgba(36,61,48,0.08)"), background: divertFrom === s ? "rgba(239,68,68,0.1)" : "transparent", color: divertFrom === s ? "#ef4444" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit" }}>
                       {{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[s]} {s.charAt(0).toUpperCase() + s.slice(1)}
                     </button>
                   ))}
                 </div>
               </div>
-              <div style={{ fontSize: 20, color: "rgba(255,255,255,0.3)" }}>→</div>
+              <div style={{ fontSize: 20, color: "rgba(36,61,48,0.58)" }}>→</div>
               <div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>DIVERT TO</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>DIVERT TO</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {["power", "heat", "water", "food", "comms"].filter((s) => s !== divertFrom).map((s) => (
-                    <button key={s} onClick={() => setDivertTo(s)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + (divertTo === s ? "#22c55e" : "rgba(255,255,255,0.08)"), background: divertTo === s ? "rgba(34,197,94,0.1)" : "transparent", color: divertTo === s ? "#22c55e" : "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 10, fontWeight: 600, fontFamily: "inherit" }}>
+                    <button key={s} onClick={() => setDivertTo(s)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + (divertTo === s ? "#22c55e" : "rgba(36,61,48,0.08)"), background: divertTo === s ? "rgba(34,197,94,0.1)" : "transparent", color: divertTo === s ? "#22c55e" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit" }}>
                       {{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[s]} {s.charAt(0).toUpperCase() + s.slice(1)}
                     </button>
                   ))}
@@ -7110,57 +7241,57 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
             </div>
             <div style={{ marginTop: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>DIVERSION AMOUNT</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#c8553a", fontFamily: M }}>{divertPct}%</span>
+                <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>DIVERSION AMOUNT</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#214c39", fontFamily: M }}>{divertPct}%</span>
               </div>
-              <input type="range" min={5} max={75} step={5} value={divertPct} onChange={(e) => setDivertPct(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#c8553a" }} />
+              <input type="range" min={5} max={75} step={5} value={divertPct} onChange={(e) => setDivertPct(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#214c39" }} />
             </div>
           </div>
 
           {/* Results */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ ...cardSt, padding: 16, borderLeft: "4px solid #ef4444" }}>
-              <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#ef4444", fontWeight: 700, marginBottom: 8 }}>{{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[divertFrom]} {divertFrom} — Impact</div>
+              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "#ef4444", fontWeight: 700, marginBottom: 8 }}>{{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[divertFrom]} {divertFrom} — Impact</div>
               <div style={{ fontSize: 11, color: "rgba(239,68,68,0.7)", marginBottom: 10 }}>{tradeoff.fromLoss}</div>
               <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 2 }}>BEFORE</div>
-                  <div style={{ width: 40, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
-                    <div style={{ height: "100%", background: "rgba(255,255,255,0.15)", borderRadius: 4 }} />
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>BEFORE</div>
+                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
+                    <div style={{ height: "100%", background: "rgba(47,76,39,0.08)", borderRadius: 4 }} />
                   </div>
-                  <div style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{tradeoff.fromOrigDays.toFixed(1)}d</div>
+                  <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{tradeoff.fromOrigDays.toFixed(1)}d</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 2 }}>AFTER</div>
-                  <div style={{ width: 40, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>AFTER</div>
+                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
                     <div style={{ height: Math.max(tradeoff.fromOrigDays > 0 ? (tradeoff.fromNewDays / tradeoff.fromOrigDays) * 100 : 0, 5) + "%", background: "#ef4444", borderRadius: 4 }} />
                   </div>
-                  <div style={{ fontSize: 10, fontFamily: M, color: "#ef4444", marginTop: 2 }}>{tradeoff.fromNewDays.toFixed(1)}d</div>
+                  <div style={{ fontSize: 11, fontFamily: M, color: "#ef4444", marginTop: 2 }}>{tradeoff.fromNewDays.toFixed(1)}d</div>
                 </div>
-                <div style={{ fontSize: 9, color: "rgba(239,68,68,0.5)", fontStyle: "italic", flex: 1 }}>
+                <div style={{ fontSize: 11, color: "rgba(239,68,68,0.5)", fontStyle: "italic", flex: 1 }}>
                   {tradeoff.fromOrigDays > 0 ? `−${((1 - tradeoff.fromNewDays / tradeoff.fromOrigDays) * 100).toFixed(0)}% capacity` : "No baseline"}
                 </div>
               </div>
             </div>
             <div style={{ ...cardSt, padding: 16, borderLeft: "4px solid #22c55e" }}>
-              <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#22c55e", fontWeight: 700, marginBottom: 8 }}>{{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[divertTo]} {divertTo} — Gain</div>
+              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "#22c55e", fontWeight: 700, marginBottom: 8 }}>{{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[divertTo]} {divertTo} — Gain</div>
               <div style={{ fontSize: 11, color: "rgba(34,197,94,0.7)", marginBottom: 10 }}>{tradeoff.toGain}</div>
               <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 2 }}>BEFORE</div>
-                  <div style={{ width: 40, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
-                    <div style={{ height: Math.max(tradeoff.toNewDays > 0 ? (tradeoff.toOrigDays / tradeoff.toNewDays) * 100 : 100, 5) + "%", background: "rgba(255,255,255,0.15)", borderRadius: 4 }} />
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>BEFORE</div>
+                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
+                    <div style={{ height: Math.max(tradeoff.toNewDays > 0 ? (tradeoff.toOrigDays / tradeoff.toNewDays) * 100 : 100, 5) + "%", background: "rgba(47,76,39,0.08)", borderRadius: 4 }} />
                   </div>
-                  <div style={{ fontSize: 10, fontFamily: M, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{tradeoff.toOrigDays.toFixed(1)}d</div>
+                  <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{tradeoff.toOrigDays.toFixed(1)}d</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 2 }}>AFTER</div>
-                  <div style={{ width: 40, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>AFTER</div>
+                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
                     <div style={{ height: "100%", background: "#22c55e", borderRadius: 4 }} />
                   </div>
-                  <div style={{ fontSize: 10, fontFamily: M, color: "#22c55e", marginTop: 2 }}>{tradeoff.toNewDays.toFixed(1)}d</div>
+                  <div style={{ fontSize: 11, fontFamily: M, color: "#22c55e", marginTop: 2 }}>{tradeoff.toNewDays.toFixed(1)}d</div>
                 </div>
-                <div style={{ fontSize: 9, color: "rgba(34,197,94,0.5)", fontStyle: "italic", flex: 1 }}>
+                <div style={{ fontSize: 11, color: "rgba(34,197,94,0.5)", fontStyle: "italic", flex: 1 }}>
                   {tradeoff.toOrigDays > 0 ? `+${(((tradeoff.toNewDays / tradeoff.toOrigDays) - 1) * 100).toFixed(0)}% capacity` : "New capacity"}
                 </div>
               </div>
@@ -7174,7 +7305,7 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
         <div>
           <div style={{ marginBottom: 12 }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔗 System Dependency Map</h3>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Each system depends on a chain of components — a break in any link degrades the whole system</div>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Each system depends on a chain of components — a break in any link degrades the whole system</div>
           </div>
           <div style={{ display: "grid", gap: 14 }}>
             {SYSTEMS.map((sys) => {
@@ -7189,7 +7320,7 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
                       <span style={{ fontSize: 22 }}>{sys.icon}</span>
                       <span style={{ fontSize: 14, fontWeight: 800 }}>{sys.label} System</span>
                     </div>
-                    <span style={{ fontSize: 9, padding: "5px 10px", borderRadius: 12, background: sysStatusColor + "15", color: sysStatusColor, fontWeight: 700 }}>{sysStatus}</span>
+                    <span style={{ fontSize: 11, padding: "5px 10px", borderRadius: 12, background: sysStatusColor + "15", color: sysStatusColor, fontWeight: 700 }}>{sysStatus}</span>
                   </div>
                   {/* Node chain */}
                   <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
@@ -7199,9 +7330,9 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
                           <div style={{ width: 52, height: 52, borderRadius: 12, background: statusColor(node.status) + "10", border: "2px solid " + statusColor(node.status) + "40", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", position: "relative" }}>
                             <div style={{ width: 8, height: 8, borderRadius: 4, background: statusColor(node.status), boxShadow: "0 0 8px " + statusColor(node.status) + "60" }} />
                           </div>
-                          <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 2 }}>{node.label}</div>
-                          <div style={{ fontSize: 9, fontFamily: M, color: statusColor(node.status) }}>{typeof node.val === "number" ? node.val : node.val}</div>
-                          {node.unit && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{node.unit}</div>}
+                          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2 }}>{node.label}</div>
+                          <div style={{ fontSize: 11, fontFamily: M, color: statusColor(node.status) }}>{typeof node.val === "number" ? node.val : node.val}</div>
+                          {node.unit && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{node.unit}</div>}
                         </div>
                         {ni < sys.nodes.length - 1 && (
                           <div style={{ width: 30, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -7217,10 +7348,10 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
                   {/* System health bar */}
                   <div style={{ marginTop: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>CHAIN INTEGRITY</span>
-                      <span style={{ fontSize: 10, fontFamily: M, color: sysStatusColor }}>{Math.round(sys.nodes.filter((n) => n.status === "green").length / sys.nodes.length * 100)}%</span>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>CHAIN INTEGRITY</span>
+                      <span style={{ fontSize: 11, fontFamily: M, color: sysStatusColor }}>{Math.round(sys.nodes.filter((n) => n.status === "green").length / sys.nodes.length * 100)}%</span>
                     </div>
-                    <div style={{ height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 2 }}>
+                    <div style={{ height: 4, background: "rgba(47,76,39,0.04)", borderRadius: 2 }}>
                       <div style={{ height: "100%", width: (sys.nodes.filter((n) => n.status === "green").length / sys.nodes.length * 100) + "%", background: `linear-gradient(90deg, ${sys.color}, ${sysStatusColor})`, borderRadius: 2, transition: "width 0.5s" }} />
                     </div>
                   </div>
@@ -7242,8 +7373,8 @@ function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDism
 /* ═══ FARMING TAB ═══                       */
 /* ═══════════════════════════════════════════ */
 function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTests, setSoilTests, compostBins, setCompostBins, livestock, setLivestock, slaughterLog, setSlaughterLog }) {
-  const M = "'JetBrains Mono',monospace";
-  const cardSt = { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
+  const M = "'DM Sans',sans-serif";
+  const cardSt = { background: "#ffffff", border: "1px solid #e0e6da", borderRadius: 10 };
   const accent = "#65a30d";
 
   const [farmSub, setFarmSub] = useState("fdash");
@@ -7353,7 +7484,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
   };
 
   const getStatus = (dates) => {
-    if (!dates) return { label: "Unknown", color: "rgba(255,255,255,0.25)" };
+    if (!dates) return { label: "Unknown", color: "rgba(36,61,48,0.58)" };
     const diffDays = (d) => Math.round((d - now) / 864e5);
     if (dates.indoorStart) {
       const dToIndoor = diffDays(dates.indoorStart);
@@ -7366,7 +7497,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
     const dToHarvest = diffDays(dates.harvestDate);
     if (dToHarvest >= -14 && dToHarvest <= 21) return { label: "Harvest Time", color: "#f97316" };
     if (now >= dates.sowDate && now <= dates.harvestDate) return { label: "Growing", color: "#22c55e" };
-    return { label: "Off Season", color: "rgba(255,255,255,0.2)" };
+    return { label: "Off Season", color: "rgba(36,61,48,0.58)" };
   };
 
   const fmtDate = (d) => d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
@@ -7441,15 +7572,15 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
       {/* Climate/Zone indicator */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "6px 12px", borderRadius: 8, background: "rgba(101,163,13,0.04)", border: "1px solid rgba(101,163,13,0.1)" }}>
         <span style={{ fontSize: 11 }}>🌱</span>
-        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Climate: <strong style={{ color: accent }}>{climateLabel}</strong></span>
-        {!isTropical && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginLeft: "auto" }}>Last frost: {fmtDate(lastFrostDate)} · First frost: {fmtDate(firstFrostDate)} · Season: {zone.seasonWeeks}wk</span>}
-        {isTropical && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", marginLeft: "auto" }}>Year-round growing season · No frost</span>}
+        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Climate: <strong style={{ color: accent }}>{climateLabel}</strong></span>
+        {!isTropical && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginLeft: "auto" }}>Last frost: {fmtDate(lastFrostDate)} · First frost: {fmtDate(firstFrostDate)} · Season: {zone.seasonWeeks}wk</span>}
+        {isTropical && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginLeft: "auto" }}>Year-round growing season · No frost</span>}
       </div>
 
       {/* Sub-tab nav */}
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 16, overflowX: "auto" }}>
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e0e6da", marginBottom: 16, overflowX: "auto" }}>
         {subTabs.map(s => (
-          <button key={s.id} onClick={() => setFarmSub(s.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: farmSub === s.id ? "2px solid " + accent : "2px solid transparent", color: farmSub === s.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}>
+          <button key={s.id} onClick={() => setFarmSub(s.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: farmSub === s.id ? "2px solid " + accent : "2px solid transparent", color: farmSub === s.id ? "#243d30" : "rgba(36,61,48,0.35)", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit", flexShrink: 0, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 13 }}>{s.i}</span>{s.l}
           </button>
         ))}
@@ -7488,12 +7619,12 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
         const hasData = breakdown.length > 0;
         return (
           <div>
-            <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.8)" }}>📊 Food Output Dashboard</h3>
+            <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 800, color: "rgba(36,61,48,0.8)" }}>📊 Food Output Dashboard</h3>
             {!hasData ? (
               <div style={{ ...cardSt, padding: 40, textAlign: "center" }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>🌱</div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>No crops planted yet</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Add seed packets to your inventory or plant crops in garden beds to see food output projections</div>
+                <div style={{ fontSize: 13, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>No crops planted yet</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Add seed packets to your inventory or plant crops in garden beds to see food output projections</div>
               </div>
             ) : (<>
               {/* Summary cards */}
@@ -7507,35 +7638,35 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                   <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center" }}>
                     <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
                     <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
               {/* Per-crop breakdown */}
               <div style={{ ...cardSt, overflow: "hidden" }}>
-                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>Crop Breakdown ({breakdown.length} crops)</span>
+                <div style={{ padding: "10px 14px", borderBottom: "1px solid #e0e6da" }}>
+                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1 }}>Crop Breakdown ({breakdown.length} crops)</span>
                 </div>
                 {/* Header */}
-                <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 9, color: "rgba(255,255,255,0.25)", fontWeight: 700, textTransform: "uppercase", background: "rgba(255,255,255,0.02)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 700, textTransform: "uppercase", background: "rgba(47,76,39,0.02)" }}>
                   {["", "Crop", "Plants", "Yield", "Calories", "Harvest"].map((h, i) => <div key={i} style={{ padding: "6px 10px" }}>{h}</div>)}
                 </div>
                 {/* Rows */}
                 {breakdown.map((row, i) => (
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 11, borderTop: "1px solid rgba(255,255,255,0.03)" }}>
                     <div style={{ padding: "8px 10px", fontSize: 16 }}>{row.crop.icon}</div>
-                    <div style={{ padding: "8px 10px", color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>{row.crop.name}</div>
-                    <div style={{ padding: "8px 10px", fontFamily: M, color: "rgba(255,255,255,0.5)", textAlign: "right" }}>{row.cnt}</div>
+                    <div style={{ padding: "8px 10px", color: "rgba(36,61,48,0.6)", fontWeight: 600 }}>{row.crop.name}</div>
+                    <div style={{ padding: "8px 10px", fontFamily: M, color: "rgba(36,61,48,0.58)", textAlign: "right" }}>{row.cnt}</div>
                     <div style={{ padding: "8px 10px", fontFamily: M, color: accent, textAlign: "right" }}>{row.yld.toFixed(1)} lbs</div>
                     <div style={{ padding: "8px 10px", fontFamily: M, color: "#f59e0b", textAlign: "right" }}>{Math.round(row.cals).toLocaleString()}</div>
-                    <div style={{ padding: "8px 10px", color: "rgba(255,255,255,0.4)", textAlign: "center" }}>{row.harvestMonth}</div>
+                    <div style={{ padding: "8px 10px", color: "rgba(36,61,48,0.58)", textAlign: "center" }}>{row.harvestMonth}</div>
                   </div>
                 ))}
                 {/* Totals row */}
-                <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 11, borderTop: "2px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)", fontWeight: 700 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 60px 80px 80px 60px", fontSize: 11, borderTop: "2px solid rgba(255,255,255,0.08)", background: "rgba(47,76,39,0.02)", fontWeight: 700 }}>
                   <div style={{ padding: "8px 10px" }}></div>
-                  <div style={{ padding: "8px 10px", color: "rgba(255,255,255,0.5)" }}>Total</div>
-                  <div style={{ padding: "8px 10px", fontFamily: M, color: "rgba(255,255,255,0.5)", textAlign: "right" }}>{Object.values(cropCounts).reduce((a, b) => a + b, 0)}</div>
+                  <div style={{ padding: "8px 10px", color: "rgba(36,61,48,0.58)" }}>Total</div>
+                  <div style={{ padding: "8px 10px", fontFamily: M, color: "rgba(36,61,48,0.58)", textAlign: "right" }}>{Object.values(cropCounts).reduce((a, b) => a + b, 0)}</div>
                   <div style={{ padding: "8px 10px", fontFamily: M, color: accent, textAlign: "right" }}>{totalLbs.toFixed(1)} lbs</div>
                   <div style={{ padding: "8px 10px", fontFamily: M, color: "#f59e0b", textAlign: "right" }}>{Math.round(totalCals).toLocaleString()}</div>
                   <div style={{ padding: "8px 10px" }}></div>
@@ -7543,7 +7674,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
               </div>
               {/* Feeding capacity note */}
               <div style={{ ...cardSt, padding: 12, marginTop: 8, background: "rgba(14,165,233,0.04)", borderColor: "rgba(14,165,233,0.1)" }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
                   <strong style={{ color: "#0ea5e9" }}>{totalLbs.toFixed(1)} lbs</strong> of food producing <strong style={{ color: "#f59e0b" }}>{Math.round(totalCals).toLocaleString()} calories</strong> — enough to feed <strong style={{ color: "#22c55e" }}>{p} people for {peopleFedDays.toFixed(1)} days</strong> at 2,000 cal/person/day.
                   {peopleFedDays < 7 && <span style={{ color: "#ef4444" }}> Consider expanding your garden for greater food security.</span>}
                 </div>
@@ -7560,15 +7691,15 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
             <div style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
               <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: accent }}>{totalSeeds}</div>
-              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Seed Packs</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Seed Packs</div>
             </div>
             <div style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
               <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: accent }}>{totalVarieties}</div>
-              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Varieties</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Varieties</div>
             </div>
             <div style={{ ...cardSt, padding: "10px 12px", textAlign: "center" }}>
               <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: accent }}>{zone.seasonWeeks}</div>
-              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Season Weeks</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>Season Weeks</div>
             </div>
           </div>
 
@@ -7578,31 +7709,31 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: 4, background: seeds[0].status.color }} />
                 <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, color: seeds[0].status.color, textTransform: "uppercase", letterSpacing: 1 }}>{label}</h3>
-                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>({seeds.length})</span>
+                <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>({seeds.length})</span>
               </div>
               <div style={{ display: "grid", gap: 4 }}>
                 {seeds.map(({ item, crop, dates, status }) => (
                   <div key={item.id} style={{ ...cardSt, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, borderLeft: "3px solid " + status.color }}>
                     <span style={{ fontSize: 22 }}>{crop?.icon || "🌱"}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{item.name}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#243d30" }}>{item.name}</div>
                       <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-                        {dates?.indoorStart && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🏠 Indoor: <strong style={{ color: "#3b82f6" }}>{fmtDate(dates.indoorStart)}</strong></span>}
-                        {dates?.sowDate && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🌿 Plant: <strong style={{ color: "#22c55e" }}>{fmtDate(dates.sowDate)}</strong></span>}
-                        {dates?.harvestDate && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🍅 Harvest: <strong style={{ color: "#f97316" }}>{fmtDate(dates.harvestDate)}</strong></span>}
-                        {dates?.zd && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>⏱ {dates.zd.daysToHarvest}d</span>}
+                        {dates?.indoorStart && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🏠 Indoor: <strong style={{ color: "#3b82f6" }}>{fmtDate(dates.indoorStart)}</strong></span>}
+                        {dates?.sowDate && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🌿 Plant: <strong style={{ color: "#22c55e" }}>{fmtDate(dates.sowDate)}</strong></span>}
+                        {dates?.harvestDate && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🍅 Harvest: <strong style={{ color: "#f97316" }}>{fmtDate(dates.harvestDate)}</strong></span>}
+                        {dates?.zd && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⏱ {dates.zd.daysToHarvest}d</span>}
                       </div>
                       {crop && dates?.zd && (
                         <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>💧 {dates.zd.waterFreq}</span>
-                          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>🧪 {dates.zd.fertSchedule}</span>
-                          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>📦 Stores {dates.zd.storageLife}d</span>
+                          <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>💧 {dates.zd.waterFreq}</span>
+                          <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🧪 {dates.zd.fertSchedule}</span>
+                          <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>📦 Stores {dates.zd.storageLife}d</span>
                         </div>
                       )}
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: accent }}>{item.quantity}</div>
-                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>packs</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>packs</div>
                     </div>
                   </div>
                 ))}
@@ -7612,8 +7743,8 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
           {seedItems.length === 0 && (
             <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center" }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>🌱</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>No seeds in inventory yet</div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Add seed packets via the Dashboard → Farm category</div>
+              <div style={{ fontSize: 12, color: "rgba(36,61,48,0.58)" }}>No seeds in inventory yet</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>Add seed packets via the Dashboard → Farm category</div>
             </div>
           )}
         </div>
@@ -7623,18 +7754,18 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
       {farmSub === "calendar" && (
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ ...cardSt, padding: 14, overflow: "hidden" }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Growing Calendar — {climateLabel}</h3>
+            <h3 style={{ margin: "0 0 12px", fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Growing Calendar — {climateLabel}</h3>
             {/* Month headers */}
             <div style={{ display: "grid", gridTemplateColumns: "120px repeat(12, 1fr)", gap: 0, marginBottom: 2 }}>
-              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", padding: "2px 4px" }}>Crop</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", padding: "2px 4px" }}>Crop</div>
               {monthNames.map((m, i) => (
-                <div key={m} style={{ fontSize: 8, color: i === currentMonth ? accent : "rgba(255,255,255,0.3)", fontWeight: i === currentMonth ? 800 : 400, textAlign: "center", padding: "2px 0", borderBottom: i === currentMonth ? "2px solid " + accent : "1px solid rgba(255,255,255,0.04)", background: i === currentMonth ? "rgba(101,163,13,0.04)" : "transparent" }}>{m}</div>
+                <div key={m} style={{ fontSize: 11, color: i === currentMonth ? accent : "rgba(36,61,48,0.3)", fontWeight: i === currentMonth ? 800 : 400, textAlign: "center", padding: "2px 0", borderBottom: i === currentMonth ? "2px solid " + accent : "1px solid #e5eadd", background: i === currentMonth ? "rgba(101,163,13,0.04)" : "transparent" }}>{m}</div>
               ))}
             </div>
             {/* Frost markers */}
             {!isTropical && (
               <div style={{ display: "grid", gridTemplateColumns: "120px repeat(12, 1fr)", gap: 0, marginBottom: 2 }}>
-                <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", padding: "1px 4px" }}>Frost</div>
+                <div style={{ fontSize: 7, color: "rgba(36,61,48,0.58)", padding: "1px 4px" }}>Frost</div>
                 {monthNames.map((m, i) => {
                   const isLastFrost = i === zone.lastFrostMonth - 1;
                   const isFirstFrost = i === zone.firstFrostMonth - 1;
@@ -7654,7 +7785,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                   <div key={item.id} style={{ display: "grid", gridTemplateColumns: "120px repeat(12, 1fr)", gap: 0, alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 4px", overflow: "hidden" }}>
                       <span style={{ fontSize: 12 }}>{crop.icon}</span>
-                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{crop.name}</span>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{crop.name}</span>
                     </div>
                     {monthNames.map((m, mi) => {
                       let bg = "transparent";
@@ -7673,19 +7804,19 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
               })}
             </div>
             {/* Legend */}
-            <div style={{ display: "flex", gap: 16, marginTop: 12, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(59,130,246,0.25)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Indoor Start</span></div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(34,197,94,0.25)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Transplant / Sow</span></div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(249,115,22,0.3)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Harvest Window</span></div>
+            <div style={{ display: "flex", gap: 16, marginTop: 12, paddingTop: 8, borderTop: "1px solid #e5eadd" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(59,130,246,0.25)", borderRadius: 2 }} /><span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Indoor Start</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(34,197,94,0.25)", borderRadius: 2 }} /><span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Transplant / Sow</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 8, background: "rgba(249,115,22,0.3)", borderRadius: 2 }} /><span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Harvest Window</span></div>
               {!isTropical && <>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 4, background: "rgba(59,130,246,0.4)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Last Frost</span></div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 4, background: "rgba(239,68,68,0.4)", borderRadius: 2 }} /><span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>First Frost</span></div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 4, background: "rgba(59,130,246,0.4)", borderRadius: 2 }} /><span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Last Frost</span></div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 4, background: "rgba(239,68,68,0.4)", borderRadius: 2 }} /><span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>First Frost</span></div>
               </>}
             </div>
           </div>
           {seedItems.length === 0 && (
             <div style={{ ...cardSt, padding: "20px", textAlign: "center" }}>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Add seeds to your inventory to see the growing calendar</div>
+              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Add seeds to your inventory to see the growing calendar</div>
             </div>
           )}
         </div>
@@ -7696,18 +7827,18 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>🧪 Soil Testing</h3>
-            <button onClick={() => { setEditingSoil(null); setSoilForm({ bedName: "", date: new Date().toISOString().split("T")[0], ph: "", nitrogen: "Medium", phosphorus: "Medium", potassium: "Medium", organicMatter: "", moisture: "", soilType: "Loam", notes: "" }); setShowAddSoil(true); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>+ Add Test</button>
+            <button onClick={() => { setEditingSoil(null); setSoilForm({ bedName: "", date: new Date().toISOString().split("T")[0], ph: "", nitrogen: "Medium", phosphorus: "Medium", potassium: "Medium", organicMatter: "", moisture: "", soilType: "Loam", notes: "" }); setShowAddSoil(true); }} style={{ ...btnSt, background: accent, color: "#243d30", fontSize: 11, padding: "6px 12px" }}>+ Add Test</button>
           </div>
           {/* Summary cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
             {(() => { const avgPh = soilTests.length ? (soilTests.reduce((s, t) => s + (parseFloat(t.ph) || 0), 0) / soilTests.length).toFixed(1) : "\u2014"; const avgMoist = soilTests.length ? Math.round(soilTests.reduce((s, t) => s + (parseFloat(t.moisture) || 0), 0) / soilTests.length) : "\u2014"; return [
-              { label: "Avg pH", val: avgPh, color: avgPh !== "\u2014" ? phColor(avgPh) : "rgba(255,255,255,0.3)" },
+              { label: "Avg pH", val: avgPh, color: avgPh !== "\u2014" ? phColor(avgPh) : "rgba(36,61,48,0.3)" },
               { label: "Avg Moisture", val: avgMoist !== "\u2014" ? avgMoist + "%" : "\u2014", color: "#3b82f6" },
               { label: "Tests", val: soilTests.length, color: accent },
             ]; })().map((c, i) => (
               <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + c.color }}>
                 <div style={{ fontSize: 22, fontWeight: 800, fontFamily: M, color: c.color }}>{c.val}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{c.label}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{c.label}</div>
               </div>
             ))}
           </div>
@@ -7727,32 +7858,32 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
               </div>
               <input value={soilForm.notes} onChange={e => setSoilForm({ ...soilForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => { if (editingSoil) setSoilTests(prev => prev.map(t => t.id === editingSoil.id ? { ...soilForm, id: editingSoil.id } : t)); else setSoilTests(prev => [...prev, { ...soilForm, id: "soil-" + Date.now() }]); setShowAddSoil(false); setEditingSoil(null); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>{editingSoil ? "Update" : "Save"}</button>
-                <button onClick={() => { setShowAddSoil(false); setEditingSoil(null); }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+                <button onClick={() => { if (editingSoil) setSoilTests(prev => prev.map(t => t.id === editingSoil.id ? { ...soilForm, id: editingSoil.id } : t)); else setSoilTests(prev => [...prev, { ...soilForm, id: "soil-" + Date.now() }]); setShowAddSoil(false); setEditingSoil(null); }} style={{ ...btnSt, background: accent, color: "#243d30", fontSize: 11, padding: "6px 12px" }}>{editingSoil ? "Update" : "Save"}</button>
+                <button onClick={() => { setShowAddSoil(false); setEditingSoil(null); }} style={{ ...btnSt, fontSize: 11, padding: "6px 12px" }}>Cancel</button>
               </div>
             </div>
           )}
           {/* Tests list */}
-          {soilTests.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No soil tests recorded yet. Add your first test above.</div> : (
+          {soilTests.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(36,61,48,0.58)", fontSize: 11 }}>No soil tests recorded yet. Add your first test above.</div> : (
             <div style={{ display: "grid", gap: 6 }}>
               {soilTests.sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
                 <div key={t.id} style={{ ...cardSt, padding: "12px 16px", borderLeft: "3px solid " + phColor(t.ph) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <div><span style={{ fontWeight: 700, fontSize: 12 }}>{t.bedName || "Unnamed"}</span> <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{"\u00b7"} {t.soilType} {"\u00b7"} {t.date}</span></div>
+                    <div><span style={{ fontWeight: 700, fontSize: 12 }}>{t.bedName || "Unnamed"}</span> <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{"\u00b7"} {t.soilType} {"\u00b7"} {t.date}</span></div>
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button onClick={() => { setEditingSoil(t); setSoilForm(t); setShowAddSoil(true); }} style={{ ...btnSt, fontSize: 9, padding: "3px 8px" }}>Edit</button>
-                      <button onClick={() => setSoilTests(prev => prev.filter(x => x.id !== t.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                      <button onClick={() => { setEditingSoil(t); setSoilForm(t); setShowAddSoil(true); }} style={{ ...btnSt, fontSize: 11, padding: "3px 8px" }}>Edit</button>
+                      <button onClick={() => setSoilTests(prev => prev.filter(x => x.id !== t.id))} style={{ ...btnSt, fontSize: 11, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10 }}>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11 }}>
                     <span style={{ padding: "3px 8px", borderRadius: 4, background: phColor(t.ph) + "15", color: phColor(t.ph), fontWeight: 700 }}>pH {t.ph}</span>
                     <span style={{ padding: "3px 8px", borderRadius: 4, background: nutrientColor(t.nitrogen) + "15", color: nutrientColor(t.nitrogen), fontWeight: 600 }}>N: {t.nitrogen}</span>
                     <span style={{ padding: "3px 8px", borderRadius: 4, background: nutrientColor(t.phosphorus) + "15", color: nutrientColor(t.phosphorus), fontWeight: 600 }}>P: {t.phosphorus}</span>
                     <span style={{ padding: "3px 8px", borderRadius: 4, background: nutrientColor(t.potassium) + "15", color: nutrientColor(t.potassium), fontWeight: 600 }}>K: {t.potassium}</span>
-                    {t.organicMatter && <span style={{ color: "rgba(255,255,255,0.4)" }}>OM: {t.organicMatter}%</span>}
+                    {t.organicMatter && <span style={{ color: "rgba(36,61,48,0.58)" }}>OM: {t.organicMatter}%</span>}
                     {t.moisture && <span style={{ color: "#3b82f6" }}>{"\ud83d\udca7"} {t.moisture}%</span>}
                   </div>
-                  {t.notes && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{t.notes}</div>}
+                  {t.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>{t.notes}</div>}
                 </div>
               ))}
             </div>
@@ -7765,7 +7896,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>{"\u267b\ufe0f"} Compost Bins</h3>
-            <button onClick={() => { setEditingCompost(null); setCompostForm({ name: "", startDate: new Date().toISOString().split("T")[0], stage: "fresh", temperature: "", greenBrownRatio: 50, volume: "", turningFreqDays: 7, lastTurned: "", notes: "" }); setShowAddCompost(true); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>+ Add Bin</button>
+            <button onClick={() => { setEditingCompost(null); setCompostForm({ name: "", startDate: new Date().toISOString().split("T")[0], stage: "fresh", temperature: "", greenBrownRatio: 50, volume: "", turningFreqDays: 7, lastTurned: "", notes: "" }); setShowAddCompost(true); }} style={{ ...btnSt, background: accent, color: "#243d30", fontSize: 11, padding: "6px 12px" }}>+ Add Bin</button>
           </div>
           {/* Summary */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
@@ -7774,7 +7905,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
               return (
                 <div key={st} style={{ ...cardSt, padding: 12, textAlign: "center", borderTop: "3px solid " + stageColor[st] }}>
                   <div style={{ fontSize: 20, fontWeight: 800, fontFamily: M, color: stageColor[st] }}>{cnt}</div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "capitalize" }}>{st}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "capitalize" }}>{st}</div>
                 </div>
               );
             })}
@@ -7789,7 +7920,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                 <select value={compostForm.stage} onChange={e => setCompostForm({ ...compostForm, stage: e.target.value })} style={inp}>{["fresh","active","curing","finished"].map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}</select>
                 <input type="number" value={compostForm.temperature} onChange={e => setCompostForm({ ...compostForm, temperature: e.target.value })} placeholder="Temp (\u00b0F)" style={inp} />
                 <div style={{ gridColumn: "1/-1" }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Green/Brown Ratio: {compostForm.greenBrownRatio}% green / {100 - compostForm.greenBrownRatio}% brown</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>Green/Brown Ratio: {compostForm.greenBrownRatio}% green / {100 - compostForm.greenBrownRatio}% brown</div>
                   <input type="range" min="0" max="100" value={compostForm.greenBrownRatio} onChange={e => setCompostForm({ ...compostForm, greenBrownRatio: parseInt(e.target.value) })} style={{ width: "100%" }} />
                 </div>
                 <input value={compostForm.volume} onChange={e => setCompostForm({ ...compostForm, volume: e.target.value })} placeholder="Volume (cu ft)" style={inp} />
@@ -7798,13 +7929,13 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
               </div>
               <input value={compostForm.notes} onChange={e => setCompostForm({ ...compostForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => { if (editingCompost) setCompostBins(prev => prev.map(b => b.id === editingCompost.id ? { ...compostForm, id: editingCompost.id } : b)); else setCompostBins(prev => [...prev, { ...compostForm, id: "comp-" + Date.now() }]); setShowAddCompost(false); setEditingCompost(null); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>{editingCompost ? "Update" : "Save"}</button>
-                <button onClick={() => { setShowAddCompost(false); setEditingCompost(null); }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+                <button onClick={() => { if (editingCompost) setCompostBins(prev => prev.map(b => b.id === editingCompost.id ? { ...compostForm, id: editingCompost.id } : b)); else setCompostBins(prev => [...prev, { ...compostForm, id: "comp-" + Date.now() }]); setShowAddCompost(false); setEditingCompost(null); }} style={{ ...btnSt, background: accent, color: "#243d30", fontSize: 11, padding: "6px 12px" }}>{editingCompost ? "Update" : "Save"}</button>
+                <button onClick={() => { setShowAddCompost(false); setEditingCompost(null); }} style={{ ...btnSt, fontSize: 11, padding: "6px 12px" }}>Cancel</button>
               </div>
             </div>
           )}
           {/* Bins list */}
-          {compostBins.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No compost bins yet. Start composting!</div> : (
+          {compostBins.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(36,61,48,0.58)", fontSize: 11 }}>No compost bins yet. Start composting!</div> : (
             <div style={{ display: "grid", gap: 8 }}>
               {compostBins.map(bin => {
                 const sc = stageColor[bin.stage] || "#666";
@@ -7816,30 +7947,30 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <div>
                         <span style={{ fontWeight: 700, fontSize: 13 }}>{bin.name || "Unnamed Bin"}</span>
-                        <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 4, background: sc + "20", color: sc, fontSize: 10, fontWeight: 700, textTransform: "capitalize" }}>{bin.stage}</span>
+                        <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 4, background: sc + "20", color: sc, fontSize: 11, fontWeight: 700, textTransform: "capitalize" }}>{bin.stage}</span>
                       </div>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button onClick={() => { setEditingCompost(bin); setCompostForm(bin); setShowAddCompost(true); }} style={{ ...btnSt, fontSize: 9, padding: "3px 8px" }}>Edit</button>
-                        <button onClick={() => setCompostBins(prev => prev.filter(x => x.id !== bin.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                        <button onClick={() => { setEditingCompost(bin); setCompostForm(bin); setShowAddCompost(true); }} style={{ ...btnSt, fontSize: 11, padding: "3px 8px" }}>Edit</button>
+                        <button onClick={() => setCompostBins(prev => prev.filter(x => x.id !== bin.id))} style={{ ...btnSt, fontSize: 11, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
                       </div>
                     </div>
                     {/* Progress bar */}
-                    <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 4, height: 6, marginBottom: 8, overflow: "hidden" }}>
+                    <div style={{ background: "rgba(47,76,39,0.06)", borderRadius: 4, height: 6, marginBottom: 8, overflow: "hidden" }}>
                       <div style={{ width: sp + "%", height: "100%", background: sc, borderRadius: 4, transition: "width 0.3s" }} />
                     </div>
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
                       {bin.temperature && <span>{"\ud83c\udf21\ufe0f"} {bin.temperature}{"\u00b0"}F</span>}
                       <span style={{ color: "#22c55e" }}>{bin.greenBrownRatio}% green</span>
                       <span style={{ color: "#a16207" }}>{100 - bin.greenBrownRatio}% brown</span>
                       {bin.volume && <span>{"\ud83d\udce6"} {bin.volume} cu ft</span>}
                       <span>Started {bin.startDate}</span>
                       {daysSinceTurn !== null && (
-                        <span style={{ color: turnOverdue ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: turnOverdue ? 700 : 400 }}>
+                        <span style={{ color: turnOverdue ? "#ef4444" : "rgba(36,61,48,0.4)", fontWeight: turnOverdue ? 700 : 400 }}>
                           {turnOverdue ? "\ud83d\udd04 Turn now! (" + daysSinceTurn + "d)" : "\ud83d\udd04 " + daysSinceTurn + "d since turn"}
                         </span>
                       )}
                     </div>
-                    {bin.notes && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{bin.notes}</div>}
+                    {bin.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>{bin.notes}</div>}
                   </div>
                 );
               })}
@@ -7854,23 +7985,23 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
           <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 800 }}>{"\ud83d\udd04"} Crop Rotation Planner</h3>
           {/* Rotation cycle visual */}
           <div style={{ ...cardSt, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Rotation Cycle</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Rotation Cycle</div>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, fontSize: 11 }}>
               {["nightshade","legume","brassica","root","cucurbit","allium","leafy"].map((fam, i) => {
                 const f = CROP_FAMILIES[fam];
                 return (
                   <span key={fam} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-                    <span style={{ padding: "3px 8px", borderRadius: 4, background: f.color + "20", color: f.color, fontWeight: 700, fontSize: 10 }}>{f.icon} {f.label}</span>
-                    {i < 6 && <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 2px" }}>{"\u2192"}</span>}
+                    <span style={{ padding: "3px 8px", borderRadius: 4, background: f.color + "20", color: f.color, fontWeight: 700, fontSize: 11 }}>{f.icon} {f.label}</span>
+                    {i < 6 && <span style={{ color: "rgba(36,61,48,0.58)", margin: "0 2px" }}>{"\u2192"}</span>}
                   </span>
                 );
               })}
-              <span style={{ color: "rgba(255,255,255,0.2)", margin: "0 2px" }}>{"\u2192"} {"\ud83d\udd01"}</span>
+              <span style={{ color: "rgba(36,61,48,0.58)", margin: "0 2px" }}>{"\u2192"} {"\ud83d\udd01"}</span>
             </div>
           </div>
           {/* Bed analysis */}
           {gardenBeds.length === 0 ? (
-            <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No garden beds yet. Create beds in the Garden tab to see rotation recommendations.</div>
+            <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(36,61,48,0.58)", fontSize: 11 }}>No garden beds yet. Create beds in the Garden tab to see rotation recommendations.</div>
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
               {gardenBeds.map(bed => {
@@ -7881,7 +8012,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                   <div key={bed.id} style={{ ...cardSt, padding: "14px 16px" }}>
                     <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{bed.name || "Unnamed Bed"}</div>
                     {cropIds.length === 0 ? (
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>No crops planted. Plant crops to get rotation advice.</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No crops planted. Plant crops to get rotation advice.</div>
                     ) : (
                       <div>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
@@ -7890,7 +8021,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                             const famData = fam ? CROP_FAMILIES[fam] : null;
                             const crop = CROP_DATABASE.find(c => c.id === id);
                             return (
-                              <span key={id} style={{ padding: "3px 8px", borderRadius: 4, background: (famData ? famData.color : "#666") + "15", color: famData ? famData.color : "#999", fontSize: 10, fontWeight: 600 }}>
+                              <span key={id} style={{ padding: "3px 8px", borderRadius: 4, background: (famData ? famData.color : "#666") + "15", color: famData ? famData.color : "#999", fontSize: 11, fontWeight: 600 }}>
                                 {crop ? crop.icon : ""} {crop ? crop.name : id} {famData ? "(" + famData.label + ")" : ""}
                               </span>
                             );
@@ -7901,11 +8032,11 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                             {recs.map((r, i) => {
                               const nextFam = CROP_FAMILIES[r.next];
                               return (
-                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, padding: "6px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)" }}>
+                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, padding: "6px 10px", borderRadius: 6, background: "rgba(47,76,39,0.02)" }}>
                                   <span style={{ color: CROP_FAMILIES[r.fam].color, fontWeight: 700 }}>{CROP_FAMILIES[r.fam].icon} {CROP_FAMILIES[r.fam].label}</span>
-                                  <span style={{ color: "rgba(255,255,255,0.3)" }}>{"\u2192"}</span>
+                                  <span style={{ color: "rgba(36,61,48,0.58)" }}>{"\u2192"}</span>
                                   <span style={{ color: nextFam.color, fontWeight: 700 }}>{nextFam.icon} {nextFam.label}</span>
-                                  <span style={{ color: "rgba(255,255,255,0.3)", flex: 1 }}>{r.reason}</span>
+                                  <span style={{ color: "rgba(36,61,48,0.58)", flex: 1 }}>{r.reason}</span>
                                 </div>
                               );
                             })}
@@ -7927,8 +8058,8 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>{"\ud83d\udc14"} Livestock Management</h3>
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => setShowSlaughterLog(!showSlaughterLog)} style={{ ...btnSt, fontSize: 10, padding: "6px 12px", background: showSlaughterLog ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)", color: showSlaughterLog ? "#ef4444" : "rgba(255,255,255,0.5)" }}>{"\ud83e\ude93"} Log</button>
-              <button onClick={() => { setEditingAnimal(null); setAnimalForm({ type: "chicken", name: "", count: 1, status: "healthy", feedType: "", feedLbsPerDay: 0.25, feedStockDays: 30, lastBred: "", notes: "" }); setShowAddAnimal(true); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>+ Add Animal</button>
+              <button onClick={() => setShowSlaughterLog(!showSlaughterLog)} style={{ ...btnSt, fontSize: 11, padding: "6px 12px", background: showSlaughterLog ? "rgba(239,68,68,0.15)" : "rgba(36,61,48,0.04)", color: showSlaughterLog ? "#ef4444" : "rgba(36,61,48,0.5)" }}>{"\ud83e\ude93"} Log</button>
+              <button onClick={() => { setEditingAnimal(null); setAnimalForm({ type: "chicken", name: "", count: 1, status: "healthy", feedType: "", feedLbsPerDay: 0.25, feedStockDays: 30, lastBred: "", notes: "" }); setShowAddAnimal(true); }} style={{ ...btnSt, background: accent, color: "#243d30", fontSize: 11, padding: "6px 12px" }}>+ Add Animal</button>
             </div>
           </div>
           {/* Summary by type */}
@@ -7939,7 +8070,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                   <span style={{ fontSize: 18 }}>{ANIMAL_TYPES[type]?.icon || "\ud83d\udc3e"}</span>
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 800, fontFamily: M, color: accent }}>{cnt}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{ANIMAL_TYPES[type]?.label || type}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{ANIMAL_TYPES[type]?.label || type}</div>
                   </div>
                 </div>
               ))}
@@ -7963,13 +8094,13 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
               </div>
               <input value={animalForm.notes} onChange={e => setAnimalForm({ ...animalForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => { if (editingAnimal) setLivestock(prev => prev.map(a => a.id === editingAnimal.id ? { ...animalForm, id: editingAnimal.id } : a)); else setLivestock(prev => [...prev, { ...animalForm, id: "ani-" + Date.now() }]); setShowAddAnimal(false); setEditingAnimal(null); }} style={{ ...btnSt, background: accent, color: "#fff", fontSize: 10, padding: "6px 12px" }}>{editingAnimal ? "Update" : "Save"}</button>
-                <button onClick={() => { setShowAddAnimal(false); setEditingAnimal(null); }} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+                <button onClick={() => { if (editingAnimal) setLivestock(prev => prev.map(a => a.id === editingAnimal.id ? { ...animalForm, id: editingAnimal.id } : a)); else setLivestock(prev => [...prev, { ...animalForm, id: "ani-" + Date.now() }]); setShowAddAnimal(false); setEditingAnimal(null); }} style={{ ...btnSt, background: accent, color: "#243d30", fontSize: 11, padding: "6px 12px" }}>{editingAnimal ? "Update" : "Save"}</button>
+                <button onClick={() => { setShowAddAnimal(false); setEditingAnimal(null); }} style={{ ...btnSt, fontSize: 11, padding: "6px 12px" }}>Cancel</button>
               </div>
             </div>
           )}
           {/* Animal cards */}
-          {livestock.length === 0 && !showSlaughterLog ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No livestock tracked yet. Add your animals above.</div> : !showSlaughterLog && (
+          {livestock.length === 0 && !showSlaughterLog ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(36,61,48,0.58)", fontSize: 11 }}>No livestock tracked yet. Add your animals above.</div> : !showSlaughterLog && (
             <div style={{ display: "grid", gap: 8 }}>
               {livestock.map(animal => {
                 const at = ANIMAL_TYPES[animal.type] || { icon: "\ud83d\udc3e", gestation: 0, feedLbs: 0, label: animal.type };
@@ -7992,37 +8123,37 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                         <span style={{ fontSize: 22 }}>{at.icon}</span>
                         <div>
                           <span style={{ fontWeight: 700, fontSize: 13 }}>{animal.name || at.label}</span>
-                          <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, background: accent + "20", color: accent, fontSize: 10, fontWeight: 700 }}>{"\u00d7"}{animal.count}</span>
-                          <span style={{ marginLeft: 6, padding: "2px 6px", borderRadius: 4, background: (statusColor[animal.status] || "#666") + "20", color: statusColor[animal.status] || "#999", fontSize: 10, fontWeight: 600, textTransform: "capitalize" }}>{animal.status}</span>
+                          <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, background: accent + "20", color: accent, fontSize: 11, fontWeight: 700 }}>{"\u00d7"}{animal.count}</span>
+                          <span style={{ marginLeft: 6, padding: "2px 6px", borderRadius: 4, background: (statusColor[animal.status] || "#666") + "20", color: statusColor[animal.status] || "#999", fontSize: 11, fontWeight: 600, textTransform: "capitalize" }}>{animal.status}</span>
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 4 }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => { setEditingAnimal(animal); setAnimalForm(animal); setShowAddAnimal(true); }} style={{ ...btnSt, fontSize: 9, padding: "3px 8px" }}>Edit</button>
-                        <button onClick={() => setLivestock(prev => prev.filter(x => x.id !== animal.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                        <button onClick={() => { setEditingAnimal(animal); setAnimalForm(animal); setShowAddAnimal(true); }} style={{ ...btnSt, fontSize: 11, padding: "3px 8px" }}>Edit</button>
+                        <button onClick={() => setLivestock(prev => prev.filter(x => x.id !== animal.id))} style={{ ...btnSt, fontSize: 11, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
                       </div>
                     </div>
                     {expanded && (
-                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 10 }}>
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e0e6da" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11 }}>
                           <div style={{ ...cardSt, padding: 10 }}>
-                            <div style={{ color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Feed</div>
+                            <div style={{ color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>Feed</div>
                             <div style={{ fontWeight: 700 }}>{animal.feedType || "Not specified"}</div>
-                            <div style={{ color: "rgba(255,255,255,0.5)" }}>{totalFeed.toFixed(1)} lbs/day total</div>
-                            <div style={{ color: feedWarn ? "#ef4444" : "rgba(255,255,255,0.4)", fontWeight: feedWarn ? 700 : 400 }}>
+                            <div style={{ color: "rgba(36,61,48,0.58)" }}>{totalFeed.toFixed(1)} lbs/day total</div>
+                            <div style={{ color: feedWarn ? "#ef4444" : "rgba(36,61,48,0.4)", fontWeight: feedWarn ? 700 : 400 }}>
                               {feedWarn ? "\u26a0\ufe0f " : ""}{feedDaysLeft} days of feed left
                             </div>
                           </div>
                           {breedProgress !== null && (
                             <div style={{ ...cardSt, padding: 10 }}>
-                              <div style={{ color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Breeding</div>
-                              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 4, height: 6, marginBottom: 4, overflow: "hidden" }}>
+                              <div style={{ color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>Breeding</div>
+                              <div style={{ background: "rgba(47,76,39,0.06)", borderRadius: 4, height: 6, marginBottom: 4, overflow: "hidden" }}>
                                 <div style={{ width: breedProgress + "%", height: "100%", background: "#a855f7", borderRadius: 4 }} />
                               </div>
                               <div style={{ color: "#a855f7", fontWeight: 600 }}>{breedProgress}% ({"\u2192"} {expectedDate})</div>
                             </div>
                           )}
                         </div>
-                        {animal.notes && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6 }}>{animal.notes}</div>}
+                        {animal.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 6 }}>{animal.notes}</div>}
                       </div>
                     )}
                   </div>
@@ -8035,7 +8166,7 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>{"\ud83e\ude93"} Slaughter & Preservation Log</h4>
-                <button onClick={() => { setSlaughterForm({ animalType: "chicken", date: new Date().toISOString().split("T")[0], yieldLbs: "", preservationMethod: "fresh", storageLocation: "", notes: "" }); setShowAddSlaughter(true); }} style={{ ...btnSt, background: "#ef444420", color: "#ef4444", fontSize: 10, padding: "6px 12px" }}>+ Add Entry</button>
+                <button onClick={() => { setSlaughterForm({ animalType: "chicken", date: new Date().toISOString().split("T")[0], yieldLbs: "", preservationMethod: "fresh", storageLocation: "", notes: "" }); setShowAddSlaughter(true); }} style={{ ...btnSt, background: "#ef444420", color: "#ef4444", fontSize: 11, padding: "6px 12px" }}>+ Add Entry</button>
               </div>
               {showAddSlaughter && (
                 <div style={{ ...cardSt, padding: 16, marginBottom: 12, borderLeft: "3px solid #ef4444" }}>
@@ -8052,12 +8183,12 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                   </div>
                   <input value={slaughterForm.notes} onChange={e => setSlaughterForm({ ...slaughterForm, notes: e.target.value })} placeholder="Notes..." style={{ ...inp, width: "100%", marginBottom: 8 }} />
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { setSlaughterLog(prev => [...prev, { ...slaughterForm, id: "sl-" + Date.now() }]); setShowAddSlaughter(false); }} style={{ ...btnSt, background: "#ef4444", color: "#fff", fontSize: 10, padding: "6px 12px" }}>Save</button>
-                    <button onClick={() => setShowAddSlaughter(false)} style={{ ...btnSt, fontSize: 10, padding: "6px 12px" }}>Cancel</button>
+                    <button onClick={() => { setSlaughterLog(prev => [...prev, { ...slaughterForm, id: "sl-" + Date.now() }]); setShowAddSlaughter(false); }} style={{ ...btnSt, background: "#ef4444", color: "#243d30", fontSize: 11, padding: "6px 12px" }}>Save</button>
+                    <button onClick={() => setShowAddSlaughter(false)} style={{ ...btnSt, fontSize: 11, padding: "6px 12px" }}>Cancel</button>
                   </div>
                 </div>
               )}
-              {slaughterLog.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>No slaughter records yet.</div> : (
+              {slaughterLog.length === 0 ? <div style={{ ...cardSt, padding: 24, textAlign: "center", color: "rgba(36,61,48,0.58)", fontSize: 11 }}>No slaughter records yet.</div> : (
                 <div style={{ display: "grid", gap: 6 }}>
                   {slaughterLog.sort((a, b) => new Date(b.date) - new Date(a.date)).map(entry => {
                     const at = ANIMAL_TYPES[entry.animalType] || { icon: "\ud83d\udc3e", label: entry.animalType };
@@ -8066,10 +8197,10 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                         <span style={{ fontSize: 18 }}>{at.icon}</span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 11, fontWeight: 600 }}>{at.label} {"\u00b7"} {entry.date}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{entry.yieldLbs} lbs {"\u00b7"} {entry.preservationMethod} {entry.storageLocation ? "\u00b7 " + entry.storageLocation : ""}</div>
-                          {entry.notes && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 2 }}>{entry.notes}</div>}
+                          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{entry.yieldLbs} lbs {"\u00b7"} {entry.preservationMethod} {entry.storageLocation ? "\u00b7 " + entry.storageLocation : ""}</div>
+                          {entry.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{entry.notes}</div>}
                         </div>
-                        <button onClick={() => setSlaughterLog(prev => prev.filter(x => x.id !== entry.id))} style={{ ...btnSt, fontSize: 9, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
+                        <button onClick={() => setSlaughterLog(prev => prev.filter(x => x.id !== entry.id))} style={{ ...btnSt, fontSize: 11, padding: "3px 8px", color: "#ef4444" }}>{"\u2715"}</button>
                       </div>
                     );
                   })}
@@ -8086,16 +8217,16 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
           {/* Bed list */}
           <div style={{ ...cardSt, padding: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2 }}>Garden Beds ({gardenBeds.length})</h3>
-              <button onClick={() => setShowAddBed(!showAddBed)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(101,163,13,0.3)", background: "none", color: accent, fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>+ New Bed</button>
+              <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>Garden Beds ({gardenBeds.length})</h3>
+              <button onClick={() => setShowAddBed(!showAddBed)} style={{ padding: "3px 10px", borderRadius: 5, border: "1px dashed rgba(101,163,13,0.3)", background: "none", color: accent, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ New Bed</button>
             </div>
             {showAddBed && (
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 2fr auto", gap: 4, marginBottom: 10, alignItems: "center" }}>
-                <input value={newBedName} onChange={e => setNewBedName(e.target.value)} placeholder="Name" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
-                <input type="number" value={newBedW} onChange={e => setNewBedW(parseInt(e.target.value) || 1)} min="1" max="12" placeholder="W" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: accent, fontSize: 11, fontFamily: M, textAlign: "center" }} />
-                <input type="number" value={newBedH} onChange={e => setNewBedH(parseInt(e.target.value) || 1)} min="1" max="12" placeholder="H" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: accent, fontSize: 11, fontFamily: M, textAlign: "center" }} />
-                <input value={newBedLoc} onChange={e => setNewBedLoc(e.target.value)} placeholder="Location" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
-                <button onClick={addBed} style={{ padding: "6px 10px", borderRadius: 6, background: accent, border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Create</button>
+                <input value={newBedName} onChange={e => setNewBedName(e.target.value)} placeholder="Name" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
+                <input type="number" value={newBedW} onChange={e => setNewBedW(parseInt(e.target.value) || 1)} min="1" max="12" placeholder="W" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: accent, fontSize: 11, fontFamily: M, textAlign: "center" }} />
+                <input type="number" value={newBedH} onChange={e => setNewBedH(parseInt(e.target.value) || 1)} min="1" max="12" placeholder="H" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: accent, fontSize: 11, fontFamily: M, textAlign: "center" }} />
+                <input value={newBedLoc} onChange={e => setNewBedLoc(e.target.value)} placeholder="Location" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
+                <button onClick={addBed} style={{ padding: "6px 10px", borderRadius: 6, background: accent, border: "none", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Create</button>
               </div>
             )}
             <div style={{ display: "grid", gap: 4 }}>
@@ -8104,22 +8235,22 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                 const total = bed.width * bed.height;
                 const isActive = selectedBed === bed.id;
                 return (
-                  <div key={bed.id} onClick={() => setSelectedBed(isActive ? null : bed.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: isActive ? "rgba(101,163,13,0.06)" : "rgba(255,255,255,0.01)", border: isActive ? "1px solid rgba(101,163,13,0.2)" : "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "all 0.15s" }}>
+                  <div key={bed.id} onClick={() => setSelectedBed(isActive ? null : bed.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: isActive ? "rgba(101,163,13,0.06)" : "rgba(36,61,48,0.01)", border: isActive ? "1px solid rgba(101,163,13,0.2)" : "1px solid #e5eadd", cursor: "pointer", transition: "all 0.15s" }}>
                     <span style={{ fontSize: 16 }}>🟫</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? "#fff" : "rgba(255,255,255,0.6)" }}>{bed.name}</div>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{bed.width}×{bed.height} ft · {bed.location} · {planted}/{total} planted</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? "#243d30" : "rgba(36,61,48,0.6)" }}>{bed.name}</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{bed.width}×{bed.height} ft · {bed.location} · {planted}/{total} planted</div>
                     </div>
-                    <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                    <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(47,76,39,0.06)", overflow: "hidden" }}>
                       <div style={{ width: (planted / total * 100) + "%", height: "100%", background: accent, borderRadius: 2 }} />
                     </div>
-                    <span onClick={(e) => { e.stopPropagation(); removeBed(bed.id); }} style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", cursor: "pointer", padding: "2px 4px" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.15)"}>×</span>
+                    <span onClick={(e) => { e.stopPropagation(); removeBed(bed.id); }} style={{ fontSize: 12, color: "rgba(36,61,48,0.58)", cursor: "pointer", padding: "2px 4px" }} onMouseOver={e => e.currentTarget.style.color = "#ef4444"} onMouseOut={e => e.currentTarget.style.color = "rgba(36,61,48,0.15)"}>×</span>
                   </div>
                 );
               })}
               {gardenBeds.length === 0 && (
                 <div style={{ textAlign: "center", padding: "20px 12px" }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>No garden beds yet. Create one to start planning your layout.</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No garden beds yet. Create one to start planning your layout.</div>
                 </div>
               )}
             </div>
@@ -8137,14 +8268,14 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
             return (
               <div style={{ ...cardSt, padding: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#fff" }}>🟫 {bed.name} <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>{bed.width}×{bed.height} ft</span></h3>
-                  <div style={{ fontSize: 9, color: accent }}>Est. yield: {totalYield.toFixed(1)} lbs</div>
+                  <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#243d30" }}>🟫 {bed.name} <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 400 }}>{bed.width}×{bed.height} ft</span></h3>
+                  <div style={{ fontSize: 11, color: accent }}>Est. yield: {totalYield.toFixed(1)} lbs</div>
                 </div>
                 {/* Crop palette */}
-                <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 12, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <button onClick={() => setSelectedCrop(null)} style={{ padding: "3px 8px", borderRadius: 5, border: !selectedCrop ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(255,255,255,0.06)", background: !selectedCrop ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.02)", color: !selectedCrop ? "#ef4444" : "rgba(255,255,255,0.3)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>🧹 Erase</button>
+                <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 12, padding: "8px 0", borderBottom: "1px solid #e5eadd" }}>
+                  <button onClick={() => setSelectedCrop(null)} style={{ padding: "3px 8px", borderRadius: 5, border: !selectedCrop ? "1px solid rgba(239,68,68,0.3)" : "1px solid #e0e6da", background: !selectedCrop ? "rgba(239,68,68,0.08)" : "rgba(36,61,48,0.02)", color: !selectedCrop ? "#ef4444" : "rgba(36,61,48,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>🧹 Erase</button>
                   {CROP_DATABASE.filter(c => c.zones[climate] !== null).slice(0, 20).map(c => (
-                    <button key={c.id} onClick={() => setSelectedCrop(c.id)} style={{ padding: "3px 8px", borderRadius: 5, border: selectedCrop === c.id ? "1px solid " + accent : "1px solid rgba(255,255,255,0.06)", background: selectedCrop === c.id ? "rgba(101,163,13,0.08)" : "rgba(255,255,255,0.02)", color: selectedCrop === c.id ? accent : "rgba(255,255,255,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{c.icon} {c.name}</button>
+                    <button key={c.id} onClick={() => setSelectedCrop(c.id)} style={{ padding: "3px 8px", borderRadius: 5, border: selectedCrop === c.id ? "1px solid " + accent : "1px solid #e0e6da", background: selectedCrop === c.id ? "rgba(101,163,13,0.08)" : "rgba(36,61,48,0.02)", color: selectedCrop === c.id ? accent : "rgba(36,61,48,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{c.icon} {c.name}</button>
                   ))}
                 </div>
                 {/* Grid */}
@@ -8155,15 +8286,15 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                       const crop = cell ? CROP_DATABASE.find(c => c.id === cell.cropId) : null;
                       const conflict = cell ? getCompanionStatus(bed.id, x, y, cell.cropId) : null;
                       return (
-                        <div key={x + "-" + y} onClick={() => toggleCell(bed.id, x, y)} style={{ width: 44, height: 44, borderRadius: 6, border: conflict ? "2px solid rgba(239,68,68,0.5)" : cell ? "1px solid rgba(101,163,13,0.2)" : "1px dashed rgba(255,255,255,0.08)", background: cell ? "rgba(101,163,13,0.06)" : "rgba(255,255,255,0.01)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: crop ? 20 : 10, color: "rgba(255,255,255,0.1)", transition: "all 0.15s", position: "relative" }} title={crop ? crop.name + (conflict ? " ⚠ Companion conflict!" : "") : "Empty"}>
+                        <div key={x + "-" + y} onClick={() => toggleCell(bed.id, x, y)} style={{ width: 44, height: 44, borderRadius: 6, border: conflict ? "2px solid rgba(239,68,68,0.5)" : cell ? "1px solid rgba(101,163,13,0.2)" : "1px dashed rgba(255,255,255,0.08)", background: cell ? "rgba(101,163,13,0.06)" : "rgba(36,61,48,0.01)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: crop ? 20 : 10, color: "rgba(36,61,48,0.58)", transition: "all 0.15s", position: "relative" }} title={crop ? crop.name + (conflict ? " ⚠ Companion conflict!" : "") : "Empty"}>
                           {crop ? crop.icon : "·"}
-                          {conflict && <div style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#ef4444", fontSize: 6, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>!</div>}
+                          {conflict && <div style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#ef4444", fontSize: 6, color: "#243d30", display: "flex", alignItems: "center", justifyContent: "center" }}>!</div>}
                         </div>
                       );
                     })
                   )}
                 </div>
-                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>Click a crop above, then click cells to plant. Click planted cells to remove. Red borders = companion conflicts.</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textAlign: "center" }}>Click a crop above, then click cells to plant. Click planted cells to remove. Red borders = companion conflicts.</div>
               </div>
             );
           })()}
@@ -8175,15 +8306,15 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
         <div style={{ display: "grid", gap: 12 }}>
           {/* Filter controls */}
           <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={() => setGuideFilter("inventory")} style={{ padding: "4px 10px", borderRadius: 6, border: guideFilter === "inventory" ? "1px solid " + accent : "1px solid rgba(255,255,255,0.06)", background: guideFilter === "inventory" ? "rgba(101,163,13,0.08)" : "rgba(255,255,255,0.02)", color: guideFilter === "inventory" ? accent : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌱 My Seeds</button>
-            <button onClick={() => setGuideFilter("all")} style={{ padding: "4px 10px", borderRadius: 6, border: guideFilter === "all" ? "1px solid " + accent : "1px solid rgba(255,255,255,0.06)", background: guideFilter === "all" ? "rgba(101,163,13,0.08)" : "rgba(255,255,255,0.02)", color: guideFilter === "all" ? accent : "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📚 All Crops</button>
+            <button onClick={() => setGuideFilter("inventory")} style={{ padding: "4px 10px", borderRadius: 6, border: guideFilter === "inventory" ? "1px solid " + accent : "1px solid #e0e6da", background: guideFilter === "inventory" ? "rgba(101,163,13,0.08)" : "rgba(36,61,48,0.02)", color: guideFilter === "inventory" ? accent : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌱 My Seeds</button>
+            <button onClick={() => setGuideFilter("all")} style={{ padding: "4px 10px", borderRadius: 6, border: guideFilter === "all" ? "1px solid " + accent : "1px solid #e0e6da", background: guideFilter === "all" ? "rgba(101,163,13,0.08)" : "rgba(36,61,48,0.02)", color: guideFilter === "all" ? accent : "rgba(36,61,48,0.35)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📚 All Crops</button>
             <div style={{ marginLeft: 8, display: "flex", gap: 4 }}>
               {["all","vegetable","fruit","herb","root"].map(cat => (
-                <button key={cat} onClick={() => setGuideCatFilter(cat)} style={{ padding: "3px 8px", borderRadius: 5, border: guideCatFilter === cat ? "1px solid rgba(200,85,58,0.3)" : "1px solid rgba(255,255,255,0.06)", background: guideCatFilter === cat ? "rgba(200,85,58,0.08)" : "rgba(255,255,255,0.02)", color: guideCatFilter === cat ? "#c8553a" : "rgba(255,255,255,0.3)", fontSize: 8, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>{cat === "all" ? "All" : cat}</button>
+                <button key={cat} onClick={() => setGuideCatFilter(cat)} style={{ padding: "3px 8px", borderRadius: 5, border: guideCatFilter === cat ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da", background: guideCatFilter === cat ? "rgba(33,76,57,0.08)" : "rgba(36,61,48,0.02)", color: guideCatFilter === cat ? "#214c39" : "rgba(36,61,48,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>{cat === "all" ? "All" : cat}</button>
               ))}
             </div>
           </div>
-          <div style={{ fontSize: 8, color: accent, padding: "4px 8px", background: "rgba(101,163,13,0.04)", borderRadius: 6, border: "1px solid rgba(101,163,13,0.08)" }}>Growing data for <strong>{climateLabel}</strong> climate{!isTropical && <> · Last frost: {fmtDate(lastFrostDate)} · First frost: {fmtDate(firstFrostDate)}</>}</div>
+          <div style={{ fontSize: 11, color: accent, padding: "4px 8px", background: "rgba(101,163,13,0.04)", borderRadius: 6, border: "1px solid rgba(101,163,13,0.08)" }}>Growing data for <strong>{climateLabel}</strong> climate{!isTropical && <> · Last frost: {fmtDate(lastFrostDate)} · First frost: {fmtDate(firstFrostDate)}</>}</div>
 
           {/* Crop cards */}
           <div style={{ display: "grid", gap: 4 }}>
@@ -8205,49 +8336,49 @@ function FarmingTab({ items, people, climate, gardenBeds, setGardenBeds, soilTes
                     <span style={{ fontSize: 22 }}>{crop.icon}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{crop.name}</span>
-                        <span style={{ fontSize: 7, padding: "1px 5px", borderRadius: 3, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>{crop.cat}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#243d30" }}>{crop.name}</span>
+                        <span style={{ fontSize: 7, padding: "1px 5px", borderRadius: 3, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", textTransform: "uppercase" }}>{crop.cat}</span>
                       </div>
                       <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
-                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>💧 {zd.waterFreq}</span>
-                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>🧪 {zd.fertSchedule}</span>
-                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>⏱ {zd.daysToHarvest}d</span>
-                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>📦 {zd.storageLife}d</span>
+                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>💧 {zd.waterFreq}</span>
+                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🧪 {zd.fertSchedule}</span>
+                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⏱ {zd.daysToHarvest}d</span>
+                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>📦 {zd.storageLife}d</span>
                       </div>
                     </div>
-                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+                    <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
                   </div>
                   {isExpanded && (
-                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", display: "grid", gap: 8 }}>
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #e5eadd", display: "grid", gap: 8 }}>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Watering</div><div style={{ fontSize: 11, color: "#0ea5e9", fontWeight: 600 }}>{zd.waterFreq}</div></div>
-                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Fertilizer</div><div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>{zd.fertSchedule}</div></div>
-                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Days to Harvest</div><div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>{zd.daysToHarvest} days</div></div>
-                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Yield / Plant</div><div style={{ fontSize: 11, color: accent, fontWeight: 600 }}>{zd.yieldPerPlant} lbs</div></div>
-                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Storage Life</div><div style={{ fontSize: 11, color: "#f97316", fontWeight: 600 }}>{zd.storageLife} days</div></div>
-                        <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 2 }}>Spacing</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>{crop.spacingSqFt} sq ft</div></div>
+                        <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 2 }}>Watering</div><div style={{ fontSize: 11, color: "#0ea5e9", fontWeight: 600 }}>{zd.waterFreq}</div></div>
+                        <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 2 }}>Fertilizer</div><div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>{zd.fertSchedule}</div></div>
+                        <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 2 }}>Days to Harvest</div><div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>{zd.daysToHarvest} days</div></div>
+                        <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 2 }}>Yield / Plant</div><div style={{ fontSize: 11, color: accent, fontWeight: 600 }}>{zd.yieldPerPlant} lbs</div></div>
+                        <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 2 }}>Storage Life</div><div style={{ fontSize: 11, color: "#f97316", fontWeight: 600 }}>{zd.storageLife} days</div></div>
+                        <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 2 }}>Spacing</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)", fontWeight: 600 }}>{crop.spacingSqFt} sq ft</div></div>
                       </div>
                       {dates && (
                         <div style={{ display: "flex", gap: 12, padding: "6px 0", flexWrap: "wrap" }}>
-                          {dates.indoorStart && <span style={{ fontSize: 9, color: "#3b82f6" }}>🏠 Start indoors: {fmtDate(dates.indoorStart)}</span>}
-                          <span style={{ fontSize: 9, color: "#22c55e" }}>🌿 Plant outdoors: {fmtDate(dates.sowDate)}</span>
-                          <span style={{ fontSize: 9, color: "#f97316" }}>🍅 Harvest: {fmtDate(dates.harvestDate)}</span>
+                          {dates.indoorStart && <span style={{ fontSize: 11, color: "#3b82f6" }}>🏠 Start indoors: {fmtDate(dates.indoorStart)}</span>}
+                          <span style={{ fontSize: 11, color: "#22c55e" }}>🌿 Plant outdoors: {fmtDate(dates.sowDate)}</span>
+                          <span style={{ fontSize: 11, color: "#f97316" }}>🍅 Harvest: {fmtDate(dates.harvestDate)}</span>
                         </div>
                       )}
-                      <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Pests & Problems</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>{crop.pestInfo}</div></div>
-                      <div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Harvest Indicator</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>{crop.harvestTip}</div></div>
+                      <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 3 }}>Pests & Problems</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.5 }}>{crop.pestInfo}</div></div>
+                      <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 3 }}>Harvest Indicator</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.5 }}>{crop.harvestTip}</div></div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <div style={{ flex: 1, minWidth: 120 }}>
-                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Companions ✓</div>
+                          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 3 }}>Companions ✓</div>
                           <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                            {crop.companions.map(c => { const cc = CROP_DATABASE.find(cr => cr.id === c); return <span key={c} style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.15)" }}>{cc?.icon || "🌱"} {cc?.name || c}</span>; })}
+                            {crop.companions.map(c => { const cc = CROP_DATABASE.find(cr => cr.id === c); return <span key={c} style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.15)" }}>{cc?.icon || "🌱"} {cc?.name || c}</span>; })}
                           </div>
                         </div>
                         {crop.avoid.length > 0 && (
                           <div style={{ flex: 1, minWidth: 120 }}>
-                            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 3 }}>Avoid ✗</div>
+                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", marginBottom: 3 }}>Avoid ✗</div>
                             <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                              {crop.avoid.map(c => { const cc = CROP_DATABASE.find(cr => cr.id === c); return <span key={c} style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.12)" }}>{cc?.icon || "⚠"} {cc?.name || c}</span>; })}
+                              {crop.avoid.map(c => { const cc = CROP_DATABASE.find(cr => cr.id === c); return <span key={c} style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.12)" }}>{cc?.icon || "⚠"} {cc?.name || c}</span>; })}
                             </div>
                           </div>
                         )}
@@ -8271,17 +8402,29 @@ function loadSaved() {
     const raw = localStorage.getItem(PV_STORAGE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (data && Array.isArray(data.items) && data.items.length > 0) return data;
+    if (data && Array.isArray(data.items)) return validateSnapshot(data);
     return null;
   } catch { return null; }
 }
 
 export default function PrepVault() {
   const saved = useRef(loadSaved());
-  const [items, setItems] = useState(() => saved.current?.items || SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" })));
+  const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [inventorySearch, setInventorySearch] = useState({ query: "", status: "all", key: 0 });
+  const [demoData, setDemoData] = useState(() => saved.current?.demoData ?? !saved.current);
+  const [showDetailedDashboard, setShowDetailedDashboard] = useState(false);
+  const [showDetailedInventory, setShowDetailedInventory] = useState(false);
+  const navigate = (tab) => { setSelCat(null); setActiveTab(tab); };
+  const openCategory = (category) => { setActiveTab("preps"); setSelCat(category); };
+  const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
+  const enterWorkspace = () => { setShowLanding(false); setOnboardStep(null); localStorage.setItem("prepvault-workspace-open", "1"); };
+  const startPlan = () => {
+    if (!saved.current) { setItems([]); setPins([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); }
+    enterWorkspace(); openSetup();
+  };
   const [selCat, setSelCat] = useState(null);
   const [properties, setProperties] = useState(() => saved.current?.properties || DEFAULT_PROPERTIES);
   const [activePropertyId, setActivePropertyId] = useState(() => saved.current?.activePropertyId || "prop1");
@@ -8325,8 +8468,8 @@ export default function PrepVault() {
     try { const s = localStorage.getItem("prepvault-alerts-dismissed-until"); if (s && parseInt(s, 10) > Date.now()) return parseInt(s, 10); } catch {} return null;
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session"));
-  const [onboardStep, setOnboardStep] = useState(() => localStorage.getItem("prepvault-onboarding-done") ? null : (saved.current ? null : 0));
+  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session") && !localStorage.getItem("prepvault-workspace-open"));
+  const [onboardStep, setOnboardStep] = useState(null);
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
   const [importPw, setImportPw] = useState("");
@@ -8352,6 +8495,8 @@ export default function PrepVault() {
   useEffect(() => localStorage.setItem("prepvault-dismissed-opps", JSON.stringify(dismissedOpps)), [dismissedOpps]);
   const [syncStatus, setSyncStatus] = useState("local"); // 'local' | 'syncing' | 'synced' | 'error' | 'offline'
   const syncEngineRef = useRef(null);
+  const currentSnapshotRef = useRef(null);
+  const [restoreVersion, setRestoreVersion] = useState(0);
 
   /* ── Property Profile / Quick Start ── */
   const [propertyProfile, setPropertyProfile] = useState(() => {
@@ -8370,23 +8515,25 @@ export default function PrepVault() {
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setDbStatus("unsaved");
-    saveTimerRef.current = setTimeout(() => {
+    const persist = () => {
       try {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
           items, people, climate, pins, propAddress, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
           soilTests, compostBins, livestock, slaughterLog,
-          propertyProfile,
+          propertyProfile, demoData,
           savedAt: new Date().toISOString()
         }));
         setDbStatus("saved");
         setLastSaved(new Date().toISOString());
         // Queue cloud sync if authenticated
         if (syncEngineRef.current) syncEngineRef.current.queueSync();
-      } catch { /* storage full or unavailable */ }
-    }, 500);
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, propertyProfile]);
+      } catch { setDbStatus("error"); setToast({ msg: "Changes could not be saved. Export a backup before closing.", type: "error" }); }
+    };
+    saveTimerRef.current = setTimeout(persist, 350);
+    window.addEventListener("pagehide", persist);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); window.removeEventListener("pagehide", persist); };
+  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, propertyProfile, demoData]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -8445,19 +8592,14 @@ export default function PrepVault() {
 
   /* ── Sync Engine ── */
   useEffect(() => {
-    if (!syncEngineRef.current) {
-      syncEngineRef.current = new SyncEngine(supabase);
-      syncEngineRef.current.setStatusCallback(setSyncStatus);
-    }
-    const engine = syncEngineRef.current;
-    if (user) {
-      engine.setUser(user.id);
-      engine.migrateToCloud();
-    } else {
-      engine.setUser(null);
-      setSyncStatus("local");
-    }
-    return () => engine.destroy();
+    if (!user || user.isLocal || !supabaseConfigured) { setSyncStatus("local"); return; }
+    const engine = new SyncEngine(supabase);
+    syncEngineRef.current = engine;
+    engine.setStatusCallback(setSyncStatus);
+    engine.setSnapshotProvider(() => currentSnapshotRef.current);
+    engine.setDataCallback(data => restoreSnapshot(data, false));
+    engine.setUser(user.id);
+    return () => { engine.destroy(); syncEngineRef.current = null; };
   }, [user]);
 
   /* ── Auth Handlers ── */
@@ -8519,7 +8661,8 @@ export default function PrepVault() {
       setAuthEmail("");
       setAuthPassword("");
       // New signups get empty state
-      if (authMode === "signup") {
+      if (authMode === "signup" && !saved.current && !localStorage.getItem("prepvault-workspace-open")) {
+        setDemoData(false);
         setItems([]);
         setContacts([]);
         setMembers([{ id: "p1", name: "You", avatar: "👤", role: "Leader", status: "home", lat: null, lng: null, lastPing: "Now", battery: 100, sharing: false, color: "#22c55e" }]);
@@ -8528,7 +8671,7 @@ export default function PrepVault() {
         setCodeWords([]);
         setRallyPoints([]);
         setCodes([]);
-        setOnboardStep(0);
+        setOnboardStep(null);
       }
     } catch (err) {
       setAuthError(err.message || "Authentication failed");
@@ -8548,41 +8691,46 @@ export default function PrepVault() {
     showToast("Logged out", "success");
   }, []);
 
-  /* ── Web Crypto AES-256-GCM ── */
-  const deriveKey = async (password, salt) => {
-    const enc = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
-    return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 310000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-  };
-  const encryptData = async (data, password) => {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await deriveKey(password, salt);
-    const enc = new TextEncoder();
-    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(data)));
-    const buf = new Uint8Array(salt.length + iv.length + ct.byteLength);
-    buf.set(salt, 0);
-    buf.set(iv, salt.length);
-    buf.set(new Uint8Array(ct), salt.length + iv.length);
-    return btoa(String.fromCharCode(...buf));
-  };
-  const decryptData = async (b64, password) => {
-    const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const salt = raw.slice(0, 16);
-    const iv = raw.slice(16, 28);
-    const ct = raw.slice(28);
-    const key = await deriveKey(password, salt);
-    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
-    return JSON.parse(new TextDecoder().decode(pt));
-  };
-
-  /* ── Local Database (encrypted in-memory with export) ── */
+  /* ── Local working data and optionally encrypted backups ── */
   const getDbSnapshot = () => ({
-    version: 3,
+    version: 4,
     timestamp: new Date().toISOString(),
     items, people, climate, pins, propAddress, properties, activePropertyId,
+    members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
+    soilTests, compostBins, livestock, slaughterLog, propertyProfile, demoData,
+    localSettings: Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith("prepvault-") && ![PV_STORAGE_KEY, "prepvault-local-accounts", "prepvault-active-session"].includes(k) && !k.startsWith("prepvault-sync-")).map(k => [k, localStorage.getItem(k)])),
     meta: { categories: Object.keys(CATEGORIES).length, scenarios: Object.keys(SCENARIOS).length, properties: properties.length }
   });
+
+  useLayoutEffect(() => { currentSnapshotRef.current = getDbSnapshot(); });
+
+  const restoreSnapshot = (raw, includeSettings = true) => {
+    const data = validateSnapshot(raw);
+    if (data.items.some(i => !CATEGORIES[i.category] || !CATEGORIES[i.category].subTypes[i.subType])) throw new Error("Backup contains an unknown supply category or type.");
+    const arrays = { items: setItems, pins: setPins, properties: setProperties, members: setMembers, contacts: setContacts, callSigns: setCallSigns, codeWords: setCodeWords, rallyPoints: setRallyPoints, codes: setCodes, gardenBeds: setGardenBeds, actionLog: setActionLog, soilTests: setSoilTests, compostBins: setCompostBins, livestock: setLivestock, slaughterLog: setSlaughterLog };
+    Object.entries(arrays).forEach(([key, setter]) => { if (data[key] !== undefined) setter(data[key]); });
+    if (data.people !== undefined) setPeople(data.people);
+    if (data.climate !== undefined && CLIMATES[data.climate]) setClimate(data.climate);
+    if (data.propAddress !== undefined) setPropAddress(data.propAddress);
+    if (data.activePropertyId !== undefined) setActivePropertyId(data.activePropertyId);
+    if (data.propertyProfile) setPropertyProfile(data.propertyProfile);
+    if (data.demoData !== undefined) setDemoData(data.demoData);
+    if (includeSettings && data.localSettings && typeof data.localSettings === "object") Object.entries(data.localSettings).forEach(([key, value]) => {
+      if (key.startsWith("prepvault-") && ![PV_STORAGE_KEY, "prepvault-local-accounts", "prepvault-active-session"].includes(key) && !key.startsWith("prepvault-sync-") && typeof value === "string") localStorage.setItem(key, value);
+    });
+    if (includeSettings && data.localSettings) {
+      try { const dismissed = JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"); setDismissedOpps(Array.isArray(dismissed) ? dismissed : []); } catch { setDismissedOpps([]); }
+      const until = Number(localStorage.getItem("prepvault-alerts-dismissed-until"));
+      setAlertsDismissedUntil(Number.isFinite(until) && until > Date.now() ? until : null);
+      setPropUnlocked(false);
+      setRestoreVersion(version => version + 1);
+    }
+    saved.current = data;
+    setSelCat(null);
+    localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
+    setLastSaved(new Date().toISOString());
+    setDbStatus("saved");
+  };
 
   const handleEncryptedExport = async () => {
     if (!exportPw || exportPw.length < 6) { setSecMsg("⚠ Password must be at least 6 characters"); return; }
@@ -8610,15 +8758,9 @@ export default function PrepVault() {
       setSecMsg("🔓 Decrypting...");
       const text = await file.text();
       const wrapper = JSON.parse(text);
-      if (!wrapper.pcs || !wrapper.payload) { setSecMsg("❌ Not a valid PCS backup file"); return; }
+      if (!wrapper.pcs || !wrapper.payload) { setSecMsg("❌ Not a valid PrepVault backup file"); return; }
       const data = await decryptData(wrapper.payload, importPw);
-      if (data.items) setItems(data.items);
-      if (data.people) setPeople(data.people);
-      if (data.climate) setClimate(data.climate);
-      if (data.pins) setPins(data.pins);
-      if (data.propAddress) setPropAddress(data.propAddress);
-      if (data.properties) setProperties(data.properties);
-      if (data.activePropertyId) setActivePropertyId(data.activePropertyId);
+      restoreSnapshot(data);
       setSecMsg("✅ Restored " + (data.items?.length || 0) + " items from encrypted backup");
       setImportPw("");
     } catch (e) {
@@ -8630,14 +8772,15 @@ export default function PrepVault() {
     try {
       setDbStatus("saving");
       const data = getDbSnapshot();
-      if (encryptedDb && dbPassphrase.length >= 6) {
+      if (encryptedDb && dbPassphrase.length < 6) { setDbStatus("unsaved"); setSecMsg("Use a passphrase of at least 6 characters."); return; }
+      if (encryptedDb) {
         const encrypted = await encryptData(data, dbPassphrase);
-        await window.storage.set("pcs-db", JSON.stringify({ enc: true, payload: encrypted }));
+        localStorage.setItem("pcs-db", JSON.stringify({ enc: true, payload: encrypted }));
       } else {
-        await window.storage.set("pcs-db", JSON.stringify({ enc: false, payload: data }));
+        localStorage.setItem("pcs-db", JSON.stringify({ enc: false, payload: data }));
       }
       setDbStatus(encryptedDb ? "encrypted" : "saved");
-      setLastSaved(new Date());
+      setLastSaved(new Date().toISOString());
       setSecMsg("✅ Saved to local database" + (encryptedDb ? " (encrypted)" : ""));
     } catch (e) {
       setDbStatus("unsaved");
@@ -8647,9 +8790,9 @@ export default function PrepVault() {
 
   const handleLocalLoad = async () => {
     try {
-      const result = await window.storage.get("pcs-db");
+      const result = localStorage.getItem("pcs-db");
       if (!result) { setSecMsg("⚠ No local database found"); return; }
-      const wrapper = JSON.parse(result.value);
+      const wrapper = JSON.parse(result);
       let data;
       if (wrapper.enc) {
         if (!dbPassphrase) { setSecMsg("⚠ Enter database passphrase to decrypt"); return; }
@@ -8657,13 +8800,7 @@ export default function PrepVault() {
       } else {
         data = wrapper.payload;
       }
-      if (data.items) setItems(data.items);
-      if (data.people) setPeople(data.people);
-      if (data.climate) setClimate(data.climate);
-      if (data.pins) setPins(data.pins);
-      if (data.propAddress) setPropAddress(data.propAddress);
-      if (data.properties) setProperties(data.properties);
-      if (data.activePropertyId) setActivePropertyId(data.activePropertyId);
+      restoreSnapshot(data);
       setDbStatus(wrapper.enc ? "encrypted" : "saved");
       setSecMsg("✅ Loaded " + (data.items?.length || 0) + " items from local database");
     } catch (e) {
@@ -8672,25 +8809,20 @@ export default function PrepVault() {
   };
 
   const handleDbWipe = async () => {
-    try {
-      await window.storage.delete("pcs-db");
-      setItems(SAMPLE_ITEMS);
-      setDbStatus("unsaved");
-      setSecMsg("🗑️ Local database wiped — reset to defaults");
-    } catch (e) {
-      setSecMsg("⚠ Wipe failed");
-    }
+    if (!window.confirm("Delete the saved local backup? Your current working plan will be kept.")) return;
+    localStorage.removeItem("pcs-db");
+    setSecMsg("Local backup deleted. Your current working plan is unchanged.");
   };
 
   /* ── Property-filtered items ── */
-  const propItems = activePropertyId === "all" ? items : items.filter(i => i.propertyId === activePropertyId);
+  const propItems = activePropertyId === "all" ? items : items.filter(i => (i.propertyId || "prop1") === activePropertyId);
   const activeProp = properties.find(p => p.id === activePropertyId) || properties[0];
 
   const openAdd = (c) => { setAddCat(c || null); setEditItem(null); setShowAdd(true); };
   const openEdit = (i) => { setEditItem(i); setAddCat(i.category); setShowAdd(true); };
   const handleAdd = (i) => {
     if (editItem) {
-      setItems((p) => p.map((x) => (x.id === i.id ? i : x)));
+      setItems((p) => p.map((x) => (x.id === i.id ? { ...x, ...i, propertyId: x.propertyId || "prop1" } : x)));
       showToast("✏️ " + i.name + " updated");
     } else {
       setItems((p) => [...p, { ...i, propertyId: activePropertyId === "all" ? "prop1" : activePropertyId }]);
@@ -8709,17 +8841,18 @@ export default function PrepVault() {
     showToast("📷 " + product.name + " scanned and added");
   };
 
-  const addProperty = () => {
-    if (!newPropName.trim()) return;
+  const addProperty = (name = newPropName, type = newPropType) => {
+    if (!name.trim()) return;
     const icons = { cabin: "🏕️", cache: "📦", farm: "🌾", vehicle: "🚐", home: "🏠", office: "🏢" };
-    const np = { id: "prop" + Date.now(), name: newPropName.trim(), type: newPropType, icon: icons[newPropType] || "📍", active: false };
+    const np = { id: "prop" + Date.now(), name: name.trim(), type: type, icon: icons[type] || "📍", active: false };
     setProperties(p => [...p, np]);
     setActivePropertyId(np.id);
     setNewPropName("");
     setShowAddProp(false);
   };
   const removeProperty = (id) => {
-    if (id === "prop1") return; // can't remove primary
+    if (id === "prop1") return;
+    if (!window.confirm("Delete this property and its supplies? This cannot be undone.")) return;
     setProperties(p => p.filter(pp => pp.id !== id));
     setItems(p => p.filter(i => i.propertyId !== id));
     if (activePropertyId === id) setActivePropertyId("prop1");
@@ -8819,25 +8952,28 @@ export default function PrepVault() {
     return alerts;
   }, [items, climate, codes]);
 
+  const visibleAlerts = allAlerts.filter(a => !a.id || propItems.some(i => i.id === a.id));
   const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
 
   const renderContent = () => {
     if (selCat) {
-      return <CategoryDetail catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity || 1) + delta) } : i))} />;
+      return <CategoryDetail catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
     }
     switch (activeTab) {
       case "dashboard":
-        return <DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={() => { setShowQuickStart(true); setQsStep(0); }} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} />;
+        return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onSetup={openSetup} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} profile={propertyProfile}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "property":
         return <PropertyTab propUnlocked={propUnlocked} setPropUnlocked={setPropUnlocked} propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "preps":
-        return <PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} />;
+        return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":
         return <CommunityTab members={members} setMembers={setMembers} items={propItems} people={people} climate={climate} user={user} contacts={contacts} setContacts={setContacts} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
         return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
+      case "systems":
+        return <SystemsTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile}/>;
       case "simulate":
         return <SimulateTab items={propItems} people={people} setPeople={setPeople} climate={climate} setClimate={setClimate} selScen={selScen} setSelScen={setSelScen} simDuration={simDuration} setSimDuration={setSimDuration} />;
       default:
@@ -8848,195 +8984,86 @@ export default function PrepVault() {
   /* ═══ Auth Modal (reusable) ═══ */
   const renderAuthModal = () => (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowAuth(false)}>
-      <div style={{ background: "#13151a", borderRadius: 14, width: "92%", maxWidth: 400, border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ padding: "22px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, fontFamily: M, marginBottom: 10, boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>P</div>
+      <div style={{ background: "#ffffff", borderRadius: 14, width: "92%", maxWidth: 400, border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ padding: "22px 24px", borderBottom: "1px solid #e0e6da", textAlign: "center" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#214c39,#183d2b)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, fontFamily: M, marginBottom: 10, boxShadow: "0 4px 20px rgba(33,76,57,0.3)" }}>P</div>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h3>
-          <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{authMode === "signup" ? "Sign up to sync your data across devices" : "Sign in to access your cloud data"}</p>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{authMode === "signup" ? "Sign up to sync your data across devices" : "Sign in to access your cloud data"}</p>
         </div>
         <div style={{ padding: "20px 24px" }}>
           {showVerification ? (
             <div style={{ textAlign: "center", padding: "10px 0" }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>📧</div>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: "0 0 8px" }}>Check Your Email</h3>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", margin: "0 0 6px", lineHeight: 1.5 }}>We sent a verification link to</p>
-              <p style={{ fontSize: 13, color: "#c8553a", fontWeight: 700, fontFamily: M, margin: "0 0 16px" }}>{verificationEmail}</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "0 0 20px", lineHeight: 1.5 }}>Click the link in the email to verify your account, then sign in.</p>
+              <p style={{ fontSize: 12, color: "rgba(36,61,48,0.58)", margin: "0 0 6px", lineHeight: 1.5 }}>We sent a verification link to</p>
+              <p style={{ fontSize: 13, color: "#214c39", fontWeight: 700, fontFamily: M, margin: "0 0 16px" }}>{verificationEmail}</p>
+              <p style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", margin: "0 0 20px", lineHeight: 1.5 }}>Click the link in the email to verify your account, then sign in.</p>
               <button onClick={() => { setShowVerification(false); setShowAuth(false); setAuthMode("login"); setAuthEmail(""); setAuthPassword(""); }}
-                style={{ width: "100%", padding: "12px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>
+                style={{ width: "100%", padding: "12px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>
                 OK, I'll Check My Email
               </button>
               <button onClick={async () => { try { await supabase.auth.resend({ type: "signup", email: verificationEmail }); showToast("Verification email resent", "success"); } catch { showToast("Failed to resend", "error"); } }}
-                style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>
+                style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>
                 Resend verification email
               </button>
             </div>
           ) : (<>
-          {authError && <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 10, color: "#ef4444" }}>❌ {authError}</div>}
+          {authError && <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 11, color: "#ef4444" }}>❌ {authError}</div>}
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Email</label>
-            <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Email</label>
+            <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Password</label>
-            <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder={authMode === "signup" ? "Min 6 characters" : "Your password"} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
+            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Password</label>
+            <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder={authMode === "signup" ? "Min 6 characters" : "Your password"} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
           </div>
-          <button onClick={handleAuth} disabled={authLoading || !authEmail || !authPassword} style={{ width: "100%", padding: "12px", borderRadius: 8, background: authLoading ? "rgba(200,85,58,0.3)" : "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: authLoading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit", opacity: (!authEmail || !authPassword) ? 0.5 : 1 }}>
+          <button onClick={handleAuth} disabled={authLoading || !authEmail || !authPassword} style={{ width: "100%", padding: "12px", borderRadius: 8, background: authLoading ? "rgba(33,76,57,0.3)" : "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", border: "none", cursor: authLoading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit", opacity: (!authEmail || !authPassword) ? 0.5 : 1 }}>
             {authLoading ? "⟳ Please wait..." : authMode === "signup" ? "Create Account" : "Sign In"}
           </button>
-          <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-            {authMode === "login" ? <>Don't have an account? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign up</button></> : <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#c8553a", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign in</button></>}
+          <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
+            {authMode === "login" ? <>Don't have an account? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#214c39", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign up</button></> : <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#214c39", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign in</button></>}
           </div>
-          <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(255,255,255,0.02)" : "rgba(14,165,233,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(255,255,255,0.04)" : "rgba(14,165,233,0.15)"), textAlign: "center" }}>
-            <div style={{ fontSize: 9, color: supabaseConfigured ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.7)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(36,61,48,0.02)" : "rgba(14,165,233,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(36,61,48,0.04)" : "rgba(14,165,233,0.15)"), textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: supabaseConfigured ? "rgba(36,61,48,0.3)" : "rgba(14,165,233,0.7)", lineHeight: 1.5 }}>
               {supabaseConfigured ? <>☁️ Cloud sync enabled. Your data syncs across devices.</> : <>💾 Local mode — your account is stored on this device only.{authMode === "signup" ? " Email verification requires cloud mode." : ""}</>}
             </div>
           </div>
           </>)}
         </div>
-        <div style={{ padding: "12px 24px 18px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
-          <button onClick={() => { setShowAuth(false); if (showLanding) setShowLanding(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
+        <div style={{ padding: "12px 24px 18px", borderTop: "1px solid #e5eadd", textAlign: "center" }}>
+          <button onClick={() => { setShowAuth(false); if (showLanding) setShowLanding(false); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
         </div>
       </div>
     </div>
   );
 
-  /* ═══ LANDING PAGE ═══ */
-  if (showLanding) {
-    const features = [
-      { icon: "📦", title: "Smart Inventory", desc: "Track supplies across multiple properties with expiry alerts, consumption rate tracking, and auto-rotation reminders." },
-      { icon: "📡", title: "Comms Center", desc: "HAM/GMRS frequency scanner, check-in schedules, encrypted code words, and radio protocol reference with audio simulation." },
-      { icon: "👥", title: "Team Coordination", desc: "Live satellite tracking, AES-256 encrypted chat, contacts database, call signs, and rally point mapping." },
-      { icon: "🧪", title: "Crisis Simulation", desc: "Test readiness against 13 real-world scenarios from grid failure to pandemic with scored results and gap analysis." },
-      { icon: "🏠", title: "Property Intelligence", desc: "Multi-site management with security cameras, access codes, evacuation routes, and resource mapping." },
-      { icon: "🗺️", title: "Satellite Mapping", desc: "Esri World Imagery maps with member overlays, geolocation tracking, rally point thumbnails, and tactical planning." },
-    ];
-    const stats = [
-      { val: "22", label: "Supply Categories" },
-      { val: "13", label: "Crisis Scenarios" },
-      { val: "AES-256", label: "Encryption" },
-      { val: "100%", label: "Offline Capable" },
-    ];
-    return (
-      <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-        <style>{`@keyframes fadeUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}} @keyframes glow{0%,100%{box-shadow:0 0 30px rgba(200,85,58,0.2)}50%{box-shadow:0 0 60px rgba(200,85,58,0.35)}}`}</style>
+  if (showLanding) return <Welcome onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { setShowAuth(true); setAuthMode("login"); }}>{showAuth && renderAuthModal()}</Welcome>;
 
-        {/* ── Nav Bar ── */}
-        <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: "rgba(10,12,16,0.8)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: M, color: "#fff" }}>P</div>
-            <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: -0.5 }}>PrepVault</span>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: M, marginLeft: 4 }}>v3.0</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => { setShowAuth(true); setAuthMode("login"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
-            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Get Started</button>
-          </div>
-        </nav>
-
-        {/* ── Hero Section ── */}
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "100px 20px 60px", textAlign: "center", animation: "fadeUp 0.6s ease-out" }}>
-          <div style={{ display: "inline-block", padding: "6px 14px", borderRadius: 20, background: "rgba(200,85,58,0.08)", border: "1px solid rgba(200,85,58,0.15)", fontSize: 11, color: "#c8553a", fontWeight: 700, fontFamily: M, marginBottom: 28, letterSpacing: 1 }}>PERSONAL CONTINUITY SYSTEM</div>
-          <h1 style={{ fontSize: "clamp(36px, 6vw, 60px)", fontWeight: 900, margin: "0 0 16px", lineHeight: 1.05, letterSpacing: -1 }}>
-            Your survival plan,<br />
-            <span style={{ background: "linear-gradient(135deg,#c8553a,#e8724a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>encrypted & offline-ready</span>
-          </h1>
-          <p style={{ fontSize: "clamp(14px, 2vw, 18px)", color: "rgba(255,255,255,0.45)", maxWidth: 600, margin: "0 auto 44px", lineHeight: 1.7 }}>
-            Track inventory, coordinate your team, monitor comms, and simulate crisis scenarios — all behind military-grade encryption with zero cloud dependency.
-          </p>
-          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
-            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "16px 36px", borderRadius: 12, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 24px rgba(200,85,58,0.35)", animation: "glow 3s ease-in-out infinite" }}>Create Free Account</button>
-            <button onClick={() => { setShowLanding(false); localStorage.setItem("prepvault-onboarding-done", "1"); if (!propertyProfile?.completedAt) { setShowQuickStart(true); setQsStep(0); } }} style={{ padding: "16px 36px", borderRadius: 12, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Try Demo →</button>
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: M }}>No credit card · Works offline · Your data stays yours</div>
-        </div>
-
-        {/* ── Stats Bar ── */}
-        <div style={{ maxWidth: 700, margin: "0 auto 60px", padding: "0 20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
-            {stats.map((s, i) => (
-              <div key={i} style={{ padding: "20px 12px", textAlign: "center", background: "#0a0c10" }}>
-                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: M, color: "#c8553a", marginBottom: 4 }}>{s.val}</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Feature Cards ── */}
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 40px" }}>
-          <h2 style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 3, fontWeight: 700, marginBottom: 24 }}>Everything you need</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
-            {features.map((f, i) => (
-              <div key={i} style={{ padding: "22px 24px", borderRadius: 14, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", transition: "all 0.2s" }} onMouseOver={e => { e.currentTarget.style.borderColor = "rgba(200,85,58,0.2)"; e.currentTarget.style.background = "rgba(200,85,58,0.02)"; }} onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; e.currentTarget.style.background = "rgba(255,255,255,0.015)"; }}>
-                <div style={{ fontSize: 26, marginBottom: 10 }}>{f.icon}</div>
-                <h3 style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700 }}>{f.title}</h3>
-                <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── How It Works ── */}
-        <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px 60px" }}>
-          <h2 style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 3, fontWeight: 700, marginBottom: 24 }}>Get started in 3 steps</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-            {[
-              { n: "01", t: "Set Up Properties", d: "Add your locations — home, bug-out cabin, cache sites — with maps and access codes." },
-              { n: "02", t: "Log Your Supplies", d: "Inventory everything across 22 categories. Expiry alerts and consumption tracking keep you current." },
-              { n: "03", t: "Coordinate & Test", d: "Add team members, set up comms, and run crisis simulations to find your gaps." },
-            ].map((s, i) => (
-              <div key={i} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 900, fontFamily: M, color: "rgba(200,85,58,0.3)", marginBottom: 8 }}>{s.n}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{s.t}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{s.d}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Final CTA ── */}
-        <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px 60px", textAlign: "center" }}>
-          <div style={{ padding: "40px 32px", borderRadius: 16, background: "rgba(200,85,58,0.04)", border: "1px solid rgba(200,85,58,0.12)" }}>
-            <h2 style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800 }}>Ready to start?</h2>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 24px", lineHeight: 1.6 }}>Create your account in seconds. Everything runs locally — your data never leaves your device unless you choose cloud sync.</p>
-            <button onClick={() => { setShowAuth(true); setAuthMode("signup"); }} style={{ padding: "14px 36px", borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 20px rgba(200,85,58,0.3)" }}>Create Free Account</button>
-          </div>
-        </div>
-
-        {/* ── Footer ── */}
-        <div style={{ padding: "20px 28px 30px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>PrepVault — Personal Continuity System</div>
-          <div style={{ display: "flex", gap: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: M }}>
-            <span>AES-256-GCM</span><span>Offline-First</span><span>Zero Telemetry</span>
-          </div>
-        </div>
-
-        {/* Auth modal */}
-        {showAuth && renderAuthModal()}
-      </div>
-    );
-  }
-
+  const pageMeta = {
+    property: ["Your property", "Places, access, routes, and connected systems. All in one place."],
+    community: ["Your people", "Stay connected to the people you count on."],
+    comms: ["Stay in touch", "A shared plan for communicating when it matters."],
+    farming: ["Grow & sustain", "Build a more self-sufficient everyday, season by season."],
+    simulate: ["Scenario lab", "Explore your supplies under different conditions. Planning estimates, not predictions."],
+    systems: ["Resource planning", "Understand how your supplies and household systems work together."]
+  };
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0c10", color: "#fff", fontFamily: "'Outfit','DM Sans','Segoe UI',sans-serif", paddingBottom: 72 }} onClick={() => { if (showAlerts) setShowAlerts(false); if (showProfileMenu) setShowProfileMenu(false); if (showSiteMenu) setShowSiteMenu(false); }}>
-      <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <WorkspaceShell activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} crisisMode={crisisMode} onSearch={(query, status = "all") => { navigate("preps"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
         * { -webkit-tap-highlight-color: transparent; }
-        input:focus, textarea:focus, select:focus { border-color: rgba(200,85,58,0.5) !important; box-shadow: 0 0 0 2px rgba(200,85,58,0.15) !important; }
-        button:active { transform: scale(0.97); }
+        input:focus, textarea:focus, select:focus { border-color: rgba(33,76,57,0.5) !important; box-shadow: 0 0 0 2px rgba(33,76,57,0.15) !important; }
+        .pv-legacy-content button:active { transform: scale(0.99); }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
         .pcs-header { padding: 12px 20px; display: flex; align-items: center; gap: 12; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.015); }
         .pcs-header-actions { display: flex; align-items: center; gap: 10; flex-shrink: 0; }
         .pcs-tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 0 20px; background: rgba(255,255,255,0.01); }
-        .pcs-bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 900; background: rgba(10,12,16,0.95); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.06); padding: 6px 0 env(safe-area-inset-bottom, 8px); justify-content: space-around; }
+        .pcs-bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 900; background: rgba(10,12,16,0.95); backdrop-filter: blur(20px); border-top: 1px solid #e0e6da; padding: 6px 0 env(safe-area-inset-bottom, 8px); justify-content: space-around; }
         .pcs-bottom-nav button { background: none; border: none; color: rgba(255,255,255,0.35); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9px; font-weight: 600; padding: 6px 12px; font-family: inherit; min-width: 56px; transition: color 0.15s; }
-        .pcs-bottom-nav button.active { color: #c8553a; }
+        .pcs-bottom-nav button.active { color: #214c39; }
         @media (min-width: 769px) {
           .pcs-bottom-nav { display: none; }
         }
@@ -9075,128 +9102,6 @@ export default function PrepVault() {
           .pcs-content { padding: 10px; }
         }
       `}</style>
-
-      {/* ═══ HEADER ═══ */}
-      <div className="pcs-header">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }} onClick={(e) => { e.stopPropagation(); setSelCat(null); setActiveTab("dashboard"); }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: M, boxShadow: "0 2px 12px rgba(200,85,58,0.3)" }}>P</div>
-          <div><div style={{ fontSize: 15, fontWeight: 800, letterSpacing: -0.5 }}>PCS</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 2, fontWeight: 500 }}>Personal Continuity System</div></div>
-        </div>
-        <div style={{ flex: 1 }} />
-        <div className="pcs-header-actions">
-          {/* Sync Status Indicator */}
-          {user && (
-            <div style={{ padding: "4px 8px", borderRadius: 8, background: syncStatus === "synced" ? "rgba(34,197,94,0.08)" : syncStatus === "syncing" ? "rgba(14,165,233,0.08)" : syncStatus === "error" ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)", border: "1px solid " + (syncStatus === "synced" ? "rgba(34,197,94,0.2)" : syncStatus === "syncing" ? "rgba(14,165,233,0.2)" : syncStatus === "error" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.06)"), fontSize: 9, fontWeight: 700, color: syncStatus === "synced" ? "#22c55e" : syncStatus === "syncing" ? "#0ea5e9" : syncStatus === "error" ? "#ef4444" : "rgba(255,255,255,0.4)", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-              {syncStatus === "synced" ? "☁️ Synced" : syncStatus === "syncing" ? "⟳ Syncing" : syncStatus === "error" ? "⚠ Sync Error" : "💾 Local"}
-            </div>
-          )}
-          {/* Site Selector Dropdown */}
-          <div style={{ position: "relative" }}>
-            <button onClick={(e) => { e.stopPropagation(); setShowSiteMenu(p => !p); setShowProfileMenu(false); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showSiteMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showSiteMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showSiteMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 12 }}>{activePropertyId === "all" ? "🌐" : (properties.find(p => p.id === activePropertyId)?.icon || "📍")}</span>
-              <span style={{ maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activePropertyId === "all" ? "All Sites" : (properties.find(p => p.id === activePropertyId)?.name || "Site")}</span>
-              <span style={{ fontSize: 8, opacity: 0.4 }}>▾</span>
-            </button>
-            {showSiteMenu && (
-              <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 260, background: "#1a1d23", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: 1200, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
-                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 9, textTransform: "uppercase", letterSpacing: 2, color: "rgba(255,255,255,0.35)", fontWeight: 700 }}>Site Selection</div>
-                <div style={{ padding: "6px 0" }}>
-                  <button onClick={() => { setActivePropertyId("all"); setShowSiteMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: activePropertyId === "all" ? "rgba(200,85,58,0.08)" : "none", border: "none", color: activePropertyId === "all" ? "#c8553a" : "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: activePropertyId === "all" ? 700 : 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => { if (activePropertyId !== "all") e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={e => { if (activePropertyId !== "all") e.currentTarget.style.background = "none"; }}>
-                    <span style={{ fontSize: 14 }}>🌐</span>
-                    <span style={{ flex: 1 }}>All Sites</span>
-                    <span style={{ fontSize: 10, fontFamily: M, opacity: 0.4 }}>{items.length}</span>
-                  </button>
-                  {properties.map(p => {
-                    const count = items.filter(i => i.propertyId === p.id).length;
-                    const isActive = activePropertyId === p.id;
-                    return (
-                      <button key={p.id} onClick={() => { setActivePropertyId(p.id); setShowSiteMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: isActive ? "rgba(200,85,58,0.08)" : "none", border: "none", color: isActive ? "#c8553a" : "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: isActive ? 700 : 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }} onMouseOut={e => { if (!isActive) e.currentTarget.style.background = "none"; }}>
-                        <span style={{ fontSize: 14 }}>{p.icon}</span>
-                        <span style={{ flex: 1 }}>{p.name}</span>
-                        <span style={{ fontSize: 10, fontFamily: M, opacity: 0.4 }}>{count}</span>
-                        {p.id !== "prop1" && (
-                          <span onClick={(e) => { e.stopPropagation(); if (confirm("Remove '" + p.name + "' and all its items? This cannot be undone.")) { removeProperty(p.id); } }} style={{ fontSize: 13, color: "rgba(255,255,255,0.15)", cursor: "pointer", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 4, transition: "all 0.15s" }} onMouseOver={e => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "rgba(239,68,68,0.1)"; }} onMouseOut={e => { e.currentTarget.style.color = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "transparent"; }} title="Remove property">×</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
-                  {!showAddProp ? (
-                    <button onClick={() => setShowAddProp(true)} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
-                      <span style={{ fontSize: 14 }}>➕</span>Add Property
-                    </button>
-                  ) : (
-                    <div style={{ padding: "8px 14px", display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-                      <input value={newPropName} onChange={e => setNewPropName(e.target.value)} onKeyDown={e => e.key === "Enter" && addProperty()} placeholder="Name..." style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit", flex: 1, minWidth: 80 }} autoFocus />
-                      <select value={newPropType} onChange={e => setNewPropType(e.target.value)} style={{ padding: "5px 6px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 10, fontFamily: "inherit" }}>
-                        <option value="cabin">🏕️ Cabin</option><option value="cache">📦 Cache</option><option value="farm">🌾 Farm</option><option value="vehicle">🚐 Vehicle</option><option value="home">🏠 Home</option><option value="office">🏢 Office</option>
-                      </select>
-                      <button onClick={() => { addProperty(); setShowSiteMenu(false); }} style={{ padding: "5px 10px", borderRadius: 6, background: "#c8553a", border: "none", color: "#fff", fontSize: 10, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>Add</button>
-                      <button onClick={() => setShowAddProp(false)} style={{ padding: "5px 8px", borderRadius: 6, background: "none", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.3)", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          {isOffline && <div style={{ padding: "4px 8px", borderRadius: 8, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", fontSize: 9, color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>OFFLINE</div>}
-          {/* Profile Dropdown */}
-          <div style={{ position: "relative", marginLeft: 6 }}>
-            <button onClick={(e) => { e.stopPropagation(); setShowProfileMenu(p => { if (!p) { setDismissResetKey(k => k + 1); setActiveTab("dashboard"); } return !p; }); }} style={{ ...btnSt, padding: "6px 10px", fontSize: 10, fontWeight: 700, background: showProfileMenu ? "rgba(200,85,58,0.12)" : "rgba(255,255,255,0.04)", color: showProfileMenu ? "#c8553a" : "rgba(255,255,255,0.5)", border: showProfileMenu ? "1px solid rgba(200,85,58,0.25)" : "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 18, height: 18, borderRadius: 9, background: "linear-gradient(135deg,#c8553a,#8b2e1a)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff" }}>{user ? (user.email?.[0] || "U").toUpperCase() : "D"}</span>
-              <span style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user ? user.email?.split("@")[0] : "Demo"}</span>
-              <span style={{ fontSize: 8, opacity: 0.4 }}>▾</span>
-            </button>
-            {showProfileMenu && (
-              <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "#1a1d23", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: 1200, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
-                <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{user ? user.email?.split("@")[0] : "Demo User"}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{user ? user.email : "No account"}</div>
-                </div>
-                <div style={{ padding: "6px 0" }}>
-                  {[
-                    { icon: "🚀", label: "Quick Start", badge: !propertyProfile?.completedAt, onClick: () => { setShowQuickStart(true); setQsStep(0); setShowProfileMenu(false); } },
-                    { icon: "📷", label: localStorage.getItem("prepvault-cameras-connected") === "1" ? "Trail Cameras" : "Connect Cameras", accent: localStorage.getItem("prepvault-cameras-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
-                    { icon: "🚨", label: localStorage.getItem("prepvault-alarms-connected") === "1" ? "Alarm Systems" : "Connect Alarms", accent: localStorage.getItem("prepvault-alarms-connected") === "1" ? "#22c55e" : null, onClick: () => { setActiveTab("property"); setPropSub("systems"); setShowProfileMenu(false); } },
-                    { icon: "🔒", label: encryptedDb ? "Encryption Active" : "Security & Encryption", accent: encryptedDb ? "#22c55e" : null, onClick: () => { setShowSecurity(true); setShowProfileMenu(false); } },
-                    { icon: "🧪", label: "Simulate", onClick: () => { setActiveTab("simulate"); setShowProfileMenu(false); } },
-                    { icon: "⚡", label: crisisMode ? "Deactivate Crisis" : "Activate Crisis", accent: crisisMode ? "#ef4444" : null, onClick: () => { if (!crisisMode) { setShowCrisisSelector(true); } else { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } setShowProfileMenu(false); } },
-                  ].map((item, i) => (
-                    <button key={i} onClick={item.onClick} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: item.accent || "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
-                      <span style={{ fontSize: 14 }}>{item.icon}</span>
-                      {item.label}
-                      {item.badge && <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", marginLeft: "auto" }} />}
-                    </button>
-                  ))}
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
-                  {user ? (
-                    <button onClick={() => { handleLogout(); setShowProfileMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
-                      <span style={{ fontSize: 14 }}>🔓</span>Sign Out
-                    </button>
-                  ) : (
-                    <button onClick={() => { setShowAuth(true); setShowProfileMenu(false); }} style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "#c8553a", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
-                      <span style={{ fontSize: 14 }}>🔐</span>Sign In
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ═══ DESKTOP TABS ═══ */}
-      {!selCat && (
-        <div className="pcs-tabs">
-          {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}
-              style={{ padding: "11px 18px", background: "none", border: "none", borderBottom: activeTab === tab.id ? "2px solid #c8553a" : "2px solid transparent", color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, fontFamily: "inherit", transition: "color 0.15s" }}>
-              <span style={{ fontSize: 14 }}>{tab.i}</span> {tab.l}
-              {false && tab.id === "community" && <span style={{ fontSize: 10, padding: "4px 6px", borderRadius: 8, background: "rgba(34,197,94,0.12)", color: "#22c55e", fontWeight: 700 }}>{members.filter((m) => m.sharing).length}</span>}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* ═══ CRISIS ACTIVATE MODE ═══ */}
       {crisisMode && (() => {
@@ -9249,8 +9154,8 @@ export default function PrepVault() {
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <div style={{ width: 8, height: 8, borderRadius: 4, background: "#ef4444", animation: "pulse 1s infinite" }} />
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>Crisis Mode Active</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: M }}>Elapsed: {elapsed}h</div>
-                <button onClick={() => { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); }} style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 9, fontWeight: 600, fontFamily: "inherit" }}>Deactivate</button>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>Elapsed: {elapsed}h</div>
+                <button onClick={() => { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); }} style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, background: "rgba(47,76,39,0.04)", border: "1px solid #dce3d5", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit" }}>Deactivate</button>
               </div>
 
               {/* Immediate Actions for Crisis Type */}
@@ -9263,9 +9168,9 @@ export default function PrepVault() {
                       <span style={{ fontSize: 20 }}>{ct.icon}</span>
                       <div style={{ fontSize: 14, fontWeight: 800, color: ct.color, fontFamily: M }}>{ct.name}</div>
                     </div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Immediate Actions</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Immediate Actions</div>
                     {ct.actions.map((a, i) => (
-                      <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                      <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", fontSize: 11, color: "rgba(36,61,48,0.6)" }}>
                         <span style={{ color: ct.color, fontWeight: 800, fontSize: 12, flexShrink: 0, fontFamily: M }}>{i + 1}.</span>
                         <span>{a}</span>
                       </div>
@@ -9282,33 +9187,33 @@ export default function PrepVault() {
                   { icon: "🔥", label: "Heat", value: climate === "cold" ? heatDays.toFixed(1) : "N/A", unit: climate === "cold" ? "days left" : "not needed", total: firewoodCords.toFixed(1) + " cords + " + propTanks + " propane", color: heatDays > 14 ? "#22c55e" : heatDays > 3 ? "#f59e0b" : "#ef4444", pct: climate === "cold" ? Math.min(heatDays / 30 * 100, 100) : 100 },
                   { icon: "🍽️", label: "Food", value: calDays.toFixed(1), unit: "days left", total: Math.round(totalCals).toLocaleString() + " cal", color: calDays > 14 ? "#22c55e" : calDays > 3 ? "#f59e0b" : "#ef4444", pct: Math.min(calDays / 30 * 100, 100) },
                 ].map((r, i) => (
-                  <div key={i} style={{ background: "rgba(0,0,0,0.2)", borderRadius: 10, padding: 12, border: "1px solid " + r.color + "20" }}>
+                  <div key={i} style={{ background: "#f0f3ec", borderRadius: 10, padding: 12, border: "1px solid " + r.color + "20" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                       <span style={{ fontSize: 14 }}>{r.icon}</span>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>{r.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase" }}>{r.label}</span>
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 800, fontFamily: M, color: r.color, lineHeight: 1 }}>{r.value}</div>
-                    <div style={{ fontSize: 10, color: r.color, marginTop: 2 }}>{r.unit}</div>
-                    <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginTop: 6 }}>
+                    <div style={{ fontSize: 11, color: r.color, marginTop: 2 }}>{r.unit}</div>
+                    <div style={{ height: 3, background: "rgba(47,76,39,0.06)", borderRadius: 2, marginTop: 6 }}>
                       <div style={{ height: "100%", width: r.pct + "%", background: r.color, borderRadius: 2, transition: "width 1s" }} />
                     </div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 3 }}>{r.total}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{r.total}</div>
                   </div>
                 ))}
               </div>
 
               {/* Optimization suggestions */}
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>⚡ Optimization Suggestions</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>⚡ Optimization Suggestions</div>
               <div className="pcs-opt-grid">
                 {suggestions.slice(0, 6).map((s, i) => (
-                  <div key={i} style={{ padding: "8px 12px", background: "rgba(0,0,0,0.15)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                  <div key={i} style={{ padding: "8px 12px", background: "rgba(0,0,0,0.15)", borderRadius: 8, border: "1px solid #e5eadd", display: "flex", alignItems: "flex-start", gap: 8 }}>
                     <span style={{ fontSize: 16, flexShrink: 0 }}>{s.icon}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{s.action}</span>
-                        <span style={{ fontSize: 9, fontWeight: 800, color: "#22c55e", fontFamily: M }}>{s.gain}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.7)" }}>{s.action}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e", fontFamily: M }}>{s.gain}</span>
                       </div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>{s.detail}</div>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.4 }}>{s.detail}</div>
                     </div>
                   </div>
                 ))}
@@ -9318,35 +9223,13 @@ export default function PrepVault() {
         );
       })()}
 
-      <div className="pcs-content">
-        {renderContent()}
-      </div>
+      {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); openSetup(); } }}>Start my own plan →</button></div>}
+      {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
+      <div key={restoreVersion} className={selCat || !["dashboard", "preps"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
-      {/* ═══ MOBILE BOTTOM NAV ═══ */}
-      {selCat ? (
-        <div className="pcs-bottom-nav">
-          <button className="active" onClick={() => setSelCat(null)}>
-            <span style={{ fontSize: 18 }}>←</span>
-            Back
-          </button>
-          <button onClick={() => openAdd(selCat)}>
-            <span style={{ fontSize: 18 }}>+</span>
-            Add
-          </button>
-        </div>
-      ) : (
-        <div className="pcs-bottom-nav">
-          {tabs.map((tab) => (
-            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => { setActiveTab(tab.id); if (tab.id === "simulate") setSimDuration(SCENARIOS[selScen].defaultDur); }}>
-              <span style={{ fontSize: 18 }}>{tab.i}</span>
-              {tab.l}
-            </button>
-          ))}
-        </div>
-      )}
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
-        <div style={{ position: "fixed", bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 70px))", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 12, background: toast.type === "success" ? "rgba(34,197,94,0.95)" : toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(200,85,58,0.95)", color: "#fff", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 2000, animation: "slideUp 0.2s ease", whiteSpace: "nowrap", maxWidth: "90vw", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</div>
+        <div style={{ position: "fixed", bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 70px))", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 12, background: toast.type === "success" ? "rgba(34,197,94,0.95)" : toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(33,76,57,0.95)", color: "#243d30", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 2000, animation: "slideUp 0.2s ease", whiteSpace: "nowrap", maxWidth: "90vw", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</div>
       )}
       {showAdd && <AddItemModal onAdd={handleAdd} onClose={() => { setShowAdd(false); setEditItem(null); }} editItem={editItem} initialCategory={addCat} />}
       {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
@@ -9366,19 +9249,19 @@ export default function PrepVault() {
         const step = steps[onboardStep];
         return (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: "#1a1d23", borderRadius: 16, padding: 32, maxWidth: 420, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+            <div style={{ background: "#ffffff", borderRadius: 16, padding: 32, maxWidth: 420, border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
               <div style={{ fontSize: 44, textAlign: "center", marginBottom: 16 }}>{step.icon}</div>
               <h3 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800, textAlign: "center" }}>{step.title}</h3>
-              <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 1.6, marginBottom: 24, margin: "0 0 24px" }}>{step.desc}</p>
+              <p style={{ textAlign: "center", color: "rgba(36,61,48,0.58)", fontSize: 12, lineHeight: 1.6, marginBottom: 24, margin: "0 0 24px" }}>{step.desc}</p>
               <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 <button onClick={() => {
                   if (onboardStep < steps.length - 1) { setOnboardStep(onboardStep + 1); if (steps[onboardStep + 1].tab) setActiveTab(steps[onboardStep + 1].tab); }
                   else { setOnboardStep(null); localStorage.setItem("prepvault-onboarding-done", "1"); setActiveTab("dashboard"); }
-                }} style={{ padding: "10px 24px", borderRadius: 8, background: "linear-gradient(135deg,#c8553a,#a3412d)", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>{step.action}</button>
-                <button onClick={() => { setOnboardStep(null); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "10px 18px", borderRadius: 8, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Skip</button>
+                }} style={{ padding: "10px 24px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>{step.action}</button>
+                <button onClick={() => { setOnboardStep(null); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "10px 18px", borderRadius: 8, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Skip</button>
               </div>
               <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 16 }}>
-                {steps.map((_, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: 4, background: i === onboardStep ? "#c8553a" : i < onboardStep ? "rgba(200,85,58,0.3)" : "rgba(255,255,255,0.08)", transition: "background 0.2s" }} />)}
+                {steps.map((_, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: 4, background: i === onboardStep ? "#214c39" : i < onboardStep ? "rgba(33,76,57,0.3)" : "rgba(36,61,48,0.08)", transition: "background 0.2s" }} />)}
               </div>
             </div>
           </div>
@@ -9393,7 +9276,7 @@ export default function PrepVault() {
           people={people} setPeople={setPeople}
           climate={climate} setClimate={setClimate}
           propAddress={propAddress} setPropAddress={setPropAddress}
-          onComplete={(completed) => { setPropertyProfile(completed); setShowQuickStart(false); setToast("✅ Property profile saved!"); }}
+          onComplete={(completed) => { setPropertyProfile(completed); setShowQuickStart(false); showToast("Property profile saved"); }}
           onSkip={() => setShowQuickStart(false)}
         />
       )}
@@ -9401,22 +9284,22 @@ export default function PrepVault() {
       {/* ═══ Crisis Type Selector Modal ═══ */}
       {showCrisisSelector && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowCrisisSelector(false)}>
-          <div style={{ background: "#1a1a1a", borderRadius: 16, border: "2px solid rgba(239,68,68,0.3)", maxWidth: 480, width: "100%", padding: 24, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#ffffff", borderRadius: 16, border: "2px solid rgba(239,68,68,0.3)", maxWidth: 480, width: "100%", padding: 24, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#ef4444", fontFamily: M }}>⚡ Activate Crisis Mode</h2>
-            <p style={{ margin: "0 0 16px", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Select the type of crisis to receive targeted immediate action steps.</p>
+            <p style={{ margin: "0 0 16px", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Select the type of crisis to receive targeted immediate action steps.</p>
             <div style={{ display: "grid", gap: 6 }}>
               {CRISIS_TYPES.map(ct => (
                 <button key={ct.id} onClick={() => { setCrisisType(ct.id); setCrisisMode(true); setCrisisStart(new Date()); setShowCrisisSelector(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10, border: "1px solid " + ct.color + "30", background: ct.color + "08", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#fff" }}>
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10, border: "1px solid " + ct.color + "30", background: ct.color + "08", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#243d30" }}>
                   <span style={{ fontSize: 24 }}>{ct.icon}</span>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: ct.color }}>{ct.name}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{ct.actions[0]}</div>
+                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{ct.actions[0]}</div>
                   </div>
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowCrisisSelector(false)} style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "none", color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <button onClick={() => setShowCrisisSelector(false)} style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 8, border: "1px solid #dce3d5", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
           </div>
         </div>
       )}
@@ -9424,92 +9307,92 @@ export default function PrepVault() {
       {/* ═══ Security & Privacy Panel ═══ */}
       {showSecurity && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 5000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowSecurity(false)}>
-          <div style={{ background: "#13151a", borderRadius: 14, width: "92%", maxWidth: 560, maxHeight: "90vh", overflow: "auto", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ background: "#ffffff", borderRadius: 14, width: "92%", maxWidth: 560, maxHeight: "90vh", overflow: "auto", border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #e0e6da", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>🔒 Security & Privacy</h3>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>All encryption runs locally — nothing leaves your device</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>All encryption runs locally — nothing leaves your device</div>
               </div>
-              <button onClick={() => setShowSecurity(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 20, cursor: "pointer" }}>×</button>
+              <button onClick={() => setShowSecurity(false)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
 
             <div style={{ padding: "16px 22px" }}>
               {/* Status Row */}
               <div className="pcs-sec-status-grid">
-                <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+                <div style={{ padding: 12, borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", textAlign: "center" }}>
                   <div style={{ fontSize: 18, marginBottom: 4 }}>{isOffline ? "📡" : "🌐"}</div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: isOffline ? "#f59e0b" : "#22c55e" }}>{isOffline ? "Offline" : "Online"}</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{isOffline ? "No data leaves device" : "Network detected"}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: isOffline ? "#f59e0b" : "#22c55e" }}>{isOffline ? "Offline" : "Online"}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{isOffline ? "No data leaves device" : "Network detected"}</div>
                 </div>
-                <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+                <div style={{ padding: 12, borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", textAlign: "center" }}>
                   <div style={{ fontSize: 18, marginBottom: 4 }}>{dbStatus === "encrypted" ? "🔐" : dbStatus === "saved" ? "💾" : "⚪"}</div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: dbStatus === "encrypted" ? "#22c55e" : dbStatus === "saved" ? "#0ea5e9" : "rgba(255,255,255,0.3)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: dbStatus === "encrypted" ? "#22c55e" : dbStatus === "saved" ? "#0ea5e9" : "rgba(36,61,48,0.3)" }}>
                     {dbStatus === "encrypted" ? "Encrypted" : dbStatus === "saved" ? "Saved" : dbStatus === "saving" ? "Saving..." : "Not Saved"}
                   </div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{lastSaved ? "Last: " + new Date(lastSaved).toLocaleTimeString() : "No local backup"}</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{lastSaved ? "Last: " + new Date(lastSaved).toLocaleTimeString() : "No local backup"}</div>
                 </div>
-                <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+                <div style={{ padding: 12, borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", textAlign: "center" }}>
                   <div style={{ fontSize: 18, marginBottom: 4 }}>📦</div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{items.length} Items</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{people} people · {climate}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>{items.length} Items</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{people} people · {climate}</div>
                 </div>
               </div>
 
               {/* Messages */}
               {secMsg && (
-                <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: secMsg.startsWith("✅") ? "rgba(34,197,94,0.06)" : secMsg.startsWith("❌") || secMsg.startsWith("⚠") ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.02)", border: "1px solid " + (secMsg.startsWith("✅") ? "rgba(34,197,94,0.15)" : secMsg.startsWith("❌") || secMsg.startsWith("⚠") ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.06)"), fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+                <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: secMsg.startsWith("✅") ? "rgba(34,197,94,0.06)" : secMsg.startsWith("❌") || secMsg.startsWith("⚠") ? "rgba(239,68,68,0.06)" : "rgba(36,61,48,0.02)", border: "1px solid " + (secMsg.startsWith("✅") ? "rgba(34,197,94,0.15)" : secMsg.startsWith("❌") || secMsg.startsWith("⚠") ? "rgba(239,68,68,0.15)" : "rgba(36,61,48,0.06)"), fontSize: 11, color: "rgba(36,61,48,0.6)" }}>
                   {secMsg}
                 </div>
               )}
 
               {/* ── Local Database ── */}
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>💾 Local Database</div>
-                <div style={{ padding: 14, background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>💾 Local Database</div>
+                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <label style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", flex: 1 }}>
+                    <label style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flex: 1 }}>
                       <input type="checkbox" checked={encryptedDb} onChange={(e) => setEncryptedDb(e.target.checked)} style={{ marginRight: 6 }} />
-                      Encrypt local database (AES-256-GCM)
+                      Encrypt this saved backup (AES-256-GCM)
                     </label>
                   </div>
                   {encryptedDb && (
                     <div style={{ position: "relative", marginBottom: 10 }}>
-                      <input type={showDbPw ? "text" : "password"} value={dbPassphrase} onChange={(e) => setDbPassphrase(e.target.value)} placeholder="Database passphrase (min 6 chars)" style={{ width: "100%", padding: "8px 36px 8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit", boxSizing: "border-box" }} />
-                      <button onClick={() => setShowDbPw(!showDbPw)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "rgba(255,255,255,0.3)", padding: 0 }}>{showDbPw ? "🙈" : "👁️"}</button>
+                      <input type={showDbPw ? "text" : "password"} value={dbPassphrase} onChange={(e) => setDbPassphrase(e.target.value)} placeholder="Database passphrase (min 6 chars)" style={{ width: "100%", padding: "8px 36px 8px 10px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit", boxSizing: "border-box" }} />
+                      <button onClick={() => setShowDbPw(!showDbPw)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "rgba(36,61,48,0.58)", padding: 0 }}>{showDbPw ? "🙈" : "👁️"}</button>
                     </div>
                   )}
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={handleLocalSave} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 10, fontWeight: 700, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>💾 Save</button>
-                    <button onClick={handleLocalLoad} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 10, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>📂 Load</button>
-                    <button onClick={handleDbWipe} style={{ ...btnSt, padding: "8px 12px", fontSize: 10, fontWeight: 700, background: "rgba(239,68,68,0.06)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>🗑️</button>
+                    <button onClick={handleLocalSave} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 700, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>💾 Save</button>
+                    <button onClick={handleLocalLoad} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>📂 Load</button>
+                    <button onClick={handleDbWipe} style={{ ...btnSt, padding: "8px 12px", fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,0.06)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>🗑️</button>
                   </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.5 }}>
-                    Data stored locally on this device only. {encryptedDb ? "AES-256-GCM with PBKDF2-SHA256 (310K iterations). Without your passphrase, data is unrecoverable." : "Enable encryption for sensitive inventories."}
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 6, lineHeight: 1.5 }}>
+                    Your working plan remains in browser storage. This option protects the saved backup only. {encryptedDb ? "AES-256-GCM with PBKDF2-SHA256 (310K iterations). Without your passphrase, data is unrecoverable." : "Set a passphrase to protect this backup."}
                   </div>
                 </div>
               </div>
 
               {/* ── Encrypted Export ── */}
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📤 Encrypted Export</div>
-                <div style={{ padding: 14, background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Download a password-protected backup file. AES-256-GCM encrypted — unreadable without the password.</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📤 Encrypted Export</div>
+                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 8 }}>Download a password-protected backup file. AES-256-GCM encrypted — unreadable without the password.</div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <input type="password" value={exportPw} onChange={(e) => setExportPw(e.target.value)} placeholder="Encryption password (min 6 chars)" style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
-                    <button onClick={handleEncryptedExport} style={{ ...btnSt, padding: "8px 16px", fontSize: 10, fontWeight: 700, background: "rgba(168,85,247,0.08)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>🔐 Export</button>
+                    <input type="password" value={exportPw} onChange={(e) => setExportPw(e.target.value)} placeholder="Encryption password (min 6 chars)" style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
+                    <button onClick={handleEncryptedExport} style={{ ...btnSt, padding: "8px 16px", fontSize: 11, fontWeight: 700, background: "rgba(168,85,247,0.08)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>🔐 Export</button>
                   </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6 }}>File: pcs-backup-YYYY-MM-DD.enc.json · Portable, offline, tamper-evident</div>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 6 }}>File: pcs-backup-YYYY-MM-DD.enc.json · Portable, offline, tamper-evident</div>
                 </div>
               </div>
 
               {/* ── Encrypted Import ── */}
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📥 Encrypted Import</div>
-                <div style={{ padding: 14, background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Restore from an encrypted backup file. Requires the same password used during export.</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📥 Encrypted Import</div>
+                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 8 }}>Restore from an encrypted backup file. Requires the same password used during export.</div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <input type="password" value={importPw} onChange={(e) => setImportPw(e.target.value)} placeholder="Decryption password" style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", color: "#fff", fontSize: 11, fontFamily: "inherit" }} />
-                    <button onClick={() => importRef.current?.click()} style={{ ...btnSt, padding: "8px 16px", fontSize: 10, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)" }}>📂 Import</button>
+                    <input type="password" value={importPw} onChange={(e) => setImportPw(e.target.value)} placeholder="Decryption password" style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
+                    <button onClick={() => importRef.current?.click()} style={{ ...btnSt, padding: "8px 16px", fontSize: 11, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)" }}>📂 Import</button>
                     <input ref={importRef} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) handleEncryptedImport(e.target.files[0]); e.target.value = ""; }} />
                   </div>
                 </div>
@@ -9517,32 +9400,32 @@ export default function PrepVault() {
 
               {/* ── Offline Mode Info ── */}
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📡 Offline Mode</div>
-                <div style={{ padding: 14, background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📡 Offline Mode</div>
+                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                     <div style={{ width: 10, height: 10, borderRadius: 5, background: isOffline ? "#f59e0b" : "#22c55e", boxShadow: "0 0 6px " + (isOffline ? "#f59e0b60" : "#22c55e60") }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: isOffline ? "#f59e0b" : "#22c55e" }}>{isOffline ? "Offline — Fully Isolated" : "Online — Network Detected"}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: isOffline ? "#f59e0b" : "#22c55e" }}>{isOffline ? "Offline — saved on this device" : "Online — Network Detected"}</span>
                   </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>
                     {isOffline
-                      ? "No network connection detected. All data stays on this device. Encrypted exports can be saved to USB or local storage." + (user ? " Changes will sync when back online." : " Zero telemetry, zero cloud contact.")
-                      : user
-                        ? "Connected and syncing with cloud. Your data is backed up and available across devices. Local-first: all features work without network."
-                        : "Network is available. For maximum discretion: enable airplane mode, then reload. PCS runs entirely client-side — no server calls required for core functionality."
+                      ? "No network connection detected. Keep this tab open to work with saved supplies and plans. Connected accounts can sync core data when a connection returns."
+                      : user && !user.isLocal
+                        ? "Your connected account can sync supplies, map pins, properties and household settings. Other planning details remain on this device; export a complete backup to keep them safe."
+                        : "Your working plan is saved in this browser. Maps, weather, live feeds and connected services use the network. Export a complete backup before moving to another device."
                     }
                   </div>
                   {!isOffline && (
-                    <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(245,158,11,0.04)", borderRadius: 6, borderLeft: "3px solid #f59e0b", fontSize: 9, color: "rgba(245,158,11,0.6)" }}>
-                      💡 For full offline isolation: enable airplane mode → reload page → all features work without network
+                    <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(245,158,11,0.04)", borderRadius: 6, borderLeft: "3px solid #f59e0b", fontSize: 11, color: "rgba(245,158,11,0.6)" }}>
+                      Keep this tab open if you lose your connection. Reloading the app and using live services may require the internet.
                     </div>
                   )}
                 </div>
               </div>
 
               {/* ── Security Specs ── */}
-              <div style={{ padding: 14, background: "rgba(255,255,255,0.01)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Security Specifications</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 9, color: "rgba(255,255,255,0.3)" }}>
+              <div style={{ padding: 14, background: "rgba(47,76,39,0.01)", borderRadius: 8, border: "1px solid #e5eadd" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Security Specifications</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
                   {[
                     ["Cipher", "AES-256-GCM"],
                     ["Key Derivation", "PBKDF2-SHA256"],
@@ -9551,11 +9434,11 @@ export default function PrepVault() {
                     ["IV", "96-bit random"],
                     ["Storage", "Local only"],
                     ["Telemetry", "None"],
-                    ["Cloud sync", user ? "Enabled" : "Disabled"],
+                    ["Core data sync", user && !user.isLocal && supabaseConfigured ? "Enabled" : "Disabled"],
                   ].map(([k, v], i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                       <span>{k}</span>
-                      <span style={{ fontFamily: M, color: "rgba(255,255,255,0.5)" }}>{v}</span>
+                      <span style={{ fontFamily: M, color: "rgba(36,61,48,0.58)" }}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -9564,6 +9447,6 @@ export default function PrepVault() {
           </div>
         </div>
       )}
-    </div>
+    </WorkspaceShell>
   );
 }
