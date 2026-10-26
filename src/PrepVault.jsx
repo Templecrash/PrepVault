@@ -3676,20 +3676,83 @@ function CameraFeedCanvas({ cam, expanded }) {
   return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
 }
 
-function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, revealedCodes, setRevealedCodes, user, items }) {
+function CodesTab({ codes, setCodes, members, revealedCodes, setRevealedCodes }) {
+  const [accessDropdown, setAccessDropdown] = useState(null);
+  const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
+  return (
+        <div>
+          {codes.map((c) => {
+            const daysSinceChange = c.lastChanged ? Math.floor((Date.now() - new Date(c.lastChanged).getTime()) / 864e5) : null;
+            const rotationOverdue = daysSinceChange !== null && daysSinceChange > 30;
+            const rotationWarning = daysSinceChange !== null && daysSinceChange > 25;
+            return (
+              <div key={c.id} style={{ ...cardSt, position: "relative", zIndex: accessDropdown === c.id ? 2 : 0, padding: "12px 16px", marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 12, borderLeft: `3px solid ${rotationOverdue ? "#ef4444" : "#1e3a5f"}` }}>
+                <span style={{ fontSize: 20, marginTop: 2 }}>{CODE_ICONS[c.type] || "🔑"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{c.label}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <div style={{ fontFamily: M, fontSize: 15, fontWeight: 700, color: revealedCodes[c.id] ? "#22c55e" : "rgba(36,61,48,0.1)", background: revealedCodes[c.id] ? "rgba(34,197,94,0.08)" : "rgba(36,61,48,0.03)", padding: "5px 10px", borderRadius: 6, userSelect: revealedCodes[c.id] ? "text" : "none" }}>
+                      {revealedCodes[c.id] ? c.code : "••••••"}
+                    </div>
+                    <button aria-label={`${revealedCodes[c.id] ? "Hide" : "Reveal"} ${c.label} code`} aria-pressed={!!revealedCodes[c.id]} onClick={() => setRevealedCodes((p) => ({ ...p, [c.id]: !p[c.id] }))} style={{ ...btnSt, padding: "5px 8px", fontSize: 12, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)" }}>
+                      {revealedCodes[c.id] ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  {c.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>{c.location} · {c.notes}</div>}
+                  {daysSinceChange !== null && (
+                    <div style={{ fontSize: 11, fontFamily: M, marginTop: 5, color: rotationOverdue ? "#ef4444" : rotationWarning ? "#f59e0b" : "rgba(36,61,48,0.3)", fontWeight: rotationOverdue ? 700 : 400 }}>
+                      {rotationOverdue ? `⚠ ${daysSinceChange}d since change — ROTATE` : `Changed ${daysSinceChange}d ago · rotate in ${30 - daysSinceChange}d`}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0, minWidth: 90 }}>
+                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Access</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "flex-end", maxWidth: 200 }}>
+                    {(c.access || []).map((person) => (
+                      <span key={person} style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 6px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>
+                        {(members || []).find(m => m.name === person)?.avatar || "👤"} {person}
+                        <button aria-label={`Remove ${person} from ${c.label} access list`} onClick={() => setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: (cd.access || []).filter(a => a !== person) } : cd))} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.6)", cursor: "pointer", padding: 0, fontSize: 11, marginLeft: 1, lineHeight: 1 }}>×</button>
+                      </span>
+                    ))}
+                    <div style={{ position: "relative" }}>
+                      <button aria-label={`Add someone to ${c.label} access list`} aria-expanded={accessDropdown === c.id} onClick={() => setAccessDropdown(accessDropdown === c.id ? null : c.id)} style={{ padding: "2px 6px", borderRadius: 10, fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.1)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)", cursor: "pointer" }}>+</button>
+                      {accessDropdown === c.id && (
+                        <div style={{ position: "absolute", top: "100%", right: 0, background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 8, padding: 4, zIndex: 50, minWidth: 120, marginTop: 4, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                          {(members || []).filter(m => !(c.access || []).includes(m.name)).length === 0 ? (
+                            <div style={{ padding: "6px 8px", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>All members added</div>
+                          ) : (members || []).filter(m => !(c.access || []).includes(m.name)).map(m => (
+                            <button key={m.id} onClick={() => { setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: [...(cd.access || []), m.name] } : cd)); setAccessDropdown(null); }} style={{ display: "block", width: "100%", padding: "5px 8px", background: "none", border: "none", color: "rgba(36,61,48,0.6)", fontSize: 11, cursor: "pointer", textAlign: "left", borderRadius: 4 }} onMouseOver={e => e.currentTarget.style.background = "rgba(36,61,48,0.06)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
+                              {m.avatar} {m.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+  );
+}
+
+function ManualsTab({ manuals }) {
+  return (<div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 11, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>);
+}
+
+function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, user, items }) {
   const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [expandedCam, setExpandedCam] = useState(null);
-  const [accessDropdown, setAccessDropdown] = useState(null);
   const [liveCameras, setLiveCameras] = useState(null);
   const [liveAlarm, setLiveAlarm] = useState(null);
   const [liveNestDevices, setLiveNestDevices] = useState(null);
   const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
   useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
 
-  const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
-  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "systems", l: "Systems", i: "🏠" }];
+  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "systems", l: "Systems", i: "🏠" }];
   const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
 
   const handleAuth = async (setter, state, provider) => {
@@ -3791,62 +3854,6 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
 
       {propSub === "map" && <PropertyMapWorkspace pins={pins} propAddress={propAddress} setPropAddress={setPropAddress} mapSetups={mapSetups} setMapSetups={setMapSetups} routes={routes} setRoutes={setRoutes} properties={properties} activePropertyId={activePropertyId} layers={MAP_LAYERS} pinTypes={MAP_PIN_TYPES} defenseRoles={DEFENSE_ROLES} />}
 
-      {propSub === "codes" && (
-        <div>
-          {codes.map((c) => {
-            const daysSinceChange = c.lastChanged ? Math.floor((Date.now() - new Date(c.lastChanged).getTime()) / 864e5) : null;
-            const rotationOverdue = daysSinceChange !== null && daysSinceChange > 30;
-            const rotationWarning = daysSinceChange !== null && daysSinceChange > 25;
-            return (
-              <div key={c.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 12, borderLeft: `3px solid ${rotationOverdue ? "#ef4444" : "#1e3a5f"}` }}>
-                <span style={{ fontSize: 20, marginTop: 2 }}>{CODE_ICONS[c.type] || "🔑"}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{c.label}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <div style={{ fontFamily: M, fontSize: 15, fontWeight: 700, color: revealedCodes[c.id] ? "#22c55e" : "rgba(36,61,48,0.1)", background: revealedCodes[c.id] ? "rgba(34,197,94,0.08)" : "rgba(36,61,48,0.03)", padding: "5px 10px", borderRadius: 6, userSelect: revealedCodes[c.id] ? "text" : "none" }}>
-                      {revealedCodes[c.id] ? c.code : "••••••"}
-                    </div>
-                    <button onClick={() => setRevealedCodes((p) => ({ ...p, [c.id]: !p[c.id] }))} style={{ ...btnSt, padding: "5px 8px", fontSize: 12, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)" }}>
-                      {revealedCodes[c.id] ? "🙈" : "👁️"}
-                    </button>
-                  </div>
-                  {c.notes && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>{c.location} · {c.notes}</div>}
-                  {daysSinceChange !== null && (
-                    <div style={{ fontSize: 11, fontFamily: M, marginTop: 5, color: rotationOverdue ? "#ef4444" : rotationWarning ? "#f59e0b" : "rgba(36,61,48,0.3)", fontWeight: rotationOverdue ? 700 : 400 }}>
-                      {rotationOverdue ? `⚠ ${daysSinceChange}d since change — ROTATE` : `Changed ${daysSinceChange}d ago · rotate in ${30 - daysSinceChange}d`}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0, minWidth: 90 }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Access</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "flex-end", maxWidth: 200 }}>
-                    {(c.access || []).map((person) => (
-                      <span key={person} style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 6px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>
-                        {(members || []).find(m => m.name === person)?.avatar || "👤"} {person}
-                        <button onClick={() => setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: (cd.access || []).filter(a => a !== person) } : cd))} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.6)", cursor: "pointer", padding: 0, fontSize: 11, marginLeft: 1, lineHeight: 1 }}>×</button>
-                      </span>
-                    ))}
-                    <div style={{ position: "relative" }}>
-                      <button onClick={() => setAccessDropdown(accessDropdown === c.id ? null : c.id)} style={{ padding: "2px 6px", borderRadius: 10, fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.1)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)", cursor: "pointer" }}>+</button>
-                      {accessDropdown === c.id && (
-                        <div style={{ position: "absolute", top: "100%", right: 0, background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 8, padding: 4, zIndex: 50, minWidth: 120, marginTop: 4, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
-                          {(members || []).filter(m => !(c.access || []).includes(m.name)).length === 0 ? (
-                            <div style={{ padding: "6px 8px", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>All members added</div>
-                          ) : (members || []).filter(m => !(c.access || []).includes(m.name)).map(m => (
-                            <button key={m.id} onClick={() => { setCodes(prev => prev.map(cd => cd.id === c.id ? { ...cd, access: [...(cd.access || []), m.name] } : cd)); setAccessDropdown(null); }} style={{ display: "block", width: "100%", padding: "5px 8px", background: "none", border: "none", color: "rgba(36,61,48,0.6)", fontSize: 11, cursor: "pointer", textAlign: "left", borderRadius: 4 }} onMouseOver={e => e.currentTarget.style.background = "rgba(36,61,48,0.06)"} onMouseOut={e => e.currentTarget.style.background = "none"}>
-                              {m.avatar} {m.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {propSub === "defenses" && (() => {
         const defItems = (items || []).filter(i => i.category === "defense");
@@ -3998,7 +4005,7 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
         );
       })()}
 
-      {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 11, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
+
 
       {propSub === "systems" && (
         <div>
@@ -7107,8 +7114,12 @@ export default function PrepVault() {
         return <HandbookLibrary crisisMode={crisisMode} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} />;
       case "dashboard":
         return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
+      case "codes":
+        return <CodesTab codes={codes} setCodes={setCodes} members={members} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} />;
+      case "manuals":
+        return <ManualsTab manuals={manuals} />;
       case "property":
-        return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
+        return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} />;
       case "dependencies":
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "preps":
@@ -7189,7 +7200,9 @@ export default function PrepVault() {
   if (showLanding) return <Welcome onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { setShowAuth(true); setAuthMode("login"); }}>{showAuth && renderAuthModal()}</Welcome>;
 
   const pageMeta = {
-    property: ["Your property", "Places, access, routes, and connected systems. All in one place."],
+    property: ["Your property", "Maps, routes, defenses, and connected systems. All in one place."],
+    codes: ["Codes", "Access codes, recorded holders, and rotation reminders."],
+    manuals: ["Manuals", "Your reference list for household systems and equipment."],
     community: ["Your people", "Stay connected to the people you count on."],
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
     comms: ["Stay in touch", "A shared plan for communicating when it matters."],

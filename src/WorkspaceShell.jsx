@@ -13,7 +13,9 @@ const destinations = [
   { id: 'farming', label: 'Grow & sustain', icon: 'leaf', group: 'PLAN AHEAD' },
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },
-  { id: 'emergency', label: 'Emergency', icon: 'shield', group: 'REFERENCE LIBRARY' },
+  { id: 'codes', label: 'Codes', icon: 'key', group: 'REFERENCE LIBRARY' },
+  { id: 'manuals', label: 'Manuals', icon: 'book' },
+  { id: 'emergency', label: 'Emergency', icon: 'shield' },
 ];
 
 function PropertyDialog({ onClose, children }) {
