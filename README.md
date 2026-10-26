@@ -8,7 +8,7 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | --- | --- |
 | Overview | Recorded category coverage, expandable rationing calculator, food/water duration summary, essential supplies, priority alerts, household setup, detailed readiness analysis, weather and activity |
 | Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations |
-| Dependencies | Dedicated backup checks and guidance, directly below Supplies in the sidebar |
+| Dependencies | Searchable dependency checks with priority/backup filters, sorting and expandable guidance, directly below Supplies in the sidebar |
 | Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
 | Communications | Live radio, saved custom streams, frequency reference, codes, equipment, local notes, community chat, comms plans and rally points |
 | Your people | Searchable contact directory, personal and care notes, location tracker and rationing |

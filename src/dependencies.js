@@ -1,0 +1,26 @@
+// Inventory signals used by the dependency checklist. These retain the existing
+// matching rules; a recorded match is not verification of a working backup system.
+export function buildDependencyChecks(items = []) {
+  const hasSolar = items.filter((i) => i.category === "electronics" && i.subType === "solarGadget").length > 0;
+  const hasGen = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
+  const hasBattery = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
+  const hasFirewood = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0), 0) > 0;
+  const hasHAM = items.filter((i) => (i.category === "electronics" && i.subType === "radio") || i.category === "comms").length > 0;
+  const hasSat = items.filter((i) => i.category === "electronics" && i.subType === "satPhone").length > 0;
+  const hasFilter = items.filter((i) => i.category === "water" && (i.subType === "filter" || i.subType === "purificationTablets")).length > 0;
+  return [
+    { id: "garage", name: "Garage Door", icon: "🚗", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high", desc: "Electric garage door opener fails silently during outage.", fix: "Install manual release. Keep vehicles outside during storm warnings." },
+    { id: "wellpump", name: "Well Water Pump", icon: "💧", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : hasSolar ? "Solar" : null, hidden: true, risk: "critical", desc: "Submersible well pump draws 500-1500W. No power = no water.", fix: hasGen ? "Generator can power pump. Store 3+ days water." : "No backup power. Store minimum 14 days water." },
+    { id: "fridge", name: "Refrigerator", icon: "🧊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: false, risk: "high", desc: "Food spoils in 4hrs (open) or 24-48hrs (closed) without power.", fix: "Run generator 4-6hrs/day. Minimize door openings. Freeze water jugs." },
+    { id: "furnace", name: "Furnace Blower", icon: "🌡️", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical", desc: "Even gas furnaces need electric blower (300-600W).", fix: hasFirewood ? "Wood stove is grid-independent." : "Generator required for furnace blower." },
+    { id: "stovefan", name: "Wood Stove Fan", icon: "🔥", depends: "Battery / Thermoelectric", dep: "battery", backup: hasBattery ? "Batteries" : null, hidden: true, risk: "low", desc: "Thermoelectric fans need no battery. Battery fans improve circulation.", fix: "Stovetop thermoelectric fans need no power." },
+    { id: "sump", name: "Sump Pump", icon: "🏠", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high", desc: "Sump pump (500W) prevents flooding. Silent failure = catastrophic.", fix: "Battery backup sump pump ($150-300). Generator as primary backup." },
+    { id: "phone", name: "Cell Phone", icon: "📱", depends: "LTE Tower + Grid", dep: "grid+tower", backup: hasSat ? "Satellite Phone" : hasHAM ? "HAM Radio" : null, hidden: true, risk: "high", desc: "Cell towers have 4-8hr battery backup only.", fix: hasSat ? "Satellite phone is tower-independent." : hasHAM ? "HAM radio is grid-independent." : "Add satellite or HAM radio." },
+    { id: "internet", name: "Internet / WiFi", icon: "🌐", depends: "Grid + ISP + Router", dep: "grid+isp", backup: hasSat ? "Satellite Phone data" : null, hidden: false, risk: "medium", desc: "Router, modem, ISP all need power.", fix: "Small UPS for router extends connectivity 2-4hrs." },
+    { id: "security", name: "Security System", icon: "🚨", depends: "Grid + WiFi + Cloud", dep: "grid+cloud", backup: hasBattery ? "Battery backup" : null, hidden: true, risk: "medium", desc: "Smart security needs WiFi + cloud servers.", fix: "Mechanical trip wires and door bars are grid-independent." },
+    { id: "medical", name: "Medical Devices", icon: "💊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical", desc: "CPAP, oxygen concentrator — all grid-dependent. Life-threatening.", fix: "Dedicated battery backup for critical medical devices." },
+    { id: "waterFilter", name: "UV Water Purifier", icon: "🔬", depends: "Grid Power", dep: "grid", backup: hasFilter ? "Gravity filter" : null, hidden: true, risk: "high", desc: "UV purification needs electricity. Fails silently.", fix: hasFilter ? "Gravity filter works without power." : "Add gravity filter or purification tablets." },
+    { id: "septic", name: "Septic Pump", icon: "🚽", depends: "Grid Power", dep: "grid", backup: null, hidden: true, risk: "high", desc: "Pump systems: no power = tank fills, sewage backup.", fix: "Know your septic type. Gravity systems work without power." },
+    { id: "co_detector", name: "CO / Smoke Detectors", icon: "🔋", depends: "Battery", dep: "battery", backup: hasBattery ? "Replacement batteries" : null, hidden: true, risk: "critical", desc: "No working CO detector during generator use is lethal.", fix: "Replace batteries every 6 months. Keep spare 9V batteries." },
+  ];
+}

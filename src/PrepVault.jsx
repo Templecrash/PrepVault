@@ -7,6 +7,7 @@ import WorkspaceShell from "./WorkspaceShell.jsx";
 import Welcome from "./Welcome.jsx";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
+import DependenciesView from "./DependenciesView.jsx";
 import PeopleDirectory from "./PeopleDirectory.jsx";
 import RationingPlanner from "./RationingPlanner.jsx";
 import RadioPlayer from "./RadioPlayer.jsx";
@@ -3668,97 +3669,6 @@ function CameraFeedCanvas({ cam, expanded }) {
   }, [cam.id, cam.name, cam.model, cam.location, height, expanded]);
 
   return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
-}
-
-function DependenciesTab({ items }) {
-  const [expandedDep, setExpandedDep] = useState(null);
-  const DEPENDENCY_TREE = useMemo(() => {
-    const hasSolar = items.filter((i) => i.category === "electronics" && i.subType === "solarGadget").length > 0;
-    const hasGen = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
-    const hasBattery = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0) > 0;
-    const hasFirewood = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0), 0) > 0;
-    const hasHAM = items.filter((i) => (i.category === "electronics" && i.subType === "radio") || i.category === "comms").length > 0;
-    const hasSat = items.filter((i) => i.category === "electronics" && i.subType === "satPhone").length > 0;
-    const hasFilter = items.filter((i) => i.category === "water" && (i.subType === "filter" || i.subType === "purificationTablets")).length > 0;
-    return [
-      { id: "garage", name: "Garage Door", icon: "🚗", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high", desc: "Electric garage door opener fails silently during outage.", fix: "Install manual release. Keep vehicles outside during storm warnings." },
-      { id: "wellpump", name: "Well Water Pump", icon: "💧", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : hasSolar ? "Solar" : null, hidden: true, risk: "critical", desc: "Submersible well pump draws 500-1500W. No power = no water.", fix: hasGen ? "Generator can power pump. Store 3+ days water." : "No backup power. Store minimum 14 days water." },
-      { id: "fridge", name: "Refrigerator", icon: "🧊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: false, risk: "high", desc: "Food spoils in 4hrs (open) or 24-48hrs (closed) without power.", fix: "Run generator 4-6hrs/day. Minimize door openings. Freeze water jugs." },
-      { id: "furnace", name: "Furnace Blower", icon: "🌡️", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical", desc: "Even gas furnaces need electric blower (300-600W).", fix: hasFirewood ? "Wood stove is grid-independent." : "Generator required for furnace blower." },
-      { id: "stovefan", name: "Wood Stove Fan", icon: "🔥", depends: "Battery / Thermoelectric", dep: "battery", backup: hasBattery ? "Batteries" : null, hidden: true, risk: "low", desc: "Thermoelectric fans need no battery. Battery fans improve circulation.", fix: "Stovetop thermoelectric fans need no power." },
-      { id: "sump", name: "Sump Pump", icon: "🏠", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "high", desc: "Sump pump (500W) prevents flooding. Silent failure = catastrophic.", fix: "Battery backup sump pump ($150-300). Generator as primary backup." },
-      { id: "phone", name: "Cell Phone", icon: "📱", depends: "LTE Tower + Grid", dep: "grid+tower", backup: hasSat ? "Satellite Phone" : hasHAM ? "HAM Radio" : null, hidden: true, risk: "high", desc: "Cell towers have 4-8hr battery backup only.", fix: hasSat ? "Satellite phone is tower-independent." : hasHAM ? "HAM radio is grid-independent." : "Add satellite or HAM radio." },
-      { id: "internet", name: "Internet / WiFi", icon: "🌐", depends: "Grid + ISP + Router", dep: "grid+isp", backup: hasSat ? "Satellite Phone data" : null, hidden: false, risk: "medium", desc: "Router, modem, ISP all need power.", fix: "Small UPS for router extends connectivity 2-4hrs." },
-      { id: "security", name: "Security System", icon: "🚨", depends: "Grid + WiFi + Cloud", dep: "grid+cloud", backup: hasBattery ? "Battery backup" : null, hidden: true, risk: "medium", desc: "Smart security needs WiFi + cloud servers.", fix: "Mechanical trip wires and door bars are grid-independent." },
-      { id: "medical", name: "Medical Devices", icon: "💊", depends: "Grid Power", dep: "grid", backup: hasGen ? "Generator" : null, hidden: true, risk: "critical", desc: "CPAP, oxygen concentrator — all grid-dependent. Life-threatening.", fix: "Dedicated battery backup for critical medical devices." },
-      { id: "waterFilter", name: "UV Water Purifier", icon: "🔬", depends: "Grid Power", dep: "grid", backup: hasFilter ? "Gravity filter" : null, hidden: true, risk: "high", desc: "UV purification needs electricity. Fails silently.", fix: hasFilter ? "Gravity filter works without power." : "Add gravity filter or purification tablets." },
-      { id: "septic", name: "Septic Pump", icon: "🚽", depends: "Grid Power", dep: "grid", backup: null, hidden: true, risk: "high", desc: "Pump systems: no power = tank fills, sewage backup.", fix: "Know your septic type. Gravity systems work without power." },
-      { id: "co_detector", name: "CO / Smoke Detectors", icon: "🔋", depends: "Battery", dep: "battery", backup: hasBattery ? "Replacement batteries" : null, hidden: true, risk: "critical", desc: "No working CO detector during generator use is lethal.", fix: "Replace batteries every 6 months. Keep spare 9V batteries." },
-    ];
-  }, [items]);
-
-  return (
-        <div>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔌 Hidden Dependency Map</h3>
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Appliances and amenities that silently fail when their dependencies go down</div>
-          </div>
-          <div className="pcs-sys-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
-            {[
-              { label: "Critical", count: DEPENDENCY_TREE.filter((d) => d.risk === "critical").length, color: "#ef4444", desc: "Life-safety risk" },
-              { label: "No Backup", count: DEPENDENCY_TREE.filter((d) => !d.backup).length, color: "#f59e0b", desc: "Single point of failure" },
-              { label: "Hidden", count: DEPENDENCY_TREE.filter((d) => d.hidden).length, color: "#a855f7", desc: "Fails silently" },
-            ].map((s, i) => (
-              <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + s.color }}>
-                <div style={{ fontSize: 28, fontWeight: 800, fontFamily: M, color: s.color }}>{s.count}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{s.desc}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "grid", gap: 6 }}>
-            {DEPENDENCY_TREE.map((dep) => {
-              const riskCol = dep.risk === "critical" ? "#ef4444" : dep.risk === "high" ? "#f59e0b" : "#22c55e";
-              const hasBackup = !!dep.backup;
-              const isExp = expandedDep === dep.id;
-              return (
-                <div key={dep.id}>
-                  <button aria-expanded={isExp} aria-controls={isExp ? `dependency-${dep.id}` : undefined} onClick={() => setExpandedDep(isExp ? null : dep.id)} style={{ width: "100%", ...cardSt, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#243d30", borderLeft: "4px solid " + riskCol, background: isExp ? "rgba(36,61,48,0.03)" : "rgba(36,61,48,0.02)" }}>
-                    <div className="pv-dependency-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 20 }}>{dep.icon}</span>
-                      <div className="pv-dependency-main" style={{ flex: 1 }}>
-                        <div className="pv-dependency-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>{dep.name}</span>
-                          {dep.hidden && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(168,85,247,0.15)", color: "#a855f7", fontWeight: 700 }}>HIDDEN</span>}
-                          <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: riskCol + "15", color: riskCol, fontWeight: 700, textTransform: "uppercase" }}>{dep.risk}</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Requires: <span style={{ color: "rgba(36,61,48,0.58)", fontFamily: M }}>{dep.depends}</span></div>
-                      </div>
-                      <div className="pv-dependency-backup" style={{ textAlign: "right" }}>{hasBackup ? <div style={{ fontSize: 11, color: "#22c55e" }}>✓ {dep.backup}</div> : <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>✗ NO BACKUP</div>}</div>
-                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transform: isExp ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
-                    </div>
-                  </button>
-                  {isExp && (
-                    <div id={`dependency-${dep.id}`} style={{ marginLeft: 20, borderLeft: "2px solid " + riskCol + "30", padding: "12px 16px", background: "rgba(47,76,39,0.01)" }}>
-                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.7, marginBottom: 10 }}>{dep.desc}</div>
-                      <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, borderLeft: "3px solid #22c55e" }}>
-                        <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Mitigation</div>
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>{dep.fix}</div>
-                      </div>
-                      <div className="pv-dependency-chain" style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 10 }}>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: riskCol + "10", border: "1px solid " + riskCol + "30", fontSize: 11, fontWeight: 700, color: riskCol }}>{dep.name}</div>
-                        <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(36,61,48,0.1)" strokeWidth="1.5" /><polygon points="22,2 30,6 22,10" fill="rgba(36,61,48,0.15)" /></svg>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 11, fontWeight: 600, color: "rgba(239,68,68,0.6)" }}>{dep.depends}</div>
-                        {hasBackup && (<><svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(34,197,94,0.2)" strokeWidth="1.5" strokeDasharray="3,2" /><polygon points="22,2 30,6 22,10" fill="rgba(34,197,94,0.3)" /></svg><div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 11, fontWeight: 600, color: "#22c55e" }}>↻ {dep.backup}</div></>)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-  );
 }
 
 function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, revealedCodes, setRevealedCodes, user, items }) {
@@ -7926,7 +7836,7 @@ export default function PrepVault() {
       case "property":
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "dependencies":
-        return <DependenciesTab items={propItems} />;
+        return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "preps":
         return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":
@@ -8003,7 +7913,6 @@ export default function PrepVault() {
   if (showLanding) return <Welcome onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { setShowAuth(true); setAuthMode("login"); }}>{showAuth && renderAuthModal()}</Welcome>;
 
   const pageMeta = {
-    dependencies: ["Dependencies", "See what your supplies and household systems rely on, and where a backup could help."],
     property: ["Your property", "Places, access, routes, and connected systems. All in one place."],
     community: ["Your people", "Stay connected to the people you count on."],
     comms: ["Stay in touch", "A shared plan for communicating when it matters."],
@@ -8189,7 +8098,7 @@ export default function PrepVault() {
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "emergency"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
