@@ -7,6 +7,7 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | Destination | Included tools |
 | --- | --- |
 | Overview | Recorded category coverage, expandable rationing calculator, essential supply days, food/water duration summary, priority alerts, household setup, detailed readiness analysis, weather and activity |
+| Private adviser | Owner-only AI conversations, supply assessments, plan reviews and scenario brainstorming using a fresh snapshot across app sections |
 | Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations |
 | Dependencies | Searchable dependency checks with priority/backup filters, sorting and expandable guidance, directly below Supplies in the sidebar |
 | Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
@@ -50,6 +51,18 @@ Overview’s essential cards show full days of coverage. Water and food use the 
 The existing Vercel `api/` handlers and integrations are retained. Plain Vite development does not emulate those serverless endpoints. Use the existing Vercel project or a properly configured local Vercel environment to exercise them.
 
 Private live tracking uses the existing Neon database with an isolated schema and a restricted runtime role. Owner access uses Neon Managed Better Auth email codes, first-party secure cookies, an explicit verified-email allowlist, and fresh server-side session checks. See `neon/README.md` for setup, grants and retention. Recipient invitations are one-use links; recipients must allow location sharing and can stop at any time. Sharing requires an open browser page and internet access. The phone number addresses the SMS invitation; it does not locate a phone by itself.
+
+### Private adviser
+
+The adviser reuses the same verified Neon owner session. Every request is authorized on the server, including the connection-status endpoint; the session is rechecked before returning an answer. Other accounts and location-sharing invitees have no adviser access. Same-origin checks protect requests, and responses are never cached.
+
+Set `OPENAI_API_KEY` as a server-only secret in the existing Vercel project. `OPENAI_MODEL` defaults to `gpt-5.6-terra`. No key enters the Vite bundle. The fixed OpenAI Responses endpoint receives `store: false`, a bounded conversation and an explicit app snapshot. It has no tools or permission to change records, send messages, or purchase supplies. The app does not log prompts or answers. A per-process concurrency/rate guard limits accidental repeated requests; it is not a distributed spending cap. Set the provider's project budget and maintain the key before its selected expiration.
+
+Context includes recorded supplies across all properties, household/care needs, rationing, calculated coverage and dependencies, property/map-marker descriptions, routes, communications plans and saved notes, growing/livestock records, scenarios, actions and reference metadata. The current property and sample-data state are identified. The same calculation functions used by the app provide estimates. Bounds and omissions are described in context rather than silently implying that missing data is complete.
+
+Passwords, access-code values, invitation tokens, private chats, precise live positions and raw map/file content are excluded on both client and server. A handbook title is not its full text; live weather/news/radio audio and unsaved specialist-view controls are not supplied. Chat history stays in memory, clears when leaving the adviser or signing out, and is not added to backups or browser storage. Existing app records remain stored on the current device, so a different device must have those records restored/synced before the adviser can assess them.
+
+OpenAI processes the included context and questions. `store: false` disables stored response objects but does not claim zero provider retention; see [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data). Replies are planning suggestions and may contain mistakes; clinical references do not replace qualified medical care.
 
 Legacy Supabase cloud sync remains optional and separate from tracking. For that integration, review `supabase-schema.sql` and configure its public client settings from `.env.example`. Keep database-owner, runtime, service-role and provider credentials on the server; never use a `VITE_` prefix for secrets.
 

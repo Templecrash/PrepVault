@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/advisor.js": {
+      "maxDuration": 90
+    },
     "api/**/*.js": {
       "maxDuration": 10
     }

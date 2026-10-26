@@ -4,6 +4,7 @@ import { Brand, Icon } from './brand.jsx';
 
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
+  { id: 'advisor', label: 'Private adviser', icon: 'advisor' },
   { id: 'preps', label: 'Supplies', icon: 'box' },
   { id: 'dependencies', label: 'Dependencies', icon: 'bolt' },
   { id: 'property', label: 'Property', icon: 'home' },

@@ -4,6 +4,7 @@ export function Icon({ name = 'box', size = 20, ...props }) {
     box: <><path d="m3 7 9-4 9 4v10l-9 4-9-4Z"/><path d="m3 7 9 5 9-5M12 12v9M7 5l10 5"/></>,
     search: <><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
     plus: <path d="M12 4v16M4 12h16"/>,
+    advisor: <><path d="M21 11a9 9 0 0 1-9 9H4l-3 2 1.5-6A9 9 0 1 1 21 11Z"/><path d="M7 9h8M7 13h5"/></>,
     arrow: <path d="M4 12h15m-6-6 6 6-6 6"/>,
     chevron: <path d="m8 5 7 7-7 7"/>,
     filter: <><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></>,

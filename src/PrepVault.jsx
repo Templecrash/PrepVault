@@ -14,6 +14,9 @@ import ResourceOpportunitiesView from "./ResourceOpportunitiesView.jsx";
 import { computeResourcePools } from "./resource-planning.js";
 import PeopleDirectory from "./PeopleDirectory.jsx";
 import LiveTracker from "./LiveTracker.jsx";
+import PrivateAdvisor from "./PrivateAdvisor.jsx";
+import { buildAdvisorContext, readAdvisorDeviceContext } from "./advisor-context.js";
+import { HANDBOOKS } from "./handbooks.js";
 import RationingPlanner from "./RationingPlanner.jsx";
 import RadioPlayer from "./RadioPlayer.jsx";
 import HandbookLibrary from "./HandbookLibrary.jsx";
@@ -7107,6 +7110,16 @@ export default function PrepVault() {
       return <CategoryDetail catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
     }
     switch (activeTab) {
+      case "advisor":
+        return <PrivateAdvisor context={buildAdvisorContext({
+          items, categories: CATEGORIES, people, climate, climateConfig: CLIMATES[climate],
+          activePropertyId, properties, propAddress, propertyProfile, mapSetups, pins, routes,
+          contacts, members, rationPeople, dailyCalTarget, callSigns, codeWords, rallyPoints, codes,
+          commsPlan: COMMS_PLAN, gardenBeds, soilTests, compostBins, livestock, slaughterLog,
+          actionLog, selScen, scenario: SCENARIOS[selScen], simDuration, crisisMode, crisisType,
+          crisisStart, dismissedOpps, allAlerts, manuals, handbooks: HANDBOOKS, demoData,
+          device: readAdvisorDeviceContext(localStorage),
+        })} />;
       case "emergency":
         return <HandbookLibrary crisisMode={crisisMode} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} />;
       case "dashboard":
@@ -7383,7 +7396,7 @@ export default function PrepVault() {
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing", "systems", "manuals"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "advisor"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
