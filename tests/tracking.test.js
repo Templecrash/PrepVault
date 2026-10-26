@@ -42,7 +42,7 @@ test('transport keeps owner credentials in headers, disables caching and forward
     assert.equal(url, '/api/tracking');
     assert.equal(options.headers.Authorization, 'Bearer private');
     assert.equal(options.cache, 'no-store');
-    assert.equal(options.credentials, 'omit');
+    assert.equal(options.credentials, 'same-origin');
     assert.equal(options.signal.aborted, false);
     controller.abort();
     assert.equal(options.signal.aborted, true);

@@ -46,7 +46,7 @@ export async function trackingRequest(action, payload = {}, accessToken, options
   const timeout = setTimeout(cancel, 15_000);
   try {
     const response = await fetch('/api/tracking', {
-      method: 'POST', cache: 'no-store', credentials: 'omit',
+      method: 'POST', cache: 'no-store', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
       body: JSON.stringify({ ...payload, action }),
       signal: controller.signal,
