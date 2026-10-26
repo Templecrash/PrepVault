@@ -4155,9 +4155,9 @@ function RallyMiniMap({ coords, color }) {
   return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
-function CommunityTab({ items, user, contacts, setContacts, rationPeople, setRationPeople, dailyCalTarget, setDailyCalTarget, onResetPeople, onSignIn }) {
+function CommunityTab({ user, contacts, setContacts, onSignIn }) {
   const [comSub, setComSub] = useState("people");
-  const subTabs = [{ id: "people", label: "People" }, { id: "tracker", label: "Tracker" }, { id: "rationing", label: "Rationing" }];
+  const subTabs = [{ id: "people", label: "People" }, { id: "tracker", label: "Tracker" }];
   return (
     <div>
       <nav className="pv-people-sections" aria-label="People sections">
@@ -4166,7 +4166,6 @@ function CommunityTab({ items, user, contacts, setContacts, rationPeople, setRat
         ))}
       </nav>
       {comSub === "tracker" && <LiveTracker key={user?.id || "visitor"} user={user} contacts={contacts} onSignIn={onSignIn} />}
-      {comSub === "rationing" && <RationingPlanner items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />}
       {comSub === "people" && <PeopleDirectory contacts={contacts} setContacts={setContacts} />}
     </div>
   );
@@ -7696,7 +7695,9 @@ export default function PrepVault() {
       case "preps":
         return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":
-        return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} items={propItems} user={user} contacts={contacts} setContacts={setContacts} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople} />;
+        return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} user={user} contacts={contacts} setContacts={setContacts} />;
+      case "rationing":
+        return <RationingPlanner items={propItems} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
@@ -7771,6 +7772,7 @@ export default function PrepVault() {
   const pageMeta = {
     property: ["Your property", "Places, access, routes, and connected systems. All in one place."],
     community: ["Your people", "Stay connected to the people you count on."],
+    rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
     comms: ["Stay in touch", "A shared plan for communicating when it matters."],
     farming: ["Grow & sustain", "Build a more self-sufficient everyday, season by season."],
     simulate: ["Scenario lab", "Explore your supplies under different conditions. Planning estimates, not predictions."],
@@ -7954,7 +7956,7 @@ export default function PrepVault() {
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
@@ -7972,7 +7974,7 @@ export default function PrepVault() {
           { icon: "👋", title: "Welcome to PrepVault", desc: "Your personal continuity system. Let's take a quick tour of your preparedness dashboard.", action: "Start Tour" },
           { icon: "🏠", title: "Set Up Your Properties", desc: "Add your primary residence, bug-out locations, and cache sites. Each property tracks its own inventory independently.", action: "Next", tab: "property" },
           { icon: "📦", title: "Track Your Supplies", desc: "Use the Dashboard to add items across 20+ categories. Track quantities, locations, expiry dates, and consumption rates.", action: "Next", tab: "dashboard" },
-          { icon: "👥", title: "Connect Your People", desc: "Keep contact details in one place, find your group on the tracker, and plan shared food and water supplies.", action: "Next", tab: "community" },
+          { icon: "👥", title: "Connect Your People", desc: "Keep contact details in one place and find your group on the tracker.", action: "Next", tab: "community" },
           { icon: "📡", title: "Monitor Communications", desc: "Open Communications for live radio, check-in schedules, code words, and radio references.", action: "Finish", tab: "comms" },
         ];
         const step = steps[onboardStep];

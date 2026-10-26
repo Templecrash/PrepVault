@@ -9,6 +9,7 @@ const destinations = [
   { id: 'property', label: 'Property', icon: 'home' },
   { id: 'comms', label: 'Communications', icon: 'radio' },
   { id: 'community', label: 'Your people', icon: 'users' },
+  { id: 'rationing', label: 'Rationing', icon: 'ration' },
   { id: 'farming', label: 'Grow & sustain', icon: 'leaf', group: 'PLAN AHEAD' },
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },

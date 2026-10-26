@@ -15,6 +15,7 @@ export function Icon({ name = 'box', size = 20, ...props }) {
     check: <path d="m5 12 4 4L19 6"/>,
     clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
     users: <><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5v2"/></>,
+    ration: <><circle cx="12" cy="12" r="5"/><path d="M2 3v5c0 2 4 2 4 0V3M4 3v18M22 3c-3 3-3 8 0 9V3Zm0 9v9"/></>,
     radio: <><circle cx="12" cy="12" r="2"/><path d="M8 8a6 6 0 0 0 0 8m8-8a6 6 0 0 1 0 8M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14M12 14v7"/></>,
     leaf: <><path d="M20 3C8 2 2 8 5 16c8 4 15-2 15-13ZM4 21 15 10"/></>,
     shield: <><path d="M12 3 3 7v6c0 4 5 7 9 9 4-2 9-5 9-9V7Z"/><path d="m8 12 3 3 5-6"/></>,
