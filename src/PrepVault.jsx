@@ -5586,7 +5586,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
 
       {/* ═══ SCANNER ═══ */}
       {commsSub === "scanner" && (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="pv-comms-radio" style={{ display: "grid", gap: 12 }}>
           <RadioPlayer />
 
           {/* Saved frequency reference, separate from internet audio */}
@@ -5664,7 +5664,7 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
                 ))}
               </div>
               <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textAlign: "right", marginBottom: 4 }}>{filteredFreqs.length} frequencies</div>
-              <div style={{ display: "grid", gap: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 4 }}>
                 {filteredFreqs.map((f, i) => (
                   <div key={f.freq + f.name + i} style={{ ...cardSt, padding: "8px 12px", display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 4, height: 28, borderRadius: 2, background: priorityColor(f.priority), flexShrink: 0 }} />
