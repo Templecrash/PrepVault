@@ -3748,17 +3748,7 @@ function CameraFeedCanvas({ cam, expanded }) {
   return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
 }
 
-function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, revealedCodes, setRevealedCodes, user, items }) {
-  const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
-  const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
-  const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
-  const [expandedCam, setExpandedCam] = useState(null);
-  const [accessDropdown, setAccessDropdown] = useState(null);
-  const [liveCameras, setLiveCameras] = useState(null);
-  const [liveAlarm, setLiveAlarm] = useState(null);
-  const [liveNestDevices, setLiveNestDevices] = useState(null);
-  const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
-  useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
+function DependenciesTab({ items }) {
   const [expandedDep, setExpandedDep] = useState(null);
   const DEPENDENCY_TREE = useMemo(() => {
     const hasSolar = items.filter((i) => i.category === "electronics" && i.subType === "solarGadget").length > 0;
@@ -3785,8 +3775,84 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
     ];
   }, [items]);
 
+  return (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔌 Hidden Dependency Map</h3>
+            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Appliances and amenities that silently fail when their dependencies go down</div>
+          </div>
+          <div className="pcs-sys-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+            {[
+              { label: "Critical", count: DEPENDENCY_TREE.filter((d) => d.risk === "critical").length, color: "#ef4444", desc: "Life-safety risk" },
+              { label: "No Backup", count: DEPENDENCY_TREE.filter((d) => !d.backup).length, color: "#f59e0b", desc: "Single point of failure" },
+              { label: "Hidden", count: DEPENDENCY_TREE.filter((d) => d.hidden).length, color: "#a855f7", desc: "Fails silently" },
+            ].map((s, i) => (
+              <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + s.color }}>
+                <div style={{ fontSize: 28, fontWeight: 800, fontFamily: M, color: s.color }}>{s.count}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{s.desc}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
+            {DEPENDENCY_TREE.map((dep) => {
+              const riskCol = dep.risk === "critical" ? "#ef4444" : dep.risk === "high" ? "#f59e0b" : "#22c55e";
+              const hasBackup = !!dep.backup;
+              const isExp = expandedDep === dep.id;
+              return (
+                <div key={dep.id}>
+                  <button aria-expanded={isExp} aria-controls={isExp ? `dependency-${dep.id}` : undefined} onClick={() => setExpandedDep(isExp ? null : dep.id)} style={{ width: "100%", ...cardSt, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#243d30", borderLeft: "4px solid " + riskCol, background: isExp ? "rgba(36,61,48,0.03)" : "rgba(36,61,48,0.02)" }}>
+                    <div className="pv-dependency-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>{dep.icon}</span>
+                      <div className="pv-dependency-main" style={{ flex: 1 }}>
+                        <div className="pv-dependency-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>{dep.name}</span>
+                          {dep.hidden && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(168,85,247,0.15)", color: "#a855f7", fontWeight: 700 }}>HIDDEN</span>}
+                          <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: riskCol + "15", color: riskCol, fontWeight: 700, textTransform: "uppercase" }}>{dep.risk}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Requires: <span style={{ color: "rgba(36,61,48,0.58)", fontFamily: M }}>{dep.depends}</span></div>
+                      </div>
+                      <div className="pv-dependency-backup" style={{ textAlign: "right" }}>{hasBackup ? <div style={{ fontSize: 11, color: "#22c55e" }}>✓ {dep.backup}</div> : <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>✗ NO BACKUP</div>}</div>
+                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transform: isExp ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+                    </div>
+                  </button>
+                  {isExp && (
+                    <div id={`dependency-${dep.id}`} style={{ marginLeft: 20, borderLeft: "2px solid " + riskCol + "30", padding: "12px 16px", background: "rgba(47,76,39,0.01)" }}>
+                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.7, marginBottom: 10 }}>{dep.desc}</div>
+                      <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, borderLeft: "3px solid #22c55e" }}>
+                        <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Mitigation</div>
+                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>{dep.fix}</div>
+                      </div>
+                      <div className="pv-dependency-chain" style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 10 }}>
+                        <div style={{ padding: "4px 10px", borderRadius: 6, background: riskCol + "10", border: "1px solid " + riskCol + "30", fontSize: 11, fontWeight: 700, color: riskCol }}>{dep.name}</div>
+                        <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(36,61,48,0.1)" strokeWidth="1.5" /><polygon points="22,2 30,6 22,10" fill="rgba(36,61,48,0.15)" /></svg>
+                        <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 11, fontWeight: 600, color: "rgba(239,68,68,0.6)" }}>{dep.depends}</div>
+                        {hasBackup && (<><svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(34,197,94,0.2)" strokeWidth="1.5" strokeDasharray="3,2" /><polygon points="22,2 30,6 22,10" fill="rgba(34,197,94,0.3)" /></svg><div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 11, fontWeight: 600, color: "#22c55e" }}>↻ {dep.backup}</div></>)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+  );
+}
+
+function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, revealedCodes, setRevealedCodes, user, items }) {
+  const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+  const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+  const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
+  const [expandedCam, setExpandedCam] = useState(null);
+  const [accessDropdown, setAccessDropdown] = useState(null);
+  const [liveCameras, setLiveCameras] = useState(null);
+  const [liveAlarm, setLiveAlarm] = useState(null);
+  const [liveNestDevices, setLiveNestDevices] = useState(null);
+  const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
+  useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
+
   const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
-  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "deps", l: "Dependencies", i: "🔌" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "systems", l: "Systems", i: "🏠" }];
+  const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "codes", l: "Codes", i: "🔑" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "manuals", l: "Manuals", i: "📖" }, { id: "systems", l: "Systems", i: "🏠" }];
   const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
 
   const handleAuth = async (setter, state, provider) => {
@@ -4094,70 +4160,6 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
           </div>
         );
       })()}
-
-      {/* ═══ Hidden Dependencies ═══ */}
-      {propSub === "deps" && (
-        <div>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔌 Hidden Dependency Map</h3>
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Appliances and amenities that silently fail when their dependencies go down</div>
-          </div>
-          <div className="pcs-sys-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
-            {[
-              { label: "Critical", count: DEPENDENCY_TREE.filter((d) => d.risk === "critical").length, color: "#ef4444", desc: "Life-safety risk" },
-              { label: "No Backup", count: DEPENDENCY_TREE.filter((d) => !d.backup).length, color: "#f59e0b", desc: "Single point of failure" },
-              { label: "Hidden", count: DEPENDENCY_TREE.filter((d) => d.hidden).length, color: "#a855f7", desc: "Fails silently" },
-            ].map((s, i) => (
-              <div key={i} style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + s.color }}>
-                <div style={{ fontSize: 28, fontWeight: 800, fontFamily: M, color: s.color }}>{s.count}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{s.desc}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "grid", gap: 6 }}>
-            {DEPENDENCY_TREE.map((dep) => {
-              const riskCol = dep.risk === "critical" ? "#ef4444" : dep.risk === "high" ? "#f59e0b" : "#22c55e";
-              const hasBackup = !!dep.backup;
-              const isExp = expandedDep === dep.id;
-              return (
-                <div key={dep.id}>
-                  <button onClick={() => setExpandedDep(isExp ? null : dep.id)} style={{ width: "100%", ...cardSt, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#243d30", borderLeft: "4px solid " + riskCol, background: isExp ? "rgba(36,61,48,0.03)" : "rgba(36,61,48,0.02)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 20 }}>{dep.icon}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>{dep.name}</span>
-                          {dep.hidden && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(168,85,247,0.15)", color: "#a855f7", fontWeight: 700 }}>HIDDEN</span>}
-                          <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: riskCol + "15", color: riskCol, fontWeight: 700, textTransform: "uppercase" }}>{dep.risk}</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Requires: <span style={{ color: "rgba(36,61,48,0.58)", fontFamily: M }}>{dep.depends}</span></div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>{hasBackup ? <div style={{ fontSize: 11, color: "#22c55e" }}>✓ {dep.backup}</div> : <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>✗ NO BACKUP</div>}</div>
-                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transform: isExp ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
-                    </div>
-                  </button>
-                  {isExp && (
-                    <div style={{ marginLeft: 20, borderLeft: "2px solid " + riskCol + "30", padding: "12px 16px", background: "rgba(47,76,39,0.01)" }}>
-                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.7, marginBottom: 10 }}>{dep.desc}</div>
-                      <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, borderLeft: "3px solid #22c55e" }}>
-                        <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Mitigation</div>
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>{dep.fix}</div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 10 }}>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: riskCol + "10", border: "1px solid " + riskCol + "30", fontSize: 11, fontWeight: 700, color: riskCol }}>{dep.name}</div>
-                        <svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(36,61,48,0.1)" strokeWidth="1.5" /><polygon points="22,2 30,6 22,10" fill="rgba(36,61,48,0.15)" /></svg>
-                        <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 11, fontWeight: 600, color: "rgba(239,68,68,0.6)" }}>{dep.depends}</div>
-                        {hasBackup && (<><svg width="30" height="12" viewBox="0 0 30 12"><line x1="0" y1="6" x2="22" y2="6" stroke="rgba(34,197,94,0.2)" strokeWidth="1.5" strokeDasharray="3,2" /><polygon points="22,2 30,6 22,10" fill="rgba(34,197,94,0.3)" /></svg><div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", fontSize: 11, fontWeight: 600, color: "#22c55e" }}>↻ {dep.backup}</div></>)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {propSub === "manuals" && <div>{manuals.map((m) => (<div key={m.id} style={{ ...cardSt, padding: "12px 16px", marginBottom: 6, borderLeft: "3px solid " + (m.priority === "high" ? "#ef4444" : "#f59e0b") }}><div style={{ fontSize: 13, fontWeight: 700 }}>{m.title} <span style={{ fontSize: 11, color: m.priority === "high" ? "#ef4444" : "#f59e0b", fontWeight: 700 }}>{m.priority.toUpperCase()}</span></div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{m.desc}</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 4 }}>📄 {m.file}</div></div>))}</div>}
 
@@ -8365,6 +8367,8 @@ export default function PrepVault() {
         return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onSetup={openSetup} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} profile={propertyProfile}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "property":
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
+      case "dependencies":
+        return <DependenciesTab items={propItems} />;
       case "preps":
         return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":
@@ -8441,6 +8445,7 @@ export default function PrepVault() {
   if (showLanding) return <Welcome onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { setShowAuth(true); setAuthMode("login"); }}>{showAuth && renderAuthModal()}</Welcome>;
 
   const pageMeta = {
+    dependencies: ["Dependencies", "See what your supplies and household systems rely on, and where a backup could help."],
     property: ["Your property", "Places, access, routes, and connected systems. All in one place."],
     community: ["Your people", "Stay connected to the people you count on."],
     comms: ["Stay in touch", "A shared plan for communicating when it matters."],
@@ -8625,6 +8630,7 @@ export default function PrepVault() {
       })()}
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); openSetup(); } }}>Start my own plan →</button></div>}
+      {["preps", "dependencies"].includes(activeTab) && <nav className="pv-supplies-sections" aria-label="Supplies sections"><button className={activeTab === "preps" ? "is-active" : ""} aria-current={activeTab === "preps" ? "page" : undefined} onClick={() => navigate("preps")}><Icon name="box" size={17}/>Inventory</button><button className={activeTab === "dependencies" ? "is-active" : ""} aria-current={activeTab === "dependencies" ? "page" : undefined} onClick={() => navigate("dependencies")}><Icon name="bolt" size={17}/>Dependencies</button></nav>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
       <div key={restoreVersion} className={selCat || !["dashboard", "preps"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 

@@ -7,13 +7,13 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | Destination | Included tools |
 | --- | --- |
 | Overview | Recorded category coverage, essential supplies, priority alerts, household setup, detailed readiness analysis, weather and activity |
-| Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar and category calculations |
+| Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations and a dedicated Dependencies section |
 | Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
 | Your people | Contacts, medical/skill information, location tracker, skills and rationing |
 | Communications | Live radio, saved custom streams, frequency reference, codes, equipment, local notes, community chat, comms plans and rally points |
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
 | Scenario lab | Original scenarios, household/climate controls, duration estimates and scenario guidance |
-| Resource planning | Stock estimates, conversions, trade-offs, system dependencies and opportunities |
+| Resource planning | Stock estimates, conversions, trade-offs and opportunities |
 
 ## Run locally
 
