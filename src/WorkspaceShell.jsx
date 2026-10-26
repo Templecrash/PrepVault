@@ -5,10 +5,9 @@ import { Brand, Icon } from './brand.jsx';
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
   { id: 'preps', label: 'Supplies', icon: 'box', children: [{ id: 'dependencies', label: 'Dependencies', icon: 'bolt' }] },
-  { id: 'property', label: 'Property', icon: 'home' },
+  { id: 'property', label: 'Property', icon: 'home', children: [{ id: 'comms', label: 'Communications', icon: 'radio' }] },
   { id: 'community', label: 'Your people', icon: 'users' },
-  { id: 'comms', label: 'Communications', icon: 'radio', group: 'PLAN AHEAD' },
-  { id: 'farming', label: 'Grow & sustain', icon: 'leaf' },
+  { id: 'farming', label: 'Grow & sustain', icon: 'leaf', group: 'PLAN AHEAD' },
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },
 ];
