@@ -2,7 +2,7 @@
 
 **Ready for real life.** A household preparedness workspace for supplies, properties, people and practical planning.
 
-The 2.0 redesign adds a consistent forest-green identity, a responsive workspace, clear onboarding, an inventory-first overview and searchable supplies. The original specialist tools remain available alongside dedicated emergency and offline libraries.
+The 2.0 redesign adds a consistent forest-green identity, a responsive workspace, clear onboarding, an inventory-first overview and searchable supplies. The original specialist tools remain available alongside an Emergency library with offline access.
 
 | Destination | Included tools |
 | --- | --- |
@@ -15,8 +15,7 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
 | Scenario lab | Original scenarios, household/climate controls, duration estimates and scenario guidance |
 | Resource planning | Stock estimates, conversions, trade-offs and opportunities |
-| Emergency | Searchable original handbooks, in-site PDF reader, publisher/edition/license details, individual PDF downloads and a portable ZIP pack |
-| Information resources | Verified offline copies, save-all with progress, per-guide removal and offline reopening |
+| Emergency | Searchable original handbooks, in-site PDF reader, publisher/edition/license details, individual PDF downloads, a portable ZIP pack, verified offline copies, save-all with progress, per-guide removal and offline reopening |
 
 ## Run locally
 
@@ -36,7 +35,7 @@ Rationing is available on Overview and Your people. Both views share the current
 
 ## Data and backups
 
-- The working plan lives in browser storage. **Save offline** in Emergency or Information resources explicitly saves the app shell and selected handbooks for reopening this same site without a connection. Browser cleanup or clearing site data can remove them. Online maps, weather, radio streams, cloud sync and other internet services still need a connection.
+- The working plan lives in browser storage. **Save offline** in Emergency explicitly saves the app shell and selected handbooks for reopening this same site without a connection. Browser cleanup or clearing site data can remove them. Online maps, weather, radio streams, cloud sync and other internet services still need a connection.
 - **Settings & backups** can save a separate local snapshot or download an encrypted complete backup. Encrypting a backup does not encrypt the active browser storage. Property tools open directly; individual access codes remain hidden until revealed.
 - Backups preserve the main household collections and local feature settings. Account credentials and sync baselines are excluded. V3 inventory backups remain readable; V4 adds complete state and settings.
 - Encrypted backups retain the original AES-256-GCM format and PBKDF2-SHA256 derivation with 310,000 iterations. There is no passphrase recovery.
@@ -62,7 +61,7 @@ The catalog at `public/handbooks/sources.json` records original publisher/downlo
 
 - **Read guide** renders the original PDF in the site with PDF.js, including page selection, zoom and extractable page text. The reader and its worker are saved with the app shell for offline use. Original-PDF links and direct downloads remain available.
 - **Save all offline** prepares the production app shell and verifies each complete PDF before adding it to this browser's cache. Actual cache contents determine saved status. Interrupted or failed downloads can be retried; completed copies remain.
-- **Information resources** lists saved guides. These copies are local to this browser and origin, and are separate from account sync and household backups. A different preview hostname has a different offline library.
+- **Saved offline only** in Emergency filters the collection to saved guides. These copies are local to this browser and origin, and are separate from account sync and household backups. A different preview hostname has a different offline library.
 - **Download all PDFs (ZIP)** gives an independent archive with a local HTML index and source/rights metadata. Extract it before opening `OPEN-ME.html`. Regenerate after catalog changes with `python3 scripts/build-handbook-pack.py`.
 - The build generates `handbook-sw.js` with exact-build HTML and static assets. The worker handles PDF byte ranges and never caches API requests, authentication responses, third-party services or private data. Offline saving is available in the HTTPS deployment and localhost production preview; development mode deliberately does not register a worker.
 

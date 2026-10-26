@@ -13,7 +13,6 @@ const destinations = [
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },
   { id: 'emergency', label: 'Emergency', icon: 'shield', group: 'REFERENCE LIBRARY' },
-  { id: 'resources', label: 'Information resources', icon: 'book' },
 ];
 
 function PropertyDialog({ onClose, children }) {

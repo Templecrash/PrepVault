@@ -3,7 +3,6 @@
 .pv-handbook-intro>div{max-width:610px}
 .pv-handbook-intro h1{font-size:34px;line-height:1.2;font-weight:500;letter-spacing:-1.2px;margin:9px 0 12px}
 .pv-handbook-intro p{font-size:13px;line-height:1.8;color:#74816a;margin:0;max-width:560px}
-.pv-handbook-section-link{flex-shrink:0;font-size:11px;align-self:center;background:#fff}
 .pv-handbook-save-panel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:20px;align-items:center;border:1px solid #dbe4d1;border-radius:12px;background:#eef3e8;padding:23px 25px 0;margin-bottom:18px}
 .pv-handbook-save-icon{display:grid;place-items:center;width:52px;height:58px;border:1px solid #d4dec8;background:#f8faf2;border-radius:10px;color:#5e7a4e}
 .pv-handbook-save-copy h2{font-size:18px;font-weight:500;letter-spacing:-.3px;margin:0 0 7px}
@@ -29,6 +28,8 @@
 .pv-handbook-collection-heading h2{font-size:20px;font-weight:500;letter-spacing:-.4px;margin:0}
 .pv-handbook-collection-heading>span{font-size:11px;color:#87927c}
 .pv-handbook-filters{display:flex;align-items:center;gap:10px;margin-bottom:17px}
+.pv-handbook-saved-filter{display:flex;align-items:center;gap:8px;flex-shrink:0;min-height:44px;font-size:11px;color:#637855;cursor:pointer}
+.pv-handbook-saved-filter input{width:16px;height:16px;margin:0;accent-color:#557448;cursor:pointer}
 .pv-handbook-search{display:flex;align-items:center;gap:9px;flex:1;min-width:0;border:1px solid #dfe6d8;border-radius:8px;background:#fff;padding:0 12px;color:#819275}
 .pv-handbook-search input{font:inherit;font-size:12px;border:0!important;box-shadow:none!important;background:transparent;color:#3a5630;padding:12px 0;min-width:0;width:100%;outline:0}
 .pv-handbook-search:focus-within{outline:2px solid #92aa7d;outline-offset:2px}
@@ -91,7 +92,7 @@
 .pv-handbook-page-text summary{cursor:pointer}
 .pv-handbook-page-text p{white-space:pre-wrap;line-height:1.7;margin:12px 0 3px}
 .pv-handbook-reader-note{font-size:10px;line-height:1.5;color:#849677;margin:0;padding:9px 22px}
-@media(max-width:800px){.pv-handbook-intro{flex-direction:column;gap:16px}.pv-handbook-section-link{align-self:flex-start}.pv-handbook-intro h1{font-size:29px}.pv-handbook-save-panel{padding:19px 20px 0;gap:16px}.pv-handbook-save-icon{width:44px;height:50px}.pv-handbook-save-copy h2{font-size:16px}.pv-handbook-save-panel>.pv-button{grid-column:2;justify-self:start}.pv-handbook-save-footer{grid-column:1/-1}.pv-handbook-care-note{align-items:flex-start;flex-wrap:wrap}.pv-handbook-care-note button{margin-left:31px;margin-top:-9px}.pv-handbook-card{padding:20px;gap:18px;grid-template-columns:60px minmax(0,1fr)}.pv-handbook-cover{width:60px;height:84px}.pv-handbook-cover>svg{width:23px;height:23px}.pv-handbook-cover>span{font-size:5px}.pv-handbook-actions .pv-handbook-offline-action{margin-left:0}}
+@media(max-width:800px){.pv-handbook-intro{flex-direction:column;gap:16px}.pv-handbook-intro h1{font-size:29px}.pv-handbook-save-panel{padding:19px 20px 0;gap:16px}.pv-handbook-save-icon{width:44px;height:50px}.pv-handbook-save-copy h2{font-size:16px}.pv-handbook-save-panel>.pv-button{grid-column:2;justify-self:start}.pv-handbook-save-footer{grid-column:1/-1}.pv-handbook-care-note{align-items:flex-start;flex-wrap:wrap}.pv-handbook-care-note button{margin-left:31px;margin-top:-9px}.pv-handbook-card{padding:20px;gap:18px;grid-template-columns:60px minmax(0,1fr)}.pv-handbook-cover{width:60px;height:84px}.pv-handbook-cover>svg{width:23px;height:23px}.pv-handbook-cover>span{font-size:5px}.pv-handbook-actions .pv-handbook-offline-action{margin-left:0}}
 @media(max-width:520px){.pv-handbook-intro h1{font-size:28px}.pv-handbook-intro p{font-size:12px}.pv-handbook-save-panel{padding:17px 16px 0;gap:13px;grid-template-columns:auto minmax(0,1fr)}.pv-handbook-save-panel>.pv-button{grid-column:1/-1;justify-self:stretch;justify-content:center}.pv-handbook-save-copy h2{font-size:15px}.pv-handbook-save-copy p{font-size:11px}.pv-handbook-filters{flex-direction:column;align-items:stretch}.pv-handbook-category select{width:100%;max-width:none}.pv-handbook-card{grid-template-columns:minmax(0,1fr);padding:19px 17px}.pv-handbook-cover{display:none}.pv-handbook-book h3{font-size:16px}.pv-handbook-book>p{font-size:11px}.pv-handbook-actions{gap:9px 17px}.pv-handbook-actions .pv-handbook-offline-action{margin-left:auto}.pv-handbook-reader-backdrop{padding:8px}.pv-handbook-reader{height:calc(100dvh - 16px);border-radius:9px}.pv-handbook-reader-heading{padding:15px 14px 9px}.pv-handbook-reader-heading h2{font-size:15px}.pv-handbook-reader-tools{padding:0 14px 12px;gap:8px 13px}.pv-handbook-reader-note{padding:8px 14px}.pv-handbook-footnote p{font-size:9px}}
 
 .pv-handbook-book .pv-handbook-edition-note{font-size:12px;color:#667261;border-left:2px solid #d4dfca;padding-left:10px;margin-top:10px}
