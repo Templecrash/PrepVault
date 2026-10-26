@@ -8,6 +8,9 @@ import Welcome from "./Welcome.jsx";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
 import DependenciesView from "./DependenciesView.jsx";
+import ResourcePlanningView from "./ResourcePlanningView.jsx";
+import ResourceOpportunitiesView from "./ResourceOpportunitiesView.jsx";
+import { computeResourcePools } from "./resource-planning.js";
 import PeopleDirectory from "./PeopleDirectory.jsx";
 import LiveTracker from "./LiveTracker.jsx";
 import RationingPlanner from "./RationingPlanner.jsx";
@@ -5249,37 +5252,30 @@ function CommsTab({ items, people, climate, callSigns, setCallSigns, codeWords, 
 /* ═══════════════════════════════════════════════════════════════
    OPPORTUNITIES TAB — Score-Based Improvement Recommendations
    ═══════════════════════════════════════════════════════════════ */
-function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps, propertyProfile }) {
-  const M = "'DM Sans',sans-serif";
-  const accent = "#214c39";
-  const cardSt = { background: "#ffffff", borderRadius: 10, border: "1px solid #e0e6da" };
-  const [oppFilter, setOppFilter] = useState("all");
-  const [showDismissed, setShowDismissed] = useState(false);
-
-  /* ── Continuity Metrics (replicated from DashboardTab) ── */
+function OpportunitiesTab({ items: allItems, people, climate, gardenBeds, dismissedOpps, setDismissedOpps, propertyProfile }) {
+  // Presence and coverage describe available stock, not empty inventory rows.
+  const items = useMemo(() => allItems.filter(item => Number.isFinite(Number(item.quantity)) && Number(item.quantity) > 0).map(item => ({ ...item, quantity: Number(item.quantity) })), [allItems]);
+  /* ── Continuity Metrics ── */
   const cont = useMemo(() => {
     const clim = CLIMATES[climate] || CLIMATES.temperate;
     const waterMod = clim.waterMod || 1;
     const firewoodMod = clim.firewoodMod || 1;
     const p = people || 1;
-    const fuelGals = items.filter(i => i.category === "fuel" && (i.subType === "gasoline" || i.subType === "diesel")).reduce((s, i) => s + (parseFloat(i.fields?.gallons) || 0) * (i.quantity || 1), 0);
+    const pools = computeResourcePools(items, p, clim);
+    const fuelGals = items.filter(i => i.category === "fuel" && (i.subType === "gasoline" || i.subType === "diesel")).reduce((s, i) => s + i.quantity, 0);
     const propaneTanks = items.filter(i => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
     const batteries = items.filter(i => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
     const solarPanels = items.filter(i => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
     const powerHrs = fuelGals * 5.5 + batteries * 0.3 + solarPanels * 5;
-    const waterStored = items.filter(i => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
+    const waterStored = pools.waterGals;
     const waterFilters = items.filter(i => i.category === "water" && (i.subType === "purificationDevice" || i.subType === "purificationTablets")).reduce((s, i) => s + (i.quantity || 0), 0);
     const dailyWater = p * 1.0 * waterMod;
     const waterDays = (waterStored / Math.max(dailyWater, 0.1)) + (waterFilters * 3);
-    const firewoodCords = items.filter(i => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
+    const firewoodCords = pools.firewoodCords;
     const propaneHeatDays = (propaneTanks * 4.6 * 91452 / 18000) / 12;
     const firewoodDays = firewoodCords * 30;
     const heatDays = firewoodMod > 1 ? (firewoodDays + propaneHeatDays) / firewoodMod : firewoodDays + propaneHeatDays + 30;
-    const totalCals = items.filter(i => i.category === "food").reduce((s, i) => {
-      const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
-      const serv = parseFloat(i.fields?.servings || 1);
-      return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1);
-    }, 0);
+    const totalCals = pools.totalCals;
     const calDays = totalCals / Math.max(p * 2000, 1);
     const commCh = new Set();
     items.filter(i => i.category === "electronics").forEach(i => {
@@ -5498,584 +5494,7 @@ function OpportunitiesTab({ items, people, climate, gardenBeds, dismissedOpps, s
     return opps;
   }, [items, people, climate, cont, prepScore, gardenBeds]);
 
-  // Filter
-  const activeOpps = opportunities.filter(o => !dismissedOpps.includes(o.id));
-  const dismissed = opportunities.filter(o => dismissedOpps.includes(o.id));
-  const filtered = oppFilter === "all" ? activeOpps : activeOpps.filter(o => o.priority === oppFilter);
-
-  // Potential score (if ALL active opps acted on)
-  const potentialScore = activeOpps.length > 0 ? Math.min(100, Math.max(...activeOpps.map(o => o.scoreAfter))) : prepScore;
-
-  const filterPills = [
-    { id: "all", l: "All", c: accent },
-    { id: "critical", l: "Critical", c: "#ef4444" },
-    { id: "high", l: "High", c: "#f97316" },
-    { id: "medium", l: "Medium", c: "#eab308" },
-    { id: "low", l: "Low", c: "#84cc16" },
-  ];
-
-  return (
-    <div style={{ display: "grid", gap: 12 }}>
-      {/* ── Fragility Analysis ── */}
-      {cont.frag && cont.frag.length > 0 && (
-        <div style={{ ...cardSt, padding: "10px 16px" }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(239,68,68,0.5)", fontWeight: 700, marginBottom: 6 }}>⚠ Fragility Analysis</div>
-          <div style={{ display: "grid", gap: 4 }}>
-            {cont.frag.map((f, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: f.sev === "critical" ? "rgba(239,68,68,0.04)" : "rgba(245,158,11,0.03)", borderRadius: 6, borderLeft: "2px solid " + (f.sev === "critical" ? "#ef4444" : "#f59e0b") }}>
-                <span style={{ fontSize: 12 }}>{f.icon}</span>
-                <span style={{ fontSize: 11, color: f.sev === "critical" ? "rgba(239,68,68,0.7)" : "rgba(245,158,11,0.7)", fontStyle: "italic" }}>{f.msg}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* ── Summary Bar ── */}
-      <div style={{ ...cardSt, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>CURRENT</span>
-            <span style={{ fontSize: 20, fontWeight: 900, color: SC(prepScore), fontFamily: M }}>{prepScore}</span>
-          </div>
-          {activeOpps.length > 0 && <>
-            <span style={{ fontSize: 14, color: "rgba(36,61,48,0.58)" }}>→</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>POTENTIAL</span>
-              <span style={{ fontSize: 20, fontWeight: 900, color: SC(potentialScore), fontFamily: M }}>{potentialScore}</span>
-            </div>
-            <span style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, fontFamily: M, background: "rgba(34,197,94,0.1)", padding: "2px 6px", borderRadius: 4 }}>+{potentialScore - prepScore} pts</span>
-          </>}
-        </div>
-        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{activeOpps.length} opportunit{activeOpps.length === 1 ? "y" : "ies"} found</span>
-      </div>
-
-      {/* ── Filter Pills ── */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-        {filterPills.map(fp => (
-          <button key={fp.id} onClick={() => setOppFilter(fp.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${oppFilter === fp.id ? fp.c : "rgba(36,61,48,0.08)"}`, background: oppFilter === fp.id ? `${fp.c}15` : "transparent", color: oppFilter === fp.id ? fp.c : "rgba(36,61,48,0.4)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-            {fp.l}{fp.id !== "all" && ` (${activeOpps.filter(o => o.priority === fp.id).length})`}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Opportunity Cards ── */}
-      {filtered.length === 0 && activeOpps.length === 0 && (
-        <div style={{ ...cardSt, padding: "40px 20px", textAlign: "center" }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>All Optimized</div>
-          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Your preparedness is well-balanced. Keep maintaining your supplies.</div>
-        </div>
-      )}
-
-      {filtered.length === 0 && activeOpps.length > 0 && (
-        <div style={{ ...cardSt, padding: "20px", textAlign: "center" }}>
-          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No {oppFilter} priority opportunities</div>
-        </div>
-      )}
-
-      {filtered.map(opp => (
-        <div key={opp.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderLeft: `3px solid ${opp.prioColor}` }}>
-          <div style={{ padding: "12px 14px" }}>
-            {/* Header row */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-                <span style={{ fontSize: 18 }}>{opp.icon}</span>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>{opp.title}</div>
-                  <span style={{ fontSize: 11, color: opp.prioColor, fontWeight: 700, textTransform: "uppercase", fontFamily: M }}>{opp.priority}</span>
-                </div>
-              </div>
-              <button onClick={() => setDismissedOpps(p => [...p, opp.id])} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Dismiss">✕</button>
-            </div>
-
-            {/* Description */}
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.5, marginBottom: 8 }}>{opp.desc}</div>
-
-            {/* Recommended Action */}
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.7)", lineHeight: 1.5, padding: "6px 8px", background: "rgba(47,76,39,0.02)", borderRadius: 6, border: "1px solid #e5eadd", marginBottom: 10 }}>
-              <span style={{ fontSize: 11, color: accent, fontWeight: 700, textTransform: "uppercase", fontFamily: M, display: "block", marginBottom: 3 }}>Recommended</span>
-              {opp.action}
-            </div>
-
-            {/* Score Impact */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{opp.scoreNow} → {opp.scoreAfter}</span>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e", fontFamily: M }}>+{opp.pointsGain} pts</span>
-                </div>
-                <div style={{ height: 4, background: "rgba(47,76,39,0.06)", borderRadius: 2, overflow: "hidden", position: "relative" }}>
-                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${opp.scoreNow}%`, background: SC(opp.scoreNow), borderRadius: 2, transition: "width 0.3s" }} />
-                  <div style={{ position: "absolute", left: `${opp.scoreNow}%`, top: 0, height: "100%", width: `${opp.scoreAfter - opp.scoreNow}%`, background: `${SC(opp.scoreAfter)}60`, borderRadius: "0 2px 2px 0" }} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-
-      {/* ── Dismissed Section ── */}
-      {dismissed.length > 0 && (
-        <div style={{ marginTop: 4 }}>
-          <button onClick={() => setShowDismissed(!showDismissed)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, padding: "4px 0" }}>
-            <span style={{ transition: "transform 0.2s", display: "inline-block", transform: showDismissed ? "rotate(90deg)" : "none" }}>▸</span>
-            Dismissed ({dismissed.length})
-            {dismissed.length > 0 && <span onClick={(e) => { e.stopPropagation(); setDismissedOpps([]); }} style={{ marginLeft: 8, color: accent, textDecoration: "underline", cursor: "pointer" }}>Restore All</span>}
-          </button>
-          {showDismissed && dismissed.map(opp => (
-            <div key={opp.id} style={{ ...cardSt, padding: "8px 12px", marginTop: 4, opacity: 0.45, display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `3px solid ${opp.prioColor}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 14 }}>{opp.icon}</span>
-                <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{opp.title}</span>
-                <span style={{ fontSize: 11, color: opp.prioColor, fontWeight: 700, fontFamily: M }}>+{opp.pointsGain}</span>
-              </div>
-              <button onClick={() => setDismissedOpps(p => p.filter(d => d !== opp.id))} style={{ background: "none", border: "1px solid #dce3d5", borderRadius: 4, color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, padding: "2px 6px", fontFamily: "inherit" }}>↩ Restore</button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   SYSTEMS TAB — Resource Conversion, Trade-offs, Dependency Graphs
-   ═══════════════════════════════════════════════════════════════ */
-function SystemsTab({ items, people, climate, gardenBeds, dismissedOpps, setDismissedOpps, propertyProfile }) {
-  const M = "'DM Sans',sans-serif";
-  const cardSt = { background: "#ffffff", border: "1px solid #e0e6da", borderRadius: 10 };
-  const [sysSub, setSysSub] = useState("stock");
-  const [divertFrom, setDivertFrom] = useState("power");
-  const [divertTo, setDivertTo] = useState("heat");
-  const [divertPct, setDivertPct] = useState(25);
-
-  const subs = [{ id: "stock", l: "Resources", i: "📊" }, { id: "convert", l: "Conversions", i: "⚡" }, { id: "tradeoff", l: "Trade-offs", i: "⚖️" }, { id: "graph", l: "System Map", i: "🔗" }, { id: "opps", l: "Opportunities", i: "💡" }];
-
-  /* ── Resource Conversion Constants ── */
-  const CONVERSIONS = {
-    propane_heat: { input: "1 gal propane", output: "91,452 BTU", equiv: "~5.1 hrs heat (18,000 BTU portable heater)", rate: 5.1, unit: "hrs heat" },
-    propane_cook: { input: "1 gal propane", output: "91,452 BTU", equiv: "~11 hrs cooking (8,000 BTU camp stove)", rate: 11, unit: "hrs cooking" },
-    gasoline_gen: { input: "1 gal gasoline", output: "~5.5 hrs generator", equiv: "5,500 Wh at 1kW half load (Honda EU2200i)", rate: 5.5, unit: "hrs gen" },
-    firewood_heat: { input: "1 cord hardwood", output: "~24M BTU", equiv: "~30 days home heating (non-catalytic stove)", rate: 30, unit: "days heat" },
-    battery_aa: { input: "1 AA battery", output: "~3,000 mAh", equiv: "~20 hrs flashlight / 8 hrs radio", rate: 20, unit: "hrs light" },
-    solar_100w: { input: "100W solar panel", output: "~500 Wh/day", equiv: "~5 hrs equiv. grid power/day", rate: 5, unit: "hrs/day" },
-    water_per_person: { input: "1 gal water", output: "1 person-day", equiv: "FEMA minimum — drinking + basic sanitation", rate: 1, unit: "person-days" },
-    rice_cal: { input: "1 lb rice", output: "~1,650 cal", equiv: "~82% of daily need (1 person)", rate: 1650, unit: "calories" },
-    beans_cal: { input: "1 lb beans", output: "~1,540 cal", equiv: "~77% of daily need (1 person)", rate: 1540, unit: "calories" },
-    kwh_comms: { input: "1 kWh", output: "~50 hrs HAM radio", equiv: "TX: 5W avg × 10% duty cycle", rate: 50, unit: "hrs comms" },
-    kwh_light: { input: "1 kWh", output: "~100 hrs LED light", equiv: "10W LED × 100hrs", rate: 100, unit: "hrs light" },
-    kwh_heat: { input: "1 kWh", output: "3,412 BTU", equiv: "~0.15 hrs space heater (1500W)", rate: 0.67, unit: "hrs e-heat" },
-  };
-
-  /* ── Current Resource Inventory (computed) ── */
-  const resources = useMemo(() => {
-    const _clim = CLIMATES[climate] || CLIMATES.temperate;
-    const climMod = _clim.firewoodMod || 1;
-    const p = people || 4;
-    const fuelGals = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
-    const propaneGals = items.filter((i) => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0) * 4.6, 0);
-    const firewoodCords = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
-    const waterGals = items.filter((i) => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
-    const batteries = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
-    const solarPanels = items.filter((i) => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
-    const totalCals = items.filter((i) => i.category === "food").reduce((s, i) => {
-      const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
-      const serv = parseFloat(i.fields?.servings || 1);
-      return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1);
-    }, 0);
-
-    // Available energy pools (in kWh equivalent)
-    const genKwh = fuelGals * 5.5; // gen hrs × 1kW avg load
-    const propaneKwh = propaneGals * 91.452 * 0.293 / 1000; // BTU → kWh at ~100% eff
-    const solarDailyKwh = solarPanels * 0.5;
-    const batteryKwh = batteries * 0.003; // AA ≈ 3Wh
-
-    return { fuelGals, propaneGals, firewoodCords, waterGals, batteries, solarPanels, totalCals, genKwh, propaneKwh, solarDailyKwh, batteryKwh, totalKwh: genKwh + propaneKwh + batteryKwh, climMod, people: p };
-  }, [items, people, climate]);
-
-  /* ── System Dependency Graphs ── */
-  const SYSTEMS = [
-    { id: "water", label: "Water", icon: "💧", color: "#0ea5e9",
-      nodes: [
-        { id: "storage", label: "Storage", val: resources.waterGals, unit: "gal", status: resources.waterGals >= resources.people * 14 ? "green" : resources.waterGals >= resources.people * 3 ? "yellow" : "red" },
-        { id: "filtration", label: "Filtration", val: items.filter((i) => i.category === "water" && i.subType === "filter").reduce((s, i) => s + (i.quantity || 0), 0), unit: "filters", status: items.filter((i) => i.category === "water" && i.subType === "filter").length > 0 ? "green" : "red" },
-        { id: "purification", label: "Purification", val: items.filter((i) => i.category === "water" && i.subType === "purificationTablets").reduce((s, i) => s + (i.quantity || 0), 0), unit: "tabs", status: items.filter((i) => i.category === "water" && i.subType === "purificationTablets").length > 0 ? "green" : "red" },
-        { id: "energy", label: "Pump Energy", val: resources.genKwh > 0 || resources.solarDailyKwh > 0 ? "Yes" : "No", unit: "", status: resources.genKwh > 0 || resources.solarDailyKwh > 0 ? "green" : "red" },
-      ]
-    },
-    { id: "heat", label: "Heat", icon: "🔥", color: "#f97316",
-      nodes: [
-        { id: "fuel", label: "Fuel", val: resources.firewoodCords.toFixed(1) + " cord + " + resources.propaneGals.toFixed(0) + " gal", unit: "", status: resources.firewoodCords > 0 || resources.propaneGals > 0 ? "green" : "red" },
-        { id: "ignition", label: "Ignition", val: items.filter((i) => (i.category === "recreational" && i.subType === "lighters") || (i.category === "equipment" && i.name?.toLowerCase().includes("lighter"))).reduce((s, i) => s + (i.quantity || 0), 0), unit: "sources", status: items.filter((i) => i.category === "recreational" && i.subType === "lighters").length > 0 ? "green" : "red" },
-        { id: "ventilation", label: "Ventilation", val: "Manual", unit: "", status: resources.firewoodCords > 0 ? "green" : "yellow" },
-        { id: "backup", label: "Backup", val: new Set([resources.firewoodCords > 0 ? "wood" : null, resources.propaneGals > 0 ? "propane" : null, resources.fuelGals > 0 ? "gas" : null].filter(Boolean)).size, unit: "sources", status: new Set([resources.firewoodCords > 0 ? "wood" : null, resources.propaneGals > 0 ? "propane" : null].filter(Boolean)).size >= 2 ? "green" : "yellow" },
-      ]
-    },
-    { id: "power", label: "Power", icon: "⚡", color: "#eab308",
-      nodes: [
-        { id: "solar", label: "Solar", val: resources.solarPanels, unit: "panels", status: resources.solarPanels > 0 ? "green" : "red" },
-        { id: "generator", label: "Generator", val: resources.fuelGals.toFixed(0), unit: "gal fuel", status: resources.fuelGals > 0 ? "green" : "red" },
-        { id: "battery", label: "Battery Bank", val: resources.batteries, unit: "cells", status: resources.batteries >= 20 ? "green" : resources.batteries > 0 ? "yellow" : "red" },
-        { id: "inverter", label: "Inverter/UPS", val: items.filter((i) => i.category === "power" || (i.category === "electronics" && i.name?.toLowerCase().includes("inverter"))).length > 0 ? "Yes" : "No", unit: "", status: "yellow" },
-      ]
-    },
-    { id: "comms", label: "Communications", icon: "📡", color: "#a855f7",
-      nodes: [
-        { id: "primary", label: "Primary", val: "Cellular", unit: "", status: items.filter((i) => i.category === "electronics" && i.subType === "cellPhone").length > 0 ? "green" : "red" },
-        { id: "secondary", label: "Secondary", val: "HAM/GMRS", unit: "", status: items.filter((i) => i.category === "electronics" && i.subType === "radio").length > 0 || items.filter((i) => i.category === "comms").length > 0 ? "green" : "red" },
-        { id: "tertiary", label: "Tertiary", val: "Satellite", unit: "", status: items.filter((i) => i.category === "electronics" && i.subType === "satPhone").length > 0 ? "green" : "red" },
-        { id: "power_dep", label: "Power Dep.", val: resources.totalKwh > 0 ? "Backed" : "Grid-only", unit: "", status: resources.totalKwh > 0 ? "green" : "red" },
-      ]
-    },
-    { id: "food", label: "Food", icon: "🍽️", color: "#22c55e",
-      nodes: [
-        { id: "stored", label: "Stored Cal", val: Math.round(resources.totalCals).toLocaleString(), unit: "cal", status: resources.totalCals / Math.max(resources.people * 2000, 1) >= 30 ? "green" : resources.totalCals > 0 ? "yellow" : "red" },
-        { id: "production", label: "Production", val: items.filter((i) => i.category === "farm" && i.subType === "seedPacket").length, unit: "crops", status: items.filter((i) => i.category === "farm").length > 0 ? "green" : "red" },
-        { id: "protein", label: "Protein", val: items.filter((i) => i.category === "fishing").length + items.filter((i) => i.category === "firearms").length, unit: "sources", status: items.filter((i) => i.category === "fishing").length > 0 ? "green" : "yellow" },
-        { id: "preservation", label: "Preservation", val: items.filter((i) => i.category === "food" && (i.subType === "freezeDried" || i.subType === "canned")).reduce((s, i) => s + (i.quantity || 0), 0), unit: "items", status: items.filter((i) => i.category === "food" && i.subType === "freezeDried").length > 0 ? "green" : "yellow" },
-      ]
-    },
-  ];
-
-  /* ── Trade-off Simulation ── */
-  const tradeoff = useMemo(() => {
-    const systems = {
-      power: { label: "Power", icon: "⚡", totalKwh: resources.totalKwh + resources.solarDailyKwh * 7, uses: { light: resources.totalKwh * 100, comms: resources.totalKwh * 50, devices: resources.totalKwh * 20 } },
-      heat: { label: "Heat", icon: "🔥", totalBtu: resources.firewoodCords * 24000000 + resources.propaneGals * 91452, days: (resources.firewoodCords * 30) + ((resources.propaneGals * 91452) / (50000 * 12)) },
-      water: { label: "Water", icon: "💧", totalGal: resources.waterGals, days: resources.waterGals / Math.max(resources.people * resources.climMod, 0.1) },
-      food: { label: "Food", icon: "🍽️", totalCal: resources.totalCals, days: resources.totalCals / Math.max(resources.people * 2000, 1) },
-      comms: { label: "Comms", icon: "📡", hrs: resources.totalKwh * 50, channels: items.filter((i) => i.category === "electronics" && ["satPhone", "radio", "cellPhone"].includes(i.subType)).length },
-    };
-
-    // Simulate diversion
-    const pct = divertPct / 100;
-    const fromSys = { ...systems[divertFrom] };
-    const toSys = { ...systems[divertTo] };
-
-    let fromLoss = "", toGain = "", fromNewDays = 0, toNewDays = 0, fromOrigDays = 0, toOrigDays = 0;
-
-    if (divertFrom === "power" && divertTo === "heat") {
-      const kwDiverted = (resources.totalKwh * pct);
-      const btuGained = kwDiverted * 3412;
-      fromOrigDays = resources.totalKwh > 0 ? (resources.totalKwh / 2) : 0; // ~2kWh/day usage
-      fromNewDays = ((resources.totalKwh * (1 - pct)) / 2);
-      toOrigDays = systems.heat.days;
-      toNewDays = toOrigDays + (btuGained / (50000 * 12));
-      fromLoss = `−${kwDiverted.toFixed(1)} kWh (${(pct * 100).toFixed(0)}% of power budget)`;
-      toGain = `+${(btuGained / 1000).toFixed(0)}k BTU → +${(toNewDays - toOrigDays).toFixed(1)} days heat`;
-    } else if (divertFrom === "power" && divertTo === "comms") {
-      const kwDiverted = resources.totalKwh * pct;
-      fromOrigDays = resources.totalKwh > 0 ? (resources.totalKwh / 2) : 0;
-      fromNewDays = (resources.totalKwh * (1 - pct)) / 2;
-      toOrigDays = resources.totalKwh * 50 / 24;
-      toNewDays = toOrigDays + (kwDiverted * 50 / 24);
-      fromLoss = `−${kwDiverted.toFixed(1)} kWh diverted`;
-      toGain = `+${(kwDiverted * 50).toFixed(0)} hrs comms`;
-    } else if (divertFrom === "heat" && divertTo === "power") {
-      const propDiverted = resources.propaneGals * pct;
-      const kwhGained = propDiverted * 91.452 * 0.293 / 1000 * 0.25; // gen efficiency ~25%
-      fromOrigDays = systems.heat.days;
-      fromNewDays = fromOrigDays * (1 - pct * (resources.propaneGals / Math.max(resources.propaneGals + resources.firewoodCords * 100, 1)));
-      toOrigDays = resources.totalKwh / 2;
-      toNewDays = toOrigDays + kwhGained / 2;
-      fromLoss = `−${propDiverted.toFixed(1)} gal propane from heat`;
-      toGain = `+${kwhGained.toFixed(1)} kWh generated`;
-    } else {
-      fromOrigDays = systems[divertFrom]?.days || 0;
-      fromNewDays = fromOrigDays * (1 - pct);
-      toOrigDays = systems[divertTo]?.days || 0;
-      toNewDays = toOrigDays * (1 + pct * 0.3);
-      fromLoss = `−${(pct * 100).toFixed(0)}% ${systems[divertFrom]?.label} capacity`;
-      toGain = `+${(pct * 30).toFixed(0)}% ${systems[divertTo]?.label} boost`;
-    }
-
-    return { fromLoss, toGain, fromOrigDays, fromNewDays, toOrigDays, toNewDays };
-  }, [items, people, climate, divertFrom, divertTo, divertPct, resources]);
-
-  const statusColor = (s) => s === "green" ? "#22c55e" : s === "yellow" ? "#f59e0b" : "#ef4444";
-
-  return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e0e6da", marginBottom: 0 }}>
-        {subs.map((s) => (
-          <button key={s.id} onClick={() => setSysSub(s.id)} style={{ padding: "10px 18px", background: "none", border: "none", borderBottom: sysSub === s.id ? "2px solid #214c39" : "2px solid transparent", color: sysSub === s.id ? "#243d30" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
-            <span>{s.i}</span> {s.l}
-          </button>
-        ))}
-      </div>
-
-      {/* ═══ Resource Stock Levels ═══ */}
-      {sysSub === "stock" && (() => {
-        const p = people || 4;
-        const waterGal = items.filter(i => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
-        const totalCals = items.filter(i => i.category === "food").reduce((s, i) => { const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0); const serv = parseFloat(i.fields?.servings || 1); return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1); }, 0);
-        const fuelGal = items.filter(i => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
-        const propTanks = items.filter(i => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
-        const medItems = items.filter(i => i.category === "medical").reduce((s, i) => s + (i.quantity || 0), 0);
-        const ammoRds = items.filter(i => i.category === "firearms" && i.subType === "ammo").reduce((s, i) => s + (i.quantity || 0), 0);
-        const batteries = items.filter(i => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
-        const solarPanels = items.filter(i => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
-        const powerHrs = fuelGal * 5.5 + batteries * 0.3 + solarPanels * 5;
-        const cords = items.filter(i => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
-        const _clim = CLIMATES[climate] || CLIMATES.temperate;
-        const resources = [
-          { icon: "💧", name: "Water", qty: waterGal, unit: "gal", days: waterGal / Math.max(p * 1, 0.1), target: 14, color: "#0ea5e9", detail: p + " gal/day for " + p + " people" },
-          { icon: "🥫", name: "Food", qty: Math.round(totalCals).toLocaleString() + " cal", days: totalCals / Math.max(p * 2000, 1), target: 30, color: "#f59e0b", detail: (p * 2000).toLocaleString() + " cal/day for " + p + " people" },
-          { icon: "⛽", name: "Fuel (Gas)", qty: fuelGal.toFixed(1), unit: "gal", days: fuelGal > 0 ? fuelGal * 5.5 / 24 : 0, target: 7, color: "#f97316", detail: fuelGal.toFixed(0) + " gal = " + (fuelGal * 5.5).toFixed(0) + "h generator runtime" },
-          { icon: "🔥", name: "Propane", qty: propTanks, unit: "tanks", days: propTanks * 3, target: 14, color: "#ef4444", detail: propTanks + " tanks (" + (propTanks * 20).toFixed(0) + " lbs)" },
-          { icon: "⚡", name: "Power Reserve", qty: powerHrs.toFixed(1), unit: "hrs", days: powerHrs / 24, target: 3, color: "#eab308", detail: "Gen " + (fuelGal * 5.5).toFixed(0) + "h + Batt " + (batteries * 0.3).toFixed(1) + "h + Solar " + (solarPanels * 5) + "h" },
-          { icon: "🪵", name: "Firewood", qty: cords.toFixed(1), unit: "cords", days: cords * 30, target: 120, color: "#a16207", detail: (cords * 30).toFixed(0) + " days heating at " + (_clim.firewoodMod || 1).toFixed(1) + "x burn rate" },
-          { icon: "💊", name: "Medical", qty: medItems, unit: "items", days: null, target: null, color: "#ef4444", detail: medItems + " medical supply items" },
-          { icon: "🎯", name: "Ammunition", qty: ammoRds.toLocaleString(), unit: "rds", days: null, target: null, color: "#6b7280", detail: ammoRds.toLocaleString() + " rounds total" },
-        ];
-        return (
-          <div>
-            <div style={{ marginBottom: 12 }}>
-              <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>📊 Resource Stock Levels</h3>
-              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Current supplies and autonomy for {p} people ({_clim.label} climate)</div>
-            </div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {resources.map((r, i) => {
-                const pct = r.target && r.days !== null ? Math.min(r.days / r.target * 100, 100) : null;
-                const sc = r.days !== null ? (r.days >= (r.target || 14) ? "#22c55e" : r.days >= (r.target || 14) * 0.5 ? "#f59e0b" : "#ef4444") : "rgba(36,61,48,0.3)";
-                return (
-                  <div key={i} style={{ ...cardSt, padding: "12px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span style={{ fontSize: 20 }}>{r.icon}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.7)" }}>{r.name}</span>
-                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: sc }}>{r.days !== null ? r.days.toFixed(1) + " days" : r.qty + " " + (r.unit || "")}</span>
-                        </div>
-                        {pct !== null && (
-                          <div style={{ height: 4, background: "rgba(47,76,39,0.04)", borderRadius: 2 }}>
-                            <div style={{ height: "100%", width: pct + "%", background: sc, borderRadius: 2, transition: "width 0.5s" }} />
-                          </div>
-                        )}
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{r.detail}{r.target && r.days !== null ? " · Target: " + r.target + "d" : ""}</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ═══ Resource Conversions ═══ */}
-      {sysSub === "convert" && (
-        <div>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>⚡ Resource Conversion Table</h3>
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>How your resources translate into continuity hours, days, and calories</div>
-          </div>
-          <div style={{ display: "grid", gap: 6 }}>
-            {Object.entries(CONVERSIONS).map(([k, c]) => (
-              <div key={k} style={{ ...cardSt, padding: "12px 16px", display: "grid", gridTemplateColumns: "160px 140px 1fr", gap: 16, alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700 }}>{c.input}</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>INPUT</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>→</span>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#214c39", fontFamily: M }}>{c.output}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{c.equiv}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Current Stock in Conversion Terms */}
-          <div style={{ marginTop: 16 }}>
-            <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>Your Stock → Continuity Value</h4>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
-              {[
-                { label: "Gasoline", val: resources.fuelGals.toFixed(1) + " gal", conv: (resources.fuelGals * 5.5).toFixed(1) + " hrs generator", icon: "⛽", color: "#f59e0b" },
-                { label: "Propane", val: resources.propaneGals.toFixed(1) + " gal", conv: (resources.propaneGals * 5.1).toFixed(0) + " hrs heat", icon: "🔥", color: "#f97316" },
-                { label: "Firewood", val: resources.firewoodCords.toFixed(1) + " cords", conv: (resources.firewoodCords * 30).toFixed(0) + " days heat", icon: "🪵", color: "#92400e" },
-                { label: "Water", val: resources.waterGals + " gal", conv: (resources.waterGals / Math.max(resources.people, 1)).toFixed(1) + " person-days", icon: "💧", color: "#0ea5e9" },
-                { label: "Food", val: Math.round(resources.totalCals).toLocaleString() + " cal", conv: (resources.totalCals / Math.max(resources.people * 2000, 1)).toFixed(1) + " days (" + resources.people + " ppl)", icon: "🍽️", color: "#22c55e" },
-                { label: "Batteries", val: resources.batteries + " cells", conv: (resources.batteries * 20).toFixed(0) + " hrs light", icon: "🔋", color: "#eab308" },
-              ].map((r, i) => (
-                <div key={i} style={{ ...cardSt, padding: 14, borderLeft: "3px solid " + r.color }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 16 }}>{r.icon}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700 }}>{r.label}</span>
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, fontFamily: M, color: r.color }}>{r.val}</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>= {r.conv}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ Trade-off Simulator ═══ */}
-      {sysSub === "tradeoff" && (
-        <div>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>⚖️ Resource Trade-off Simulator</h3>
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Model what happens when you divert resources between systems</div>
-          </div>
-
-          {/* Controls */}
-          <div style={{ ...cardSt, padding: 18, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>Simulation Parameters</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>DIVERT FROM</div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {["power", "heat", "water", "food", "comms"].map((s) => (
-                    <button key={s} onClick={() => { setDivertFrom(s); if (s === divertTo) setDivertTo(s === "power" ? "heat" : "power"); }} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + (divertFrom === s ? "#ef4444" : "rgba(36,61,48,0.08)"), background: divertFrom === s ? "rgba(239,68,68,0.1)" : "transparent", color: divertFrom === s ? "#ef4444" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit" }}>
-                      {{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[s]} {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div style={{ fontSize: 20, color: "rgba(36,61,48,0.58)" }}>→</div>
-              <div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>DIVERT TO</div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {["power", "heat", "water", "food", "comms"].filter((s) => s !== divertFrom).map((s) => (
-                    <button key={s} onClick={() => setDivertTo(s)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + (divertTo === s ? "#22c55e" : "rgba(36,61,48,0.08)"), background: divertTo === s ? "rgba(34,197,94,0.1)" : "transparent", color: divertTo === s ? "#22c55e" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit" }}>
-                      {{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[s]} {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>DIVERSION AMOUNT</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#214c39", fontFamily: M }}>{divertPct}%</span>
-              </div>
-              <input type="range" min={5} max={75} step={5} value={divertPct} onChange={(e) => setDivertPct(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#214c39" }} />
-            </div>
-          </div>
-
-          {/* Results */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ ...cardSt, padding: 16, borderLeft: "4px solid #ef4444" }}>
-              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "#ef4444", fontWeight: 700, marginBottom: 8 }}>{{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[divertFrom]} {divertFrom} — Impact</div>
-              <div style={{ fontSize: 11, color: "rgba(239,68,68,0.7)", marginBottom: 10 }}>{tradeoff.fromLoss}</div>
-              <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>BEFORE</div>
-                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
-                    <div style={{ height: "100%", background: "rgba(47,76,39,0.08)", borderRadius: 4 }} />
-                  </div>
-                  <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{tradeoff.fromOrigDays.toFixed(1)}d</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>AFTER</div>
-                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
-                    <div style={{ height: Math.max(tradeoff.fromOrigDays > 0 ? (tradeoff.fromNewDays / tradeoff.fromOrigDays) * 100 : 0, 5) + "%", background: "#ef4444", borderRadius: 4 }} />
-                  </div>
-                  <div style={{ fontSize: 11, fontFamily: M, color: "#ef4444", marginTop: 2 }}>{tradeoff.fromNewDays.toFixed(1)}d</div>
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(239,68,68,0.5)", fontStyle: "italic", flex: 1 }}>
-                  {tradeoff.fromOrigDays > 0 ? `−${((1 - tradeoff.fromNewDays / tradeoff.fromOrigDays) * 100).toFixed(0)}% capacity` : "No baseline"}
-                </div>
-              </div>
-            </div>
-            <div style={{ ...cardSt, padding: 16, borderLeft: "4px solid #22c55e" }}>
-              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "#22c55e", fontWeight: 700, marginBottom: 8 }}>{{ power: "⚡", heat: "🔥", water: "💧", food: "🍽️", comms: "📡" }[divertTo]} {divertTo} — Gain</div>
-              <div style={{ fontSize: 11, color: "rgba(34,197,94,0.7)", marginBottom: 10 }}>{tradeoff.toGain}</div>
-              <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>BEFORE</div>
-                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
-                    <div style={{ height: Math.max(tradeoff.toNewDays > 0 ? (tradeoff.toOrigDays / tradeoff.toNewDays) * 100 : 100, 5) + "%", background: "rgba(47,76,39,0.08)", borderRadius: 4 }} />
-                  </div>
-                  <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{tradeoff.toOrigDays.toFixed(1)}d</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 2 }}>AFTER</div>
-                  <div style={{ width: 40, background: "rgba(47,76,39,0.06)", borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 60 }}>
-                    <div style={{ height: "100%", background: "#22c55e", borderRadius: 4 }} />
-                  </div>
-                  <div style={{ fontSize: 11, fontFamily: M, color: "#22c55e", marginTop: 2 }}>{tradeoff.toNewDays.toFixed(1)}d</div>
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(34,197,94,0.5)", fontStyle: "italic", flex: 1 }}>
-                  {tradeoff.toOrigDays > 0 ? `+${(((tradeoff.toNewDays / tradeoff.toOrigDays) - 1) * 100).toFixed(0)}% capacity` : "New capacity"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ System Dependency Map ═══ */}
-      {sysSub === "graph" && (
-        <div>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🔗 System Dependency Map</h3>
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Each system depends on a chain of components — a break in any link degrades the whole system</div>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            {SYSTEMS.map((sys) => {
-              const allGreen = sys.nodes.every((n) => n.status === "green");
-              const hasRed = sys.nodes.some((n) => n.status === "red");
-              const sysStatus = allGreen ? "Nominal" : hasRed ? "Degraded" : "At Risk";
-              const sysStatusColor = allGreen ? "#22c55e" : hasRed ? "#ef4444" : "#f59e0b";
-              return (
-                <div key={sys.id} style={{ ...cardSt, padding: 18, borderLeft: "4px solid " + sys.color }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 22 }}>{sys.icon}</span>
-                      <span style={{ fontSize: 14, fontWeight: 800 }}>{sys.label} System</span>
-                    </div>
-                    <span style={{ fontSize: 11, padding: "5px 10px", borderRadius: 12, background: sysStatusColor + "15", color: sysStatusColor, fontWeight: 700 }}>{sysStatus}</span>
-                  </div>
-                  {/* Node chain */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                    {sys.nodes.map((node, ni) => (
-                      <div key={ni} style={{ display: "flex", alignItems: "center", flex: 1 }}>
-                        <div style={{ flex: 1, textAlign: "center" }}>
-                          <div style={{ width: 52, height: 52, borderRadius: 12, background: statusColor(node.status) + "10", border: "2px solid " + statusColor(node.status) + "40", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", position: "relative" }}>
-                            <div style={{ width: 8, height: 8, borderRadius: 4, background: statusColor(node.status), boxShadow: "0 0 8px " + statusColor(node.status) + "60" }} />
-                          </div>
-                          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2 }}>{node.label}</div>
-                          <div style={{ fontSize: 11, fontFamily: M, color: statusColor(node.status) }}>{typeof node.val === "number" ? node.val : node.val}</div>
-                          {node.unit && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{node.unit}</div>}
-                        </div>
-                        {ni < sys.nodes.length - 1 && (
-                          <div style={{ width: 30, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <svg width="30" height="12" viewBox="0 0 30 12">
-                              <line x1="0" y1="6" x2="22" y2="6" stroke={sys.nodes[ni + 1].status === "red" ? "#ef444440" : sys.color + "40"} strokeWidth="2" strokeDasharray={sys.nodes[ni + 1].status === "red" ? "3,3" : "none"} />
-                              <polygon points="22,2 30,6 22,10" fill={sys.nodes[ni + 1].status === "red" ? "#ef444440" : sys.color + "60"} />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {/* System health bar */}
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>CHAIN INTEGRITY</span>
-                      <span style={{ fontSize: 11, fontFamily: M, color: sysStatusColor }}>{Math.round(sys.nodes.filter((n) => n.status === "green").length / sys.nodes.length * 100)}%</span>
-                    </div>
-                    <div style={{ height: 4, background: "rgba(47,76,39,0.04)", borderRadius: 2 }}>
-                      <div style={{ height: "100%", width: (sys.nodes.filter((n) => n.status === "green").length / sys.nodes.length * 100) + "%", background: `linear-gradient(90deg, ${sys.color}, ${sysStatusColor})`, borderRadius: 2, transition: "width 0.5s" }} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {sysSub === "opps" && (
-        <OpportunitiesTab items={items} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile} />
-      )}
-    </div>
-  );
+  return <ResourceOpportunitiesView opportunities={opportunities} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} fragility={cont.frag || []} prepScore={prepScore} />;
 }
 
 /* ═══════════════════════════════════════════ */
@@ -7703,7 +7122,7 @@ export default function PrepVault() {
       case "farming":
         return <FarmingTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
       case "systems":
-        return <SystemsTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile}/>;
+        return <ResourcePlanningView items={propItems} people={people} climateConfig={CLIMATES[climate] || CLIMATES.temperate} onSetup={openSetup} onSupplies={() => navigate("preps")} opportunities={<OpportunitiesTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile}/>} />;
       case "simulate":
         return <SimulateTab items={propItems} people={people} setPeople={setPeople} climate={climate} setClimate={setClimate} selScen={selScen} setSelScen={setSelScen} simDuration={simDuration} setSimDuration={setSimDuration} />;
       default:
@@ -7776,7 +7195,6 @@ export default function PrepVault() {
     comms: ["Stay in touch", "A shared plan for communicating when it matters."],
     farming: ["Grow & sustain", "Build a more self-sufficient everyday, season by season."],
     simulate: ["Scenario lab", "Explore your supplies under different conditions. Planning estimates, not predictions."],
-    systems: ["Resource planning", "Understand how your supplies and household systems work together."]
   };
   return (
     <WorkspaceShell activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} crisisMode={crisisMode} onSearch={(query, status = "all") => { navigate("preps"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length}>
@@ -7956,7 +7374,7 @@ export default function PrepVault() {
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing", "systems"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
