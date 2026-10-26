@@ -7,6 +7,7 @@ import WorkspaceShell from "./WorkspaceShell.jsx";
 import Welcome from "./Welcome.jsx";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
+import PeopleDirectory from "./PeopleDirectory.jsx";
 import RadioPlayer from "./RadioPlayer.jsx";
 import PropertyMapWorkspace from "./PropertyMapWorkspace.jsx";
 import { Icon } from "./brand.jsx";
@@ -1309,87 +1310,6 @@ const WEATHER_ADVISORIES = [
   { id: "wa7", type: "grid", severity: "info", title: "Hydro Maintenance — Planned Outage", desc: "Hydro One scheduled maintenance: March 3, 2-6AM. Affects Rural Route 7 area. 4hr window.", issued: "5d ago", expires: "March 3", icon: "🔧", color: "#6b7280" },
 ];
 
-const SKILLS_DATA = [
-  { id: "sk1", icon: "🔥", label: "Fire Starting", color: "#f97316", unlocked: true, level: 3, maxLevel: 5, desc: "Build and sustain fire in any condition",
-    badges: [
-      { level: 1, name: "Spark", desc: "Light a fire with matches and newspaper", unlocked: true },
-      { level: 2, name: "Kindler", desc: "Build a fire lay (teepee, log cabin, lean-to)", unlocked: true },
-      { level: 3, name: "Firestarter", desc: "Start fire with ferro rod and natural tinder", unlocked: true },
-      { level: 4, name: "Friction Master", desc: "Bow drill or hand drill fire from raw materials", unlocked: false },
-      { level: 5, name: "Pyromancer", desc: "Start fire in rain/snow with only natural materials", unlocked: false },
-    ],
-    lessons: [
-      { title: "Tinder Bundle Basics", content: "Collect dry cedar bark, birch bark, or cattail fluff. Shred into fine fibers — the finer the better. Form a loose bird's nest shape. The goal is maximum surface area for the spark to catch.", duration: "5 min" },
-      { title: "Ferro Rod Technique", content: "Hold the rod still, scrape the striker DOWN toward the tinder. Don't move the rod — move the striker. Angle at 30°. Push sparks into the finest part of your tinder bundle. Blow gently once it smokes.", duration: "3 min" },
-      { title: "Wet Weather Fire", content: "Find standing dead wood — it's drier inside. Split logs open for dry heartwood. Build your fire lay off the ground on a platform of green sticks. Shield from wind and rain with a bark lean-to above.", duration: "8 min" },
-    ]
-  },
-  { id: "sk2", icon: "🥫", label: "Food Preservation", color: "#b45309", unlocked: true, level: 2, maxLevel: 5, desc: "Can, smoke, cure, dehydrate, and ferment food",
-    badges: [
-      { level: 1, name: "Pantry", desc: "Properly store dry goods in mylar + O2 absorbers", unlocked: true },
-      { level: 2, name: "Canner", desc: "Water bath canning (jams, pickles, tomatoes)", unlocked: true },
-      { level: 3, name: "Preserver", desc: "Pressure canning (meats, soups, low-acid foods)", unlocked: false },
-      { level: 4, name: "Smoker", desc: "Hot smoke and cold smoke meat and fish", unlocked: false },
-      { level: 5, name: "Master Preserver", desc: "Fermentation, salt curing, pemmican, root cellar management", unlocked: false },
-    ],
-    lessons: [
-      { title: "Water Bath Canning 101", content: "Sterilize jars in boiling water 10 min. Fill with hot product, leave 1/2\" headspace. Wipe rims clean. Finger-tighten lids. Process in boiling water bath — time depends on altitude and product. Listen for the 'ping' — that's your seal.", duration: "10 min" },
-      { title: "Mylar Bag Storage", content: "Use 5mil+ mylar bags with 300cc O2 absorbers per gallon. Fill with dry goods (rice, beans, pasta). Push out air, seal with flat iron 6\" from top. Once sealed, O2 absorber creates vacuum. Label with contents and date. Store in cool, dark location.", duration: "5 min" },
-    ]
-  },
-  { id: "sk3", icon: "🌱", label: "Gardening", color: "#22c55e", unlocked: true, level: 2, maxLevel: 5, desc: "Grow food from seed to harvest",
-    badges: [
-      { level: 1, name: "Sprout", desc: "Successfully germinate seeds indoors", unlocked: true },
-      { level: 2, name: "Grower", desc: "Grow a full season of vegetables to harvest", unlocked: true },
-      { level: 3, name: "Seed Saver", desc: "Save viable seed from heirloom plants", unlocked: false },
-      { level: 4, name: "Farmer", desc: "Year-round food production (greenhouse, cold frame)", unlocked: false },
-      { level: 5, name: "Homesteader", desc: "Full food self-sufficiency for family of 4+", unlocked: false },
-    ],
-    lessons: [
-      { title: "Seed Starting Indoors", content: "Start 6-8 weeks before last frost. Use sterile seed-starting mix, not garden soil. Plant 2x seed depth. Keep soil moist but not soggy. 65-75°F. Light 14-16hrs/day. Harden off 1 week before transplanting — set outside a few hours/day, increasing daily.", duration: "6 min" },
-      { title: "Companion Planting", content: "Tomatoes + basil: basil repels aphids and whiteflies. Corn + beans + squash (Three Sisters): beans fix nitrogen, corn supports beans, squash shades soil. Never plant tomatoes near brassicas. Marigolds border everything — they repel nematodes.", duration: "4 min" },
-    ]
-  },
-  { id: "sk4", icon: "🩹", label: "First Aid", color: "#ef4444", unlocked: true, level: 3, maxLevel: 5, desc: "Treat injuries and medical emergencies",
-    badges: [
-      { level: 1, name: "Bandaid", desc: "Clean and dress basic wounds", unlocked: true },
-      { level: 2, name: "Responder", desc: "CPR certified, splinting, shock management", unlocked: true },
-      { level: 3, name: "Medic", desc: "Tourniquet, wound packing, chest seals (TCCC)", unlocked: true },
-      { level: 4, name: "Field Surgeon", desc: "Suturing, IV access, medication administration", unlocked: false },
-      { level: 5, name: "Doc", desc: "Surgical procedures, anesthesia, advanced diagnostics", unlocked: false },
-    ],
-    lessons: [
-      { title: "Tourniquet Application", content: "Apply 2-3\" above the wound, NEVER on a joint. Pull strap tight, twist windlass until bleeding stops. Secure windlass. Note the TIME applied — write on patient's forehead if needed. Do NOT loosen once applied. Tourniquets save lives — don't hesitate.", duration: "3 min" },
-      { title: "Wound Packing", content: "For deep wounds that tourniquets can't reach (junctional: groin, armpit, neck). Pack gauze INTO the wound — push deep, fill the cavity. Apply direct pressure for 3 min minimum. If blood soaks through, pack MORE gauze on top. Don't remove the first layer.", duration: "4 min" },
-    ]
-  },
-  { id: "sk5", icon: "🔧", label: "Repair Skills", color: "#0ea5e9", unlocked: true, level: 2, maxLevel: 5, desc: "Fix engines, plumbing, electrical, and structures",
-    badges: [
-      { level: 1, name: "Handy", desc: "Basic home repairs — leaks, outlets, drywall", unlocked: true },
-      { level: 2, name: "Mechanic", desc: "Oil changes, belt replacement, brake pads, basic diagnostics", unlocked: true },
-      { level: 3, name: "Fabricator", desc: "Welding (MIG/stick), metal cutting, custom brackets", unlocked: false },
-      { level: 4, name: "Engineer", desc: "Engine rebuild, electrical troubleshooting, plumbing systems", unlocked: false },
-      { level: 5, name: "Master Builder", desc: "Build structures, design systems, fabricate from raw materials", unlocked: false },
-    ],
-    lessons: [
-      { title: "Emergency Pipe Repair", content: "Shut off water main immediately. For small leaks: wrap with rubber + hose clamp. For burst pipes: cut out damaged section with pipe cutter. Use SharkBite push-fit couplings — no soldering needed. Always drain the line before cutting. Keep spare SharkBites in your kit.", duration: "5 min" },
-      { title: "Small Engine Troubleshooting", content: "Won't start? Check in order: 1) Fuel — is it fresh? Stale gas is #1 cause. 2) Spark — pull plug, ground against block, pull cord — blue spark? 3) Air — clean/replace filter. 4) Compression — pull cord should have resistance. Fix fuel first, it's almost always fuel.", duration: "4 min" },
-    ]
-  },
-  { id: "sk6", icon: "🗺️", label: "Navigation", color: "#a855f7", unlocked: true, level: 1, maxLevel: 5, desc: "Navigate with map, compass, and natural signs",
-    badges: [
-      { level: 1, name: "Tourist", desc: "Read a road map and basic compass bearing", unlocked: true },
-      { level: 2, name: "Navigator", desc: "Topo map reading, grid references, pace counting", unlocked: false },
-      { level: 3, name: "Pathfinder", desc: "Triangulation, dead reckoning, GPS waypoints", unlocked: false },
-      { level: 4, name: "Scout", desc: "Night navigation, celestial navigation, terrain association", unlocked: false },
-      { level: 5, name: "Wayfinder", desc: "Navigate any terrain in any condition with no tools", unlocked: false },
-    ],
-    lessons: [
-      { title: "Compass Bearing Basics", content: "Hold compass flat at chest height. Rotate bezel until desired bearing aligns with direction-of-travel arrow. Turn your BODY until the red needle sits inside the orienting arrow (red in the shed). Look up — sight a landmark on your bearing. Walk to it. Repeat.", duration: "4 min" },
-      { title: "Natural Navigation", content: "Sun rises East, sets West (roughly). At noon, shadows point North (in Northern hemisphere). Polaris (North Star) — find Big Dipper, follow the 2 'pointer stars' 5x the distance between them. Moss grows on ALL sides of trees — don't trust that myth. Wind patterns and snow melt on south-facing slopes are more reliable.", duration: "6 min" },
-    ]
-  },
-];
 const SAMPLE_CAMERAS = [
   { id: "cm1", name: "North Gate", model: "Reveal X Pro", status: "online", battery: 78, signal: 4, captures: 14, last: "Deer (2)", location: "North perimeter", activity: [{ t: "2:14 PM", desc: "2 deer crossing" }, { t: "11:30 AM", desc: "Fox" }] },
   { id: "cm2", name: "Driveway", model: "Reveal X Pro", status: "online", battery: 92, signal: 5, captures: 31, last: "Delivery truck", location: "Front entrance", activity: [{ t: "1:48 PM", desc: "Delivery truck" }, { t: "10:22 AM", desc: "Vehicle — F-250" }] },
@@ -4333,21 +4253,11 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: "", role: "", avatar: "👤" });
   const [fullscreenMap, setFullscreenMap] = useState(false);
-  // ── Skills state (moved from PropertyTab) ──
-  const [expandedSkill, setExpandedSkill] = useState(null);
-  const [showLesson, setShowLesson] = useState(null);
-  // ── Contacts state (moved from CommsTab) ──
-  const [contactSearch, setContactSearch] = useState("");
-  const [expandedContact, setExpandedContact] = useState(null);
-  const [showAddContact, setShowAddContact] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" });
-  const [editingContact, setEditingContact] = useState(null);
-  const [editContactData, setEditContactData] = useState(null);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
 
-  const subTabs = [{ id: "people", l: "People", i: "👤" }, { id: "tracker", l: "Tracker", i: "📡" }, { id: "rationing", l: "Rationing", i: "🍽️" }];
+  const subTabs = [{ id: "people", label: "People" }, { id: "tracker", label: "Tracker" }, { id: "rationing", label: "Rationing" }];
 
 
   /* ── Supabase Realtime: Location sharing ── */
@@ -4444,13 +4354,11 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
   return (
     <div>
 
-      <div style={{ display: "flex", gap: 0, marginBottom: 16, borderBottom: "1px solid #e0e6da" }}>
-        {subTabs.map((t) => (
-          <button key={t.id} onClick={() => setComSub(t.id)} style={{ padding: "8px 14px", background: "none", border: "none", borderBottom: comSub === t.id ? "2px solid #214c39" : "2px solid transparent", color: comSub === t.id ? "#243d30" : "rgba(36,61,48,0.4)", cursor: "pointer", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
-            <span style={{ fontSize: 12 }}>{t.i}</span>{t.l}
-          </button>
+      <nav className="pv-people-sections" aria-label="People sections">
+        {subTabs.map(section => (
+          <button key={section.id} className={comSub === section.id ? "is-active" : ""} aria-current={comSub === section.id ? "page" : undefined} onClick={() => setComSub(section.id)}>{section.label}</button>
         ))}
-      </div>
+      </nav>
 
       {comSub === "tracker" && (
         <div className="pcs-tracker-grid" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
@@ -4640,217 +4548,7 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
         );
       })()}
 
-      {comSub === "people" && (() => {
-        const filtered = contacts.filter((c) => {
-          if (!contactSearch) return true;
-          const s = contactSearch.toLowerCase();
-          return c.name.toLowerCase().includes(s) || c.group.toLowerCase().includes(s) || c.role.toLowerCase().includes(s) || (c.medical || "").toLowerCase().includes(s);
-        });
-        const groups = [...new Set(filtered.map((c) => c.group))];
-        const groupColors = { "Your Group": "#22c55e", "Rideau Creek Co-op": "#22c55e", "Cedar Hill Homestead": "#0ea5e9", "Lakeside Compound": "#f59e0b", "South Valley Farm": "#a855f7" };
-        const totalBadges = SKILLS_DATA.reduce((s, sk) => s + sk.badges.filter((b) => b.unlocked).length, 0);
-        const totalPossible = SKILLS_DATA.reduce((s, sk) => s + sk.badges.length, 0);
-
-        return (
-          <div>
-            {/* ═══ Contact Directory ═══ */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
-              <input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder="Search name, group, role, condition..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12 }} />
-              <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flexShrink: 0 }}>{filtered.length} people</span>
-              <button onClick={() => setShowAddContact(!showAddContact)} style={{ ...btnSt, padding: "6px 14px", fontSize: 11, fontWeight: 700, background: "rgba(33,76,57,0.08)", color: "#214c39", border: "1px solid rgba(33,76,57,0.2)", flexShrink: 0 }}>{showAddContact ? "Cancel" : "+ Add Person"}</button>
-            </div>
-            {showAddContact && (
-              <div style={{ ...cardSt, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>New Person</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
-                  <input value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} placeholder="Full name *" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <select value={newContact.group} onChange={e => setNewContact(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
-                    {[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                  <input value={newContact.role} onChange={e => setNewContact(p => ({ ...p, role: e.target.value }))} placeholder="Role" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
-                  <input value={newContact.phone} onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))} placeholder="Phone" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.address} onChange={e => setNewContact(p => ({ ...p, address: e.target.value }))} placeholder="Address" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.age} onChange={e => setNewContact(p => ({ ...p, age: e.target.value }))} placeholder="Age" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
-                  <select value={newContact.bloodType} onChange={e => setNewContact(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }}>
-                    {["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}
-                  </select>
-                  <input value={newContact.medical} onChange={e => setNewContact(p => ({ ...p, medical: e.target.value }))} placeholder="Medical conditions" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.allergies} onChange={e => setNewContact(p => ({ ...p, allergies: e.target.value }))} placeholder="Allergies" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
-                  <input value={newContact.skills} onChange={e => setNewContact(p => ({ ...p, skills: e.target.value }))} placeholder="Skills" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                  <input value={newContact.notes} onChange={e => setNewContact(p => ({ ...p, notes: e.target.value }))} placeholder="Notes" style={{ ...inp, padding: "6px 8px", fontSize: 11, boxSizing: "border-box" }} />
-                </div>
-                <button onClick={() => { if (!newContact.name.trim()) return; setContacts(prev => [...prev, { ...newContact, id: "ct" + Date.now(), age: newContact.age ? parseInt(newContact.age) || newContact.age : "" }]); setNewContact({ name: "", group: "Your Group", role: "", phone: "", address: "", age: "", bloodType: "Unknown", medical: "None", allergies: "None", skills: "", notes: "" }); setShowAddContact(false); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 11, fontWeight: 700, background: "#214c39", color: "#243d30" }}>Add Person</button>
-              </div>
-            )}
-            {groups.map((g) => (
-              <div key={g} style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: groupColors[g] || "rgba(36,61,48,0.3)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 4, background: groupColors[g] || "#6b7280" }} />
-                  {g} ({filtered.filter((c) => c.group === g).length})
-                </div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  {filtered.filter((c) => c.group === g).map((c) => {
-                    const isExpanded = expandedContact === c.id;
-                    const hasMedical = c.medical && c.medical !== "None" && c.medical !== "Unknown";
-                    const hasAllergy = c.allergies && c.allergies !== "None" && c.allergies !== "Unknown";
-                    return (
-                      <div key={c.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderLeft: "3px solid " + (groupColors[c.group] || "#6b7280") }}>
-                        <div style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#243d30", fontFamily: "inherit" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 18, background: (groupColors[c.group] || "#6b7280") + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: groupColors[c.group] || "#6b7280" }}>{c.name.charAt(0)}</div>
-                            <button aria-expanded={isExpanded} aria-label={"Details for " + c.name} onClick={() => setExpandedContact(isExpanded ? null : c.id)} style={{ flex: 1, border: 0, background: "none", textAlign: "left", padding: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</div>
-                              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", display: "flex", gap: 8, marginTop: 1 }}>
-                                <span>{c.role}</span>
-                                {c.phone && c.phone !== "N/A — runner only" && c.phone !== "N/A — HAM only" && <span>📱 {c.phone}</span>}
-                                {c.phone && c.phone.includes("HAM") && <span>📻 HAM only</span>}
-                                {c.phone && c.phone.includes("runner") && <span>🏃 Runner only</span>}
-                              </div>
-                            </button>
-                            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                              {hasMedical && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>⚕️ medical</span>}
-                              {hasAllergy && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>⚠ allergy</span>}
-                              {c.bloodType && c.bloodType !== "Unknown" && <span style={{ fontSize: 11, padding: "4px 5px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", fontFamily: M }}>{c.bloodType}</span>}
-                            </div>
-                            <button onClick={(e) => { e.stopPropagation(); setEditingContact(c.id); setEditContactData({ ...c }); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 12, padding: "0 2px" }} aria-label={"Edit " + c.name} title="Edit">✏️</button>
-                            <button onClick={(e) => { e.stopPropagation(); setContacts(prev => prev.filter(ct => ct.id !== c.id)); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} aria-label={"Remove " + c.name} title="Remove">×</button>
-                            <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
-                          </div>
-                        </div>
-                        {isExpanded && (
-                          <div style={{ padding: "0 14px 14px", borderTop: "1px solid #e5eadd" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 16px", marginTop: 10 }}>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Phone</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.phone}</div></div>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Address</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.address}</div></div>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Age</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.age}</div></div>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Blood Type</div><div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>{c.bloodType}</div></div>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Medical Conditions</div><div style={{ fontSize: 11, color: hasMedical ? "#ef4444" : "rgba(36,61,48,0.4)", fontWeight: hasMedical ? 600 : 400 }}>{c.medical}</div></div>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Allergies</div><div style={{ fontSize: 11, color: hasAllergy ? "#f59e0b" : "rgba(36,61,48,0.4)", fontWeight: hasAllergy ? 600 : 400 }}>{c.allergies}</div></div>
-                            </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", marginTop: 8 }}>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Skills</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)" }}>{c.skills}</div></div>
-                              <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Notes</div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontStyle: "italic" }}>{c.notes}</div></div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            {/* Contact Edit Modal */}
-            {editingContact && editContactData && (
-              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => { setEditingContact(null); setEditContactData(null); }}>
-                <div style={{ background: "#edf2e8", border: "1px solid #dce3d5", borderRadius: 14, padding: 20, width: 480, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>Edit Person</div>
-                    <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 18 }}>×</button>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Name</div><input value={editContactData.name} onChange={e => setEditContactData(p => ({ ...p, name: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Group</div><select value={editContactData.group} onChange={e => setEditContactData(p => ({ ...p, group: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{[...new Set(contacts.map(c => c.group)), "Other"].map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Role</div><input value={editContactData.role} onChange={e => setEditContactData(p => ({ ...p, role: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Phone</div><input value={editContactData.phone} onChange={e => setEditContactData(p => ({ ...p, phone: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Address</div><input value={editContactData.address} onChange={e => setEditContactData(p => ({ ...p, address: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Age</div><input value={editContactData.age} onChange={e => setEditContactData(p => ({ ...p, age: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Blood Type</div><select value={editContactData.bloodType} onChange={e => setEditContactData(p => ({ ...p, bloodType: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }}>{["Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bt => <option key={bt} value={bt}>{bt}</option>)}</select></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Medical</div><input value={editContactData.medical} onChange={e => setEditContactData(p => ({ ...p, medical: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Allergies</div><input value={editContactData.allergies} onChange={e => setEditContactData(p => ({ ...p, allergies: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                    <div><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Skills</div><input value={editContactData.skills} onChange={e => setEditContactData(p => ({ ...p, skills: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                  </div>
-                  <div style={{ marginBottom: 12 }}><div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Notes</div><input value={editContactData.notes} onChange={e => setEditContactData(p => ({ ...p, notes: e.target.value }))} style={{ ...inp, padding: "6px 8px", fontSize: 11, width: "100%", boxSizing: "border-box" }} /></div>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button onClick={() => { setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 11, fontWeight: 600, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>Cancel</button>
-                    <button onClick={() => { setContacts(prev => prev.map(c => c.id === editingContact ? { ...editContactData } : c)); setEditingContact(null); setEditContactData(null); }} style={{ ...btnSt, padding: "6px 16px", fontSize: 11, fontWeight: 700, background: "#214c39", color: "#243d30" }}>Save</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ═══ Team Skills Matrix ═══ */}
-            <div style={{ marginTop: 24, borderTop: "1px solid #e0e6da", paddingTop: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>🎖️ Team Skills & Certifications</h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{totalBadges}/{totalPossible} badges</span>
-                  <div style={{ width: 80, height: 6, background: "rgba(47,76,39,0.06)", borderRadius: 3 }}>
-                    <div style={{ width: (totalBadges / totalPossible) * 100 + "%", height: "100%", background: "linear-gradient(90deg, #214c39, #f59e0b)", borderRadius: 3 }} />
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, marginBottom: 16 }}>
-                {SKILLS_DATA.map((sk) => (
-                  <button key={sk.id} onClick={() => setExpandedSkill(expandedSkill === sk.id ? null : sk.id)} style={{ ...cardSt, padding: 16, cursor: "pointer", textAlign: "center", borderTop: "3px solid " + sk.color, background: expandedSkill === sk.id ? "rgba(36,61,48,0.04)" : "rgba(36,61,48,0.02)" }}>
-                    <div style={{ fontSize: 32, marginBottom: 6 }}>{sk.icon}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{sk.label}</div>
-                    <div style={{ display: "flex", justifyContent: "center", gap: 3, marginBottom: 6 }}>
-                      {Array.from({ length: sk.maxLevel }).map((_, i) => (
-                        <div key={i} style={{ width: 10, height: 10, borderRadius: 5, background: i < sk.level ? sk.color : "rgba(36,61,48,0.08)", border: i < sk.level ? "none" : "1px solid #e0e6da" }} />
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 11, color: sk.color, fontWeight: 700 }}>Level {sk.level}/{sk.maxLevel}</div>
-                  </button>
-                ))}
-              </div>
-
-              {SKILLS_DATA.filter((sk) => expandedSkill === sk.id).map((sk) => (
-                <div key={sk.id}>
-                  <div style={{ ...cardSt, padding: 18, borderLeft: "4px solid " + sk.color }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                      <span style={{ fontSize: 28 }}>{sk.icon}</span>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 800 }}>{sk.label}</div>
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{sk.desc}</div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>Badge Track</div>
-                    <div style={{ display: "flex", gap: 0, marginBottom: 18, position: "relative" }}>
-                      <div style={{ position: "absolute", top: 16, left: 24, right: 24, height: 2, background: "rgba(47,76,39,0.06)", zIndex: 0 }} />
-                      <div style={{ position: "absolute", top: 16, left: 24, width: ((sk.level / sk.maxLevel) * 100) + "%", maxWidth: "calc(100% - 48px)", height: 2, background: sk.color, zIndex: 1 }} />
-                      {sk.badges.map((b, i) => (
-                        <div key={i} style={{ flex: 1, textAlign: "center", position: "relative", zIndex: 2 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 17, background: b.unlocked ? sk.color : "rgba(36,61,48,0.04)", border: b.unlocked ? "2px solid " + sk.color : "2px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: b.unlocked ? 14 : 11, color: b.unlocked ? "#243d30" : "rgba(36,61,48,0.2)", fontWeight: 800 }}>
-                            {b.unlocked ? "✓" : b.level}
-                          </div>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: b.unlocked ? sk.color : "rgba(36,61,48,0.25)" }}>{b.name}</div>
-                          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2, lineHeight: 1.3, padding: "0 2px" }}>{b.desc}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Micro Lessons</div>
-                    {sk.lessons.map((lesson, li) => (
-                      <div key={li} style={{ marginBottom: 6 }}>
-                        <button onClick={() => setShowLesson(showLesson === sk.id + "-" + li ? null : sk.id + "-" + li)} style={{ width: "100%", padding: "10px 14px", background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", borderRadius: 8, cursor: "pointer", textAlign: "left", color: "#243d30", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: sk.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{sk.icon}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700 }}>{lesson.title}</div>
-                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⏱️ {lesson.duration} read</div>
-                          </div>
-                          <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", transform: showLesson === sk.id + "-" + li ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
-                        </button>
-                        {showLesson === sk.id + "-" + li && (
-                          <div style={{ padding: "12px 16px", background: "rgba(47,76,39,0.01)", borderLeft: "2px solid " + sk.color, marginTop: 4, marginLeft: 20, borderRadius: "0 8px 8px 0" }}>
-                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.6)", lineHeight: 1.8 }}>{lesson.content}</div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {comSub === "people" && <PeopleDirectory contacts={contacts} setContacts={setContacts} />}
 
     </div>
   );
@@ -8650,7 +8348,7 @@ export default function PrepVault() {
           { icon: "👋", title: "Welcome to PrepVault", desc: "Your personal continuity system. Let's take a quick tour of your preparedness dashboard.", action: "Start Tour" },
           { icon: "🏠", title: "Set Up Your Properties", desc: "Add your primary residence, bug-out locations, and cache sites. Each property tracks its own inventory independently.", action: "Next", tab: "property" },
           { icon: "📦", title: "Track Your Supplies", desc: "Use the Dashboard to add items across 20+ categories. Track quantities, locations, expiry dates, and consumption rates.", action: "Next", tab: "dashboard" },
-          { icon: "👥", title: "Connect Your Team", desc: "The Team tab lets you track team members on a satellite map, manage skills, rationing, and trade routes.", action: "Next", tab: "community" },
+          { icon: "👥", title: "Connect Your People", desc: "Keep contact details in one place, find your group on the tracker, and plan shared food and water supplies.", action: "Next", tab: "community" },
           { icon: "📡", title: "Monitor Communications", desc: "The Comms tab gives you a frequency scanner, check-in schedules, code words, and radio protocol references.", action: "Finish", tab: "comms" },
         ];
         const step = steps[onboardStep];
