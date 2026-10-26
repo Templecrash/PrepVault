@@ -6,7 +6,7 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 
 | Destination | Included tools |
 | --- | --- |
-| Overview | Recorded category coverage, essential supplies, priority alerts, household setup, detailed readiness analysis, weather and activity |
+| Overview | Recorded category coverage, expandable rationing calculator, food/water duration summary, essential supplies, priority alerts, household setup, detailed readiness analysis, weather and activity |
 | Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations and a dedicated Dependencies section |
 | Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
 | Your people | Searchable contact directory, personal and care notes, location tracker and rationing |
@@ -28,6 +28,8 @@ npm run preview
 ```
 
 The app opens without backend credentials. Choose **Explore the workspace** for sample data, or **Build my plan** to start a household. Inventory changes save automatically in the current browser. Sample data is identified in the interface.
+
+Rationing is available on Overview and Your people. Both views share the current session’s people and calorie target, use the selected property’s inventory, and calculate stored water directly from recorded gallons. The default roster follows household size until customized; **Use household size** restores it.
 
 ## Data and backups
 

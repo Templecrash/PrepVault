@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./brand.jsx";
+import RationingOverview from "./RationingOverview.jsx";
 import "./overview.css";
 
 const ESSENTIALS = [
@@ -33,7 +34,7 @@ function CategoryProgress({ category, items, icon, tone, onClick }) {
   </button>;
 }
 
-export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onSetup, onCrisis, onScan, members = [], profile }) {
+export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onSetup, onCrisis, onScan, members = [], profile, rationPeople = [], setRationPeople, dailyCalTarget = 2000, setDailyCalTarget, onResetPeople }) {
   const [showAllPriorities, setShowAllPriorities] = useState(false);
   const overview = useMemo(() => {
     const categoryKeys = Object.keys(categories);
@@ -78,6 +79,8 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
         <button type="button" className="pv-overview-button" onClick={onSetup}>{hasProfile ? "Review property profile" : "Set up your property"}<Icon name="arrow" size={16} /></button>
       </section>
     </div>
+
+    <RationingOverview items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />
 
     <section className="pv-essentials-section" aria-labelledby="pv-essentials-title">
       <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>The foundations of a well-prepared home.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("preps")}>All supplies <Icon name="arrow" size={15} /></button></div>

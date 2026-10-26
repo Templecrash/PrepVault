@@ -8,6 +8,7 @@ import Welcome from "./Welcome.jsx";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
 import PeopleDirectory from "./PeopleDirectory.jsx";
+import RationingPlanner from "./RationingPlanner.jsx";
 import RadioPlayer from "./RadioPlayer.jsx";
 import PropertyMapWorkspace from "./PropertyMapWorkspace.jsx";
 import { Icon } from "./brand.jsx";
@@ -4241,12 +4242,8 @@ function RallyMiniMap({ coords, color }) {
   return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
-function CommunityTab({ members, setMembers, items, people, climate, user, contacts, setContacts }) {
+function CommunityTab({ members, setMembers, items, user, contacts, setContacts, rationPeople, setRationPeople, dailyCalTarget, setDailyCalTarget, onResetPeople }) {
   const [comSub, setComSub] = useState("people");
-  /* Rationing */
-  const [rationPeople, setRationPeople] = useState(() => Array.from({ length: people || 4 }, (_, i) => ({ id: "rp" + i, name: "Person " + (i + 1) })));
-  const [dailyCalTarget, setDailyCalTarget] = useState(2000);
-  const [rationPersonName, setRationPersonName] = useState("");
   const statColors = { home: "#22c55e", nearby: "#84cc16", away: "#f59e0b", offline: "#6b7280" };
   const [liveMembers, setLiveMembers] = useState(null);
   const [locationSyncError, setLocationSyncError] = useState("");
@@ -4400,153 +4397,7 @@ function CommunityTab({ members, setMembers, items, people, climate, user, conta
         </div>
       )}
 
-      {/* ═══ Rationing Calculator ═══ */}
-      {comSub === "rationing" && (() => {
-        const foodItems = items.filter(i => i.category === "food");
-        const waterItems = items.filter(i => i.category === "water" && i.subType === "storedWater");
-        const numPeople = rationPeople.length || 1;
-        const totalCalories = foodItems.reduce((sum, item) => {
-          const cal = parseFloat(item.fields?.calories || 0);
-          const servings = parseFloat(item.fields?.servings || 1);
-          const qty = item.quantity || 1;
-          return sum + (cal * servings * qty);
-        }, 0);
-        const totalWaterGal = waterItems.reduce((sum, item) => sum + ((item.quantity || 0) * (parseFloat(item.fields?.capacity) || 1)), 0);
-        const foodDays = Math.floor(totalCalories / (numPeople * dailyCalTarget));
-        const waterDays = Math.floor(totalWaterGal / (numPeople * 1));
-        const durationColor = (d) => d >= 30 ? "#22c55e" : d >= 14 ? "#f59e0b" : "#ef4444";
-        const dailyCalPP = Math.round(totalCalories / numPeople);
-        const dailyWaterPP = (totalWaterGal / numPeople).toFixed(1);
-        return (
-          <div>
-            <div style={{ marginBottom: 12 }}>
-              <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800 }}>🍽️ Rationing Calculator</h3>
-              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>How long your prep inventory feeds your team</div>
-            </div>
-            {/* Duration cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-              <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + durationColor(foodDays) }}>
-                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: durationColor(foodDays) }}>{foodDays}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>🥫 Food Days</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{Math.round(totalCalories).toLocaleString()} cal total</div>
-              </div>
-              <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid " + durationColor(waterDays) }}>
-                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: durationColor(waterDays) }}>{waterDays}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>💧 Water Days</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{totalWaterGal.toFixed(0)} gal total</div>
-              </div>
-              <div style={{ ...cardSt, padding: 14, textAlign: "center", borderTop: "3px solid #8b5cf6" }}>
-                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: M, color: "#8b5cf6" }}>{numPeople}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>👤 People</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{dailyCalTarget} cal/day each</div>
-              </div>
-            </div>
-
-            {/* Calorie target */}
-            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700 }}>Daily Calorie Target</span>
-                <span style={{ fontSize: 12, fontWeight: 800, fontFamily: M, color: "#214c39" }}>{dailyCalTarget} cal/person</span>
-              </div>
-              <input type="range" min={1000} max={3000} step={100} value={dailyCalTarget} onChange={e => setDailyCalTarget(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#214c39" }} />
-              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                {[{ l: "Normal", v: 2000 }, { l: "Rationing", v: 1500 }, { l: "Severe", v: 1200 }].map(p => (
-                  <button key={p.v} onClick={() => setDailyCalTarget(p.v)} style={{ ...btnSt, fontSize: 11, padding: "4px 10px", background: dailyCalTarget === p.v ? "rgba(33,76,57,0.2)" : "rgba(36,61,48,0.04)", color: dailyCalTarget === p.v ? "#214c39" : "rgba(36,61,48,0.4)", fontWeight: 700, border: dailyCalTarget === p.v ? "1px solid rgba(33,76,57,0.3)" : "1px solid #e0e6da" }}>{p.l} ({p.v})</button>
-                ))}
-              </div>
-            </div>
-
-            {/* People management */}
-            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700 }}>👤 People to Feed</span>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                {rationPeople.map(p => (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6, background: "rgba(47,76,39,0.04)", border: "1px solid #e0e6da", fontSize: 11 }}>
-                    <span>{p.name}</span>
-                    <button onClick={() => setRationPeople(prev => prev.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 11, padding: 0 }}>✕</button>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <input value={rationPersonName} onChange={e => setRationPersonName(e.target.value)} placeholder="Add person..." style={{ ...inp, flex: 1 }} onKeyDown={e => { if (e.key === "Enter" && rationPersonName.trim()) { setRationPeople(prev => [...prev, { id: "rp" + Date.now(), name: rationPersonName.trim() }]); setRationPersonName(""); } }} />
-                <button onClick={() => { if (rationPersonName.trim()) { setRationPeople(prev => [...prev, { id: "rp" + Date.now(), name: rationPersonName.trim() }]); setRationPersonName(""); } }} style={{ ...btnSt, fontSize: 11, padding: "6px 12px", background: "#214c39", color: "#243d30" }}>Add</button>
-              </div>
-            </div>
-
-            {/* Food inventory breakdown */}
-            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
-              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>🥫 Food Inventory</h4>
-              {foodItems.length === 0 ? <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No food items in prep inventory</div> : (
-                <div>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, marginBottom: 6, fontSize: 11, color: "rgba(36,61,48,0.58)", fontWeight: 700 }}>
-                    <div>Item</div><div style={{ textAlign: "right" }}>Qty</div><div style={{ textAlign: "right" }}>Cal/Srv</div><div style={{ textAlign: "right" }}>Total Cal</div>
-                  </div>
-                  {foodItems.map(item => {
-                    const cal = parseFloat(item.fields?.calories || 0);
-                    const srv = parseFloat(item.fields?.servings || 1);
-                    const qty = item.quantity || 1;
-                    const total = cal * srv * qty;
-                    return (
-                      <div key={item.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-                        <div style={{ color: "#243d30", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name || CATEGORIES.food?.subTypes?.[item.subType]?.label || "Food"}</div>
-                        <div style={{ textAlign: "right" }}>{qty}</div>
-                        <div style={{ textAlign: "right" }}>{cal}</div>
-                        <div style={{ textAlign: "right", fontWeight: 700, color: total > 5000 ? "#22c55e" : "rgba(36,61,48,0.5)" }}>{Math.round(total).toLocaleString()}</div>
-                      </div>
-                    );
-                  })}
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 4, padding: "6px 0", borderTop: "1px solid #dce3d5", fontSize: 11, fontWeight: 700, marginTop: 4 }}>
-                    <div>Total</div><div></div><div></div><div style={{ textAlign: "right", color: "#214c39" }}>{Math.round(totalCalories).toLocaleString()}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 6 }}>Per person per day: <span style={{ fontWeight: 700, color: dailyCalPP >= dailyCalTarget ? "#22c55e" : "#ef4444" }}>{dailyCalPP.toLocaleString()} cal</span> (target: {dailyCalTarget})</div>
-                </div>
-              )}
-            </div>
-
-            {/* Water inventory breakdown */}
-            <div style={{ ...cardSt, padding: 14, marginBottom: 12 }}>
-              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>💧 Water Inventory</h4>
-              {waterItems.length === 0 ? <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>No stored water in prep inventory</div> : (
-                <div>
-                  {waterItems.map(item => (
-                    <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: 11 }}>
-                      <span style={{ color: "#243d30", fontWeight: 600 }}>{item.name || "Stored Water"}</span>
-                      <span style={{ color: "rgba(36,61,48,0.58)" }}>{item.quantity || 0} × {parseFloat(item.fields?.capacity) || 1} gal = <span style={{ fontWeight: 700 }}>{((item.quantity || 0) * (parseFloat(item.fields?.capacity) || 1)).toFixed(0)} gal</span></span>
-                    </div>
-                  ))}
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 8 }}>Per person per day: <span style={{ fontWeight: 700, color: parseFloat(dailyWaterPP) >= 1 ? "#22c55e" : "#ef4444" }}>{dailyWaterPP} gal</span> (FEMA min: 1 gal)</div>
-                </div>
-              )}
-            </div>
-
-            {/* Meal suggestions */}
-            <div style={{ ...cardSt, padding: 14 }}>
-              <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700 }}>🍳 Meal Suggestions</h4>
-              {foodItems.length === 0 ? <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Add food items to your prep inventory for suggestions</div> : (
-                <div style={{ display: "grid", gap: 6 }}>
-                  {foodItems.filter(i => (i.quantity || 0) > 0 && parseFloat(i.fields?.calories || 0) > 0).sort((a, b) => parseFloat(b.fields?.calories || 0) - parseFloat(a.fields?.calories || 0)).slice(0, 6).map(item => {
-                    const srv = parseFloat(item.fields?.servings || 1);
-                    const unitsNeeded = Math.ceil(numPeople / Math.max(srv, 1));
-                    const subLabel = CATEGORIES.food?.subTypes?.[item.subType]?.unit || "units";
-                    return (
-                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e5eadd" }}>
-                        <div style={{ fontSize: 18 }}>{CATEGORIES.food?.subTypes?.[item.subType]?.icon || "🥫"}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600 }}>Use {unitsNeeded} {subLabel} of {item.name || "food"}</div>
-                          <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Feeds {numPeople} people · {parseFloat(item.fields?.calories || 0)} cal/serving · {item.quantity} {subLabel} in stock</div>
-                        </div>
-                        {item.quantity < unitsNeeded && <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.1)", color: "#ef4444", fontWeight: 700 }}>LOW</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {comSub === "rationing" && <RationingPlanner items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />}
 
       {comSub === "people" && <PeopleDirectory contacts={contacts} setContacts={setContacts} />}
 
@@ -7503,6 +7354,12 @@ export default function PrepVault() {
   const saved = useRef(loadSaved());
   const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
+  const [rationPeopleOverride, setRationPeopleOverride] = useState(null);
+  const [dailyCalTarget, setDailyCalTarget] = useState(2000);
+  const defaultRationPeople = useMemo(() => Array.from({ length: Math.max(0, Math.floor(Number(people) || 0)) }, (_, i) => ({ id: "rp" + i, name: "Person " + (i + 1) })), [people]);
+  const rationPeople = rationPeopleOverride ?? defaultRationPeople;
+  const setRationPeople = useCallback(update => setRationPeopleOverride(current => typeof update === "function" ? update(current ?? defaultRationPeople) : update), [defaultRationPeople]);
+  const resetRationPeople = () => setRationPeopleOverride(null);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [inventorySearch, setInventorySearch] = useState({ query: "", status: "all", key: 0 });
@@ -7514,7 +7371,7 @@ export default function PrepVault() {
   const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
   const enterWorkspace = () => { setShowLanding(false); setOnboardStep(null); localStorage.setItem("prepvault-workspace-open", "1"); };
   const startPlan = () => {
-    if (!saved.current) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); }
+    if (!saved.current) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); }
     enterWorkspace(); openSetup();
   };
   const [selCat, setSelCat] = useState(null);
@@ -7754,7 +7611,7 @@ export default function PrepVault() {
       setAuthPassword("");
       // New signups get empty state
       if (authMode === "signup" && !saved.current && !localStorage.getItem("prepvault-workspace-open")) {
-        setDemoData(false);
+        setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000);
         setItems([]);
         setContacts([]);
         setMembers([{ id: "p1", name: "You", avatar: "👤", role: "Leader", status: "home", lat: null, lng: null, lastPing: "Now", battery: 100, sharing: false, color: "#22c55e" }]);
@@ -7823,7 +7680,7 @@ export default function PrepVault() {
       const until = Number(localStorage.getItem("prepvault-alerts-dismissed-until"));
       setAlertsDismissedUntil(Number.isFinite(until) && until > Date.now() ? until : null);
     }
-    if (includeSettings) setRestoreVersion(version => version + 1);
+    if (includeSettings) { setRestoreVersion(version => version + 1); setRationPeopleOverride(null); setDailyCalTarget(2000); }
     saved.current = data;
     setSelCat(null);
     localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
@@ -8062,7 +7919,7 @@ export default function PrepVault() {
     }
     switch (activeTab) {
       case "dashboard":
-        return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onSetup={openSetup} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} profile={propertyProfile}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
+        return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onSetup={openSetup} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} profile={propertyProfile} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "property":
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "dependencies":
@@ -8070,7 +7927,7 @@ export default function PrepVault() {
       case "preps":
         return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":
-        return <CommunityTab members={members} setMembers={setMembers} items={propItems} people={people} climate={climate} user={user} contacts={contacts} setContacts={setContacts} />;
+        return <CommunityTab members={members} setMembers={setMembers} items={propItems} user={user} contacts={contacts} setContacts={setContacts} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople} />;
       case "comms":
         return <CommsTab items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
@@ -8327,7 +8184,7 @@ export default function PrepVault() {
         );
       })()}
 
-      {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); openSetup(); } }}>Start my own plan →</button></div>}
+      {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {["preps", "dependencies"].includes(activeTab) && <nav className="pv-supplies-sections" aria-label="Supplies sections"><button className={activeTab === "preps" ? "is-active" : ""} aria-current={activeTab === "preps" ? "page" : undefined} onClick={() => navigate("preps")}><Icon name="box" size={17}/>Inventory</button><button className={activeTab === "dependencies" ? "is-active" : ""} aria-current={activeTab === "dependencies" ? "page" : undefined} onClick={() => navigate("dependencies")}><Icon name="bolt" size={17}/>Dependencies</button></nav>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
       <div key={restoreVersion} className={selCat || !["dashboard", "preps"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
