@@ -8,7 +8,7 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | --- | --- |
 | Overview | Recorded category coverage, essential supplies, priority alerts, household setup, detailed readiness analysis, weather and activity |
 | Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar and category calculations |
-| Property | Maps and pins, access codes with reveal controls, manuals/routes, security, cameras and connected-home controls |
+| Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
 | Your people | Contacts, medical/skill information, location tracker, skills and rationing |
 | Communications | Live radio, saved custom streams, frequency reference, codes, equipment, local notes, community chat, comms plans and rally points |
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
@@ -36,7 +36,8 @@ The app opens without backend credentials. Choose **Explore the workspace** for 
 - Backups preserve the main household collections and local feature settings. Account credentials and sync baselines are excluded. V3 inventory backups remain readable; V4 adds complete state and settings.
 - Encrypted backups retain the original AES-256-GCM format and PBKDF2-SHA256 derivation with 310,000 iterations. There is no passphrase recovery.
 - Existing duplicate sample IDs are repaired without dropping records. Zero stock and empty inventories remain empty across saves and restores.
-- Supabase sync covers inventory, map pins, properties and selected household settings. Other data remains local and requires a complete backup for transfer. The UI reports this as **Core data synced**.
+- Saved map images, their markers and travel routes are stored separately for each property on this device and included in complete backups. Importing an older backup without maps/routes clears the saved map workspace rather than leaving stale markers over a different image.
+- Supabase sync covers inventory, legacy map pins, properties and selected household settings. Saved image maps, their markers, routes and other planning data remain local and require a complete backup for transfer. The UI reports this as **Core data synced**.
 
 ## Connected services
 
@@ -50,7 +51,7 @@ Community chat uses the selected joined community. Device-only notes are stored 
 
 ## Verification
 
-- `npm test`: 50 regression tests for radio playback, migration, merge/conflict behavior, deletion, offline/reconnect handling, account cancellation, encrypted round trips, corrupted backups and the membership-policy source contract.
+- `npm test`: regression tests for radio playback, saved map/route validation, migration, merge/conflict behavior, deletion, offline/reconnect handling, account cancellation, encrypted round trips, corrupted backups and the membership-policy source contract.
 - Targeted ESLint passes for the new components and data modules.
 - Production build passes. Vite still reports a large application chunk inherited from the monolithic specialist interface; React/vendor and Leaflet are separate chunks.
 - Browser checks cover desktop and 390px mobile layouts, navigation, filters, editing and reload persistence, scenario controls, and dialogs.

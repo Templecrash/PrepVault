@@ -1,7 +1,44 @@
-export const SNAPSHOT_ARRAYS = ['items', 'pins', 'properties', 'members', 'contacts', 'callSigns', 'codeWords', 'rallyPoints', 'codes', 'gardenBeds', 'actionLog', 'soilTests', 'compostBins', 'livestock', 'slaughterLog'];
+export const SNAPSHOT_ARRAYS = ['items', 'pins', 'properties', 'members', 'contacts', 'callSigns', 'codeWords', 'rallyPoints', 'codes', 'gardenBeds', 'actionLog', 'soilTests', 'compostBins', 'livestock', 'slaughterLog', 'routes'];
+
+export const MAX_MAP_IMAGE_LENGTH = 2 * 1024 * 1024;
 
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasText = value => typeof value === 'string' && value.trim().length > 0;
+
+function validMapImage(image) {
+  if (!isRecord(image) || typeof image.dataUrl !== 'string' || image.dataUrl.length > MAX_MAP_IMAGE_LENGTH) return false;
+  if (![image.width, image.height].every(value => Number.isInteger(value) && value > 0 && value <= 4096)) return false;
+  const comma = image.dataUrl.indexOf(',');
+  if (!['data:image/png;base64', 'data:image/jpeg;base64', 'data:image/webp;base64'].includes(image.dataUrl.slice(0, comma))) return false;
+  const encoded = image.dataUrl.slice(comma + 1);
+  return encoded.length > 0 && encoded.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(encoded);
+}
+
+function validMapPins(pins) {
+  if (!Array.isArray(pins)) return false;
+  const ids = new Set();
+  return pins.every(pin => {
+    if (!isRecord(pin) || !hasText(pin.id) || ids.has(pin.id) || !hasText(pin.layer) || !hasText(pin.type)) return false;
+    if (![pin.x, pin.y].every(value => Number.isFinite(value) && value >= 0 && value <= 100)) return false;
+    if (['label', 'notes', 'assignee'].some(key => pin[key] !== undefined && typeof pin[key] !== 'string')) return false;
+    ids.add(pin.id);
+    return true;
+  });
+}
+
+function validateMapPlanning(value) {
+  if (value.mapSetups !== undefined) {
+    if (!isRecord(value.mapSetups)) throw new Error('Invalid saved maps in backup.');
+    for (const [propertyId, map] of Object.entries(value.mapSetups)) {
+      if (!hasText(propertyId) || ['__proto__', 'constructor', 'prototype'].includes(propertyId) || !isRecord(map) || !hasText(map.name) || typeof map.address !== 'string' || !validMapImage(map.image) || !validMapPins(map.pins) || !hasText(map.savedAt) || !Number.isFinite(Date.parse(map.savedAt))) throw new Error('Invalid saved map in backup.');
+    }
+  }
+  const routeIds = new Set();
+  for (const route of value.routes || []) {
+    if (['id', 'propertyId', 'name', 'origin', 'destination'].some(key => !hasText(route[key])) || routeIds.has(route.id) || !['driving', 'walking', 'bicycling', 'transit'].includes(route.travelMode) || (route.notes !== undefined && typeof route.notes !== 'string')) throw new Error('Invalid travel route in backup.');
+    routeIds.add(route.id);
+  }
+}
 
 // JSON field order can change across Supabase, backups and older app versions.
 // Treat those representations as equal, so an unchanged record can receive a
@@ -22,6 +59,7 @@ export function validateSnapshot(value) {
   for (const key of SNAPSHOT_ARRAYS) {
     if (value[key] !== undefined && (!Array.isArray(value[key]) || value[key].some(record => !isRecord(record)))) throw new Error(`Invalid ${key} in backup.`);
   }
+  validateMapPlanning(value);
   if (value.items.some(item => !hasText(item.id) || !hasText(item.category) || !hasText(item.subType) || typeof item.name !== 'string' || !['string', 'number'].includes(typeof item.quantity) || item.quantity === '' || !Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0 || (item.fields !== undefined && !isRecord(item.fields)))) throw new Error('Invalid supply in backup.');
   if (value.people !== undefined && (!Number.isFinite(value.people) || value.people < 1)) throw new Error('Invalid household size.');
   if (value.properties && (!value.properties.length || value.properties.some(p => !hasText(p.id) || !hasText(p.name)))) throw new Error('Invalid properties.');

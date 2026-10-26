@@ -1,8 +1,64 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { encodeBytes, mergeRecords, recordsEqual, SNAPSHOT_ARRAYS, validateSnapshot } from '../src/storage.js';
+import { Buffer } from 'node:buffer';
+import { encodeBytes, MAX_MAP_IMAGE_LENGTH, mergeRecords, recordsEqual, SNAPSHOT_ARRAYS, validateSnapshot } from '../src/storage.js';
 
 const supply = (overrides = {}) => ({ id: 'water-1', category: 'water', subType: 'storedWater', name: 'Drinking water', quantity: 2, fields: { capacity: '5' }, ...overrides });
+const mapSetup = (overrides = {}) => ({ name: 'Home map', address: 'Ottawa, ON', image: { dataUrl: 'data:image/png;base64,aW1hZ2U=', width: 1600, height: 900 }, pins: [{ id: 'pin1', layer: 'buildings', type: 'house', x: 0, y: 100, label: 'House', notes: '' }], savedAt: '2026-10-26T12:00:00.000Z', ...overrides });
+const route = (overrides = {}) => ({ id: 'route1', propertyId: 'prop1', name: 'Home to cabin', origin: 'Ottawa, ON', destination: 'Gatineau, QC', travelMode: 'driving', notes: 'Bring supplies', ...overrides });
+
+test('saved images, per-property markers and routes round trip without changing legacy map data', () => {
+  const snapshot = { items: [], pins: [{ id: 'legacy', x: 50, y: 20 }], propAddress: 'Legacy address', mapSetups: { prop1: mapSetup({ futureOption: true }), prop2: mapSetup({ name: 'Cabin map', pins: [] }) }, routes: [route({ futureOption: true })] };
+  const before = structuredClone(snapshot);
+  assert.deepEqual(validateSnapshot(JSON.parse(JSON.stringify(snapshot))), before);
+  assert.deepEqual(snapshot, before);
+  assert.equal(validateSnapshot({ items: [] }).mapSetups, undefined, 'legacy snapshot remains identifiable by the restore flow');
+});
+
+test('saved map validation accepts supported image formats and maximum dimensions', () => {
+  for (const mime of ['png', 'jpeg', 'webp']) {
+    const map = mapSetup({ image: { dataUrl: `data:image/${mime};base64,aW1hZ2U=`, width: 4096, height: 1 } });
+    assert.deepEqual(validateSnapshot({ items: [], mapSetups: { prop1: map } }).mapSetups.prop1, map);
+  }
+});
+
+test('saved map validation rejects unsafe, malformed and oversized image sources', () => {
+  const invalid = [
+    null,
+    { dataUrl: 'https://example.com/map.png', width: 100, height: 100 },
+    { dataUrl: 'data:image/svg+xml;base64,aW1hZ2U=', width: 100, height: 100 },
+    { dataUrl: 'data:image/png;base64,aW1hZ2U', width: 100, height: 100 },
+    { dataUrl: 'data:image/png;base64,', width: 100, height: 100 },
+    { dataUrl: 'data:image/png;base64,====', width: 100, height: 100 },
+    { dataUrl: 'data:image/png;base64,aW1h Z2U', width: 100, height: 100 },
+    { dataUrl: 'data:image/png;base64,aW1hZ2U=', width: 0, height: 100 },
+    { dataUrl: 'data:image/png;base64,aW1hZ2U=', width: 100, height: 4097 },
+    { dataUrl: 'data:image/png;base64,aW1hZ2U=', width: '100', height: 100 },
+    { dataUrl: `data:image/png;base64,${'A'.repeat(MAX_MAP_IMAGE_LENGTH)}`, width: 100, height: 100 },
+  ];
+  for (const image of invalid) assert.throws(() => validateSnapshot({ items: [], mapSetups: { prop1: mapSetup({ image }) } }), /saved map/);
+});
+
+test('saved map validation rejects malformed documents and marker coordinates', () => {
+  const pin = mapSetup().pins[0];
+  const invalid = [null, [], { prop1: null }, { prop1: mapSetup({ name: '' }) }, { prop1: mapSetup({ address: {} }) }, { prop1: mapSetup({ savedAt: 'not a date' }) }, { prop1: mapSetup({ pins: null }) }, { prop1: mapSetup({ pins: [null] }) }, { prop1: mapSetup({ pins: [pin, pin] }) }];
+  for (const mapSetups of invalid) assert.throws(() => validateSnapshot({ items: [], mapSetups }), /saved map/);
+  for (const change of [{ x: -1 }, { y: 101 }, { x: NaN }, { x: '10' }, { id: '' }, { layer: '' }, { type: '' }, { notes: {} }]) {
+    assert.throws(() => validateSnapshot({ items: [], mapSetups: { prop1: mapSetup({ pins: [{ ...pin, ...change }] }) } }), /saved map/);
+  }
+  assert.throws(() => validateSnapshot(JSON.parse('{"items":[],"mapSetups":{"__proto__":{}}}')), /saved map/);
+});
+
+test('travel routes validate supported modes and reject missing endpoints or duplicate identities', () => {
+  for (const travelMode of ['driving', 'walking', 'bicycling', 'transit']) {
+    assert.deepEqual(validateSnapshot({ items: [], routes: [route({ travelMode })] }).routes, [route({ travelMode })]);
+  }
+  for (const change of [{ id: '' }, { propertyId: '' }, { name: '' }, { origin: ' ' }, { destination: '' }, { travelMode: 'teleport' }, { notes: {} }]) {
+    assert.throws(() => validateSnapshot({ items: [], routes: [route(change)] }), /travel route/);
+  }
+  assert.throws(() => validateSnapshot({ items: [], routes: [route(), route()] }), /travel route/);
+  for (const routes of [null, {}, [null]]) assert.throws(() => validateSnapshot({ items: [], routes }), /routes/);
+});
 
 test('legacy backups migrate missing property IDs and numeric quantities without losing custom data', () => {
   const legacy = { version: 3, items: [supply({ quantity: '0', notes: 'Keep sealed' })], people: 4, climate: 'cold' };

@@ -8,6 +8,7 @@ import Welcome from "./Welcome.jsx";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
 import RadioPlayer from "./RadioPlayer.jsx";
+import PropertyMapWorkspace from "./PropertyMapWorkspace.jsx";
 import { Icon } from "./brand.jsx";
 import { useDialogFocus } from "./useDialogFocus.js";
 import { validateSnapshot } from "./storage.js";
@@ -1549,242 +1550,6 @@ function GenericModal({ title, fields, onSave, onClose }) {
   );
 }
 
-function PropertyMap({ pins, setPins, propAddress, setPropAddress }) {
-  const [activeLayers, setActiveLayers] = useState({ buildings: true, flora: true, water: true, wildlife: true, trails: true, caches: true, defense: false });
-  const [tacticalMode, setTacticalMode] = useState(false);
-  const [placing, setPlacing] = useState(null);
-  const [selectedPin, setSelectedPin] = useState(null);
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [newPinData, setNewPinData] = useState({});
-  const [addressInput, setAddressInput] = useState(propAddress || "");
-  const [mapLoaded, setMapLoaded] = useState(!!propAddress);
-  const [mapView, setMapView] = useState("satellite"); // satellite | roadmap | terrain
-  const [mapZoom, setMapZoom] = useState(18);
-  const mapRef = useRef(null);
-
-  const toggleLayer = (k) => {
-    if (k === "defense") { setTacticalMode((p) => !p); }
-    setActiveLayers((p) => ({ ...p, [k]: !p[k] }));
-  };
-  const handleMapClick = (e) => {
-    if (!placing || !mapRef.current) return;
-    const rect = mapRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setNewPinData({ x, y, layer: placing.layer, type: placing.type });
-    setShowPinModal(true);
-    setPlacing(null);
-  };
-  const savePin = (formData) => {
-    setPins((p) => [...p, { id: uid(), x: newPinData.x, y: newPinData.y, layer: newPinData.layer, type: newPinData.type, label: formData.label || "", notes: formData.notes || "", assignee: formData.assignee || "" }]);
-    setShowPinModal(false);
-  };
-  const visiblePins = pins.filter((p) => activeLayers[p.layer]);
-
-  const handleSetAddress = () => {
-    if (!addressInput.trim()) return;
-    setPropAddress(addressInput.trim());
-    setMapLoaded(true);
-  };
-
-  const mapTypeCode = mapView === "satellite" ? "k" : mapView === "terrain" ? "p" : "m";
-  const embedUrl = propAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(propAddress)}&t=${mapTypeCode}&z=${mapZoom}&output=embed` : "";
-
-  return (
-    <div>
-      {/* ── Address Bar ── */}
-      <div style={{ ...cardSt, padding: "16px 20px", marginBottom: 16, borderLeft: "3px solid #3b82f6" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: propAddress ? 8 : 0 }}>
-          <span style={{ fontSize: 20 }}>📍</span>
-          <div style={{ flex: 1 }}>
-            <label style={{ ...labelSt, marginBottom: 4 }}>Property Address</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                style={{ ...inp, flex: 1, fontSize: 13 }}
-                type="text"
-                value={addressInput}
-                onChange={(e) => setAddressInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSetAddress(); }}
-                placeholder="123 Rural Route 7, Muskoka, ON P0B 1J0"
-              />
-              <button
-                onClick={handleSetAddress}
-                style={{ ...btnSt, padding: "8px 18px", fontSize: 12, background: "#3b82f6", color: "#243d30", fontWeight: 700, whiteSpace: "nowrap" }}
-              >
-                {propAddress ? "Update" : "Load Map"}
-              </button>
-            </div>
-          </div>
-        </div>
-        {propAddress && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-              📌 <strong style={{ color: "#3b82f6" }}>{propAddress}</strong>
-            </div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[{ id: "satellite", l: "Satellite", i: "🛰️" }, { id: "roadmap", l: "Road", i: "🗺️" }, { id: "terrain", l: "Terrain", i: "⛰️" }].map((v) => (
-                <button key={v.id} onClick={() => setMapView(v.id)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: mapView === v.id ? "1px solid rgba(59,130,246,0.4)" : "1px solid #e0e6da", background: mapView === v.id ? "rgba(59,130,246,0.12)" : "rgba(36,61,48,0.02)", color: mapView === v.id ? "#3b82f6" : "rgba(36,61,48,0.3)" }}>
-                  {v.i} {v.l}
-                </button>
-              ))}
-              <div style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: 8 }}>
-                <button onClick={() => setMapZoom((z) => Math.max(14, z - 1))} style={{ ...btnSt, padding: "4px 8px", fontSize: 12, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>−</button>
-                <span style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)", minWidth: 20, textAlign: "center" }}>{mapZoom}</span>
-                <button onClick={() => setMapZoom((z) => Math.min(21, z + 1))} style={{ ...btnSt, padding: "4px 8px", fontSize: 12, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5" }}>+</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Map Header ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Property Map</h3>
-          <p style={{ margin: "3px 0 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Click map to place pins. {visiblePins.length} pins visible.</p>
-        </div>
-        <button onClick={() => { setTacticalMode((p) => !p); setActiveLayers((p) => ({ ...p, defense: !p.defense })); }}
-          style={{ ...btnSt, padding: "8px 16px", fontSize: 12, background: tacticalMode ? "rgba(239,68,68,0.15)" : "rgba(36,61,48,0.04)", color: tacticalMode ? "#ef4444" : "rgba(36,61,48,0.5)", border: tacticalMode ? "1px solid rgba(239,68,68,0.3)" : "1px solid #dce3d5", fontWeight: 700 }}>
-          {tacticalMode ? "🛡️ TACTICAL" : "🗺️ Standard"}
-        </button>
-      </div>
-
-      {/* ── Layers ── */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-        {Object.entries(MAP_LAYERS).map(([k, layer]) => (
-          <button key={k} onClick={() => toggleLayer(k)} style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, background: activeLayers[k] ? layer.color + "15" : "rgba(36,61,48,0.02)", border: activeLayers[k] ? "1px solid " + layer.color + "40" : "1px solid #e0e6da", color: activeLayers[k] ? layer.color : "rgba(36,61,48,0.3)" }}>
-            {layer.icon} {layer.label} ({pins.filter((p) => p.layer === k).length})
-          </button>
-        ))}
-      </div>
-
-      {/* ── Pin Types ── */}
-      {Object.entries(MAP_LAYERS).filter(([k]) => activeLayers[k]).map(([layerKey, layer]) => (
-        <div key={layerKey} style={{ display: "flex", gap: 4, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: layer.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, minWidth: 70 }}>{layer.label}:</span>
-          {(MAP_PIN_TYPES[layerKey] || []).map((pt) => (
-            <button key={pt.v} onClick={() => setPlacing(placing?.type === pt.v && placing?.layer === layerKey ? null : { layer: layerKey, type: pt.v })}
-              style={{ padding: "5px 8px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: (placing?.type === pt.v && placing?.layer === layerKey) ? "1px solid " + layer.color : "1px solid #e0e6da", background: (placing?.type === pt.v && placing?.layer === layerKey) ? layer.color + "20" : "rgba(36,61,48,0.02)", color: (placing?.type === pt.v && placing?.layer === layerKey) ? layer.color : "rgba(36,61,48,0.4)" }}>
-              {pt.i} {pt.l}
-            </button>
-          ))}
-        </div>
-      ))}
-      {placing && <div style={{ padding: "8px 14px", background: "rgba(239,68,68,0.08)", borderRadius: 8, marginBottom: 10, fontSize: 12, color: "#f59e0b", fontWeight: 600 }}>📍 Click map to place: {(MAP_PIN_TYPES[placing.layer] || []).find((p) => p.v === placing.type)?.i} {(MAP_PIN_TYPES[placing.layer] || []).find((p) => p.v === placing.type)?.l}</div>}
-
-      {/* ── Map Container ── */}
-      <div ref={mapRef} onClick={handleMapClick} style={{ position: "relative", width: "100%", height: 520, borderRadius: 16, overflow: "hidden", cursor: placing ? "crosshair" : "default", border: tacticalMode ? "2px solid rgba(239,68,68,0.2)" : "1px solid #e0e6da" }}>
-        {/* Google Maps Embed or Fallback */}
-        {propAddress && mapLoaded ? (<>
-          <iframe
-            title="Property Map"
-            src={embedUrl}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", filter: tacticalMode ? "hue-rotate(120deg) saturate(0.3) brightness(0.6)" : "none" }}
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-          {/* Click interceptor overlay — captures clicks for pin placement when placing mode is active */}
-          {placing && (
-            <div
-              onClick={handleMapClick}
-              style={{ position: "absolute", inset: 0, zIndex: 6, cursor: "crosshair", background: "transparent" }}
-            />
-          )}
-        </>) : (
-          <div style={{ position: "absolute", inset: 0, background: tacticalMode ? "linear-gradient(180deg,#0a0f0a,#0d160d,#0a120a)" : "linear-gradient(180deg,#0a1628,#0d1f2d 40%,#0f1a14 70%,#0d160d)" }}>
-            {!tacticalMode && (
-              <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path d="M5,30 Q12,40 15,50 Q18,60 25,70 Q28,75 30,80" fill="none" stroke="rgba(14,165,233,0.2)" strokeWidth="0.5" strokeDasharray="1,1" />
-                <path d="M35,0 Q45,5 50,15" fill="none" stroke="rgba(36,61,48,0.08)" strokeWidth="0.8" />
-                <rect x="5" y="5" width="90" height="90" fill="none" stroke="rgba(36,61,48,0.04)" strokeWidth="0.3" strokeDasharray="2,2" rx="1" />
-                <ellipse cx="15" cy="25" rx="12" ry="8" fill="rgba(34,197,94,0.03)" />
-                <ellipse cx="75" cy="60" rx="15" ry="10" fill="rgba(34,197,94,0.03)" />
-              </svg>
-            )}
-            {tacticalMode && (
-              <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 100 100" preserveAspectRatio="none">
-                {[20, 40, 60, 80].map((v) => <line key={"h" + v} x1="0" y1={v} x2="100" y2={v} stroke="rgba(239,68,68,0.05)" strokeWidth="0.2" />)}
-                {[20, 40, 60, 80].map((v) => <line key={"v" + v} x1={v} y1="0" x2={v} y2="100" stroke="rgba(239,68,68,0.05)" strokeWidth="0.2" />)}
-                <path d="M45,20 L30,5 L60,5 Z" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.1)" strokeWidth="0.3" />
-                <path d="M60,28 L80,10 L90,30 Z" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.1)" strokeWidth="0.3" />
-                <rect x="5" y="5" width="90" height="90" fill="none" stroke="rgba(239,68,68,0.15)" strokeWidth="0.4" strokeDasharray="2,1" rx="1" />
-              </svg>
-            )}
-            {/* Prompt to enter address */}
-            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ fontSize: 44, marginBottom: 12, opacity: 0.3 }}>🗺️</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(36,61,48,0.58)", marginBottom: 4 }}>Enter your property address above</div>
-              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Google Maps satellite view will load with your exact plot</div>
-            </div>
-          </div>
-        )}
-
-        {/* Tactical overlay on top of Google Maps */}
-        {tacticalMode && propAddress && (
-          <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 5 }} viewBox="0 0 100 100" preserveAspectRatio="none">
-            {[20, 40, 60, 80].map((v) => <line key={"h" + v} x1="0" y1={v} x2="100" y2={v} stroke="rgba(239,68,68,0.12)" strokeWidth="0.2" />)}
-            {[20, 40, 60, 80].map((v) => <line key={"v" + v} x1={v} y1="0" x2={v} y2="100" stroke="rgba(239,68,68,0.12)" strokeWidth="0.2" />)}
-            <rect x="2" y="2" width="96" height="96" fill="none" stroke="rgba(239,68,68,0.2)" strokeWidth="0.3" strokeDasharray="2,1" rx="1" />
-          </svg>
-        )}
-
-        {tacticalMode && <div style={{ position: "absolute", top: 10, left: 10, fontSize: 11, color: "rgba(239,68,68,0.5)", fontWeight: 700, fontFamily: M, letterSpacing: 2, zIndex: 10, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>TACTICAL OVERLAY</div>}
-        {!tacticalMode && !propAddress && <div style={{ position: "absolute", top: 10, left: 10, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>N ↑</div>}
-        {propAddress && !tacticalMode && <div style={{ position: "absolute", top: 10, left: 10, padding: "4px 10px", borderRadius: 6, background: "rgba(0,0,0,0.6)", fontSize: 11, color: "rgba(36,61,48,0.58)", zIndex: 10, backdropFilter: "blur(4px)" }}>📍 {propAddress}</div>}
-
-        {/* Pin Overlay — pointer-events transparent background so map is still interactive */}
-        <div style={{ position: "absolute", inset: 0, zIndex: 8, pointerEvents: "none" }}>
-          {visiblePins.map((pin) => {
-            const layer = MAP_LAYERS[pin.layer] || {};
-            const pt = (MAP_PIN_TYPES[pin.layer] || []).find((p) => p.v === pin.type);
-            const isSel = selectedPin === pin.id;
-            return (
-              <div key={pin.id} onClick={(e) => { e.stopPropagation(); setSelectedPin(isSel ? null : pin.id); }}
-                style={{ position: "absolute", left: pin.x + "%", top: pin.y + "%", transform: "translate(-50%,-50%)", zIndex: isSel ? 100 : 10, cursor: "pointer", pointerEvents: "auto" }}>
-                <div style={{ width: isSel ? 36 : 28, height: isSel ? 36 : 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: (layer.color || "#888") + (isSel ? "40" : "20"), border: "2px solid " + (layer.color || "#888") + (isSel ? "" : "80"), fontSize: isSel ? 18 : 14, transition: "all 0.2s", boxShadow: isSel ? "0 0 16px " + (layer.color || "#888") + "40" : "0 2px 8px rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }}>
-                  {pt?.i || "📍"}
-                </div>
-                <div style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", marginTop: 2, textAlign: "center" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: layer.color || "#888", textShadow: "0 1px 4px rgba(0,0,0,.9)", opacity: isSel ? 1 : 0.8 }}>{pin.label}</div>
-                  {pin.assignee && <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textShadow: "0 1px 3px rgba(0,0,0,.8)" }}>{pin.assignee}</div>}
-                </div>
-                {isSel && pin.notes && (
-                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", padding: "8px 12px", background: "#ffffff", border: "1px solid " + (layer.color || "#888") + "40", borderRadius: 8, whiteSpace: "nowrap", zIndex: 200, boxShadow: "0 8px 20px rgba(0,0,0,0.5)" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#243d30", marginBottom: 2 }}>{pin.label}</div>
-                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{pin.notes}</div>
-                    <button onClick={(e) => { e.stopPropagation(); setPins((p) => p.filter((x) => x.id !== pin.id)); setSelectedPin(null); }}
-                      style={{ ...btnSt, padding: "4px 8px", fontSize: 11, background: "rgba(239,68,68,0.1)", color: "#ef4444", marginTop: 4, pointerEvents: "auto" }}>Remove</button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Defense Roster ── */}
-      {tacticalMode && (
-        <div style={{ marginTop: 16 }}>
-          <h4 style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: 1.5 }}>Defense Roster</h4>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
-            {DEFENSE_ROLES.map((r) => (
-              <div key={r.id} style={{ ...cardSt, padding: "12px 14px", borderLeft: "3px solid #ef4444" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 20 }}>{r.avatar}</span>
-                  <div><div style={{ fontSize: 13, fontWeight: 700 }}>{r.name}</div><div style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>{r.role}</div></div>
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>📍 {r.position}</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>🔫 {r.weapon}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {showPinModal && <GenericModal title="Pin Details" onClose={() => setShowPinModal(false)} onSave={savePin} fields={[{ key: "label", label: "Label", type: "text", placeholder: "Name this pin..." }, { key: "notes", label: "Notes", type: "textarea", placeholder: "Details..." }, ...(newPinData.layer === "defense" ? [{ key: "assignee", label: "Assigned To", type: "text", placeholder: "Name" }] : [])]} />}
-    </div>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════
    BARCODE PRODUCT DATABASE
@@ -3983,7 +3748,7 @@ function CameraFeedCanvas({ cam, expanded }) {
   return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
 }
 
-function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, amenities, revealedCodes, setRevealedCodes, user, items }) {
+function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, codes, setCodes, members, manuals, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, revealedCodes, setRevealedCodes, user, items }) {
   const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
@@ -4121,7 +3886,7 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
         ))}
       </div>
 
-      {propSub === "map" && <PropertyMap pins={pins} setPins={setPins} propAddress={propAddress} setPropAddress={setPropAddress} />}
+      {propSub === "map" && <PropertyMapWorkspace pins={pins} propAddress={propAddress} setPropAddress={setPropAddress} mapSetups={mapSetups} setMapSetups={setMapSetups} routes={routes} setRoutes={setRoutes} properties={properties} activePropertyId={activePropertyId} layers={MAP_LAYERS} pinTypes={MAP_PIN_TYPES} defenseRoles={DEFENSE_ROLES} />}
 
       {propSub === "codes" && (
         <div>
@@ -8049,7 +7814,7 @@ export default function PrepVault() {
   const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
   const enterWorkspace = () => { setShowLanding(false); setOnboardStep(null); localStorage.setItem("prepvault-workspace-open", "1"); };
   const startPlan = () => {
-    if (!saved.current) { setItems([]); setPins([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); }
+    if (!saved.current) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); }
     enterWorkspace(); openSetup();
   };
   const [selCat, setSelCat] = useState(null);
@@ -8071,6 +7836,7 @@ export default function PrepVault() {
   const [propSub, setPropSub] = useState("map");
   const [propAddress, setPropAddress] = useState(() => saved.current?.propAddress || "");
   const [pins, setPins] = useState(() => saved.current?.pins || SAMPLE_MAP_PINS);
+  const [mapSetups, setMapSetups] = useState(() => saved.current?.mapSetups || {});
   const [members, setMembers] = useState(() => saved.current?.members || SAMPLE_MEMBERS);
   const [contacts, setContacts] = useState(() => saved.current?.contacts || SAMPLE_CONTACTS);
   const [callSigns, setCallSigns] = useState(() => saved.current?.callSigns || COMMS_PLAN.callSigns);
@@ -8084,7 +7850,7 @@ export default function PrepVault() {
   const [slaughterLog, setSlaughterLog] = useState(() => saved.current?.slaughterLog || []);
   const [actionLog, setActionLog] = useState(() => saved.current?.actionLog || []);
   const [manuals] = useState(SAMPLE_MANUALS);
-  const [routes] = useState(SAMPLE_ROUTES);
+  const [routes, setRoutes] = useState(() => saved.current?.routes || []);
   const [amenities] = useState(SAMPLE_AMENITIES);
   const [revealedCodes, setRevealedCodes] = useState({});
   const [showScanner, setShowScanner] = useState(false);
@@ -8144,7 +7910,7 @@ export default function PrepVault() {
     const persist = () => {
       try {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
-          items, people, climate, pins, propAddress, properties, activePropertyId,
+          items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
           soilTests, compostBins, livestock, slaughterLog,
           propertyProfile, demoData,
@@ -8159,7 +7925,7 @@ export default function PrepVault() {
     saveTimerRef.current = setTimeout(persist, 350);
     window.addEventListener("pagehide", persist);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); window.removeEventListener("pagehide", persist); };
-  }, [items, people, climate, pins, propAddress, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, propertyProfile, demoData]);
+  }, [items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, propertyProfile, demoData]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -8293,6 +8059,8 @@ export default function PrepVault() {
         setContacts([]);
         setMembers([{ id: "p1", name: "You", avatar: "👤", role: "Leader", status: "home", lat: null, lng: null, lastPing: "Now", battery: 100, sharing: false, color: "#22c55e" }]);
         setPins([]);
+        setMapSetups({});
+        setRoutes([]);
         setCallSigns([{ sign: "BASE", person: "You" }]);
         setCodeWords([]);
         setRallyPoints([]);
@@ -8321,7 +8089,7 @@ export default function PrepVault() {
   const getDbSnapshot = () => ({
     version: 4,
     timestamp: new Date().toISOString(),
-    items, people, climate, pins, propAddress, properties, activePropertyId,
+    items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
     members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
     soilTests, compostBins, livestock, slaughterLog, propertyProfile, demoData,
     localSettings: Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith("prepvault-") && ![PV_STORAGE_KEY, "prepvault-local-accounts", "prepvault-active-session"].includes(k) && !k.startsWith("prepvault-sync-")).map(k => [k, localStorage.getItem(k)])),
@@ -8332,12 +8100,18 @@ export default function PrepVault() {
 
   const restoreSnapshot = (raw, includeSettings = true) => {
     const data = validateSnapshot(raw);
+    data.mapSetups ??= includeSettings ? {} : (currentSnapshotRef.current?.mapSetups || mapSetups);
+    data.routes ??= includeSettings ? [] : (currentSnapshotRef.current?.routes || routes);
     if (data.items.some(i => !CATEGORIES[i.category] || !CATEGORIES[i.category].subTypes[i.subType])) throw new Error("Backup contains an unknown supply category or type.");
     const arrays = { items: setItems, pins: setPins, properties: setProperties, members: setMembers, contacts: setContacts, callSigns: setCallSigns, codeWords: setCodeWords, rallyPoints: setRallyPoints, codes: setCodes, gardenBeds: setGardenBeds, actionLog: setActionLog, soilTests: setSoilTests, compostBins: setCompostBins, livestock: setLivestock, slaughterLog: setSlaughterLog };
     Object.entries(arrays).forEach(([key, setter]) => { if (data[key] !== undefined) setter(data[key]); });
     if (data.people !== undefined) setPeople(data.people);
     if (data.climate !== undefined && CLIMATES[data.climate]) setClimate(data.climate);
     if (data.propAddress !== undefined) setPropAddress(data.propAddress);
+    // Full backup imports replace the map workspace, including older backups
+    // without these fields. Core cloud refreshes preserve this device-only data.
+    if (data.mapSetups !== undefined || includeSettings) setMapSetups(data.mapSetups || {});
+    if (data.routes !== undefined || includeSettings) setRoutes(data.routes || []);
     if (data.activePropertyId !== undefined) setActivePropertyId(data.activePropertyId);
     if (data.propertyProfile) setPropertyProfile(data.propertyProfile);
     if (data.demoData !== undefined) setDemoData(data.demoData);
@@ -8348,8 +8122,8 @@ export default function PrepVault() {
       try { const dismissed = JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"); setDismissedOpps(Array.isArray(dismissed) ? dismissed : []); } catch { setDismissedOpps([]); }
       const until = Number(localStorage.getItem("prepvault-alerts-dismissed-until"));
       setAlertsDismissedUntil(Number.isFinite(until) && until > Date.now() ? until : null);
-      setRestoreVersion(version => version + 1);
     }
+    if (includeSettings) setRestoreVersion(version => version + 1);
     saved.current = data;
     setSelCat(null);
     localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
@@ -8477,9 +8251,11 @@ export default function PrepVault() {
   };
   const removeProperty = (id) => {
     if (id === "prop1") return;
-    if (!window.confirm("Delete this property and its supplies? This cannot be undone.")) return;
+    if (!window.confirm("Delete this property, its supplies, saved map and travel routes? This cannot be undone.")) return;
     setProperties(p => p.filter(pp => pp.id !== id));
     setItems(p => p.filter(i => i.propertyId !== id));
+    setMapSetups(previous => Object.fromEntries(Object.entries(previous).filter(([propertyId]) => propertyId !== id)));
+    setRoutes(previous => previous.filter(route => route.propertyId !== id));
     if (activePropertyId === id) setActivePropertyId("prop1");
   };
 
@@ -8588,7 +8364,7 @@ export default function PrepVault() {
       case "dashboard":
         return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onSetup={openSetup} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} profile={propertyProfile}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "property":
-        return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
+        return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} codes={codes} setCodes={setCodes} members={members} manuals={manuals} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} user={user} items={propItems} />;
       case "preps":
         return <><InventoryView key={inventorySearch.key} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} alerts={visibleAlerts} items={propItems} categories={CATEGORIES} people={people} onCategory={openCategory} onAdd={() => openAdd()} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content"><PrepsTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       case "community":
@@ -8848,7 +8624,7 @@ export default function PrepVault() {
         );
       })()}
 
-      {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); openSetup(); } }}>Start my own plan →</button></div>}
+      {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
       <div key={restoreVersion} className={selCat || !["dashboard", "preps"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
@@ -9035,7 +8811,7 @@ export default function PrepVault() {
                     {isOffline
                       ? "No network connection detected. Keep this tab open to work with saved supplies and plans. Connected accounts can sync core data when a connection returns."
                       : user && !user.isLocal
-                        ? "Your connected account can sync supplies, map pins, properties and household settings. Other planning details remain on this device; export a complete backup to keep them safe."
+                        ? "Your connected account can sync supplies, properties and household settings. Saved map images, their markers, travel routes and other planning details remain on this device; export a complete backup to keep them safe."
                         : "Your working plan is saved in this browser. Maps, weather, live feeds and connected services use the network. Export a complete backup before moving to another device."
                     }
                   </div>
