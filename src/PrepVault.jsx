@@ -8189,8 +8189,6 @@ export default function PrepVault() {
       })()}
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
-      {["preps", "dependencies"].includes(activeTab) && <nav className="pv-section-switch" aria-label="Supplies sections"><button className={activeTab === "preps" ? "is-active" : ""} aria-current={activeTab === "preps" ? "page" : undefined} onClick={() => navigate("preps")}><Icon name="box" size={17}/>Inventory</button><button className={activeTab === "dependencies" ? "is-active" : ""} aria-current={activeTab === "dependencies" ? "page" : undefined} onClick={() => navigate("dependencies")}><Icon name="bolt" size={17}/>Dependencies</button></nav>}
-      {["property", "comms"].includes(activeTab) && <nav className="pv-section-switch" aria-label="Property sections"><button className={activeTab === "property" ? "is-active" : ""} aria-current={activeTab === "property" ? "page" : undefined} onClick={() => navigate("property")}><Icon name="home" size={17}/>Property</button><button className={activeTab === "comms" ? "is-active" : ""} aria-current={activeTab === "comms" ? "page" : undefined} onClick={() => navigate("comms")}><Icon name="radio" size={17}/>Communications</button></nav>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
       <div key={restoreVersion} className={selCat || !["dashboard", "preps", "emergency", "resources"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
@@ -8211,7 +8209,7 @@ export default function PrepVault() {
           { icon: "🏠", title: "Set Up Your Properties", desc: "Add your primary residence, bug-out locations, and cache sites. Each property tracks its own inventory independently.", action: "Next", tab: "property" },
           { icon: "📦", title: "Track Your Supplies", desc: "Use the Dashboard to add items across 20+ categories. Track quantities, locations, expiry dates, and consumption rates.", action: "Next", tab: "dashboard" },
           { icon: "👥", title: "Connect Your People", desc: "Keep contact details in one place, find your group on the tracker, and plan shared food and water supplies.", action: "Next", tab: "community" },
-          { icon: "📡", title: "Monitor Communications", desc: "Open Communications under Property for live radio, check-in schedules, code words, and radio references.", action: "Finish", tab: "comms" },
+          { icon: "📡", title: "Monitor Communications", desc: "Open Communications for live radio, check-in schedules, code words, and radio references.", action: "Finish", tab: "comms" },
         ];
         const step = steps[onboardStep];
         return (
