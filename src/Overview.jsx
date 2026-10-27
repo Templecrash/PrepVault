@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./brand.jsx";
-import RationingOverview from "./RationingOverview.jsx";
 import { computeEssentialCoverage } from "./essential-coverage.js";
 import "./overview.css";
 
@@ -35,7 +34,7 @@ function EssentialCoverage({ category, items, coverage, icon, tone, onClick }) {
   </button>;
 }
 
-export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onCrisis, onScan, members = [], rationPeople = [], setRationPeople, dailyCalTarget = 2000, setDailyCalTarget, onResetPeople }) {
+export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onCrisis, onScan, members = [], rationPeople = [], dailyCalTarget = 2000 }) {
   const [showAllPriorities, setShowAllPriorities] = useState(false);
   const coverage = useMemo(() => computeEssentialCoverage(items, rationPeople.length, dailyCalTarget), [items, rationPeople.length, dailyCalTarget]);
   const overview = useMemo(() => {
@@ -70,8 +69,6 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
         <div className="pv-hero-bottom"><span><strong>{overview.coveredKeys.size} of {overview.categoryKeys.length}</strong> categories with stock</span><button type="button" onClick={() => onNavigate("inventory-search")}>Explore your inventory <Icon name="arrow" size={17} /></button></div>
         <p className="pv-hero-note">Coverage reflects recorded categories, not a guarantee of emergency readiness.</p>
       </section>
-
-    <RationingOverview items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />
 
     <section className="pv-essentials-section" aria-labelledby="pv-essentials-title">
       <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>How long your recorded supplies could last.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("inventory-search")}>All inventory <Icon name="arrow" size={15} /></button></div>
