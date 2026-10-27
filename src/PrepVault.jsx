@@ -15,7 +15,6 @@ import CategoryDetailView from "./CategoryDetailView.jsx";
 import PropertyView from "./PropertyView.jsx";
 import AuthPanel from "./ProviderConnectionPanel.jsx";
 import ScenarioView from "./ScenarioView.jsx";
-import GenericModal from "./RecordModal.jsx";
 import "./legacy-details.css";
 import ResourcePlanningView from "./ResourcePlanningView.jsx";
 import ResourceOpportunitiesView from "./ResourceOpportunitiesView.jsx";
