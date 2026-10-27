@@ -4,7 +4,6 @@ import { Brand, Icon } from './brand.jsx';
 
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
-  { id: 'advisor', label: 'Private adviser', icon: 'advisor' },
   { id: 'food', label: 'Food', icon: 'leaf' },
   { id: 'water', label: 'Water', icon: 'water' },
   { id: 'preps', label: 'Supplies', icon: 'box' },
@@ -20,6 +19,7 @@ const destinations = [
   { id: 'codes', label: 'Codes', icon: 'key', group: 'REFERENCE LIBRARY' },
   { id: 'manuals', label: 'Manuals', icon: 'book' },
   { id: 'emergency', label: 'Emergency', icon: 'shield' },
+  { id: 'advisor', label: 'Private adviser', icon: 'advisor', footer: true },
 ];
 
 function PropertyDialog({ onClose, children }) {
@@ -79,9 +79,9 @@ export default function WorkspaceShell({ activeTab, onNavigate, properties, prop
         <label><span>YOUR SPACE</span><select aria-label="Active property" value={propertyId} onChange={e => onProperty(e.target.value)}><option value="all">All properties</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <button className="pv-icon-button" aria-label="Manage properties" onClick={() => setPropertyOpen(true)}><Icon name="settings" size={16}/></button>
       </div>
-      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
+      <nav>{destinations.filter(d => !d.footer).map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
       <div className="pv-sidebar-bottom">
-        <div className="pv-ready-note"><Icon name="leaf" size={19}/><strong>Ready is a way of life.</strong><p>Small steps. More peace of mind.</p><button onClick={onSetup}>Personalize your plan <Icon name="arrow" size={15}/></button></div>
+        {destinations.filter(d => d.footer).map(d => <button key={d.id} className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span></button>)}
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={onCrisis}><Icon name="shield" size={18}/>{crisisMode ? 'End emergency mode' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
         <button className="pv-settings" onClick={onSecurity}><Icon name="settings" size={18}/> Settings & backups</button>
         <div className="pv-sidebar-foot"><span className="pv-status-dot"/>PREPVAULT 2.0<span>Made for real life</span></div>
