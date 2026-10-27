@@ -5,6 +5,8 @@ const AUTH_PATHS = {
   signOut: 'sign-out',
 };
 
+export const OWNER_SIGN_OUT_EVENT = 'prepvault-owner-signout';
+
 async function authRequest(action, body, { signal } = {}) {
   const controller = new AbortController();
   const cancel = () => controller.abort();
@@ -61,6 +63,10 @@ export async function verifyTrackingSignInCode(email, otp, options) {
   return owner;
 }
 
-export function signOutTrackingOwner(options) {
-  return authRequest('signOut', {}, options);
+export async function signOutTrackingOwner(options) {
+  const result = await authRequest('signOut', {}, options);
+  // Close any other private surfaces only after sign-out has completed.
+  // Their unmount cleanup may abort the controller passed to this request.
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(OWNER_SIGN_OUT_EVENT));
+  return result;
 }

@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getTrackingOwner, sendTrackingSignInCode, signOutTrackingOwner, verifyTrackingSignInCode } from '../src/tracking-auth.js';
+import { getTrackingOwner, OWNER_SIGN_OUT_EVENT, sendTrackingSignInCode, signOutTrackingOwner, verifyTrackingSignInCode } from '../src/tracking-auth.js';
 
 const owner = { id: 'verified-owner', email: 'owner@example.test', name: 'Owner' };
 const response = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+function browserWindow(t) {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const target = new EventTarget();
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: target });
+  t.after(() => original ? Object.defineProperty(globalThis, 'window', original) : delete globalThis.window);
+  return target;
+}
 
 test('tracking sign-in requests use same-origin cookies, JSON, and no bearer credentials', async t => {
   const requests = [];
@@ -68,4 +76,52 @@ test('malformed server responses and aborted owner requests fail safely', async 
   const request = getTrackingOwner({ signal: controller.signal });
   controller.abort();
   await assert.rejects(request, error => error.name === 'AbortError');
+});
+
+test('owner sign-out notifies private surfaces only after a successful completed request', async t => {
+  const target = browserWindow(t);
+  const controller = new AbortController();
+  const events = [];
+  let resolveResponse;
+  let requestSignal;
+  let parsed = false;
+  target.addEventListener(OWNER_SIGN_OUT_EVENT, event => {
+    assert.equal(parsed, true);
+    events.push(event.type);
+    // Closing a private panel aborts its request controller during cleanup.
+    controller.abort();
+  });
+  t.mock.method(globalThis, 'fetch', (url, options) => {
+    assert.equal(url, '/api/auth/sign-out');
+    requestSignal = options.signal;
+    return new Promise(resolve => { resolveResponse = resolve; });
+  });
+  const request = signOutTrackingOwner({ signal: controller.signal });
+  assert.deepEqual(events, []);
+  assert.equal(controller.signal.aborted, false);
+  resolveResponse({ ok: true, status: 200, json: async () => { parsed = true; return { success: true }; } });
+  assert.deepEqual(await request, { success: true });
+  assert.deepEqual(events, [OWNER_SIGN_OUT_EVENT]);
+  assert.equal(controller.signal.aborted, true);
+  assert.equal(requestSignal.aborted, false, 'request cleanup precedes the close notification');
+});
+
+test('failed, malformed and cancelled sign-out requests never announce completion', async t => {
+  const target = browserWindow(t);
+  const events = [];
+  target.addEventListener(OWNER_SIGN_OUT_EVENT, event => events.push(event.type));
+  const fetch = t.mock.method(globalThis, 'fetch', async () => response({ error: 'Sign-out failed.' }, 503));
+  await assert.rejects(signOutTrackingOwner(), error => error.status === 503);
+  fetch.mock.mockImplementation(async () => ({ ok: true, status: 200, json: async () => { throw new Error('Invalid JSON'); } }));
+  await assert.rejects(signOutTrackingOwner(), /Secure sign-in is unavailable/);
+  fetch.mock.mockImplementation(async () => { throw new TypeError('Connection failed'); });
+  await assert.rejects(signOutTrackingOwner(), /Connection failed/);
+  const controller = new AbortController();
+  fetch.mock.mockImplementation((url, options) => new Promise((resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')), { once: true });
+  }));
+  const request = signOutTrackingOwner({ signal: controller.signal });
+  controller.abort();
+  await assert.rejects(request, error => error.name === 'AbortError');
+  assert.deepEqual(events, []);
 });

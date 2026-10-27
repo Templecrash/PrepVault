@@ -41,10 +41,10 @@ export function createAdvisorHandler({ authenticate = authenticateNeonOwner, get
       assertAuthOrigin(req);
       if (!['GET', 'POST'].includes(req.method)) {
         res.setHeader('Allow', 'GET, POST');
-        throw new AdvisorError(405, 'method_not_allowed', 'Use GET or POST for the private adviser.');
+        throw new AdvisorError(405, 'method_not_allowed', 'Use GET or POST for Prep Chat.');
       }
       const owner = await authenticate(req);
-      if (!owner) throw new AdvisorError(401, 'unauthorized', 'Sign in to use your private adviser.');
+      if (!owner) throw new AdvisorError(401, 'unauthorized', 'Sign in to use Prep Chat.');
       if (req.method === 'GET') return res.status(200).json({ configured: Boolean(getService().isConfigured()) });
       if (String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
         throw new AdvisorError(415, 'unsupported_media_type', 'Send this request as JSON.');
@@ -60,7 +60,7 @@ export function createAdvisorHandler({ authenticate = authenticateNeonOwner, get
       const known = error instanceof AdvisorError || error instanceof TrackingError;
       if (known && error.retryAfter) res.setHeader('Retry-After', String(error.retryAfter));
       return res.status(known ? error.status : 503).json({
-        error: known ? error.message : 'Your private adviser is temporarily unavailable. Please try again.',
+        error: known ? error.message : 'Prep Chat is temporarily unavailable. Please try again.',
         code: known ? error.code : 'unavailable',
       });
     }

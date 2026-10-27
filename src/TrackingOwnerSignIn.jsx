@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './brand.jsx';
 import { sendTrackingSignInCode, verifyTrackingSignInCode } from './tracking-auth.js';
 import './tracking-auth.css';
@@ -9,6 +9,7 @@ export default function TrackingOwnerSignIn({
   detail = 'People you invite can share a position. They cannot access your map.',
   buttonLabel = 'Open private tracking',
 }) {
+  const titleId = useId();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState('email');
@@ -47,8 +48,8 @@ export default function TrackingOwnerSignIn({
     finally { if (!controller.signal.aborted) setBusy(false); }
   };
 
-  return <section className="pv-tracker-signin" aria-labelledby="tracker-signin-title">
-    <div className="pv-tracker-signin-copy"><span className="pv-tracker-signin-icon"><Icon name="shield" size={24} /></span><h3 id="tracker-signin-title">Private to you.</h3><p>{description}</p><span>{detail}</span></div>
+  return <section className="pv-tracker-signin" aria-labelledby={titleId}>
+    <div className="pv-tracker-signin-copy"><span className="pv-tracker-signin-icon"><Icon name="shield" size={24} /></span><h3 id={titleId}>Private to you.</h3><p>{description}</p><span>{detail}</span></div>
     <div className="pv-tracker-signin-form">
       {notice && <p className="pv-tracker-auth-notice" role="status">{notice}</p>}
       {step === 'email' ? <form onSubmit={sendCode}>

@@ -23,7 +23,6 @@ import ResourceOpportunitiesView from "./ResourceOpportunitiesView.jsx";
 import { computeResourcePools } from "./resource-planning.js";
 import PeopleDirectory from "./PeopleDirectory.jsx";
 import LiveTracker from "./LiveTracker.jsx";
-import PrivateAdvisor from "./PrivateAdvisor.jsx";
 import Surveillance from "./Surveillance.jsx";
 import { buildAdvisorContext, readAdvisorDeviceContext } from "./advisor-context.js";
 import { HANDBOOKS } from "./handbooks.js";
@@ -3877,13 +3876,7 @@ export default function PrepVault() {
   const visibleAlerts = allAlerts.filter(a => !a.id || propItems.some(i => i.id === a.id));
   const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
 
-  const renderContent = () => {
-    if (selCat) {
-      return <CategoryDetailView key={selCat} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
-    }
-    switch (activeTab) {
-      case "advisor":
-        return <PrivateAdvisor context={buildAdvisorContext({
+  const getPrepChatContext = () => buildAdvisorContext({
           items, categories: CATEGORIES, people, climate, climateConfig: CLIMATES[climate],
           activePropertyId, properties, propAddress, propertyProfile, mapSetups, pins, routes,
           contacts, members, rationPeople, dailyCalTarget, callSigns, codeWords, rallyPoints, codes,
@@ -3891,7 +3884,13 @@ export default function PrepVault() {
           actionLog, selScen, scenario: SCENARIOS[selScen], simDuration, crisisMode, crisisType,
           crisisStart, dismissedOpps, allAlerts, manuals, handbooks: HANDBOOKS, demoData,
           device: readAdvisorDeviceContext(localStorage),
-        })} />;
+        });
+
+  const renderContent = () => {
+    if (selCat) {
+      return <CategoryDetailView key={selCat} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
+    }
+    switch (activeTab) {
       case "emergency":
         return <HandbookLibrary crisisMode={crisisMode} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} />;
       case "dashboard":
@@ -4000,7 +3999,7 @@ export default function PrepVault() {
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
   };
   return (
-    <WorkspaceShell activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} crisisMode={crisisMode} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
+    <WorkspaceShell getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} crisisMode={crisisMode} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -4177,7 +4176,7 @@ export default function PrepVault() {
 
       {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "board", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "advisor", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "board", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (

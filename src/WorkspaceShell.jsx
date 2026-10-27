@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDialogFocus } from './useDialogFocus.js';
 import { Brand, Icon } from './brand.jsx';
+import PrepChat from './PrepChat.jsx';
 
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
@@ -20,7 +21,6 @@ const destinations = [
   { id: 'codes', label: 'Codes', icon: 'key', group: 'REFERENCE LIBRARY' },
   { id: 'manuals', label: 'Manuals', icon: 'book' },
   { id: 'emergency', label: 'Emergency', icon: 'shield' },
-  { id: 'advisor', label: 'Private adviser', icon: 'advisor', footer: true },
 ];
 
 function PropertyDialog({ onClose, children }) {
@@ -28,7 +28,7 @@ function PropertyDialog({ onClose, children }) {
   return <div className="pv-modal-backdrop" onClick={onClose}><section ref={ref} className="pv-dialog" role="dialog" aria-modal="true" aria-labelledby="property-title" onClick={e => e.stopPropagation()}>{children}</section></div>;
 }
 
-export default function WorkspaceShell({ activeTab, onNavigate, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, onSearch, alertCount, inventoryAlertCounts = {}, children }) {
+export default function WorkspaceShell({ activeTab, onNavigate, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, onSearch, alertCount, inventoryAlertCounts = {}, getPrepChatContext, prepChatResetKey, children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [propertyOpen, setPropertyOpen] = useState(false);
@@ -80,9 +80,8 @@ export default function WorkspaceShell({ activeTab, onNavigate, properties, prop
         <label><span>YOUR SPACE</span><select aria-label="Active property" value={propertyId} onChange={e => onProperty(e.target.value)}><option value="all">All properties</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <button className="pv-icon-button" aria-label="Manage properties" onClick={() => setPropertyOpen(true)}><Icon name="settings" size={16}/></button>
       </div>
-      <nav>{destinations.filter(d => !d.footer).map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
+      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
       <div className="pv-sidebar-bottom">
-        {destinations.filter(d => d.footer).map(d => <button key={d.id} className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span></button>)}
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={onCrisis}><Icon name="shield" size={18}/>{crisisMode ? 'End emergency mode' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
         <button className="pv-settings" onClick={onSecurity}><Icon name="settings" size={18}/> Settings & backups</button>
         <div className="pv-sidebar-foot"><span className="pv-status-dot"/>PREPVAULT 2.0<span>Made for real life</span></div>
@@ -101,6 +100,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, properties, prop
       <footer className="pv-app-footer"><span>PrepVault<span className="pv-foot-sep">/</span>Prepared for whatever comes.</span><button onClick={onSecurity}><Icon name="shield" size={14}/> Your data, your control</button></footer>
     </div>
     <nav className="pv-mobile-nav" aria-label="Quick navigation">{quickDestinations.map(d => <button key={d.id} className={activeTab === d.id ? 'is-active' : ''} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={20}/>{d.label}</button>)}<button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="pv-main-navigation"><Icon name="menu" size={20}/>More</button></nav>
+    {getPrepChatContext && <PrepChat key={`${user?.id || 'device'}:${prepChatResetKey}`} getContext={getPrepChatContext} />}
     {propertyOpen && <PropertyDialog onClose={() => setPropertyOpen(false)}><div className="pv-dialog-heading"><div><span className="pv-eyebrow">YOUR PLACES</span><h2 id="property-title">Manage properties</h2></div><button className="pv-icon-button" aria-label="Close properties" onClick={() => setPropertyOpen(false)}><Icon name="close"/></button></div><p className="pv-muted">Keep supplies organized wherever you keep them.</p><div className="pv-property-list">{properties.map(p => <div key={p.id}><Icon name="home"/><button onClick={() => { onProperty(p.id); setPropertyOpen(false); }}>{p.name}</button><span>{p.type}</span>{p.id !== 'prop1' && <button className="pv-icon-button" aria-label={`Delete ${p.name}`} onClick={() => onRemoveProperty(p.id)}><Icon name="trash" size={16}/></button>}</div>)}</div><form onSubmit={e => { e.preventDefault(); if (newName.trim()) { onAddProperty(newName.trim(), newType); setNewName(''); } }}><label className="pv-field">Property name<input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Lake cabin" required maxLength={80}/></label><label className="pv-field">Type<select value={newType} onChange={e => setNewType(e.target.value)}>{['home','cabin','cache','farm','vehicle','office'].map(t => <option key={t} value={t}>{t[0].toUpperCase()+t.slice(1)}</option>)}</select></label><button className="pv-button pv-primary" type="submit"><Icon name="plus" size={17}/>Add property</button></form></PropertyDialog>}
   </div>;
 }

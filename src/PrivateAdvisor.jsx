@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from './brand.jsx';
 import TrackingOwnerSignIn from './TrackingOwnerSignIn.jsx';
 import { getTrackingOwner, signOutTrackingOwner } from './tracking-auth.js';
@@ -18,17 +18,17 @@ function ContextDetails({ context }) {
   const limitations = Array.isArray(meta.limitations) ? meta.limitations : [];
   const captured = Date.parse(meta.generatedAt);
   return <details className="pv-advisor-context">
-    <summary><span><Icon name="book" size={16} />What your advisor knows</span><span>Current app context<Icon name="chevron" size={14} /></span></summary>
+    <summary><span><Icon name="book" size={16} />What Prep Chat knows</span><span>Current app context<Icon name="chevron" size={14} /></span></summary>
     <div className="pv-advisor-context-body">
       <p>Your current app data is included each time you ask a question.{Number.isFinite(captured) && ` This snapshot was prepared at ${new Date(captured).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`}</p>
       {sections.length > 0 && <ul className="pv-advisor-sections">{sections.map((section, index) => <li key={section.key || index}><span>{section.label}</span>{Number.isFinite(section.count) && <strong>{section.count}</strong>}</li>)}</ul>}
       {limitations.length > 0 && <ul className="pv-advisor-limitations">{limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul>}
-      <p>OpenAI processes your questions and the included app context to generate replies. Conversations stay in this page's memory and are cleared when you leave or sign out. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noreferrer">How OpenAI handles API data<Icon name="arrow" size={12} /></a></p>
+      <p>OpenAI processes your questions and the included app context to generate replies. Conversations stay in memory while Prep Chat is open and are cleared when you close it, reload or sign out. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noreferrer">How OpenAI handles API data<Icon name="arrow" size={12} /></a></p>
     </div>
   </details>;
 }
 
-export default function PrivateAdvisor({ context }) {
+export default function PrivateAdvisor({ getContext }) {
   const [auth, setAuth] = useState({ phase: 'checking', owner: null, message: '' });
   const [configured, setConfigured] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -43,6 +43,8 @@ export default function PrivateAdvisor({ context }) {
   const chatRevision = useRef(0);
   const composer = useRef(null);
   const bottom = useRef(null);
+  const questionId = useId();
+  const context = useMemo(() => auth.phase === 'signed-in' ? getContext() : null, [auth.phase, getContext]);
 
   const cancelChat = useCallback(() => {
     chatRevision.current += 1;
@@ -137,7 +139,7 @@ export default function PrivateAdvisor({ context }) {
     const revision = ++chatRevision.current;
     setMessages(nextMessages); setBusy(true); setError(''); setCanRetry(false);
     try {
-      const reply = await askAdvisor(nextMessages, context, { signal: controller.signal });
+      const reply = await askAdvisor(nextMessages, getContext(), { signal: controller.signal });
       if (controller.signal.aborted || revision !== chatRevision.current || ownerRef.current?.id !== ownerId) return;
       setMessages([...nextMessages, { role: 'assistant', content: reply }]);
     } catch (err) {
@@ -156,27 +158,28 @@ export default function PrivateAdvisor({ context }) {
     void requestReply([...messages, { role: 'user', content }]);
   };
 
-  return <section className="pv-inventory pv-advisor" aria-labelledby="advisor-title">
-    <header className="pv-inventory-heading"><div><p className="pv-inventory-eyebrow">A CLEARER PLAN</p><h1 id="advisor-title">Your advisor<span>.</span></h1><p className="pv-inventory-intro">Assess what you have, strengthen your plans, and think through what comes next.</p></div>{auth.phase === 'signed-in' && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={signOut}><Icon name="shield" size={16} />Sign out</button>}</header>
-
-    {auth.phase !== 'signed-in' ? <>
-      {['checking', 'signing-out'].includes(auth.phase) ? <div className="pv-advisor-status" role="status"><Icon name="shield" size={22} />{auth.phase === 'checking' ? 'Checking your private session…' : 'Signing out…'}</div>
-        : ['unavailable', 'signout-failed'].includes(auth.phase) ? <div className="pv-advisor-status pv-advisor-status-error" role="alert"><Icon name="shield" size={22} /><div><strong>{auth.phase === 'signout-failed' ? 'Sign-out has not completed' : 'Your private connection is unavailable'}</strong><p>{auth.message}</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={auth.phase === 'signout-failed' ? signOut : checkSession}>Try again</button></div>
-          : <TrackingOwnerSignIn onSignedIn={checkSession} notice={auth.message} description="Sign in to assess your supplies and plans with your private preparedness advisor." detail="Only your owner account can open this conversation or send your app context to the advisor." buttonLabel="Open your advisor" />}
-    </> : <>
-      <div className="pv-advisor-account"><span><Icon name="shield" size={15} />Only you · {auth.owner.email}</span><span>Current app context · Private conversation</span></div>
-      <ContextDetails context={context} />
-      {context?.meta?.isSample && <p className="pv-advisor-sample"><Icon name="book" size={15} />This workspace includes sample data. Your advisor will distinguish examples from confirmed supplies and plans.</p>}
-      {!configured && <div className="pv-advisor-setup" role="status"><Icon name="compass" size={22} /><div><strong>Your private sign-in is connected.</strong><p>The advisor connection still needs to be set up before it can answer questions.</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={checkSession}>Check connection</button></div>}
-
-      <div className="pv-advisor-workspace">
-        <div className="pv-advisor-conversation-heading"><span><Icon name="compass" size={16} />Preparation, thought through.</span><button type="button" className="pv-advisor-text-button" onClick={clearConversation} disabled={!messages.length && !draft && !busy}><Icon name="plus" size={14} />New conversation</button></div>
-        {!messages.length ? <div className="pv-advisor-welcome"><span className="pv-advisor-mark"><Icon name="compass" size={28} /></span><h2>What would you like to work through?</h2><p>Start with a review, or bring an idea of your own.</p><div className="pv-advisor-starters">{STARTERS.map(starter => <button type="button" key={starter.label} disabled={!configured || busy} onClick={() => send(starter.prompt)}><Icon name={starter.icon} size={20} /><strong>{starter.label}</strong><span>{starter.detail}</span><Icon name="arrow" size={15} /></button>)}</div></div>
-          : <div className="pv-advisor-messages" role="log" aria-label="Conversation with your advisor" aria-live="polite" aria-relevant="additions text">{messages.map((message, index) => <article key={index} className={`pv-advisor-message is-${message.role}`}><h2>{message.role === 'user' ? 'You' : 'Your advisor'}</h2><div>{message.content}</div></article>)}{busy && <p className="pv-advisor-thinking" role="status"><span />Reviewing your question and app context…</p>}<div ref={bottom} /></div>}
-        {error && <div className="pv-advisor-error" role="alert"><p>{error}</p>{canRetry && !busy && <button type="button" className="pv-advisor-text-button" onClick={() => requestReply(messages)}>Try again<Icon name="arrow" size={14} /></button>}</div>}
-        <form className="pv-advisor-composer" onSubmit={event => { event.preventDefault(); send(); }}><label htmlFor="advisor-question">Ask your advisor</label><textarea id="advisor-question" ref={composer} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} disabled={!configured || busy} maxLength={6000} rows={3} placeholder="How long could my household manage a power outage?" /><div><span>{busy ? 'Your conversation stays on this page.' : 'Ctrl / ⌘ + Enter to send'}{draft.length > 5500 && ` · ${6000 - draft.length} characters left`}</span><button type="submit" className="pv-inventory-button pv-inventory-button-primary" disabled={!configured || busy || !draft.trim()}>{busy ? 'Thinking…' : 'Ask advisor'}<Icon name="arrow" size={16} /></button></div></form>
-        <p className="pv-advisor-footnote">OpenAI processes your question and app context to reply. Check important details and follow official guidance in an emergency.</p>
-      </div>
-    </>}
+  return <section className="pv-inventory pv-advisor pv-advisor-floating" aria-label="Prep Chat conversation">
+    <div className="pv-advisor-scroll">
+      {auth.phase !== 'signed-in' ? <>
+        {['checking', 'signing-out'].includes(auth.phase) ? <div className="pv-advisor-status" role="status"><Icon name="shield" size={22} />{auth.phase === 'checking' ? 'Checking your private session…' : 'Signing out…'}</div>
+          : ['unavailable', 'signout-failed'].includes(auth.phase) ? <div className="pv-advisor-status pv-advisor-status-error" role="alert"><Icon name="shield" size={22} /><div><strong>{auth.phase === 'signout-failed' ? 'Sign-out has not completed' : 'Your private connection is unavailable'}</strong><p>{auth.message}</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={auth.phase === 'signout-failed' ? signOut : checkSession}>Try again</button></div>
+            : <TrackingOwnerSignIn onSignedIn={checkSession} notice={auth.message} description="Sign in to Prep Chat to assess your supplies and plans." detail="Only your owner account can open this conversation or send your app context to Prep Chat." buttonLabel="Open Prep Chat" />}
+      </> : <>
+        <div className="pv-advisor-account"><span><Icon name="shield" size={15} />Only you · {auth.owner.email}</span><button type="button" className="pv-advisor-text-button" onClick={signOut}>Sign out</button></div>
+        <ContextDetails context={context} />
+        {context?.meta?.isSample && <p className="pv-advisor-sample"><Icon name="book" size={15} />Sample workspace · Prep Chat will identify example data.</p>}
+        {!configured && <div className="pv-advisor-setup" role="status"><Icon name="compass" size={22} /><div><strong>Your private sign-in is connected.</strong><p>Prep Chat still needs to be connected before it can answer questions.</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={checkSession}>Check connection</button></div>}
+        <div className="pv-advisor-workspace">
+          <div className="pv-advisor-conversation-heading"><span><Icon name="advisor" size={16} />Your conversation</span><button type="button" className="pv-advisor-text-button" onClick={clearConversation} disabled={!messages.length && !draft && !busy}><Icon name="plus" size={14} />New conversation</button></div>
+          {!messages.length ? <div className="pv-advisor-welcome"><h2>How can I help you prepare?</h2><div className="pv-advisor-starters">{STARTERS.map(starter => <button type="button" key={starter.label} disabled={!configured || busy} onClick={() => send(starter.prompt)}><Icon name={starter.icon} size={20} /><strong>{starter.label}</strong><span>{starter.detail}</span><Icon name="arrow" size={15} /></button>)}</div></div>
+            : <div className="pv-advisor-messages" role="log" aria-label="Conversation with Prep Chat" aria-live="polite" aria-relevant="additions text">{messages.map((message, index) => <article key={index} className={`pv-advisor-message is-${message.role}`}><h2>{message.role === 'user' ? 'You' : 'Prep Chat'}</h2><div>{message.content}</div></article>)}{busy && <p className="pv-advisor-thinking" role="status"><span />Reviewing your question and app context…</p>}<div ref={bottom} /></div>}
+          {error && <div className="pv-advisor-error" role="alert"><p>{error}</p>{canRetry && !busy && <button type="button" className="pv-advisor-text-button" onClick={() => requestReply(messages)}>Try again<Icon name="arrow" size={14} /></button>}</div>}
+        </div>
+      </>}
+    </div>
+    {auth.phase === 'signed-in' && <div className="pv-advisor-compose-area">
+      <form className="pv-advisor-composer" onSubmit={event => { event.preventDefault(); send(); }}><label htmlFor={questionId}>Ask Prep Chat</label><textarea id={questionId} ref={composer} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} disabled={!configured || busy} maxLength={6000} rows={2} placeholder="Ask about your supplies, plans or an idea…" /><div><span>{busy ? 'Your conversation stays in this chat.' : 'Ctrl / ⌘ + Enter to send'}{draft.length > 5500 && ` · ${6000 - draft.length} characters left`}</span><button type="submit" className="pv-inventory-button pv-inventory-button-primary" disabled={!configured || busy || !draft.trim()}>{busy ? 'Thinking…' : 'Send'}<Icon name="arrow" size={16} /></button></div></form>
+      <p className="pv-advisor-footnote">OpenAI processes your question and app context. Check important details. Closing Prep Chat clears this conversation.</p>
+    </div>}
   </section>;
 }
