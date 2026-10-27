@@ -97,6 +97,34 @@ test('context retains realistic plans, care needs, map markers, garden cells and
   assert.equal(context.communications.radioNotes[0].channelName, 'Weather');
 });
 
+test('adviser includes saved assignment details for both map formats while redacting credentials', () => {
+  const pin = { id: 'assigned', layer: 'defense', type: 'observation', label: 'Recorded position', assignee: 'Morgan', assignmentRole: 'Recorded responsibility', assignmentEquipment: 'Notebook. password: EQUIPMENT_SECRET', x: 20, y: 30, token: 'MARKER_SECRET' };
+  const context = buildAdvisorContext({ ...fixture(), pins: [pin], mapSetups: { home: { name: 'Home map', pins: [pin] } } }, { now });
+  const clean = sanitizeAdvisorContext(context);
+  for (const marker of [context.property.legacyMarkers[0], context.property.maps[0].markers[0], clean.property.legacyMarkers[0], clean.property.maps[0].markers[0]]) {
+    assert.equal(marker.assignmentRole, 'Recorded responsibility');
+    assert.equal(marker.assignmentEquipment, 'Notebook. [redacted credential]');
+    assert.equal(marker.token, undefined);
+    assert.equal(marker.assignee, 'Morgan');
+  }
+  assert.ok(!JSON.stringify(clean).includes('EQUIPMENT_SECRET'));
+  assert.ok(!JSON.stringify(context).includes('MARKER_SECRET'));
+});
+
+test('assignment context text is bounded and rejects non-string values at the API boundary', () => {
+  const pin = { assignmentRole: 'r'.repeat(300), assignmentEquipment: 'e'.repeat(700) };
+  const built = buildAdvisorContext({ ...fixture(), pins: [pin] }, { now });
+  const crafted = sanitizeAdvisorContext({ property: { legacyMarkers: [pin, { assignmentRole: 42, assignmentEquipment: ['not text'] }], maps: [{ markers: [{ assignmentRole: 'Role', assignmentEquipment: 'token: SERVER_SECRET' }] }] } });
+  for (const marker of [built.property.legacyMarkers[0], crafted.property.legacyMarkers[0]]) {
+    assert.equal(marker.assignmentRole, `${'r'.repeat(200)}…`);
+    assert.equal(marker.assignmentEquipment, `${'e'.repeat(500)}…`);
+  }
+  assert.equal(crafted.property.legacyMarkers[1].assignmentRole, null);
+  assert.equal(crafted.property.legacyMarkers[1].assignmentEquipment, null);
+  assert.equal(crafted.property.maps[0].markers[0].assignmentEquipment, '[redacted credential]');
+  assert.ok(new TextEncoder().encode(JSON.stringify(crafted)).length <= 150 * 1024);
+});
+
 test('builder excludes credentials, private files, live positions and actual access codes', () => {
   const input = { ...fixture(),
     password: 'ROOT_PASSWORD', localSettings: { password: 'LOCAL_PASSWORD' },

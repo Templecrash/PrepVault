@@ -15,6 +15,26 @@ test('saved images, per-property markers and routes round trip without changing 
   assert.equal(validateSnapshot({ items: [] }).mapSetups, undefined, 'legacy snapshot remains identifiable by the restore flow');
 });
 
+test('assignment details round trip in saved maps and legacy markers without losing other metadata', () => {
+  const fields = { assignee: 'Morgan', assignmentRole: 'r'.repeat(200), assignmentEquipment: 'e'.repeat(500), notes: 'Existing note', customMetadata: { retained: true } };
+  const snapshot = { items: [], pins: [{ id: 'legacy', ...fields }], mapSetups: { prop1: mapSetup({ pins: [{ ...mapSetup().pins[0], ...fields }] }) } };
+  const copy = structuredClone(snapshot);
+  assert.deepEqual(validateSnapshot(JSON.parse(JSON.stringify(snapshot))), copy);
+  assert.deepEqual(snapshot, copy);
+  assert.deepEqual(validateSnapshot({ items: [], pins: [{ id: 'old', customMetadata: true }] }).pins, [{ id: 'old', customMetadata: true }]);
+});
+
+test('new optional assignment fields reject invalid types and oversized values before backup restoration', () => {
+  for (const [field, maximum] of [['assignmentRole', 200], ['assignmentEquipment', 500]]) {
+    for (const value of [null, 42, true, [], {}, 'x'.repeat(maximum + 1)]) {
+      const pin = { ...mapSetup().pins[0], [field]: value };
+      assert.throws(() => validateSnapshot({ items: [], pins: [pin] }), /assignment fields/);
+      assert.throws(() => validateSnapshot({ items: [], mapSetups: { prop1: mapSetup({ pins: [pin] }) } }), /saved map/);
+    }
+    assert.equal(validateSnapshot({ items: [], pins: [{ id: 'legacy', [field]: '' }] }).pins[0][field], '');
+  }
+});
+
 test('saved map validation accepts supported image formats and maximum dimensions', () => {
   for (const mime of ['png', 'jpeg', 'webp']) {
     const map = mapSetup({ image: { dataUrl: `data:image/${mime};base64,aW1hZ2U=`, width: 4096, height: 1 } });

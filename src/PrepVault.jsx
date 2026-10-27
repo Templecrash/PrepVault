@@ -13,6 +13,7 @@ import FarmingView from "./FarmingView.jsx";
 import CommunicationsView from "./CommunicationsView.jsx";
 import CategoryDetailView from "./CategoryDetailView.jsx";
 import PropertyView from "./PropertyView.jsx";
+import { getDefensePositions, patchPositionAssignment } from "./defense-positions.js";
 import AuthPanel from "./ProviderConnectionPanel.jsx";
 import ScenarioView from "./ScenarioView.jsx";
 import "./legacy-details.css";
@@ -2932,7 +2933,7 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
 }
 
 /* ── AuthPanel — Moved outside PropertyTab to prevent re-mount on each render ── */
-function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, user, items, onSetup }) {
+function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, user, items, onSetup, members, demoData, onOpenPropertyMap }) {
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [liveNestDevices, setLiveNestDevices] = useState(null);
   const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
@@ -2970,8 +2971,18 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
 
   const primaryId = properties.some(property => property.id === "prop1") ? "prop1" : properties[0]?.id;
   const selectedPins = activePropertyId === "all" ? properties.flatMap(property => mapSetups[property.id]?.pins || (property.id === primaryId ? pins : [])) : mapSetups[activePropertyId]?.pins || (activePropertyId === primaryId ? pins : []);
-  return <PropertyView propSub={propSub} setPropSub={setPropSub} items={items} pins={selectedPins} defenseTypes={CATEGORIES.defense.subTypes} defensePinTypes={MAP_PIN_TYPES.defense} defenseRoles={DEFENSE_ROLES} trapStatus={trapStatus} setTrapStatus={setTrapStatus} onSetup={onSetup}
-    map={<PropertyMapWorkspace pins={pins} propAddress={propAddress} setPropAddress={setPropAddress} mapSetups={mapSetups} setMapSetups={setMapSetups} routes={routes} setRoutes={setRoutes} properties={properties} activePropertyId={activePropertyId} layers={MAP_LAYERS} pinTypes={MAP_PIN_TYPES} defenseRoles={DEFENSE_ROLES} />}
+  const positionRecords = getDefensePositions({ properties, mapSetups, legacyPins: pins, activePropertyId });
+  const saveAssignment = (record, patch) => {
+    if (Array.isArray(mapSetups[record.propertyId]?.pins)) {
+      setMapSetups(previous => ({ ...previous, [record.propertyId]: { ...previous[record.propertyId], pins: patchPositionAssignment(previous[record.propertyId]?.pins || [], record.pin.id, patch) } }));
+    } else if (record.propertyId === primaryId) setPins(previous => patchPositionAssignment(previous, record.pin.id, patch));
+  };
+  const openPropertyMap = propertyId => {
+    if (propertyId) onOpenPropertyMap(propertyId);
+    setPropSub("map");
+  };
+  return <PropertyView propSub={propSub} setPropSub={setPropSub} items={items} pins={selectedPins} defenseTypes={CATEGORIES.defense.subTypes} defensePinTypes={MAP_PIN_TYPES.defense} positionRecords={positionRecords} members={members} sampleRoles={demoData ? DEFENSE_ROLES : []} showProperties={activePropertyId === "all"} onSaveAssignment={saveAssignment} onOpenPropertyMap={openPropertyMap} trapStatus={trapStatus} setTrapStatus={setTrapStatus} onSetup={onSetup}
+    map={<PropertyMapWorkspace pins={pins} propAddress={propAddress} setPropAddress={setPropAddress} mapSetups={mapSetups} setMapSetups={setMapSetups} routes={routes} setRoutes={setRoutes} properties={properties} activePropertyId={activePropertyId} layers={MAP_LAYERS} pinTypes={MAP_PIN_TYPES} defenseRoles={demoData ? DEFENSE_ROLES : []} />}
     systems={<div>
           {/* Nest / Google Home Auth */}
           <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" onAuth={handleAuth} onDisconnect={handleDisconnect} />
@@ -3885,7 +3896,7 @@ export default function PrepVault() {
       case "surveillance":
         return <Surveillance />;
       case "property":
-        return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} onSetup={openSetup} />;
+        return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} onSetup={openSetup} members={[...contacts, ...members]} demoData={demoData} onOpenPropertyMap={setActivePropertyId} />;
       case "dependencies":
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "preps":

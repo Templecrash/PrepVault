@@ -4,6 +4,8 @@ export const MAX_MAP_IMAGE_LENGTH = 2 * 1024 * 1024;
 
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasText = value => typeof value === 'string' && value.trim().length > 0;
+const PIN_ASSIGNMENT_LIMITS = { assignmentRole: 200, assignmentEquipment: 500 };
+const validPinAssignmentFields = pin => Object.entries(PIN_ASSIGNMENT_LIMITS).every(([field, limit]) => pin[field] === undefined || (typeof pin[field] === 'string' && pin[field].length <= limit));
 
 function validMapImage(image) {
   if (!isRecord(image) || typeof image.dataUrl !== 'string' || image.dataUrl.length > MAX_MAP_IMAGE_LENGTH) return false;
@@ -21,6 +23,7 @@ function validMapPins(pins) {
     if (!isRecord(pin) || !hasText(pin.id) || ids.has(pin.id) || !hasText(pin.layer) || !hasText(pin.type)) return false;
     if (![pin.x, pin.y].every(value => Number.isFinite(value) && value >= 0 && value <= 100)) return false;
     if (['label', 'notes', 'assignee'].some(key => pin[key] !== undefined && typeof pin[key] !== 'string')) return false;
+    if (!validPinAssignmentFields(pin)) return false;
     ids.add(pin.id);
     return true;
   });
@@ -59,6 +62,9 @@ export function validateSnapshot(value) {
   for (const key of SNAPSHOT_ARRAYS) {
     if (value[key] !== undefined && (!Array.isArray(value[key]) || value[key].some(record => !isRecord(record)))) throw new Error(`Invalid ${key} in backup.`);
   }
+  // Older legacy markers can omit current map fields; only validate the new
+  // optional assignment fields here, preserving historical marker metadata.
+  if (value.pins?.some(pin => !validPinAssignmentFields(pin))) throw new Error('Invalid assignment fields in backup pins.');
   validateMapPlanning(value);
   if (value.items.some(item => !hasText(item.id) || !hasText(item.category) || !hasText(item.subType) || typeof item.name !== 'string' || !['string', 'number'].includes(typeof item.quantity) || item.quantity === '' || !Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0 || (item.fields !== undefined && !isRecord(item.fields)))) throw new Error('Invalid supply in backup.');
   if (value.people !== undefined && (!Number.isFinite(value.people) || value.people < 1)) throw new Error('Invalid household size.');

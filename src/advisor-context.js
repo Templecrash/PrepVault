@@ -4,6 +4,7 @@ import { buildDependencyChecks } from './dependencies.js';
 import { computeResourcePools, buildResourceRows } from './resource-planning.js';
 
 const MAX_CONTEXT_BYTES = 150 * 1024;
+const PIN_ASSIGNMENT_TEXT_LIMITS = { assignmentRole: 200, assignmentEquipment: 500 };
 const PROFILE_FIELDS = ['heatSource', 'powerSource', 'gridStatus', 'hasGenerator', 'generatorFuel', 'waterSource', 'freshwaterAccess', 'sewage', 'populationDensity', 'nearestTownKm', 'propertyAcres', 'geoRisks', 'specialNeeds', 'pets', 'foodStorage', 'medicalTraining', 'commsCapability', 'defensivePosture', 'completedAt'];
 const COMMON_ITEM_FIELDS = ['calories', 'servings', 'expiryDate', 'lastRefreshed', 'daysSupply', 'runtimeHours', 'gallons', 'capacity', 'cords', 'cordsPerMonth', 'nextService', 'lastOilChange', 'lastService', 'lastAudited'];
 const INVENTORY_FIELDS = `airFiltration alcABV alcBrand alcVolume alcWineType ammoType animalCount animalFeedLbs animalFeedType animalNotes animalStatus animalType bagOwner bagWeight bands barLength barricadeType batteryBrand batteryChemistry batteryCount batteryMah batteryVoltage boatEngineHours boatHP boatHullMat boatLength boatMotor boatType bobItemNotes bobItemQty bookAuthor bookEdition bookRegion bookScale bookSubject btuRating bullionFaceValue bullionGoldbackDenom bullionGoldbackState bullionJunkType bullionMetal bullionMint bullionPurchasePrice bullionPurity bullionWeight caliber calories capacity certLevel chainsCount chainsawBrand chargerSlots chargerType clothMaterial clothSize clothType clothingType coinCellType containerType contents cords cordsPerMonth count cropName daysSupply daysToHarvest depth deviceBrand deviceLocation deviceModel diaperSize dimensions distance docType expiryDate fertilizerType filterQty filterSize filterType firearmAction fishBaitType fishHookSize fishLineWeight fishLureType fishReelType fishRodType fishTackleContents flowRate fluidType formulaType fuelType gallons gallonsPerTab gallonsUsed gauge gearType gpm harvestMonth hasPlan hasPump heatedGreenhouse hoursOnEngine inverter irrigationType isRechargeable kidAge kidName kidSize kitLevel lastAudited lastInspection lastOilChange lastRefreshed lastReplaced lastRotated lastService lastSwept lengthFt level licensed lifespanGallons lightBattery lightBrand lightBulbType lightBurnTime lightChemColor lightFuel lightLumens magCapacity magnification mah medication mileage miscDesc nbcBrand nbcDosage nbcFilterThread nbcFilterType nbcMaterial nbcModel nbcRating nbcSize nextService oilInterval optic packCapacity partDesc partFor pestControlType petAnimal petCarrierSize petFoodType petMedName petName pfdSize pfdType planExpiry planProvider plantMonth provider pumpType range recBrand recDosage recForm recStrain recWeight rounds runtimeHours seasonalReliability seasoned seedVariety servings soilType spikeType splitterType sqft stabilized tankSize tempRating tireCondition tireSize trapType type vMake vModel vYear watts weightLbs wireLength woodSpecies`.split(' ');
@@ -80,7 +81,10 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
   const coverage = items => computeEssentialCoverage(items, rationCount ?? 0, calorieTarget ?? 0);
   const resources = computeResourcePools(normalizedItems, householdSize > 0 ? householdSize : 1, climateConfig);
   const scalarMetrics = pick(ration, ['peopleCount', 'dailyCalTarget', 'totalCalories', 'totalWaterGal', 'foodDays', 'waterDays', 'omittedFoodCount']);
-  const safePin = pin => pick(pin, ['id', 'layer', 'type', 'label', 'notes', 'assignee', 'x', 'y']);
+  const safePin = pin => ({
+    ...pick(pin, ['id', 'layer', 'type', 'label', 'notes', 'assignee', 'x', 'y']),
+    ...Object.fromEntries(Object.entries(PIN_ASSIGNMENT_TEXT_LIMITS).filter(([field]) => Object.hasOwn(pin, field)).map(([field, maximum]) => [field, text(pin[field], maximum)])),
+  });
   const safeFrequency = frequency => pick(frequency, ['freq', 'mode', 'name', 'use', 'power']);
   const device = input.device || {};
   const context = {
@@ -186,7 +190,7 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
 
 const fields = names => Object.fromEntries(names.split(' ').filter(Boolean).map(name => [name, true]));
 const coverageSchema = Object.fromEntries(['water', 'food', 'medical', 'power'].map(name => [name, fields('days basis detail')]));
-const pinSchema = fields('id layer type label notes assignee x y');
+const pinSchema = { ...fields('id layer type label notes assignee x y'), ...PIN_ASSIGNMENT_TEXT_LIMITS };
 const CONTEXT_SCHEMA = {
   meta: {
     ...fields('schemaVersion generatedAt isSample scope activePropertyId textLimitPerField limitations'),
@@ -246,6 +250,8 @@ export function sanitizeAdvisorContext(value) {
   const scalar = item => typeof item === 'string' ? scrubText(item) : typeof item === 'boolean' ? item : typeof item === 'number' && Number.isFinite(item) ? item : null;
   const project = (item, shape, path = '', depth = 0) => {
     if (depth > 12) return null;
+    // Numeric schema entries describe text-only fields with a tighter limit.
+    if (typeof shape === 'number') return scrubText(item, [], shape);
     if (shape === true) return Array.isArray(item) ? item.slice(0, 100).map(scalar).filter(entry => entry !== null) : scalar(item);
     if (shape === 'counts') return Object.fromEntries(Object.entries(item && typeof item === 'object' && !Array.isArray(item) ? item : {})
       .filter(([key, count]) => /^[A-Za-z0-9_.-]{1,160}$/.test(key) && typeof count === 'number' && Number.isFinite(count) && count >= 0).slice(0, 100));
