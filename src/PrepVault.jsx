@@ -15,6 +15,7 @@ import { computeResourcePools } from "./resource-planning.js";
 import PeopleDirectory from "./PeopleDirectory.jsx";
 import LiveTracker from "./LiveTracker.jsx";
 import PrivateAdvisor from "./PrivateAdvisor.jsx";
+import Surveillance from "./Surveillance.jsx";
 import { buildAdvisorContext, readAdvisorDeviceContext } from "./advisor-context.js";
 import { HANDBOOKS } from "./handbooks.js";
 import RationingPlanner from "./RationingPlanner.jsx";
@@ -1322,16 +1323,7 @@ const WEATHER_ADVISORIES = [
   { id: "wa7", type: "grid", severity: "info", title: "Hydro Maintenance — Planned Outage", desc: "Hydro One scheduled maintenance: March 3, 2-6AM. Affects Rural Route 7 area. 4hr window.", issued: "5d ago", expires: "March 3", icon: "🔧", color: "#6b7280" },
 ];
 
-const SAMPLE_CAMERAS = [
-  { id: "cm1", name: "North Gate", model: "Reveal X Pro", status: "online", battery: 78, signal: 4, captures: 14, last: "Deer (2)", location: "North perimeter", activity: [{ t: "2:14 PM", desc: "2 deer crossing" }, { t: "11:30 AM", desc: "Fox" }] },
-  { id: "cm2", name: "Driveway", model: "Reveal X Pro", status: "online", battery: 92, signal: 5, captures: 31, last: "Delivery truck", location: "Front entrance", activity: [{ t: "1:48 PM", desc: "Delivery truck" }, { t: "10:22 AM", desc: "Vehicle — F-250" }] },
-  { id: "cm3", name: "South Tree Line", model: "Reveal SK2", status: "online", battery: 45, signal: 3, captures: 6, last: "Coyote", location: "South boundary", activity: [{ t: "5:51 AM", desc: "Coyote" }] },
-  { id: "cm4", name: "Barn Door", model: "Reveal X", status: "online", battery: 61, signal: 4, captures: 9, last: "No motion", location: "Barn east side", activity: [{ t: "12:05 PM", desc: "Person — owner" }, { t: "8:40 AM", desc: "Cat" }] },
-  { id: "cm5", name: "Creek Trail", model: "Reveal SK2", status: "offline", battery: 8, signal: 0, captures: 2, last: "Low battery", location: "East creek", activity: [] },
-  { id: "cm6", name: "Back Road", model: "Reveal X Pro", status: "online", battery: 84, signal: 3, captures: 4, last: "Clear", location: "West access", activity: [{ t: "9:15 AM", desc: "Unknown vehicle" }] },
-];
 const SMART_HOME = {
-  alarm: { provider: "EyezOn", status: "Armed (Home)", zones: [{ n: "Front Door", s: "closed" }, { n: "Back Door", s: "closed" }, { n: "Garage", s: "closed" }, { n: "Motion — Living", s: "clear" }, { n: "Motion — Basement", s: "clear" }, { n: "Glass Break — Office", s: "clear" }] },
   nest: { devices: [
     { n: "Front Door Lock", type: "lock", status: "Locked", bat: "Good" },
     { n: "Back Door Lock", type: "lock", status: "Locked", bat: "Good" },
@@ -2356,7 +2348,7 @@ function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeopl
 /* ═══════════════════════════════════════════════════════════
    TAB RENDERERS
    ═══════════════════════════════════════════════════════════ */
-function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, setPropSub, dismissResetKey }) {
+function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, dismissResetKey }) {
   const M = "'DM Sans',sans-serif";
 
   /* ── Live Weather State ── */
@@ -2368,19 +2360,12 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
   const [showActHistory, setShowActHistory] = useState(false);
   const [showAllActions, setShowAllActions] = useState(false);
   const [dismissedProfileCTA, setDismissedProfileCTA] = useState(() => localStorage.getItem("prepvault-dismiss-profile-cta") === "1");
-  const [dismissedCameraCTA, setDismissedCameraCTA] = useState(() => localStorage.getItem("prepvault-dismiss-camera-cta") === "1");
-  const [dismissedAlarmCTA, setDismissedAlarmCTA] = useState(() => localStorage.getItem("prepvault-dismiss-alarm-cta") === "1");
-  const [alarmMinimized, setAlarmMinimized] = useState(true);
 
   /* Reset dismiss flags when demo mode is re-entered */
   useEffect(() => {
     if (dismissResetKey > 0) {
       setDismissedProfileCTA(false);
-      setDismissedCameraCTA(false);
-      setDismissedAlarmCTA(false);
       localStorage.removeItem("prepvault-dismiss-profile-cta");
-      localStorage.removeItem("prepvault-dismiss-camera-cta");
-      localStorage.removeItem("prepvault-dismiss-alarm-cta");
     }
   }, [dismissResetKey]);
 
@@ -2667,162 +2652,12 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         </div>
       </div>
 
-      {/* ── Trail Cameras ── */}
-      {!dismissedCameraCTA && (() => {
-        const camerasConnected = localStorage.getItem("prepvault-cameras-connected") === "1";
-        if (!camerasConnected) {
-          return (
-            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.15)"}>
-              <div style={{ fontSize: 28, flexShrink: 0 }}>📷</div>
-              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Connect Trail Cameras</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Link your Tactacam or trail cameras for live perimeter monitoring and motion alerts.</div>
-              </div>
-              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
-              <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
-            </div>
-          );
-        }
-        const onlineCams = SAMPLE_CAMERAS.filter(c => c.status === "online").slice(0, 3);
-        return (
-          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 20 }}>📷</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Trail Cameras</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{onlineCams.length} online — last captures</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>View All</div>
-                <button onClick={(e) => { e.stopPropagation(); setDismissedCameraCTA(true); localStorage.setItem("prepvault-dismiss-camera-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
-              </div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              {onlineCams.map(cam => (
-                <div key={cam.id} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e0e6da", background: "#f0f3ec" }}>
-                  <CameraFeedCanvas cam={cam} expanded={false} />
-                  <div style={{ padding: "5px 8px" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cam.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
-                      <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{cam.last}</span>
-                      <span style={{ width: 6, height: 6, borderRadius: 3, background: "#22c55e", flexShrink: 0 }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Alarm Systems ── */}
-      {!dismissedAlarmCTA && (() => {
-        const alarmsConnected = localStorage.getItem("prepvault-alarms-connected") === "1";
-        if (!alarmsConnected) {
-          return (
-            <div style={{ ...cardSt, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.35)"} onMouseOut={e => e.currentTarget.style.borderColor = "rgba(33,76,57,0.15)"}>
-              <div style={{ fontSize: 28, flexShrink: 0 }}>🚨</div>
-              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setActiveTab("property"); setPropSub("systems"); }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Connect Alarm System</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Link Alarm.com, EyezOn, Nest, or other providers to monitor zones and device status.</div>
-              </div>
-              <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>Set Up</div>
-              <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
-            </div>
-          );
-        }
-        const alarm = SMART_HOME.alarm;
-        const nestDevices = SMART_HOME.nest.devices;
-        const locks = nestDevices.filter(d => d.type === "lock");
-        const sensors = nestDevices.filter(d => d.type === "smoke");
-        const thermos = nestDevices.filter(d => d.type === "thermo");
-        const allZonesSecure = alarm.zones.every(z => z.s === "closed" || z.s === "clear");
-        const allLocked = locks.every(d => d.status === "Locked");
-        const allSensorsOk = sensors.every(d => d.bat === "Good");
-        return (
-          <div style={{ ...cardSt, padding: "16px 20px", background: "linear-gradient(135deg, rgba(33,76,57,0.06), rgba(33,76,57,0.02))", border: "1px solid rgba(33,76,57,0.15)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alarmMinimized ? 0 : 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 20 }}>🚨</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#214c39" }}>Alarm Systems</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{alarm.provider} · {alarm.status} · {alarm.zones.length + nestDevices.length} devices</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div onClick={() => { setActiveTab("property"); setPropSub("systems"); }} style={{ padding: "8px 16px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Manage</div>
-                <button onClick={(e) => { e.stopPropagation(); setDismissedAlarmCTA(true); localStorage.setItem("prepvault-dismiss-alarm-cta", "1"); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 18, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1, flexShrink: 0 }} title="Dismiss">×</button>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: allZonesSecure ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", color: allZonesSecure ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{allZonesSecure ? "✓ Zones Secure" : "⚠ Zone Alert"}</span>
-              <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: allLocked ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allLocked ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allLocked ? "✓ Locks Engaged" : "⚠ Lock Open"}</span>
-              <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: allSensorsOk ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", color: allSensorsOk ? "#22c55e" : "#f59e0b", fontWeight: 700 }}>{allSensorsOk ? "✓ Sensors Armed" : "⚠ Sensor Alert"}</span>
-              {thermos.length > 0 && <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", fontWeight: 700 }}>🌡️ {thermos.map(t => t.temp).join(" / ")}</span>}
-            </div>
-            {!alarmMinimized && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {/* Alarm Zones */}
-              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allZonesSecure ? "#22c55e" : "#ef4444") }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: allZonesSecure ? "#22c55e" : "#ef4444", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allZonesSecure ? "✓ All Zones Secure" : "⚠ Zone Alert"}</div>
-                <div style={{ display: "grid", gap: 3 }}>
-                  {alarm.zones.map((z, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-                      <span style={{ width: 5, height: 5, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444", flexShrink: 0 }} />
-                      {z.n} — <span style={{ color: "rgba(36,61,48,0.58)" }}>{z.s}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Smart Locks */}
-              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allLocked ? "#22c55e" : "#f59e0b") }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: allLocked ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allLocked ? "✓ Locks Secured" : "⚠ Lock Open"}</div>
-                <div style={{ display: "grid", gap: 3 }}>
-                  {locks.map((d, i) => (
-                    <div key={"l" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-                      <span style={{ fontSize: 11 }}>🔐</span>
-                      {d.n} — <span style={{ color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{d.status}</span>
-                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(36,61,48,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 11 }}>{d.bat}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Smoke / CO Sensors */}
-              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid " + (allSensorsOk ? "#22c55e" : "#f59e0b") }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: allSensorsOk ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{allSensorsOk ? "✓ Sensors OK" : "⚠ Sensor Alert"}</div>
-                <div style={{ display: "grid", gap: 3 }}>
-                  {sensors.map((d, i) => (
-                    <div key={"s" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-                      <span style={{ fontSize: 11 }}>🔥</span>
-                      {d.n} — <span style={{ color: "rgba(36,61,48,0.58)" }}>CO: {d.co}</span>
-                      {d.bat && <span style={{ color: d.bat === "Good" ? "rgba(36,61,48,0.2)" : "#f59e0b", marginLeft: "auto", fontSize: 11 }}>{d.bat}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Thermostats */}
-              <div style={{ padding: "10px 12px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: "3px solid #0ea5e9" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🌡️ Climate</div>
-                <div style={{ display: "grid", gap: 3 }}>
-                  {thermos.map((d, i) => (
-                    <div key={"t" + i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-                      <span style={{ fontSize: 11 }}>🌡️</span>
-                      {d.n} — <span style={{ color: "#0ea5e9", fontWeight: 600 }}>{d.temp}</span>
-                      <span style={{ color: "rgba(36,61,48,0.58)" }}>set {d.set} · {d.hum} · {d.mode}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            )}
-            <button onClick={() => setAlarmMinimized(m => !m)} style={{ marginTop: 8, padding: "8px 0", borderRadius: 8, border: "1px solid #e0e6da", background: "rgba(47,76,39,0.02)", color: "rgba(36,61,48,0.58)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "center", width: "100%" }}>
-              {alarmMinimized ? "Show More" : "Show Less"}
-            </button>
-          </div>
-        );
-      })()}
+      {/* ── Private Surveillance ── */}
+      <div style={{ ...cardSt, padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <Icon name="camera" size={25} />
+        <div style={{ flex: 1, minWidth: 220 }}><div style={{ fontSize: 14, fontWeight: 700 }}>Your private surveillance</div><p style={{ fontSize: 12, color: "rgba(36,61,48,0.58)", margin: "6px 0 0", lineHeight: 1.6 }}>Connect REVEAL for camera photos and EyezOn for reported alarm states.</p></div>
+        <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => setActiveTab("surveillance")}>Open surveillance<Icon name="arrow" size={15} /></button>
+      </div>
 
       {/* ── Action Items Center ── */}
       {(() => {
@@ -3603,83 +3438,6 @@ function AuthPanel({ title, icon, color, auth, setAuth, provider, helpUrl, provi
   );
 }
 
-/* ── CameraFeedCanvas — Renders simulated trail camera feed ── */
-function CameraFeedCanvas({ cam, expanded }) {
-  const canvasRef = useRef(null);
-  const height = expanded ? 200 : 120;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const w = canvas.width = canvas.parentElement?.offsetWidth || 280;
-    const h = canvas.height = height;
-    const ctx = canvas.getContext("2d");
-
-    // Base gradient — night-vision green/brown tint per camera
-    const hue = (cam.id.charCodeAt(cam.id.length - 1) * 37) % 60 + 90;
-    const grad = ctx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, `hsl(${hue}, 15%, 8%)`);
-    grad.addColorStop(0.5, `hsl(${hue}, 20%, 12%)`);
-    grad.addColorStop(1, `hsl(${hue}, 10%, 6%)`);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    // IR noise grain
-    const imageData = ctx.getImageData(0, 0, w, h);
-    for (let i = 0; i < imageData.data.length; i += 4) {
-      const noise = (Math.random() - 0.5) * 25;
-      imageData.data[i] += noise;
-      imageData.data[i + 1] += noise;
-      imageData.data[i + 2] += noise;
-    }
-    ctx.putImageData(imageData, 0, 0);
-
-    // Vignette
-    const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.2, w / 2, h / 2, w * 0.7);
-    vignette.addColorStop(0, "rgba(0,0,0,0)");
-    vignette.addColorStop(1, "rgba(0,0,0,0.5)");
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, w, h);
-
-    // HUD overlay
-    ctx.font = "bold 9px JetBrains Mono, monospace";
-    ctx.fillStyle = "rgba(34,197,94,0.7)";
-    ctx.fillText(cam.name.toUpperCase(), 8, 14);
-
-    const ts = new Date().toLocaleString("en-US", { hour12: false });
-    const tsW = ctx.measureText(ts).width;
-    ctx.fillText(ts, w - tsW - 8, 14);
-
-    // REC dot
-    ctx.fillStyle = "rgba(239,68,68,0.8)";
-    ctx.beginPath();
-    ctx.arc(14, h - 12, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(36,61,48,0.6)";
-    ctx.font = "bold 9px JetBrains Mono, monospace";
-    ctx.fillText("REC", 22, h - 8);
-
-    // Model + location bottom-right
-    ctx.fillStyle = "rgba(36,61,48,0.3)";
-    const locText = `${cam.model} | ${cam.location}`;
-    const locW = ctx.measureText(locText).width;
-    ctx.fillText(locText, w - locW - 8, h - 8);
-
-    // Crosshair center (subtle)
-    ctx.strokeStyle = "rgba(34,197,94,0.15)";
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 20, h / 2);
-    ctx.lineTo(w / 2 + 20, h / 2);
-    ctx.moveTo(w / 2, h / 2 - 20);
-    ctx.lineTo(w / 2, h / 2 + 20);
-    ctx.stroke();
-
-  }, [cam.id, cam.name, cam.model, cam.location, height, expanded]);
-
-  return <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />;
-}
-
 function CodesTab({ codes, setCodes, members, revealedCodes, setRevealedCodes }) {
   const [accessDropdown, setAccessDropdown] = useState(null);
   const CODE_ICONS = { gate: "🚪", safe: "🔐", alarm: "🚨", wifi: "📶", radio: "📻" };
@@ -3742,102 +3500,40 @@ function CodesTab({ codes, setCodes, members, revealedCodes, setRevealedCodes })
 }
 
 function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, user, items }) {
-  const [revealAuth, setRevealAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
   const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
-  const [eyezonAuth, setEyezonAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
-  const [expandedCam, setExpandedCam] = useState(null);
-  const [liveCameras, setLiveCameras] = useState(null);
-  const [liveAlarm, setLiveAlarm] = useState(null);
   const [liveNestDevices, setLiveNestDevices] = useState(null);
   const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
   useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
 
   const subTabs = [{ id: "map", l: "Map", i: "🗺️" }, { id: "defenses", l: "Defenses", i: "🛡️" }, { id: "systems", l: "Systems", i: "🏠" }];
-  const ROUTE_COLORS = { primary: "#22c55e", secondary: "#f59e0b", tertiary: "#ef4444", emergency: "#8b5cf6" };
-
-  const handleAuth = async (setter, state, provider) => {
-    if (!state.email || !state.password) { setter((p) => ({ ...p, error: "Enter email and password" })); return; }
-    setter((p) => ({ ...p, loading: true, error: "" }));
-
-    const apiBase = import.meta.env.VITE_API_URL || "";
-    const endpoints = {
-      tactacam: `${apiBase}/api/smart-home/tactacam/auth`,
-      eyezon: `${apiBase}/api/smart-home/eyezon/auth`,
-      nest: `${apiBase}/api/smart-home/nest/auth`,
-    };
-
+  const handleAuth = async (setter, state) => {
+    if (!state.email || !state.password) { setter(p => ({ ...p, error: "Enter email and password" })); return; }
+    setter(p => ({ ...p, loading: true, error: "" }));
     try {
-      // Try real API if user is authenticated
       if (user && supabaseConfigured) {
         const session = await supabase.auth.getSession();
         const token = session?.data?.session?.access_token;
-        if (token && endpoints[provider]) {
-          const res = await fetch(endpoints[provider], {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ email: state.email, password: state.password }),
-          });
+        if (token) {
+          const apiBase = import.meta.env.VITE_API_URL || "";
+          const res = await fetch(`${apiBase}/api/smart-home/nest/auth`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: state.email, password: state.password }) });
           if (res.ok) {
-            setter((p) => ({ ...p, loading: false, connected: true, error: "" }));
-            if (provider === "tactacam") { localStorage.setItem("prepvault-cameras-connected", "1"); localStorage.removeItem("prepvault-dismiss-camera-cta"); }
-            if (provider === "eyezon" || provider === "nest") { localStorage.setItem("prepvault-alarms-connected", "1"); localStorage.removeItem("prepvault-dismiss-alarm-cta"); }
-            // Fetch live data after successful auth
-            if (provider === "tactacam") fetchLiveCameras(token);
-            if (provider === "eyezon") fetchLiveAlarmStatus(token);
-            if (provider === "nest") fetchLiveNestDevices(token);
+            setter(p => ({ ...p, password: "", loading: false, connected: true, error: "" }));
+            const devices = await fetch(`${apiBase}/api/smart-home/nest/devices`, { headers: { Authorization: `Bearer ${token}` } });
+            if (devices.ok) { const data = await devices.json(); setLiveNestDevices(data.devices); }
             return;
           }
-          const errData = await res.json().catch(() => ({}));
-          setter((p) => ({ ...p, loading: false, error: errData.error || "Connection failed" }));
+          const data = await res.json().catch(() => ({}));
+          setter(p => ({ ...p, password: "", loading: false, error: data.error || "Connection failed" }));
           return;
         }
       }
-      setter(p => ({ ...p, loading: false, connected: false, error: "Sign in to a cloud account to connect this service. Sample devices below remain available for preview." }));
-    } catch (err) {
-      setter(p => ({ ...p, loading: false, connected: false, error: "Could not connect. Check your connection and try again." }));
+      setter(p => ({ ...p, password: "", loading: false, connected: false, error: "Sign in to a cloud account to connect this service." }));
+    } catch {
+      setter(p => ({ ...p, password: "", loading: false, connected: false, error: "Could not connect. Check your connection and try again." }));
     }
   };
-
-  const fetchLiveCameras = async (token) => {
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || "";
-      const res = await fetch(`${apiBase}/api/smart-home/tactacam/cameras`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const data = await res.json(); setLiveCameras(data.cameras); }
-    } catch { /* use sample data */ }
-  };
-  const fetchLiveAlarmStatus = async (token) => {
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || "";
-      const res = await fetch(`${apiBase}/api/smart-home/eyezon/status`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const data = await res.json(); setLiveAlarm(data); }
-    } catch { /* use sample data */ }
-  };
-  const fetchLiveNestDevices = async (token) => {
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || "";
-      const res = await fetch(`${apiBase}/api/smart-home/nest/devices`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const data = await res.json(); setLiveNestDevices(data.devices); }
-    } catch { /* use sample data */ }
-  };
-
-  const handleDisconnect = (setter, provider) => {
-    setter({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
-    if (provider === "tactacam") setLiveCameras(null);
-    if (provider === "eyezon") setLiveAlarm(null);
-    if (provider === "nest") setLiveNestDevices(null);
-  };
-
-  const displayCameras = liveCameras || SAMPLE_CAMERAS;
-  const displayAlarm = liveAlarm || SMART_HOME.alarm;
+  const handleDisconnect = setter => { setter({ email: "", password: "", connected: false, showPw: false, error: "", loading: false }); setLiveNestDevices(null); };
   const displayNestDevices = liveNestDevices || SMART_HOME.nest.devices;
-
-  const signalBars = (level) => {
-    const bars = [];
-    for (let i = 0; i < 5; i++) {
-      bars.push(<div key={i} style={{ width: 3, height: 4 + i * 2, borderRadius: 1, background: i < level ? "#22c55e" : "rgba(36,61,48,0.1)" }} />);
-    }
-    return <div style={{ display: "flex", alignItems: "flex-end", gap: 1 }}>{bars}</div>;
-  };
 
   /* AuthPanel moved outside PropertyTab — see above */
 
@@ -4009,91 +3705,6 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
 
       {propSub === "systems" && (
         <div>
-          {/* Trail Camera Auth */}
-          <AuthPanel title="Reveal Camera Login" icon="📷" color="#22c55e" auth={revealAuth} setAuth={setRevealAuth} provider="Tactacam Reveal" providerId="tactacam" helpUrl="https://www.reveal.tactacam.com" onAuth={handleAuth} onDisconnect={handleDisconnect} />
-          {revealAuth.connected && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>{displayCameras.length} cameras · {displayCameras.filter((c) => c.status === "online").length} online</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Auto-refresh every 30s</div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
-                {displayCameras.map((cam) => {
-                  const isOnline = cam.status === "online";
-                  const isExpanded = expandedCam === cam.id;
-                  return (
-                    <div key={cam.id} style={{ ...cardSt, padding: 0, overflow: "hidden", borderTop: "3px solid " + (isOnline ? "#22c55e" : "#ef4444") }}>
-                      <div onClick={() => isOnline && setExpandedCam(isExpanded ? null : cam.id)} style={{ height: isExpanded ? 200 : 120, position: "relative", cursor: isOnline ? "pointer" : "default", transition: "height 0.3s", overflow: "hidden", background: isOnline ? "transparent" : "linear-gradient(135deg,#1a0a0a,#200d0d)" }}>
-                        {isOnline ? (
-                          <CameraFeedCanvas cam={cam} expanded={isExpanded} />
-                        ) : (
-                          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <div style={{ textAlign: "center" }}>
-                              <div style={{ fontSize: 20, opacity: 0.3 }}>📷</div>
-                              <div style={{ fontSize: 11, color: "rgba(239,68,68,0.5)", marginTop: 4 }}>OFFLINE</div>
-                            </div>
-                          </div>
-                        )}
-                        <div style={{ position: "absolute", top: 6, left: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                          <div style={{ width: 5, height: 5, borderRadius: 3, background: isOnline ? "#22c55e" : "#ef4444", animation: isOnline ? "pulse 2s infinite" : "none" }} />
-                          <span style={{ fontSize: 11, color: isOnline ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{liveCameras ? (isOnline ? "CONNECTED" : "OFFLINE") : "SAMPLE"}</span>
-                        </div>
-                        <div style={{ position: "absolute", top: 6, right: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                          {signalBars(cam.signal)}
-                          <span style={{ fontSize: 11, color: cam.battery < 20 ? "#ef4444" : cam.battery < 50 ? "#f59e0b" : "#22c55e", fontFamily: M }}>🔋{cam.battery}%</span>
-                        </div>
-                        {isOnline && !isExpanded && <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Click to expand</div>}
-                      </div>
-                      <div style={{ padding: "10px 14px" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>{cam.name}</div>
-                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{cam.model} · {cam.location}</div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>📸 {cam.captures}/24h</div>
-                            <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 1 }}>{cam.last}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* EyezOn Alarm Auth */}
-          <AuthPanel title="EyezOn Alarm Login" icon="🚨" color="#f59e0b" auth={eyezonAuth} setAuth={setEyezonAuth} provider="EyezOn EnvisaLink" providerId="eyezon" onAuth={handleAuth} onDisconnect={handleDisconnect} />
-          {eyezonAuth.connected ? (
-            <div style={{ ...cardSt, marginBottom: 16, borderLeft: "3px solid #22c55e" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <span style={{ fontSize: 22 }}>🚨</span>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>Alarm — {displayAlarm.provider}</div>
-                  <div style={{ fontSize: 11, color: "#22c55e" }}>{displayAlarm.status}</div>
-                </div>
-                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 11, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Arm Away</button>
-                  <button style={{ ...btnSt, padding: "5px 12px", fontSize: 11, background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>Disarm</button>
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 6 }}>
-                {(displayAlarm.zones || []).map((z, i) => (
-                  <div key={i} style={{ padding: "8px 10px", background: "rgba(47,76,39,0.02)", borderRadius: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: 3, background: z.s === "closed" || z.s === "clear" ? "#22c55e" : "#ef4444" }} />
-                    <div style={{ fontSize: 11 }}>{z.n} — <span style={{ color: "rgba(36,61,48,0.58)" }}>{z.s}</span></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed", marginBottom: 16 }}>
-              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🚨</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(36,61,48,0.58)" }}>Connect EyezOn to view alarm status and control zones</div>
-            </div>
-          )}
-
           {/* Nest / Google Home Auth */}
           <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" onAuth={handleAuth} onDisconnect={handleDisconnect} />
           {nestAuth.connected ? (
@@ -7123,11 +6734,13 @@ export default function PrepVault() {
       case "emergency":
         return <HandbookLibrary crisisMode={crisisMode} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} />;
       case "dashboard":
-        return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} setPropSub={setPropSub} dismissResetKey={dismissResetKey} /></div>}</details></>;
+        return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content"><DashboardTab items={propItems} setSelCat={setSelCat} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "codes":
         return <CodesTab codes={codes} setCodes={setCodes} members={members} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} />;
       case "manuals":
         return <ManualsView manuals={manuals} onSetup={openSetup} onEmergency={() => navigate("emergency")} />;
+      case "surveillance":
+        return <Surveillance />;
       case "property":
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} />;
       case "dependencies":
@@ -7396,7 +7009,7 @@ export default function PrepVault() {
 
       {demoData && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "advisor"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={selCat || !["dashboard", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "advisor", "surveillance"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (

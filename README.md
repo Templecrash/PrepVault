@@ -48,9 +48,21 @@ Overview’s essential cards show full days of coverage. Water and food use the 
 
 ## Connected services
 
-The existing Vercel `api/` handlers and integrations are retained. Plain Vite development does not emulate those serverless endpoints. Use the existing Vercel project or a properly configured local Vercel environment to exercise them.
+Plain Vite development does not emulate the Vercel `api/` handlers. Use the existing Vercel project or a properly configured local Vercel environment to exercise them.
 
 Private live tracking uses the existing Neon database with an isolated schema and a restricted runtime role. Owner access uses Neon Managed Better Auth email codes, first-party secure cookies, an explicit verified-email allowlist, and fresh server-side session checks. See `neon/README.md` for setup, grants and retention. Recipient invitations are one-use links; recipients must allow location sharing and can stop at any time. Sharing requires an open browser page and internet access. The phone number addresses the SMS invitation; it does not locate a phone by itself.
+
+### Surveillance
+
+Surveillance is a separate navigation destination after Property. It reuses the verified Neon owner session for every camera metadata and image request. Responses are `no-store`, same-origin only, and the owner session is rechecked before delivery. The old guessed REVEAL/EyezOn APIs now return a migration response instead of accepting passwords or showing synthetic security states.
+
+REVEAL uses the Cognito sign-in and read-only camera/photo routes observed in [the official REVEAL portal](https://account.revealcellcam.com/). This is an observed first-party web contract, not a documented third-party OAuth grant, and may require maintenance when REVEAL changes it. The app only calls camera/photo reads; it exposes no camera settings, deletion or on-demand capture commands. MFA/challenge flows currently report that the connector cannot complete that step. Live compatibility must be verified with the owner's account.
+
+Set `SURVEILLANCE_COOKIE_KEY` to a random 32-byte hex key as a server-only Vercel Secret, with a different key for production and preview. The password is used for the sign-in request and is never persisted. Only the provider session and account identifier are saved in separate AES-256-GCM encrypted, owner-bound, host-only, HttpOnly, Secure, SameSite=Strict cookies scoped to this API: REVEAL refresh tokens for at most 30 days and EyezOn portal sessions for at most 12 hours. Providers can expire or revoke sessions sooner. The separate owner sign-in remains mandatory. Access tokens stay briefly in server memory. Connections belong to the current browser; disconnect removes the cookie. Clearing site data or changing the encryption key requires reconnecting. Do not log request bodies or cookies.
+
+The gallery loads the latest 100 photos and indicates when older photos are available in REVEAL. Camera capture times retain the camera's local time; upload timestamps are identified separately. Each image is resolved through authenticated provider metadata, then fetched from allowlisted HTTPS AWS media hosts without forwarding credentials. Content signatures, redirects, response sizes (4 MiB per image), and request timeouts are checked. Tokens, signed media URLs, images, and connection details are excluded from app backups and adviser context. Unknown telemetry remains unknown. Refresh runs every 60 seconds while the tab is visible.
+
+EyezOn uses the first-party portal login and a read-only parser for the main system-status page. This is an observed portal contract, not a documented third-party API. It reads system and partition states, connection labels and provider update text; it does not infer zone states. Sign-in requires a structurally valid status page, not merely HTTP success. The adapter sends only the allowlisted PHP session cookie to fixed EyezOn paths; command links, scripts and arbitrary redirects are never followed. Unknown, unrecognized and disconnected states never become disarmed or secure. Validate real account compatibility after connecting; portal markup changes fail explicitly. No alarm PIN, arming, disarming or bypass control is collected or exposed.
 
 ### Private adviser
 

@@ -17,6 +17,7 @@
     "@neondatabase/auth": "0.7.0-beta",
     "@neondatabase/serverless": "1.2.0",
     "@supabase/supabase-js": "^2.98.0",
+    "cheerio": "1.2.0",
     "leaflet": "^1.9.4",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.2.0",

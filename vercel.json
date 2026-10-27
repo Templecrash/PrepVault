@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/surveillance.js": {
+      "maxDuration": 90
+    },
     "api/advisor.js": {
       "maxDuration": 90
     },

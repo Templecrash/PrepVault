@@ -8,6 +8,7 @@ const destinations = [
   { id: 'preps', label: 'Supplies', icon: 'box' },
   { id: 'dependencies', label: 'Dependencies', icon: 'bolt' },
   { id: 'property', label: 'Property', icon: 'home' },
+  { id: 'surveillance', label: 'Surveillance', icon: 'camera' },
   { id: 'comms', label: 'Communications', icon: 'radio' },
   { id: 'community', label: 'Your people', icon: 'users' },
   { id: 'rationing', label: 'Rationing', icon: 'ration' },

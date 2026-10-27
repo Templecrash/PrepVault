@@ -1,0 +1,131 @@
+.pv-surveillance { --surveillance-muted: #68756b; }
+.pv-surveillance-account { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--surveillance-muted); font-size: 12px; margin: -7px 0 24px; }
+.pv-surveillance-account > span:first-child { display: inline-flex; align-items: center; gap: 7px; color: #38513e; }
+.pv-surveillance-account button { margin-left: auto; border: 0; padding: 5px 0; background: none; color: #38513e; cursor: pointer; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.pv-surveillance-overview .pv-inventory-stat { min-width: 0; }
+.pv-surveillance-overview .pv-surveillance-time { font-size: 19px; line-height: 1.4; }
+.pv-surveillance-time small { display: block; margin: 3px 0 0; }
+.pv-surveillance-workspace { background: #fff; border: 1px solid #e0e6da; border-radius: 14px; overflow: hidden; }
+.pv-surveillance-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 22px; border-bottom: 1px solid #e8ece4; }
+.pv-surveillance-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+.pv-surveillance-tabs button { border: 0; background: transparent; border-radius: 7px; color: #697568; padding: 9px 13px; font: inherit; font-size: 13px; cursor: pointer; }
+.pv-surveillance-tabs button[aria-selected="true"] { color: #2d4c34; background: #edf2e8; font-weight: 700; }
+.pv-surveillance-filter { padding: 21px 24px; display: flex; justify-content: space-between; gap: 18px; align-items: center; }
+.pv-surveillance-filter label { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.pv-surveillance-filter select { max-width: 260px; background: #fff; border: 1px solid #dce3d6; border-radius: 7px; padding: 9px 30px 9px 11px; color: #314736; font: inherit; font-size: 13px; }
+.pv-surveillance-filter p { font-size: 12px; color: #657262; text-align: right; margin: 0; }
+.pv-surveillance-filter p span { display: block; font-size: 11px; margin-top: 4px; color: #778171; }
+.pv-surveillance-filter p a { margin-top: 7px; }
+.pv-surveillance-photo-grid { padding: 0 24px 24px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 19px; }
+.pv-surveillance-photo-card { border: 1px solid #e3e8de; border-radius: 10px; overflow: hidden; min-width: 0; }
+.pv-surveillance-photo { aspect-ratio: 4/3; background: #f2f4ef; display: grid; overflow: hidden; }
+.pv-surveillance-photo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.pv-surveillance-photo-placeholder { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 9px; color: #7b8577; padding: 20px; font-size: 12px; }
+.pv-surveillance-photo-placeholder span { max-width: 240px; }
+.pv-surveillance-photo-placeholder button { border: 1px solid #d5decc; background: #fff; color: #3f5b38; padding: 6px 11px; border-radius: 6px; cursor: pointer; font: inherit; }
+.pv-surveillance-photo-caption { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 15px; }
+.pv-surveillance-photo-caption h2 { margin: 0; font-size: 13px; font-weight: 650; color: #2e4433; overflow-wrap: anywhere; }
+.pv-surveillance-photo-caption p { margin: 5px 0 0; color: #778171; font-size: 11px; }
+.pv-surveillance-photo-caption button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; background: #f5f7f2; border: 1px solid #e3e8dd; color: #425d38; border-radius: 7px; width: 34px; height: 34px; cursor: pointer; }
+.pv-surveillance-more { padding: 0 24px 24px; text-align: center; }
+.pv-surveillance-empty { padding: 55px 24px; text-align: center; color: #6f7b69; display: flex; flex-direction: column; align-items: center; }
+.pv-surveillance-empty h2 { margin: 17px 0 8px; font-size: 21px; font-weight: 600; letter-spacing: -.4px; color: #304632; }
+.pv-surveillance-empty p { max-width: 450px; margin: 0 0 21px; font-size: 13px; line-height: 1.7; }
+.pv-surveillance-symbol { width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eff3e9; color: #526a43; border-radius: 10px; }
+.pv-surveillance-footer { display: flex; gap: 9px; align-items: flex-start; padding: 15px 24px; border-top: 1px solid #e8ece4; background: #fbfcf9; color: #7b8574; font-size: 11px; line-height: 1.6; }
+.pv-surveillance-footer svg { flex-shrink: 0; margin-top: 2px; }
+.pv-surveillance-error { display: flex; gap: 11px; margin: 20px 24px 0; border: 1px solid #e4d9bd; border-radius: 9px; padding: 14px 16px; background: #fbf9f3; color: #76653d; font-size: 12px; }
+.pv-surveillance-error > svg { flex-shrink: 0; margin-top: 1px; }
+.pv-surveillance-error strong { font-weight: 650; }
+.pv-surveillance-error p { margin: 5px 0 0; line-height: 1.6; }
+.pv-surveillance-session { display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #e0e6da; padding: 27px; border-radius: 12px; font-size: 14px; color: #516148; }
+.pv-surveillance-session p { font-size: 13px; color: #6d7964; margin: 6px 0 0; }
+.pv-surveillance-session > button { margin-left: auto; }
+.pv-surveillance-connections, .pv-surveillance-alarm { padding: 24px; display: grid; gap: 22px; }
+.pv-surveillance-connection { border: 1px solid #e3e8dd; border-radius: 11px; overflow: hidden; }
+.pv-surveillance-connection-heading { display: flex; align-items: center; gap: 13px; padding: 21px; }
+.pv-surveillance-connection-heading h2 { margin: 0; color: #314933; font-size: 16px; font-weight: 650; }
+.pv-surveillance-connection-heading p { margin: 5px 0 0; color: #78826f; font-size: 12px; line-height: 1.5; }
+.pv-surveillance-label { margin-left: auto; flex-shrink: 0; color: #65725a; background: #f2f5ee; border: 1px solid #e2e8db; border-radius: 6px; padding: 5px 8px; font-size: 11px; }
+.pv-surveillance-connect-form { padding: 0 21px 21px; display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end; }
+.pv-surveillance-connect-form label { font-size: 12px; color: #56664c; font-weight: 600; display: grid; gap: 8px; }
+.pv-surveillance-connect-form input { min-width: 0; border: 1px solid #dbe3d2; border-radius: 7px; padding: 10px 12px; background: #fff; color: #304631; font: inherit; font-weight: 400; }
+.pv-surveillance-connect-form input:focus, .pv-surveillance-filter select:focus { outline: 2px solid #779960; outline-offset: 2px; }
+.pv-surveillance-connect-form p { grid-column: 1/-1; color: #7d8777; font-size: 11px; line-height: 1.7; margin: 0; }
+.pv-surveillance-connect-form .pv-surveillance-config-notice { padding: 12px 14px; background: #f5f6f1; border: 1px solid #e1e6d8; border-radius: 8px; color: #5c6e50; font-size: 12px; }
+.pv-surveillance-provider-link { display: inline-flex; align-items: center; gap: 6px; color: #3c5b32; text-decoration: underline; text-underline-offset: 3px; font-size: 12px; }
+.pv-surveillance-portal { margin: 0; padding: 0 21px 21px; }
+.pv-surveillance-portal > span { display: block; margin-top: 8px; font-size: 11px; line-height: 1.7; color: #7d8777; }
+.pv-surveillance-connected { border-top: 1px solid #e9ede4; padding: 18px 21px; display: flex; align-items: center; gap: 16px; justify-content: space-between; }
+.pv-surveillance-connected p { margin: 0; color: #385031; font-size: 13px; overflow-wrap: anywhere; }
+.pv-surveillance-connected p span { display: block; color: #7b8573; font-size: 11px; margin-top: 6px; }
+.pv-surveillance-bridge { padding: 0 21px 21px; max-width: 780px; }
+.pv-surveillance-bridge p { color: #718067; font-size: 13px; line-height: 1.75; margin: 0 0 12px; }
+.pv-surveillance-alarm-status { display: flex; align-items: center; gap: 15px; padding: 8px 0 20px; color: #667957; }
+.pv-surveillance-alarm-status h2 { color: #344d30; font-size: 18px; font-weight: 600; margin: 0; }
+.pv-surveillance-alarm-status p { color: #7c8773; font-size: 12px; margin: 6px 0 0; }
+.pv-surveillance-alarm-status > button { margin-left: auto; }
+.pv-surveillance-system-list { display: grid; gap: 16px; }
+.pv-surveillance-system { border: 1px solid #e1e7da; border-radius: 11px; overflow: hidden; }
+.pv-surveillance-system > header { display: flex; align-items: center; gap: 15px; padding: 20px 21px; }
+.pv-surveillance-system h3 { margin: 0; font-size: 16px; color: #354e30; font-weight: 650; }
+.pv-surveillance-system header p { margin: 6px 0 0; font-size: 12px; color: #7b8772; }
+.pv-surveillance-system-meta { margin: 0; padding: 0 21px 19px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pv-surveillance-system-meta dt { font-size: 11px; color: #7e8975; }
+.pv-surveillance-system-meta dd { margin: 6px 0 0; color: #526a45; font-size: 12px; overflow-wrap: anywhere; }
+.pv-surveillance-partitions { border-top: 1px solid #e8ede2; }
+.pv-surveillance-partitions > div { display: flex; justify-content: space-between; gap: 20px; padding: 14px 21px; border-top: 1px solid #edf0e9; font-size: 12px; color: #596e4d; }
+.pv-surveillance-partitions > div:first-child { border-top: 0; }
+.pv-surveillance-partitions strong { font-weight: 550; }
+.pv-surveillance-partitions small { display: block; color: #7a8770; margin-top: 5px; font-size: 11px; }
+.pv-surveillance-label.is-alert { background: #faf4ee; border-color: #e6d8c9; color: #885d3a; }
+.pv-surveillance-partitions .is-alert { color: #885d3a; }
+.pv-surveillance-alarm-note { margin: 0; font-size: 12px; color: #7d8972; line-height: 1.7; }
+.pv-surveillance-devices { border-top: 1px solid #e8ece4; }
+.pv-surveillance-devices summary { padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: #49623e; cursor: pointer; }
+.pv-surveillance-devices summary span { display: inline-flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 400; color: #7b8771; }
+.pv-surveillance-devices[open] summary svg { transform: rotate(90deg); }
+.pv-surveillance-camera-list { padding: 0 24px 12px; }
+.pv-surveillance-camera-list > div { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 20px; padding: 15px 0; border-top: 1px solid #edf0e9; }
+.pv-surveillance-camera-list span { color: #7c8773; font-size: 11px; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.pv-surveillance-camera-list strong { color: #4c6141; font-size: 12px; font-weight: 550; }
+.pv-surveillance-camera-list small { font-size: 11px; overflow-wrap: anywhere; }
+.pv-surveillance-backdrop { z-index: 1000; padding: 20px; }
+.pv-surveillance-dialog { width: min(100%, 1050px); max-height: 94vh; background: #fff; border-radius: 14px; overflow: auto; box-shadow: 0 25px 80px #15250d40; }
+.pv-surveillance-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; }
+.pv-surveillance-dialog h2 { margin: 0; font-size: 19px; color: #2b4428; }
+.pv-surveillance-dialog header p { margin: 7px 0 0; font-size: 12px; color: #7b8673; }
+.pv-surveillance-expanded-photo { min-height: 240px; background: #f1f3ee; display: grid; place-items: center; }
+.pv-surveillance-expanded-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
+.pv-surveillance-photo-location { color: #6f7c65; margin: 0; padding: 15px 24px; font-size: 12px; }
+.pv-surveillance button:focus-visible, .pv-surveillance summary:focus-visible, .pv-surveillance-dialog button:focus-visible { outline: 2px solid #74935d; outline-offset: 3px; }
+@media (max-width: 1100px) {
+  .pv-surveillance-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pv-surveillance-connect-form { grid-template-columns: 1fr 1fr; }
+  .pv-surveillance-connect-form > button { grid-column: 1/-1; justify-self: start; }
+}
+@media (max-width: 650px) {
+  .pv-surveillance-account { gap: 9px 14px; }
+  .pv-surveillance-account > span:nth-child(2) { display: none; }
+  .pv-surveillance-toolbar { padding: 12px; gap: 8px; flex-wrap: wrap; }
+  .pv-surveillance-tabs { gap: 0; }
+  .pv-surveillance-tabs button { padding: 9px; font-size: 12px; }
+  .pv-surveillance-toolbar > button { min-height: 35px; padding: 8px; font-size: 11px; }
+  .pv-surveillance-filter { padding: 17px 16px; align-items: stretch; flex-direction: column; gap: 12px; }
+  .pv-surveillance-filter label { justify-content: space-between; }
+  .pv-surveillance-filter p { text-align: left; }
+  .pv-surveillance-photo-grid { padding: 0 16px 20px; grid-template-columns: 1fr; gap: 15px; }
+  .pv-surveillance-connections, .pv-surveillance-alarm { padding: 16px; }
+  .pv-surveillance-connection-heading { flex-wrap: wrap; padding: 17px; gap: 10px; }
+  .pv-surveillance-connection-heading > div { flex: 1; min-width: 170px; }
+  .pv-surveillance-connection-heading .pv-surveillance-label { margin-left: 56px; }
+  .pv-surveillance-connect-form { padding: 0 17px 17px; grid-template-columns: 1fr; }
+  .pv-surveillance-bridge { padding: 0 17px 17px; }
+  .pv-surveillance-alarm-status { flex-wrap: wrap; }
+  .pv-surveillance-alarm-status > div { flex: 1; min-width: 170px; }
+  .pv-surveillance-alarm-status .pv-surveillance-label { margin-left: 43px; }
+  .pv-surveillance-camera-list > div { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .pv-surveillance-camera-list span:first-child { grid-column: 1/-1; }
+  .pv-surveillance-session { flex-wrap: wrap; padding: 21px; }
+  .pv-surveillance-session > button { margin-left: 0; }
+}
