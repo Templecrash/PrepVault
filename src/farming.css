@@ -1,0 +1,102 @@
+.pv-farming { color: #354a2f; }
+.pv-farm-climate { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 22px; margin: -4px 0 24px; color: #718162; font-size: 12px; }
+.pv-farm-climate > span { display: inline-flex; align-items: center; gap: 8px; color: #4d6840; font-weight: 600; }
+.pv-farm-climate p { margin: 0; line-height: 1.6; }
+.pv-farm-nav { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 7px; scrollbar-width: thin; }
+.pv-farm-nav button { flex-shrink: 0; padding: 10px 16px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: #7a866e; font: inherit; font-size: 12px; cursor: pointer; }
+.pv-farm-nav button[aria-current] { color: #3b5830; background: #edf2e6; border-color: #dee6d4; font-weight: 650; }
+.pv-farm-nav button:hover { background: #f0f4ea; color: #3d5b31; }
+.pv-farm-workspace { overflow: hidden; }
+.pv-farm-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 27px 25px 22px; }
+.pv-farm-section-heading h2 { margin: 0; font-size: 19px; letter-spacing: -.4px; font-weight: 600; color: #324e29; }
+.pv-farm-section-heading p { margin: 7px 0 0; font-size: 12px; line-height: 1.7; color: #7b886f; }
+.pv-farm-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.pv-farm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 0; padding: 0 25px 25px; }
+.pv-farm-stats > div { display: flex; flex-direction: column; gap: 8px; border-left: 1px solid #e7ecdf; padding: 3px 22px; }
+.pv-farm-stats > div:first-child { padding-left: 0; border-left: 0; }
+.pv-farm-stats span { color: #7d896f; font-size: 11px; }
+.pv-farm-stats strong { color: #38572d; font-size: 25px; line-height: 1.2; letter-spacing: -.7px; font-weight: 550; }
+.pv-farm-stats small { color: #8a957e; font-size: 10px; line-height: 1.5; }
+.pv-farm-workspace > .pv-inventory-toolbar { border-top: 1px solid #edf0e7; }
+.pv-farm-table-wrap { overflow-x: auto; }
+.pv-farm-table { min-width: 690px; width: 100%; }
+.pv-farm-table th { white-space: nowrap; font-size: 10px; }
+.pv-farm-table td { font-size: 12px; line-height: 1.65; vertical-align: middle; overflow-wrap: anywhere; color: #68795b; }
+.pv-farm-table td:first-child { color: #3c5731; }
+.pv-farm-table td:first-child > strong { font-weight: 600; }
+.pv-farm-table .pv-inventory-item { min-width: 190px; }
+.pv-farm-table .pv-inventory-item-name { max-width: none; text-align: left; }
+.pv-farm-table .pv-inventory-item-symbol { color: #718c59; background: #f0f4e9; flex-shrink: 0; }
+.pv-farm-table .pv-inventory-item-type { display: block; margin-top: 5px; font-size: 10px; color: #8a967d; font-weight: 400; }
+.pv-farm-table small { color: #8a967d; font-size: 10px; }
+.pv-farm-table .pv-farm-total td { background: #f7f9f2; border-top: 1px solid #dce5cf; font-weight: 650; color: #4b673b; }
+.pv-farm-table tr.is-expanded > td { background: #fafcf6; }
+.pv-farm-badge { display: inline-block; border: 1px solid #e3e9d9; background: #f4f7ee; border-radius: 5px; padding: 3px 7px; color: #698055; font-size: 10px; white-space: nowrap; }
+.pv-farm-attention { font-weight: 600; color: #7b693e; }
+.pv-farm-expand { width: 31px; height: 32px; border: 0; background: none; color: #8b9a7c; cursor: pointer; display: grid; place-items: center; border-radius: 6px; }
+.pv-farm-expand:hover { background: #edf3e3; color: #466538; }
+.is-expanded .pv-farm-expand svg { transform: rotate(90deg); }
+.pv-farm-table .pv-farm-detail-row > td { padding: 0 24px 21px; background: #fafcf6; }
+.pv-farm-detail { border-top: 1px solid #e5ecdb; padding: 20px 0 0; }
+.pv-farm-detail dl { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 24px; }
+.pv-farm-detail dt, .pv-farm-detail h3 { margin: 0 0 7px; font-size: 10px; font-weight: 600; color: #7f916f; text-transform: uppercase; letter-spacing: .5px; }
+.pv-farm-detail dd { margin: 0; font-size: 12px; color: #526e41; line-height: 1.65; }
+.pv-farm-detail p { margin: 15px 0 0; color: #718662; line-height: 1.8; font-size: 12px; }
+.pv-farm-detail p strong { font-weight: 600; color: #526f42; }
+.pv-farm-guidance { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding-top: 22px; margin-top: 22px; border-top: 1px solid #e7edde; }
+.pv-farm-guidance p { margin: 0; }
+.pv-farm-row-actions { display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+.pv-farm-row-actions button { display: inline-flex; align-items: center; gap: 5px; padding: 5px 0; border: 0; color: #81956f; background: none; font: inherit; font-size: 11px; cursor: pointer; }
+.pv-farm-row-actions button:hover { color: #345c22; }
+.pv-farm-text-button { background: none; border: 0; color: #688452; font: inherit; font-size: 11px; cursor: pointer; }
+.pv-farm-note { margin: 0; padding: 18px 25px; background: #fafcf6; border-top: 1px solid #e9efdf; color: #859773; font-size: 11px; line-height: 1.8; }
+.pv-farm-detail .pv-farm-note { padding: 15px 0 0; margin-top: 18px; }
+.pv-farm-form { margin: 0 25px 24px; padding: 23px; background: #f9fbf4; border: 1px solid #e2ead6; border-radius: 10px; }
+.pv-farm-form h3 { margin: 0 0 20px; font-size: 15px; font-weight: 600; color: #405d32; }
+.pv-farm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px 20px; margin-bottom: 20px; }
+.pv-farm-form-grid label, .pv-farm-palette label { display: flex; flex-direction: column; gap: 8px; color: #6c8259; font-size: 11px; font-weight: 550; }
+.pv-farm-form-grid .is-wide { grid-column: 1/-1; }
+.pv-farm-form input, .pv-farm-form select, .pv-farm-form textarea, .pv-farm-palette input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid #dce7cf; border-radius: 7px; background: #fff; color: #435f35; font: inherit; font-size: 12px; font-weight: 400; }
+.pv-farm-form textarea { resize: vertical; line-height: 1.7; }
+.pv-farm-form input[type=range] { padding: 0; accent-color: #7c9a62; }
+.pv-farm-form-grid label > span { font-size: 11px; color: #899b77; }
+.pv-farming input:focus, .pv-farming select:focus, .pv-farming textarea:focus { outline: 2px solid #9ab782; outline-offset: 2px; }
+.pv-farming button:focus-visible { outline: 2px solid #8fae77; outline-offset: 3px; }
+.pv-farm-table progress, .pv-farm-breeding progress { display: block; width: 90px; max-width: 100%; height: 4px; border: 0; border-radius: 4px; background: #eaf0e0; accent-color: #8aa96d; margin-top: 8px; }
+.pv-farm-table progress::-webkit-progress-bar, .pv-farm-breeding progress::-webkit-progress-bar { background: #eaf0e0; border-radius: 4px; }
+.pv-farm-table progress::-webkit-progress-value, .pv-farm-breeding progress::-webkit-progress-value { background: #8aa96d; border-radius: 4px; }
+.pv-farm-breeding { padding-top: 20px; font-size: 11px; color: #7b9465; }
+.pv-farm-breeding progress { width: 260px; }
+.pv-farm-rotation-cycle { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 0 25px 25px; color: #9bac88; }
+.pv-farm-rotation-cycle span { font-size: 11px; color: #71875c; border: 1px solid #e3ecd6; background: #f6f9ee; border-radius: 6px; padding: 7px 10px; }
+.pv-farm-calendar-scroll { overflow: auto; padding: 10px 24px 22px; }
+.pv-farm-calendar { width: 100%; border-collapse: collapse; min-width: 750px; table-layout: fixed; }
+.pv-farm-calendar caption { text-align: left; color: #879c71; font-size: 11px; line-height: 1.7; padding: 8px 0 18px; caption-side: bottom; }
+.pv-farm-calendar th, .pv-farm-calendar td { padding: 10px 2px; text-align: center; color: #82966c; font-size: 11px; border-bottom: 1px solid #edf2e5; }
+.pv-farm-calendar th:first-child { width: 135px; text-align: left; padding-right: 12px; font-weight: 550; color: #55713f; }
+.pv-farm-calendar thead th { font-size: 10px; font-weight: 500; color: #92a37e; }
+.pv-farm-calendar .is-current { color: #52733b; background: #f3f7eb; font-weight: 700; }
+.pv-farm-calendar-phase { display: block; padding: 5px 0; border-radius: 4px; font-size: 10px; color: #d0dbc3; }
+.pv-farm-calendar .is-indoor, .pv-farm-calendar-legend .is-indoor { background: #eef3e6; color: #92a47c; }
+.pv-farm-calendar .is-sow, .pv-farm-calendar-legend .is-sow { background: #dbe7c9; color: #6a874c; }
+.pv-farm-calendar .is-harvest, .pv-farm-calendar-legend .is-harvest { background: #a1b88b; color: #fff; }
+.pv-farm-calendar .pv-farm-frost td { font-size: 9px; line-height: 1.4; color: #9cac88; }
+.pv-farm-calendar-legend { display: flex; flex-wrap: wrap; gap: 20px; padding: 0 25px 22px; font-size: 11px; color: #82996b; }
+.pv-farm-calendar-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.pv-farm-calendar-legend i { font-style: normal; width: 23px; height: 23px; border-radius: 4px; display: grid; place-items: center; font-size: 10px; }
+.pv-farm-garden-planner { border-top: 1px solid #e3ebd6; margin-top: 8px; }
+.pv-farm-palette { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding: 0 25px 24px; }
+.pv-farm-palette label { width: 100%; max-width: 400px; margin: 0 calc(100% - 400px) 12px 0; }
+.pv-farm-palette button { padding: 7px 10px; background: #fcfdf9; border: 1px solid #e0e9d2; border-radius: 6px; color: #8a9f70; font: inherit; font-size: 11px; cursor: pointer; }
+.pv-farm-palette button[aria-pressed=true] { color: #58753e; background: #eaf2dd; border-color: #a3bc86; }
+.pv-farm-garden-scroll { overflow-x: auto; padding: 0 25px 25px; }
+.pv-farm-garden-grid { display: grid; gap: 5px; width: max-content; margin: 0 auto; }
+.pv-farm-garden-grid button { position: relative; width: 48px; height: 48px; border: 1px dashed #dae5cd; border-radius: 7px; background: #fbfdf7; color: #adbd9a; font-size: 20px; cursor: pointer; }
+.pv-farm-garden-grid .is-planted { background: #f0f6e7; border: 1px solid #d2e0bf; }
+.pv-farm-garden-grid .has-conflict { border: 1px solid #a78f62; }
+.pv-farm-garden-grid i { position: absolute; right: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #ad9666; color: #fff; font-size: 9px; font-style: normal; }
+@media(max-width: 900px) { .pv-farm-section-heading { align-items: flex-start; flex-direction: column; } .pv-farm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 0; } .pv-farm-stats > div:nth-child(odd) { padding-left: 0; border-left: 0; } .pv-farm-detail dl { grid-template-columns: 1fr 1fr; } }
+@media(max-width: 600px) { .pv-farm-section-heading { padding: 22px 17px 20px; } .pv-farm-stats { padding: 0 17px 22px; } .pv-farm-stats strong { font-size: 23px; } .pv-farm-nav button { padding: 9px 12px; } .pv-farm-climate { align-items: flex-start; flex-direction: column; } .pv-farm-form { margin: 0 16px 20px; padding: 18px 15px; } .pv-farm-form-grid { grid-template-columns: 1fr; } .pv-farm-guidance { grid-template-columns: 1fr; } .pv-farm-note { padding: 16px 18px; } .pv-farm-detail dl { grid-template-columns: 1fr 1fr; gap: 17px; } .pv-farm-calendar-legend { gap: 12px; padding-left: 18px; } .pv-farm-palette { padding-left: 18px; padding-right: 18px; } .pv-farm-palette label { width: 100%; margin-right: 0; } .pv-farm-garden-scroll { padding-left: 16px; padding-right: 16px; } }
+
+.pv-farm-table-wrap:focus-visible, .pv-farm-calendar-scroll:focus-visible { outline: 3px solid #8fae77; outline-offset: -3px; }
+@media(max-width: 600px) { .pv-farm-form input, .pv-farm-form select, .pv-farm-form textarea, .pv-farm-palette input { font-size: 16px; } .pv-farm-row-actions button, .pv-farm-expand { min-height: 40px; min-width: 36px; } .pv-farm-palette button { min-height: 40px; } .pv-farm-table-wrap, .pv-farm-calendar-scroll, .pv-farm-garden-scroll { overscroll-behavior-x: contain; } }
