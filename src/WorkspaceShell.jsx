@@ -13,6 +13,7 @@ const destinations = [
   { id: 'surveillance', label: 'Surveillance', icon: 'camera' },
   { id: 'community', label: 'Your people', icon: 'users' },
   { id: 'rationing', label: 'Rationing', icon: 'ration' },
+  { id: 'board', label: 'Community board', icon: 'advisor' },
   { id: 'farming', label: 'Grow & sustain', icon: 'leaf', group: 'PLAN AHEAD' },
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },
@@ -67,7 +68,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, properties, prop
   const navigate = id => { onNavigate(id); setMenuOpen(false); setAccountOpen(false); window.scrollTo({ top: 0, behavior: 'instant' }); };
   const currentDestination = destinations.find(d => d.id === activeTab) || (activeTab === 'inventory-search' ? { label: 'All inventory' } : null);
   const quickDestinations = destinations.filter(d => ['dashboard', 'preps', 'property', 'community'].includes(d.id));
-  const siteName = propertyId === 'all' ? 'All properties' : properties.find(p => p.id === propertyId)?.name || 'My property';
+  const siteName = activeTab === 'board' ? 'Public community' : propertyId === 'all' ? 'All properties' : properties.find(p => p.id === propertyId)?.name || 'My property';
   const status = dbStatus === 'error' ? 'Local save failed' : dbStatus === 'unsaved' ? 'Saving on this device…' : isOffline ? 'Offline · on this device' : syncStatus === 'syncing' ? 'Syncing changes…' : syncStatus === 'synced' ? 'Core data synced' : syncStatus === 'error' ? 'Sync needs attention' : 'Saved on this device';
   return <div className="pv-workspace">
     <a className="pv-skip" href="#main-content">Skip to content</a>

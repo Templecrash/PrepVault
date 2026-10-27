@@ -8,11 +8,13 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | --- | --- |
 | Overview | Recorded category coverage, expandable rationing calculator, essential supply days, food/water duration summary, priority alerts, household setup, detailed readiness analysis, weather and activity |
 | Private adviser | Owner-only AI conversations, supply assessments, plan reviews and scenario brainstorming using a fresh snapshot across app sections |
-| Supplies | All 30 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations |
+| Food / Water | Dedicated inventories before Supplies; search, quantity/edit controls, barcode entry and shared Rationing coverage |
+| Supplies | Other 28 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations; global search covers all 30 |
 | Dependencies | Searchable dependency checks with priority/backup filters, sorting and expandable guidance, directly below Supplies in the sidebar |
 | Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
 | Communications | Live radio, saved custom streams, frequency reference, codes, equipment, local notes, community chat, comms plans and rally points |
 | Your people | Searchable contact directory, personal and care notes, location tracker and rationing |
+| Community board | Public anonymous conversations and replies; country/state/province filters, browser-owned post removal, reports and owner moderation; direct public page at `/community` |
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
 | Scenario lab | Original scenarios, household/climate controls, duration estimates and scenario guidance |
 | Resource planning | Stock estimates, conversions, trade-offs and opportunities |
@@ -49,6 +51,12 @@ Overview’s essential cards show full days of coverage. Water and food use the 
 ## Connected services
 
 Plain Vite development does not emulate the Vercel `api/` handlers. Use the existing Vercel project or a properly configured local Vercel environment to exercise them.
+
+### Anonymous community board
+
+The Community board is a separate sidebar page and a shareable public page at `/community`. Visitors can read, post and reply without an account. Country and region are chosen by the poster, never taken from the private property settings or GPS. State/province choices come from a pinned [country-region-data](https://github.com/country-regions/country-region-data) snapshot; its MIT license is included in `shared/`. Text is rendered as text, without uploads, rich HTML or link previews.
+
+The board uses its own Neon schema and restricted runtime login; it does not publish inventory, locations, adviser conversations, codes or other workspace data. Set server-only `BOARD_DATABASE_URL` and a random `BOARD_COOKIE_SECRET` of at least 32 characters, with distinct production and preview values. See `neon/BOARD.md` for migration, grants, rate limits and privacy details. Reads require an internet connection; public messages are not saved by the offline handbook cache. Owner moderation uses the same verified Neon sign-in as tracking and the private adviser. Anonymous posting does not require that sign-in.
 
 Private live tracking uses the existing Neon database with an isolated schema and a restricted runtime role. Owner access uses Neon Managed Better Auth email codes, first-party secure cookies, an explicit verified-email allowlist, and fresh server-side session checks. See `neon/README.md` for setup, grants and retention. Recipient invitations are one-use links; recipients must allow location sharing and can stop at any time. Sharing requires an open browser page and internet access. The phone number addresses the SMS invitation; it does not locate a phone by itself.
 

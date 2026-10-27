@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
 import "leaflet/dist/leaflet.css";
@@ -34,6 +34,8 @@ import { Icon } from "./brand.jsx";
 import { useDialogFocus } from "./useDialogFocus.js";
 import { validateSnapshot } from "./storage.js";
 import { encryptBackup as encryptData, decryptBackup as decryptData } from "./crypto-backup.js";
+
+const MessageBoard = lazy(() => import('./MessageBoard.jsx'));
 
 /* ═══════════════════════════════════════════════════════════
    DATA CONSTANTS
@@ -3918,6 +3920,8 @@ export default function PrepVault() {
       }
       case "community":
         return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} user={user} contacts={contacts} setContacts={setContacts} />;
+      case "board":
+        return <Suspense fallback={<p role="status">Opening the community board…</p>}><MessageBoard /></Suspense>;
       case "rationing":
         return <RationingPlanner items={propItems} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople} />;
       case "comms":
@@ -4171,9 +4175,9 @@ export default function PrepVault() {
         );
       })()}
 
-      {demoData && activeTab !== "surveillance" && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
+      {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "advisor", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "board", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "advisor", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
