@@ -5,6 +5,8 @@ import { Brand, Icon } from './brand.jsx';
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
   { id: 'advisor', label: 'Private adviser', icon: 'advisor' },
+  { id: 'food', label: 'Food', icon: 'leaf' },
+  { id: 'water', label: 'Water', icon: 'water' },
   { id: 'preps', label: 'Supplies', icon: 'box' },
   { id: 'dependencies', label: 'Dependencies', icon: 'bolt' },
   { id: 'property', label: 'Property', icon: 'home' },
@@ -25,7 +27,7 @@ function PropertyDialog({ onClose, children }) {
   return <div className="pv-modal-backdrop" onClick={onClose}><section ref={ref} className="pv-dialog" role="dialog" aria-modal="true" aria-labelledby="property-title" onClick={e => e.stopPropagation()}>{children}</section></div>;
 }
 
-export default function WorkspaceShell({ activeTab, onNavigate, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, onSearch, alertCount, children }) {
+export default function WorkspaceShell({ activeTab, onNavigate, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, onSearch, alertCount, inventoryAlertCounts = {}, children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [propertyOpen, setPropertyOpen] = useState(false);
@@ -63,7 +65,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, properties, prop
     };
   }, [accountOpen]);
   const navigate = id => { onNavigate(id); setMenuOpen(false); setAccountOpen(false); window.scrollTo({ top: 0, behavior: 'instant' }); };
-  const currentDestination = destinations.find(d => d.id === activeTab);
+  const currentDestination = destinations.find(d => d.id === activeTab) || (activeTab === 'inventory-search' ? { label: 'All inventory' } : null);
   const quickDestinations = destinations.filter(d => ['dashboard', 'preps', 'property', 'community'].includes(d.id));
   const siteName = propertyId === 'all' ? 'All properties' : properties.find(p => p.id === propertyId)?.name || 'My property';
   const status = dbStatus === 'error' ? 'Local save failed' : dbStatus === 'unsaved' ? 'Saving on this device…' : isOffline ? 'Offline · on this device' : syncStatus === 'syncing' ? 'Syncing changes…' : syncStatus === 'synced' ? 'Core data synced' : syncStatus === 'error' ? 'Sync needs attention' : 'Saved on this device';
@@ -77,7 +79,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, properties, prop
         <label><span>YOUR SPACE</span><select aria-label="Active property" value={propertyId} onChange={e => onProperty(e.target.value)}><option value="all">All properties</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <button className="pv-icon-button" aria-label="Manage properties" onClick={() => setPropertyOpen(true)}><Icon name="settings" size={16}/></button>
       </div>
-      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{d.id === 'preps' && alertCount > 0 && <span className="pv-nav-count">{alertCount}</span>}</button></div>)}</nav>
+      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
       <div className="pv-sidebar-bottom">
         <div className="pv-ready-note"><Icon name="leaf" size={19}/><strong>Ready is a way of life.</strong><p>Small steps. More peace of mind.</p><button onClick={onSetup}>Personalize your plan <Icon name="arrow" size={15}/></button></div>
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={onCrisis}><Icon name="shield" size={18}/>{crisisMode ? 'End emergency mode' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
@@ -89,7 +91,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, properties, prop
       <header className="pv-topbar">
         <button className="pv-mobile-menu pv-icon-button" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="pv-main-navigation"><Icon name="menu"/></button>
         <div className="pv-breadcrumb"><span>{siteName}</span><Icon name="chevron" size={14}/><strong>{currentDestination?.label || 'Overview'}</strong></div>
-        <form className="pv-global-search" onSubmit={e => { e.preventDefault(); onSearch(search); setSearch(''); }}><Icon name="search" size={17}/><input ref={searchRef} aria-label="Search supplies" placeholder="Find a supply…" value={search} onChange={e => setSearch(e.target.value)}/><kbd>⌘ K</kbd></form>
+        <form className="pv-global-search" onSubmit={e => { e.preventDefault(); onSearch(search); setSearch(''); }}><Icon name="search" size={17}/><input ref={searchRef} aria-label="Search all inventory" placeholder="Search all inventory…" value={search} onChange={e => setSearch(e.target.value)}/><kbd>⌘ K</kbd></form>
         <span className={`pv-save-state ${syncStatus === 'error' ? 'is-error' : ''}`} title={status}><span className="pv-status-dot"/>{status}</span>
         <button className="pv-icon-button pv-notifications" aria-label={`${alertCount} supply alerts`} onClick={() => onSearch('', 'attention')}><Icon name="bell"/>{alertCount > 0 && <span/>}</button>
         <div className="pv-account-wrap" ref={accountRef}><button className="pv-avatar" aria-label="Account menu" aria-expanded={accountOpen} aria-controls={accountOpen ? 'pv-account-menu' : undefined} onClick={() => setAccountOpen(!accountOpen)}>{user?.email?.[0]?.toUpperCase() || 'P'}</button>{accountOpen && <div className="pv-dropdown" id="pv-account-menu"><strong>{user?.email || 'Personal workspace'}</strong><p>{user?.isLocal ? 'Device account' : user ? 'Connected account' : 'No account required'}</p><button onClick={() => { onSetup(); setAccountOpen(false); }}>Household setup</button><button onClick={() => { onSecurity(); setAccountOpen(false); }}>Settings & backups</button><button onClick={() => { (user ? onLogout : onAccount)(); setAccountOpen(false); }}>{user ? 'Sign out' : 'Sign in / Create account'}</button></div>}</div>

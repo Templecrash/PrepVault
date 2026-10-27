@@ -8,7 +8,7 @@ const hasValue = value => value !== null && value !== undefined && value !== '';
 const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''));
 
 export default function CategoryDetailView({ catKey, items = [], people, climate, onBack, onAdd, onRemove, onEdit, onQtyChange,
-  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl }) {
+  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onRationing, onScan }) {
   const cat = categories[catKey];
   const ci = useMemo(() => items.filter(item => item.category === catKey), [items, catKey]);
   const p = people || 4;
@@ -24,7 +24,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
 
   // Preserve the existing category-specific planning model during this visual
   // redesign. All input constants/helpers come from the parent data source.
-  const calc = useMemo(() => {
+  const legacyCalc = useMemo(() => {
     if (catKey === "food") {
       const totalCals = ci.reduce((s, i) => {
         const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
@@ -340,6 +340,8 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
     }
     return null;
   }, [ci, catKey, p, climMod, climate, items, firewoodMod, clim.label, cat.subTypes, parseVolMl]);
+  const calc = planningOverride === undefined ? legacyCalc : planningOverride;
+  const addLabel = standalone && ['food', 'water'].includes(catKey) ? `Add ${catKey}` : 'Add supply';
 
   const inventory = ci.map(item => ({ item,
     expiry: item.fields?.expiryDate ? expiryStatus(item.fields.expiryDate) : null,
@@ -364,10 +366,10 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
   });
 
   return <section className="pv-inventory pv-category-detail" aria-labelledby={`${id}-title`}>
-    <button type="button" className="pv-category-back" onClick={onBack}><Icon name="arrow" size={16}/>Back to supplies</button>
+    {!standalone && <button type="button" className="pv-category-back" onClick={onBack}><Icon name="arrow" size={16}/>Back to supplies</button>}
     <header className="pv-inventory-heading">
-      <div><p className="pv-inventory-eyebrow">YOUR SUPPLIES, IN DETAIL</p><h1 id={`${id}-title`}>{cat.label}<span>.</span></h1><p className="pv-inventory-intro">{cat.desc}</p></div>
-      <div className="pv-inventory-actions"><button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={() => onAdd(catKey)}><Icon name="plus" size={18}/>Add supply</button></div>
+      <div><p className="pv-inventory-eyebrow">{standalone ? 'YOUR EVERYDAY ESSENTIALS' : 'YOUR SUPPLIES, IN DETAIL'}</p><h1 id={`${id}-title`}>{cat.label}<span>.</span></h1><p className="pv-inventory-intro">{cat.desc}</p></div>
+      <div className="pv-inventory-actions">{onRationing && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onRationing}><Icon name="ration" size={18}/>Rationing</button>}{onScan && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onScan}><Icon name="scan" size={18}/>Scan barcode</button>}<button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={() => onAdd(catKey)}><Icon name="plus" size={18}/>{addLabel}</button></div>
     </header>
     <div className="pv-inventory-overview">
       <button type="button" className="pv-inventory-stat pv-inventory-stat-action" aria-pressed={!filtersActive} onClick={clearFilters}><span className="pv-inventory-stat-icon"><Icon name="box" size={22}/></span><div><span className="pv-inventory-stat-value">{ci.length}<small>recorded supplies</small></span><p>{quantity} total quantity recorded</p></div><Icon name="arrow" size={18}/></button>
@@ -376,7 +378,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
     </div>
 
     {calc && <details className="pv-category-analysis">
-      <summary><span className="pv-category-summary-icon"><Icon name="compass" size={19}/></span><span><strong>{calc.title}</strong><small>{p} people · {climate || 'temperate'} climate · {quantity} items logged</small></span><span className="pv-category-summary-action">View calculations<Icon name="chevron" size={16}/></span></summary>
+      <summary><span className="pv-category-summary-icon"><Icon name="compass" size={19}/></span><span><strong>{calc.title}</strong><small>{calc.summary || <>{p} people · {climate || 'temperate'} climate · {quantity} items logged</>}</small></span><span className="pv-category-summary-action">View calculations<Icon name="chevron" size={16}/></span></summary>
       <div className="pv-category-analysis-body"><table><caption className="pv-inventory-sr-only">{calc.title} calculations</caption><thead><tr><th scope="col">Measure</th><th scope="col">Basis</th><th scope="col">Result</th></tr></thead><tbody>{calc.rows.map((row, index) => <tr key={`${row.label}-${index}`} className={row.highlight ? 'is-highlighted' : undefined}><th scope="row">{row.label}</th><td>{row.note || '—'}</td><td>{row.value}</td></tr>)}</tbody></table></div>
     </details>}
 
@@ -408,7 +410,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
             {expanded && <tr className="pv-category-detail-row"><td colSpan={5}><div className="pv-category-record" id={regionId} role="region" aria-label={`${item.name} details`}><div className="pv-category-record-heading"><h2>Supply details</h2><button type="button" onClick={() => onEdit(item)}>Edit details<Icon name="edit" size={13}/></button></div>{fields.length ? <dl>{fields.map(([key, value]) => <div key={key}><dt>{fieldMeta[key]?.label || key}</dt><dd>{fieldValue(value)}</dd></div>)}</dl> : <p>No additional fields recorded for this supply.</p>}{item.notes && <div className="pv-category-record-notes"><h3>Notes</h3><p>{item.notes}</p></div>}</div></td></tr>}
           </Fragment>;
         })}</tbody>
-      </table> : <div className="pv-inventory-empty"><span><Icon name={filtersActive ? 'search' : 'box'} size={30}/></span><h2>{filtersActive ? 'No supplies match' : `No ${cat.label.toLowerCase()} supplies yet`}</h2><p>{filtersActive ? 'Try another search or clear your filters to see this category.' : `Add your first ${cat.label.toLowerCase()} supply to start tracking it here.`}</p><button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={filtersActive ? clearFilters : () => onAdd(catKey)}>{filtersActive ? 'Clear filters' : 'Add your first supply'}</button></div>}
+      </table> : <div className="pv-inventory-empty"><span><Icon name={filtersActive ? 'search' : 'box'} size={30}/></span><h2>{filtersActive ? 'No supplies match' : `No ${cat.label.toLowerCase()} supplies yet`}</h2><p>{filtersActive ? 'Try another search or clear your filters to see this category.' : `Add your first ${cat.label.toLowerCase()} supply to start tracking it here.`}</p><button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={filtersActive ? clearFilters : () => onAdd(catKey)}>{filtersActive ? 'Clear filters' : standalone ? addLabel : 'Add your first supply'}</button></div>}
       <div className="pv-inventory-footer"><Icon name="box" size={15}/><span>Select a supply to see every recorded field. Quantities and edits update your inventory.</span></div>
     </div>
 

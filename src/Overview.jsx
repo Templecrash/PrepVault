@@ -67,14 +67,14 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
         <div className="pv-hero-body"><div><h2 id="pv-coverage-title">Your preparation,<br />coming together.</h2><p>A clear picture of the supplies you’ve recorded across your everyday essentials and beyond.</p></div>
           <div className="pv-coverage-number"><strong>{overview.coverage}<span>%</span></strong><span>Inventory coverage</span></div>
         </div>
-        <div className="pv-hero-bottom"><span><strong>{overview.coveredKeys.size} of {overview.categoryKeys.length}</strong> categories with stock</span><button type="button" onClick={() => onNavigate("preps")}>Explore your inventory <Icon name="arrow" size={17} /></button></div>
+        <div className="pv-hero-bottom"><span><strong>{overview.coveredKeys.size} of {overview.categoryKeys.length}</strong> categories with stock</span><button type="button" onClick={() => onNavigate("inventory-search")}>Explore your inventory <Icon name="arrow" size={17} /></button></div>
         <p className="pv-hero-note">Coverage reflects recorded categories, not a guarantee of emergency readiness.</p>
       </section>
 
     <RationingOverview items={items} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={onResetPeople} />
 
     <section className="pv-essentials-section" aria-labelledby="pv-essentials-title">
-      <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>How long your recorded supplies could last.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("preps")}>All supplies <Icon name="arrow" size={15} /></button></div>
+      <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>How long your recorded supplies could last.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("inventory-search")}>All inventory <Icon name="arrow" size={15} /></button></div>
       <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <EssentialCoverage key={essential.key} coverage={coverage[essential.key]} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} items={items.filter(item => item.category === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
       <p className="pv-essential-note">Food and water follow your rationing plan. Open a card to update its supplies and coverage details.</p>
     </section>
@@ -98,7 +98,7 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
           const count = items.filter(item => item.category === key).length;
           return <button type="button" key={key} onClick={() => onCategory(key)}><span className={count ? "pv-category-dot recorded" : "pv-category-dot"} /><span>{categories[key].label}</span><span>{count} {count === 1 ? "entry" : "entries"}</span><Icon name="chevron" size={15} /></button>;
         })}</div>
-        <button type="button" className="pv-panel-footer-button" onClick={() => onNavigate("preps")}>Browse all {overview.categoryKeys.length} categories<Icon name="arrow" size={15} /></button>
+        <button type="button" className="pv-panel-footer-button" onClick={() => onNavigate("inventory-search")}>Browse all {overview.categoryKeys.length} categories<Icon name="arrow" size={15} /></button>
       </section>
     </div>
 
