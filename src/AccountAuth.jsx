@@ -1,3 +1,5 @@
+import { isLocalEdition } from './runtime-mode.js';
+import LocalServiceNotice from './LocalServiceNotice.jsx';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './brand.jsx';
@@ -5,7 +7,7 @@ import { useDialogFocus } from './useDialogFocus.js';
 import { sendAccountCode, verifyAccountCode } from './account-auth-client.js';
 import './account-auth.css';
 
-export default function AccountAuth({ initialMode = 'login', onSignedIn, onClose, notice = '' }) {
+function AccountAuthOnline({ initialMode = 'login', onSignedIn, onClose, notice = '' }) {
   const [mode, setMode] = useState(initialMode === 'signup' ? 'signup' : 'login');
   const [step, setStep] = useState('email');
   const [name, setName] = useState('');
@@ -99,4 +101,13 @@ export default function AccountAuth({ initialMode = 'login', onSignedIn, onClose
       <footer className="pv-account-footer"><Icon name="shield" size={16} /><p>Your sign-in is secured by email verification.<br />Your plan is saved on this device.</p></footer>
     </section>
   </div>, document.body);
+}
+
+function LocalAccountNotice({ onClose }) {
+  const dialog = useDialogFocus(onClose);
+  return createPortal(<div className="pv-account-overlay" onClick={event => { if (event.target === event.currentTarget) onClose(); }}><section ref={dialog} className="pv-account-dialog" role="dialog" aria-modal="true" aria-label="Local edition account information"><header className="pv-account-header"><span className="pv-account-brand"><Icon name="shield" size={20} /> PrepVault</span><button type="button" className="pv-account-close" aria-label="Close sign-in" onClick={onClose}><Icon name="close" size={19} /></button></header><LocalServiceNotice title="No account needed here.">Your local plan opens without signing in. To use email sign-in and connected services, open the live website.</LocalServiceNotice></section></div>, document.body);
+}
+
+export default function AccountAuth(props) {
+  return isLocalEdition() ? <LocalAccountNotice onClose={props.onClose} /> : <AccountAuthOnline {...props} />;
 }

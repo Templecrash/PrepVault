@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { createHash } from 'node:crypto'
 import { createHandbookWorker } from './build/handbook-worker.js'
+import { portableAppBuild } from './build/portable-app.js'
 
 function offlineHandbookBuild() {
   return {
@@ -20,7 +21,7 @@ function offlineHandbookBuild() {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), offlineHandbookBuild()],
+  plugins: [react(), offlineHandbookBuild(), portableAppBuild()],
   build: {
     rollupOptions: {
       output: {

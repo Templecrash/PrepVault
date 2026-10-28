@@ -6,21 +6,37 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 
 | Destination | Included tools |
 | --- | --- |
-| Overview | Recorded category coverage, expandable rationing calculator, essential supply days, food/water duration summary, priority alerts, household setup, detailed readiness analysis, weather and activity |
-| Private adviser | Owner-only AI conversations, supply assessments, plan reviews and scenario brainstorming using a fresh snapshot across app sections |
+| Overview | Recorded category coverage, essential supply days, priority alerts, detailed readiness analysis, optional weather/news and activity |
+| Calendar | Month view of recorded expiry/service dates, growing and livestock activity, manual tasks, review/completion markers and an optional selected-day forecast |
+| Location | Selected planning town, Open-Meteo forecasts, Canadian/US official weather warnings, planning prompts and links to official radar |
+| Survival LLM | Floating owner-only AI conversations, supply assessments, plan reviews and scenario brainstorming using a fresh bounded snapshot across app sections |
 | Food / Water | Dedicated inventories before Supplies; search, quantity/edit controls, barcode entry and shared Rationing coverage |
 | Supplies | Other 28 categories, subtype fields, search, category/status filters, sorting, pagination, barcode scanning, quantity controls, notes, expiry calendar, category calculations; global search covers all 30 |
 | Dependencies | Searchable dependency checks with priority/backup filters, sorting and expandable guidance, directly below Supplies in the sidebar |
-| Property | Saved map images and markers, travel routes, access codes with reveal controls, manuals, security, cameras and connected-home controls |
-| Communications | Live radio, saved custom streams, frequency reference, codes, equipment, local notes, community chat, comms plans and rally points |
-| Your people | Searchable contact directory, personal and care notes, location tracker and rationing |
+| Property | Saved map images and markers, travel-route details, recorded defensive positions and role assignments; Google Nest is explicitly unavailable |
+| Surveillance | Owner-only REVEAL photo and EyezOn alarm status connections; no device or alarm commands |
+| Communications | Regional internet-radio directory, saved custom streams, frequency reference, codes, equipment, local notes, community chat, comms plans, rally points and external EchoLink access |
+| Your people | Searchable contact directory, personal and care notes, dependant selection and consent-based live location tracker |
+| Rationing | Dedicated food/water planning using only marked dependants and the selected property’s stock |
+| Bug Out | Persisted grab list with quantities, locations, assignments, notes, order and collected-item checks |
+| Codes / Manuals | Neutral reference pages; code values stay hidden until revealed |
+| Skills | 16 searchable, attributed starter checklists with Bug in/out and experience filters, official online guides and related original PDF handbooks |
+| Offline maps | Owner-authorized online route calculation with ordered stops, saved geometry/directions, daily travel estimates, JSON/GPX export and printing |
 | Community board | Public anonymous conversations and replies; country/state/province filters, browser-owned post removal, reports and owner moderation; direct public page at `/community` |
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
 | Scenario lab | Original scenarios, household/climate controls, duration estimates and scenario guidance |
 | Resource planning | Stock estimates, conversions, trade-offs and opportunities |
 | Emergency | Searchable original handbooks, in-site PDF reader, publisher/edition/license details, individual PDF downloads, a portable ZIP pack, verified offline copies, save-all with progress, per-guide removal and offline reopening |
 
-## Run locally
+## Download and run on your computer
+
+In **Settings & backups**, download an encrypted plan backup and the separate **Local app** ZIP. The public app ZIP contains the application and original handbook PDFs; it contains no personal plan, account sessions, API keys or server credentials. Extract the full ZIP, then run **Start PrepVault.command** (macOS), **Start PrepVault.bat** (Windows), or **Start PrepVault.sh** (Linux). Install Python 3.8+ or Node.js 18+ before going offline. You can also run `python3 serve.py` or `node serve.mjs` from the extracted folder.
+
+Open `http://127.0.0.1:4173/`, keep the launcher running, and restore your encrypted plan through Settings & backups. Use the same browser, hostname and port each time; each origin has separate storage. The server binds to loopback, has no backend API and does not collect request logs. The local edition blocks external connections and replaces online service entry points with clear explanations. Links deliberately opened in a separate tab can still use the internet. Local and hosted plans do not sync automatically.
+
+Inventory, household records, rationing, planning calculations, Codes, saved map images/pins, growing records, Bug Out, calendar tasks, Skills checklists, manual radio notes, encryption/restore and bundled handbooks work locally. Routes explicitly saved in **Offline maps** retain their geometry, turn-by-turn directions and daily travel settings. The local app can reopen these routes and adjust daily estimates; it cannot calculate a new road route, reroute around an obstacle, search places or load street-map tiles. Downloading the app does not save your personal plan: keep a separate encrypted backup and its passphrase. Working browser data remains unencrypted, and clearing site data can erase it. `SHA256SUMS` records the package files for integrity checking.
+
+## Development
 
 Use Node 22.12+ (or another Node version supported by Vite 7).
 
@@ -34,7 +50,7 @@ npm run preview
 
 The app opens without backend credentials. Choose **Explore the workspace** for sample data, or **Build my plan** to start a household. Inventory changes save automatically in the current browser. Sample data is identified in the interface.
 
-Rationing is available on Overview and Your people. Both views share the current session’s people and calorie target, use the selected property’s inventory, and calculate stored water directly from recorded gallons. The default roster follows household size until customized; **Use household size** restores it.
+Rationing has its own sidebar destination. Food and water planning count only people explicitly marked **Dependant** on Your People, including the owner only if selected. Rationing and Overview share that roster, the saved calorie target and the selected property’s inventory. Stored water is calculated directly from recorded gallons; filtration and water-source equipment do not add stored days.
 
 Overview’s essential cards show full days of coverage. Water and food use the same people and calorie settings as Rationing. Medical shows the shortest recorded prescription supply, without multiplying days by quantity; first-aid kits do not imply a duration. Power uses the longest generator or power-bank **Backup runtime (hours)** at the planned load, divided by 24. Runtime describes the complete entry with current fuel or charge, not each unit. Missing prescription/runtime details show an unknown estimate with a prompt to fill them in. Separate backups are not added together, and solar wattage alone is not converted into stored days.
 
@@ -42,11 +58,23 @@ Overview’s essential cards show full days of coverage. Water and food use the 
 
 - The working plan lives in browser storage. **Save offline** in Emergency explicitly saves the app shell and selected handbooks for reopening this same site without a connection. Browser cleanup or clearing site data can remove them. Online maps, weather, radio streams, cloud sync and other internet services still need a connection.
 - **Settings & backups** can save a separate local snapshot or download an encrypted complete backup. Encrypting a backup does not encrypt the active browser storage. Property tools open directly; individual access codes remain hidden until revealed.
-- Backups preserve the main household collections and local feature settings. Account credentials and sync baselines are excluded. V3 inventory backups remain readable; V4 adds complete state and settings.
-- Encrypted backups retain the original AES-256-GCM format and PBKDF2-SHA256 derivation with 310,000 iterations. There is no passphrase recovery.
+- Backups preserve the main household collections and local feature settings, including calendar tasks/review markers, the selected planning location and saved offline route plans. These settings are isolated with each account's device workspace; signing out opens a separate guest workspace. Account credentials, sync baselines, transient Survival LLM conversations, live tracking positions, provider feeds, public community posts and browser-cached handbook files are excluded. V3 inventory backups remain readable; V4 adds plan state and settings. The original PDF files are included separately in the local app package.
+- Encrypted backups retain the original AES-256-GCM format and PBKDF2-SHA256 derivation with 310,000 iterations, random 16-byte salt and 12-byte IV. New backups require a passphrase of at least 12 characters; older backups with shorter passphrases remain readable. There is no passphrase recovery. Files use `prepvault-backup-YYYY-MM-DD.enc.json`.
 - Existing duplicate sample IDs are repaired without dropping records. Zero stock and empty inventories remain empty across saves and restores.
 - Saved map images, their markers and travel routes are stored separately for each property on this device and included in complete backups. Importing an older backup without maps/routes clears the saved map workspace rather than leaving stale markers over a different image.
 - Supabase sync covers inventory, legacy map pins, properties and selected household settings. Saved image maps, their markers, routes and other planning data remain local and require a complete backup for transfer. The UI reports this as **Core data synced**.
+
+## Calendar, Skills and offline route planning
+
+**Calendar** combines valid dates already recorded in supplies and growing records with user-created dated tasks. It derives the next oil service from a recorded interval, the next compost turn from the configured schedule, and estimated birth/hatch dates from the existing farming references. Planting/harvest month reminders remain month-level suggestions until the user chooses a date. Completing a manual task or reviewing a derived entry does not silently change stock, expiration dates, service history or farm records. It does not schedule operating-system notifications, email reminders or background jobs. Weather for the selected day is available only within the provider's forecast horizon and requires the online site.
+
+**Skills** provides 16 short, original checklists based on named official sources, with beginner, practice-first and training-required labels. Related books open in the existing PDF reader. Clinical manuals are not promoted as beginner skills. Checklists ship with the app; links marked **Online guide** are external resources and are not cached by the handbook download. The handbooks keep their original source and license metadata. This is a curated reference collection, not comprehensive instruction for every crisis.
+
+**Offline maps** calculates driving, highway-avoiding or walking routes online using OpenStreetMap data through FOSSGIS/Valhalla. Up to six stops are visited in their displayed order; the app does not optimize their order. Up to four user-selected circles can be requested as avoidance areas. These circles are not verified municipal boundaries, and the app does not automatically avoid every town or choose the route with the fewest people. Route estimates have no live traffic, current disaster conditions or closure feed. Highway avoidance can fail to produce a route or leave a provider-reported highway segment; review the returned result and warnings.
+
+**Save for offline** stores that calculated route's geometry, directions and travel settings in the current account's browser workspace. The drawing is a route overview without a street basemap. New route calculation still requires the hosted service, owner sign-in and a connection. Daily stops are interpolated distance estimates based on pace, travel hours and rest time; they are not verified campsites or permission to stop. Routes can be exported as JSON or GPX and printed; complete PrepVault backups provide the restore path. Save the app itself through Emergency or download the Local app before losing connectivity.
+
+Barcode camera, photo and manual-entry behavior is documented in [Barcode inventory entry](docs/barcode-scanning.md). Provider endpoints, data flow, free-service assumptions and remaining limitations are recorded in the [service ledger](docs/service-ledger.md).
 
 ## Connected services
 
@@ -59,6 +87,27 @@ The Community board is a separate sidebar page and a shareable public page at `/
 The board uses its own Neon schema and restricted runtime login; it does not publish inventory, locations, adviser conversations, codes or other workspace data. Set server-only `BOARD_DATABASE_URL` and a random `BOARD_COOKIE_SECRET` of at least 32 characters, with distinct production and preview values. See `neon/BOARD.md` for migration, grants, rate limits and privacy details. Reads require an internet connection; public messages are not saved by the offline handbook cache. Owner moderation uses the same verified Neon sign-in as tracking and the private adviser. Anonymous posting does not require that sign-in.
 
 Private live tracking uses the existing Neon database with an isolated schema and a restricted runtime role. Owner access uses Neon Managed Better Auth email codes, first-party secure cookies, an explicit verified-email allowlist, and fresh server-side session checks. See `neon/README.md` for setup, grants and retention. Recipient invitations are one-use links; recipients must allow location sharing and can stop at any time. Sharing requires an open browser page and internet access. The phone number addresses the SMS invitation; it does not locate a phone by itself.
+
+### Service boundaries
+
+| Capability | What is implemented | Connection / limitation |
+| --- | --- | --- |
+| Encrypted backup | Local Web Crypto AES-256-GCM encryption with random salt and IV; wrong-password and tamper rejection | Protects exported/saved backup only; working browser data remains unencrypted |
+| Owner services | Verified Neon sessions checked by the server for tracking, Survival LLM and surveillance | Requires the live deployment and internet; general account sign-in does not grant owner access |
+| Live tracking | One-use invitations, opt-in browser GPS, expiry/revoke/stop and private owner map | SMS is opened in the sender’s messaging app for review; no automatic SMS dispatch or phone-number geolocation |
+| Survival LLM | OpenAI Responses request with bounded/redacted app context, `store: false`, no action tools | Hosted service, owner sign-in and configured provider key; not an offline model or zero-retention claim |
+| Radio | Browser playback from selected HTTPS stream with real media states | Internet and broadcaster availability; saved notes are manual, not AI transcripts |
+| Regional radio directory | Country/region discovery through Radio Browser, with optional planning-location defaults | Community-supplied metadata; compatible internet streams only, no RF tuner, scanner decryption or in-app transmission |
+| Location / calendar weather | Keyless Open-Meteo/GeoNames search and forecast; ECCC or NWS point alerts | Automatic official warnings cover Canada and the US only; no complete emergency-notice feed or live radar inside the app |
+| Offline maps | FOSSGIS/Valhalla online calculation; local saved route geometry, directions and daily estimates | Owner sign-in for calculation; no new offline routing, downloaded road network, live traffic or verified campsites |
+| Barcode lookup | On-device retail-code decoding, inventory reuse, optional Open Food Facts product lookup | Photos stay on device; the public lookup sends the code, may have incomplete food data, and requires internet |
+| Calendar / Skills | Local dated tasks and reference checklists linked to existing records and guides | No scheduled background reminders; external skill guides still require internet |
+| REVEAL / EyezOn | Read-only provider adapters and encrypted session cookies, with owner and origin checks | Requires owner connection in PrepVault; live account compatibility is not established by fixture tests |
+| Weather / news | OpenWeatherMap and GNews API reads with finite timeouts, input validation and explicit errors | Optional provider keys; not configured or failed reads must not become sample weather/news |
+| Google Nest | Legacy flow disabled with HTTP 410 | No password acceptance, OAuth exchange, synthetic device statuses or lock controls; use Google Home |
+| Local edition | Downloaded static app and bundled reference files served on loopback | No hosted API credentials or server; online service entry points explain the limit and open the live site |
+
+The public feed handlers are independent of Supabase. Missing keys return `503 not_configured`; provider failures return `502 provider_unavailable` without exposing upstream details. The former Nest OAuth callback trusted client-supplied state and was not a working account-bound connection, so all three legacy routes are fail-closed.
 
 ### Surveillance
 
@@ -76,11 +125,11 @@ EyezOn uses the first-party portal login and a read-only parser for the main sys
 
 The adviser reuses the same verified Neon owner session. Every request is authorized on the server, including the connection-status endpoint; the session is rechecked before returning an answer. Other accounts and location-sharing invitees have no adviser access. Same-origin checks protect requests, and responses are never cached.
 
-Set `OPENAI_API_KEY` as a server-only secret in the existing Vercel project. `OPENAI_MODEL` defaults to `gpt-5.6-terra`. No key enters the Vite bundle. The fixed OpenAI Responses endpoint receives `store: false`, a bounded conversation and an explicit app snapshot. It has no tools or permission to change records, send messages, or purchase supplies. The app does not log prompts or answers. A per-process concurrency/rate guard limits accidental repeated requests; it is not a distributed spending cap. Set the provider's project budget and maintain the key before its selected expiration.
+Set `OPENAI_API_KEY` as a server-only secret in the existing Vercel project. `OPENAI_MODEL` defaults to `gpt-5.6-terra`. No key enters the Vite bundle. The fixed OpenAI Responses endpoint receives `store: false`, a bounded conversation and an explicit app snapshot. It has no tools or permission to change records, send messages, or purchase supplies. The app does not log prompts or answers. A per-process concurrency/rate guard limits accidental repeated requests; it is not a distributed spending cap. Configure the provider’s available budget controls and monitor usage; a budget alert is not necessarily a hard spending cap. Maintain the key before its selected expiration.
 
 Context includes recorded supplies across all properties, household/care needs, rationing, calculated coverage and dependencies, property/map-marker descriptions, routes, communications plans and saved notes, growing/livestock records, scenarios, actions and reference metadata. The current property and sample-data state are identified. The same calculation functions used by the app provide estimates. Bounds and omissions are described in context rather than silently implying that missing data is complete.
 
-Passwords, access-code values, invitation tokens, private chats, precise live positions and raw map/file content are excluded on both client and server. A handbook title is not its full text; live weather/news/radio audio and unsaved specialist-view controls are not supplied. Chat history stays in memory, clears when leaving the adviser or signing out, and is not added to backups or browser storage. Existing app records remain stored on the current device, so a different device must have those records restored/synced before the adviser can assess them.
+Passwords, access-code values, invitation tokens, private chats, precise live positions and raw map/file content are excluded on both client and server. A handbook title is not its full text; live weather/news/radio audio and unsaved specialist-view controls are not supplied. Chat history stays in memory, clears when closing Survival LLM, reloading or signing out, and is not added to backups or browser storage. Existing app records remain stored on the current device, so a different device must have those records restored/synced before the adviser can assess them.
 
 OpenAI processes the included context and questions. `store: false` disables stored response objects but does not claim zero provider retention; see [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data). Replies are planning suggestions and may contain mistakes; clinical references do not replace qualified medical care.
 
@@ -88,7 +137,9 @@ Legacy Supabase cloud sync remains optional and separate from tracking. For that
 
 For an existing database, review `supabase/migrations/README.md` and apply the included membership-policy migration in staging first. It fixes a recursive membership SELECT policy while retaining the same membership visibility. The redesign does **not** automatically migrate the remote database.
 
-Community chat uses the selected joined community. Device-only notes are stored locally; local images are explicitly identified. Live radio plays verified HTTPS MP3/AAC sources directly: a Buffalo NOAA weather relay supplied by weatherUSA, WNYC news, KEXP and Toronto’s JAZZ.FM91. The player starts from a click, reports actual media playback/buffering/failure, supports volume and custom saved streams, and releases the connection when paused or unmounted. The frequency list is a reference for physical radios, separate from internet audio. Hardware access, remote authentication, community chat and provider APIs require their existing configured services.
+Community chat uses the selected joined legacy Supabase community. The device PIN only hides the screen; it does not encrypt local notes and can be bypassed by someone with browser-storage access. Shared community messages are not end-to-end encrypted. Device-only notes are stored locally; local images are explicitly identified. Live radio plays public HTTPS MP3/AAC sources directly, including the regional Radio Browser directory and saved streams. Directory region labels are community supplied and do not represent every local radio frequency. Public police/fire/EMS directory links open externally; PrepVault cannot tune RF signals, decrypt protected channels or transmit to emergency services.
+
+The player starts from a click, reports actual media playback/buffering/failure, supports volume and custom saved streams, and releases the connection when paused or unmounted. The frequency list is a reference for physical radios, separate from internet audio. Activity notes are manual. Automatic audio recording, background channel monitoring and AI transcription are not implemented. **Talk over radio** opens the separate EchoLink Web service, which requires its own validated amateur callsign, sign-in, available node and microphone permission. PrepVault has no connected radio gateway and no built-in RF transmit or push-to-talk capability. Hardware access, remote authentication, community chat and provider APIs require their existing configured services.
 
 ## Emergency handbooks and offline library
 

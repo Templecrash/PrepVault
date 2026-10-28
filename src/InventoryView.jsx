@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDialogFocus } from "./useDialogFocus.js";
+import InventoryRecommendations from "./InventoryRecommendations.jsx";
 import "./inventory.css";
 
 function InventoryIcon({ name, size = 18 }) {
@@ -64,7 +65,7 @@ function RemoveSupplyDialog({ item, onCancel, onConfirm, fallbackFocusRef }) {
   return <div className="pv-inventory-modal-backdrop" onClick={onCancel}><div ref={dialogRef} className="pv-inventory-confirm" role="dialog" aria-modal="true" aria-labelledby="remove-supply-title" aria-describedby="remove-supply-description" onClick={event => event.stopPropagation()}><span className="pv-inventory-confirm-icon"><InventoryIcon name="box" size={25}/></span><h2 id="remove-supply-title">Remove this supply?</h2><p id="remove-supply-description"><strong>{item.name}</strong> will be removed from your inventory. You can add it again any time.</p><div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onCancel}>Keep supply</button><button type="button" className="pv-inventory-button pv-inventory-button-danger" onClick={onConfirm}>Remove supply</button></div></div></div>;
 }
 
-export default function InventoryView({ items = [], categories = {}, onCategory, onAdd, onEdit, onRemove, onQtyChange, onScan, people = 4, alerts = [], initialQuery = "", initialStatus = "all", title = "Your supplies", intro = "A place for everything your household depends on.", eyebrow = "KNOW WHAT YOU HAVE", emptyIntro = "Add equipment and everyday supplies to build a clearer picture of your preparation." }) {
+export default function InventoryView({ items = [], categories = {}, onCategory, onAdd, onEdit, onRemove, onQtyChange, onScan, people = 4, alerts = [], recommendationPeopleCount = 0, dailyCalTarget = 2000, propertyId, onManagePeople, onRationing, recommendationActions, initialQuery = "", initialStatus = "all", title = "Your supplies", intro = "A place for everything your household depends on.", eyebrow = "KNOW WHAT YOU HAVE", emptyIntro = "Add equipment and everyday supplies to build a clearer picture of your preparation." }) {
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState(initialStatus);
@@ -127,6 +128,8 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
       <div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><InventoryIcon name="grid" size={22}/></span><div><span className="pv-inventory-stat-value">{populated}<span className="pv-inventory-stat-total"> / {categoryEntries.length}</span><small>categories covered</small></span><p>Planning for {people} {Number(people) === 1 ? "person" : "people"}</p></div></div>
       <button type="button" className={`pv-inventory-stat pv-inventory-stat-action${status === "attention" ? " is-selected" : ""}`} onClick={() => { setStatus(status === "attention" ? "all" : "attention"); setView("list"); }} aria-pressed={status === "attention"}><span className={`pv-inventory-stat-icon${attention ? " is-amber" : ""}`}><InventoryIcon name={attention ? "clock" : "check"} size={22}/></span><div><span className="pv-inventory-stat-value">{attention}<small>need attention</small></span><p>{attention ? "Review expiry, refreshes & stock" : "Everything is looking good"}</p></div><InventoryIcon name="arrow"/></button>
     </div>
+
+    <InventoryRecommendations items={items} categories={categories} categoryKey={category === "all" ? undefined : category} propertyId={propertyId} peopleCount={recommendationPeopleCount} dailyCalTarget={dailyCalTarget} alerts={alerts} onAdd={onAdd} onEdit={onEdit} onCategory={onCategory} onManagePeople={onManagePeople} onRationing={onRationing} actions={recommendationActions}/>
 
     <div className="pv-inventory-workspace">
       <div className="pv-inventory-toolbar">

@@ -115,6 +115,32 @@ test('unknown camera photos are excluded and missing telemetry stays unknown', a
   assert.equal(result.hasMore, false);
 });
 
+test('overview fetches quiet cameras outside the most recent global photo page', async () => {
+  const { provider, calls } = setup([
+    Response.json({ response: { cameras: [camera, { ...camera, cameraId: 'quiet-camera' }] } }),
+    Response.json({ response: { photos: [photo], nextToken: 'more' } }),
+    Response.json({ response: { photos: [{ ...photo, cameraId: 'quiet-camera', photoId: 'older.jpg' }] } }),
+  ]);
+  const result = await provider.loadRevealFeed(session);
+  assert.equal(result.latestPhotos.length, 2);
+  assert.equal(result.latestPhotos[1].cameraId, 'quiet-camera');
+  assert.equal(new URL(calls[2].url).searchParams.get('cameraIds'), 'quiet-camera');
+  assert.equal(new URL(calls[2].url).searchParams.get('size'), '1');
+  assert.equal(/photoUrl|private|secret/.test(JSON.stringify(result)), false);
+});
+
+test('a missing per-camera response is reported without dropping other cameras', async () => {
+  const { provider } = setup([
+    Response.json({ response: { cameras: [camera, { ...camera, cameraId: 'quiet-camera' }] } }),
+    Response.json({ response: { photos: [photo], nextToken: 'more' } }),
+    Response.json({}, { status: 500 }),
+  ]);
+  const result = await provider.loadRevealFeed(session);
+  assert.equal(result.cameras.length, 2);
+  assert.equal(result.latestPhotos.length, 1);
+  assert.match(result.error, /could not be checked/);
+});
+
 test('missing feed envelopes and excessive records fail explicitly, not as an empty successful feed', async () => {
   for (const [cameras, photos] of [
     [{ cameras: [camera] }, { response: { photos: [photo] } }],

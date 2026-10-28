@@ -1,0 +1,44 @@
+.pv-overview-surveillance{min-width:0}
+.pv-overview-security-actions{display:flex;align-items:center;flex-wrap:wrap;gap:16px}
+.pv-overview-security-actions button:disabled{opacity:.5;cursor:default}
+.pv-overview-security-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(240px,1fr);border:1px solid #e2e8dc;border-radius:12px;background:#fff;overflow:hidden}
+.pv-overview-cameras,.pv-overview-alarm{padding:20px;min-width:0}
+.pv-overview-alarm,.pv-overview-security-grid>.pv-overview-security-empty:last-child{border-left:1px solid #e5eadf}
+.pv-overview-cameras>header,.pv-overview-alarm>header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:16px;color:#859779}
+.pv-overview-cameras h3,.pv-overview-alarm h3{font-size:13px;font-weight:500;color:#435f37;margin:0 0 5px}
+.pv-overview-cameras>header p,.pv-overview-alarm>header p{font-size:10px;line-height:1.6;color:#8a997e;margin:0}
+.pv-overview-camera-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(205px,1fr);gap:13px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#c4d1b7 #f4f7ef}
+.pv-overview-camera-strip:focus-visible{outline:2px solid #87a36e;outline-offset:4px}
+.pv-overview-camera-card{border:1px solid #e1e7d8;border-radius:8px;min-width:0;overflow:hidden;scroll-snap-align:start}
+.pv-overview-camera-image{aspect-ratio:4/3;background:#f2f5ed;display:grid;overflow:hidden}
+.pv-overview-camera-image>img{width:100%;height:100%;object-fit:contain;display:block;min-height:0}
+.pv-overview-camera-placeholder{display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:9px;padding:17px;color:#8b9d7c;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.pv-overview-camera-placeholder>span{max-width:240px}
+.pv-overview-camera-placeholder>button{font:inherit;font-size:10px;border:1px solid #d5dfca;border-radius:5px;background:#fff;color:#5b784b;padding:6px 9px}
+.pv-overview-camera-caption{padding:12px 13px}
+.pv-overview-camera-caption h4{font-size:12px;font-weight:500;line-height:1.5;color:#4b673e;margin:0 0 4px;overflow-wrap:anywhere}
+.pv-overview-camera-caption p,.pv-overview-camera-caption>span{font-size:9px;line-height:1.7;color:#8b9a7e;margin:0;display:block}
+.pv-overview-camera-caption>span{color:#876e54;margin-top:4px}
+.pv-overview-security-timestamp{font-size:9px;color:#8d9a81;line-height:1.7;margin:12px 0 0}
+.pv-overview-security-note{font-size:11px;color:#7c8f6d;line-height:1.8;margin:0 0 14px}
+.pv-overview-alarm-list{display:grid;gap:12px}
+.pv-overview-alarm-list>article{border-top:1px solid #e7eddf;padding-top:12px}
+.pv-overview-alarm-list>article>div{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.pv-overview-alarm-list h4{font-size:11px;font-weight:400;color:#7f9270;margin:0;line-height:1.5}
+.pv-overview-alarm-list strong{font-size:18px;font-weight:500;letter-spacing:-.4px;color:#446737;line-height:1.4}
+.pv-overview-alarm-list strong.is-alarm{color:#a95b4f}
+.pv-overview-alarm-list p{font-size:10px;color:#8b9c7a;line-height:1.7;margin:4px 0 0;overflow-wrap:anywhere}
+.pv-overview-security-empty{display:flex;align-items:flex-start;flex-direction:column;justify-content:center;padding:25px;min-height:220px;color:#94a486}
+.pv-overview-security-empty h3{font-size:15px;font-weight:500;margin:13px 0 7px;color:#4e6b3e}
+.pv-overview-security-empty p{font-size:11px;color:#859977;line-height:1.8;margin:0 0 13px;max-width:370px}
+.pv-overview-security-locked{display:flex;align-items:center;gap:16px;border:1px solid #e1e7d8;border-radius:11px;padding:24px;background:#fff}
+.pv-overview-security-locked>span{display:grid;place-items:center;width:43px;height:43px;border:1px solid #e3e9db;border-radius:10px;background:#f8faf4;color:#859d72;flex-shrink:0}
+.pv-overview-security-locked>div{flex:1;min-width:0}
+.pv-overview-security-locked h3{font-size:14px;font-weight:500;color:#49673a;margin:0 0 6px}
+.pv-overview-security-locked p{font-size:11px;line-height:1.8;color:#869b76;margin:0;max-width:650px}
+.pv-overview-security-locked .pv-overview-button{font-size:11px;white-space:normal;text-decoration:none;flex-shrink:0}
+.pv-overview-security-message{font-size:11px;line-height:1.8;padding:11px 14px;border:1px solid #dedfd4;border-radius:7px;background:#fafbf7;color:#7e8a70;margin:0 0 14px}
+.pv-overview-security-foot{display:flex;align-items:flex-start;gap:6px;color:#92a083;font-size:9px;line-height:1.7;margin:12px 2px 0}
+.pv-overview-security-foot>svg{flex-shrink:0;margin-top:1px}
+@media(max-width:1000px){.pv-overview-security-grid{grid-template-columns:minmax(0,1.5fr) minmax(210px,1fr)}.pv-overview-security-locked{flex-wrap:wrap}.pv-overview-security-locked .pv-overview-button{margin-left:59px}.pv-overview-camera-strip{grid-auto-columns:210px}}
+@media(max-width:680px){.pv-overview-security-grid{grid-template-columns:1fr}.pv-overview-alarm,.pv-overview-security-grid>.pv-overview-security-empty:last-child{border-left:0;border-top:1px solid #e5eadf}.pv-overview-security-empty{min-height:180px;padding:22px}.pv-overview-security-actions{gap:10px}.pv-overview-security-actions .pv-text-link{font-size:10px}.pv-overview-surveillance>.pv-section-heading{flex-wrap:wrap;gap:13px}.pv-overview-cameras,.pv-overview-alarm{padding:18px}.pv-overview-camera-strip{grid-auto-columns:230px}.pv-overview-alarm-list>article>div{flex-direction:row;align-items:center;justify-content:space-between;gap:15px}.pv-overview-alarm-list strong{font-size:16px}.pv-overview-security-locked{padding:20px;gap:13px}.pv-overview-security-locked .pv-overview-button{margin-left:56px}.pv-overview-security-foot{font-size:9px}.pv-overview-security-locked>div{flex-basis:calc(100% - 56px)}}

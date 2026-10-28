@@ -97,12 +97,19 @@ test('an empty saved inventory remains valid and retains household records', () 
 
 test('complete backups retain every collection, settings and extension fields', () => {
   const snapshot = Object.fromEntries(SNAPSHOT_ARRAYS.map(key => [key, []]));
-  Object.assign(snapshot, { version: 4, items: [supply()], properties: [{ id: 'prop1', name: 'Home' }], people: 4, climate: 'cold', propAddress: '', activePropertyId: 'prop1', propertyProfile: { heatSource: ['wood'] }, localSettings: { 'prepvault-user-channels': '[]' }, demoData: false, customFutureField: { retained: true } });
+  Object.assign(snapshot, { version: 4, items: [supply()], properties: [{ id: 'prop1', name: 'Home' }], people: 4, dailyCalTarget: 1500, climate: 'cold', propAddress: '', activePropertyId: 'prop1', propertyProfile: { heatSource: ['wood'] }, localSettings: { 'prepvault-user-channels': '[]' }, demoData: false, customFutureField: { retained: true } });
   const restored = validateSnapshot(JSON.parse(JSON.stringify(snapshot)));
   for (const key of SNAPSHOT_ARRAYS.filter(key => key !== 'items')) assert.deepEqual(restored[key], snapshot[key], key);
   assert.deepEqual(restored.localSettings, snapshot.localSettings);
   assert.deepEqual(restored.propertyProfile, snapshot.propertyProfile);
   assert.deepEqual(restored.customFutureField, snapshot.customFutureField);
+  assert.equal(restored.dailyCalTarget, 1500);
+});
+
+test('calorie targets preserve the supported range and reject invalid backup values', () => {
+  assert.equal(validateSnapshot({ items: [] }).dailyCalTarget, undefined, 'legacy backups retain an identifiable missing target');
+  for (const dailyCalTarget of [1000, 1500, 2000, 3000]) assert.equal(validateSnapshot({ items: [], dailyCalTarget }).dailyCalTarget, dailyCalTarget);
+  for (const dailyCalTarget of [0, -1, 999, 3001, '2000', null, {}, [], NaN, Infinity]) assert.throws(() => validateSnapshot({ items: [], dailyCalTarget }), /calorie target/);
 });
 
 test('legacy duplicate IDs receive stable collision-free IDs while preserving all records', () => {

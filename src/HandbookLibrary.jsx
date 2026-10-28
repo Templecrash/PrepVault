@@ -1,3 +1,4 @@
+import { isLocalEdition } from './runtime-mode.js';
 import { useEffect, useRef, useState } from 'react';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -13,7 +14,7 @@ const categories = [...new Set(HANDBOOKS.map(book => book.category))];
 const totalBytes = HANDBOOKS.reduce((sum, book) => sum + book.bytes, 0);
 const fileSize = bytes => bytes >= 1000000 ? `${(bytes / 1000000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`;
 
-function HandbookReader({ book, onClose }) {
+export function HandbookReader({ book, onClose }) {
   const dialog = useDialogFocus(onClose);
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
@@ -269,10 +270,10 @@ export default function HandbookLibrary({ onCrisis, crisisMode }) {
       <div className="pv-handbook-save-icon"><Icon name="download" size={24}/></div>
       <div className="pv-handbook-save-copy"><h2 id="handbook-save-title">Build your offline library.</h2><p>{checking ? 'Checking the guides saved on this device…' : <><strong>{savedIds.length} of {HANDBOOKS.length}</strong> guides saved on this device{!online ? ' · You are offline' : ''}.</>}</p><p className="pv-handbook-save-detail">{HANDBOOKS.length} original PDFs · {fileSize(totalBytes)} for the full collection</p></div>
       <button className="pv-button pv-primary" type="button" disabled={!canSave || (missing.length === 0 && capability.ready)} onClick={() => void (missing.length ? saveBooks(missing) : prepareSavedLibrary())}><Icon name={missing.length === 0 && capability.ready && !checking ? 'check' : 'download'} size={17}/>{busy === 'prepare' ? 'Preparing…' : busy ? 'Saving…' : !checking && missing.length === 0 ? capability.ready ? 'All guides saved' : 'Prepare offline access' : `Save ${savedIds.length ? 'remaining' : 'all'} offline`}</button>
-      <div className="pv-handbook-save-footer">{capability.supported === false ? 'Offline saving is unavailable in this browser. Use Download PDF to keep files on your device.' : <>Save while connected, then reopen this same site and choose Emergency. {capability.ready && savedIds.length > 0 ? 'The site is saved for offline opening.' : missing.length > 0 ? `Up to ${fileSize(missingBytes)} to download, plus the site.` : ''}</>}</div>
+      <div className="pv-handbook-save-footer">{capability.supported === false ? 'Offline saving is unavailable in this browser. Use Download PDF to keep files on your device.' : <>{isLocalEdition() ? 'The original PDFs are included in this local app. Save copies here if you also want browser-cached access.' : 'Save while connected, then reopen this same site and choose Emergency.'} {capability.ready && savedIds.length > 0 ? 'The site is saved for offline opening.' : missing.length > 0 ? `Up to ${fileSize(missingBytes)} to download, plus the site.` : ''}</>}</div>
     </section>
 
-    <div className="pv-handbook-pack"><a href="/handbooks/prepvault-handbook-pack.zip" download="prepvault-handbook-pack.zip"><Icon name="download" size={15}/>Download all PDFs (ZIP)</a><p>Extract the ZIP to read the guides outside your browser. This download is separate from your saved offline library.</p></div>
+    <div className="pv-handbook-pack">{isLocalEdition() ? <><strong>All original PDFs are included.</strong><p>Open the app/handbooks folder in your extracted local app to read the files in any PDF reader. You can also download each guide below.</p></> : <><a href="/handbooks/prepvault-handbook-pack.zip" download="prepvault-handbook-pack.zip"><Icon name="download" size={15}/>Download all PDFs (ZIP)</a><p>Extract the ZIP to read the guides outside your browser. This download is separate from your saved offline library.</p></>}</div>
 
     {progress && <div className="pv-handbook-progress" role="status"><span>Saving {progress.current} of {progress.total}: {progress.title}</span><progress value={progress.current - 1} max={progress.total} aria-label="Guides saved"/></div>}
     {message && <p className="pv-handbook-message" role="status"><Icon name="check" size={16}/>{message}</p>}

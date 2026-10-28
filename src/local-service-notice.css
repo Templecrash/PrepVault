@@ -1,0 +1,7 @@
+.pv-local-service{padding:32px;border:1px solid #dce4d7;border-radius:14px;background:#fff;color:#294633;max-width:760px;margin:0 auto}
+.pv-local-service-icon{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:12px;background:#f2f5ed;color:#5a7154;margin-bottom:16px}
+.pv-local-service-eyebrow{font-size:10px!important;font-weight:650;letter-spacing:1.6px;color:#708068!important}
+.pv-local-service h2{font-size:25px;font-weight:550;letter-spacing:-.6px;line-height:1.25;margin:0 0 14px}
+.pv-local-service p{font-size:13px;line-height:1.7;color:#697563;margin:0 0 16px}
+.pv-local-service a{margin-top:8px;text-decoration:none}
+@media(max-width:600px){.pv-local-service{padding:22px 18px}.pv-local-service h2{font-size:22px}}

@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Icon } from "./brand.jsx";
 import FoodWaterInfo from "./FoodWaterInfo.jsx";
 import OverviewInsights from "./OverviewInsights.jsx";
+import LocationView from "./LocationView.jsx";
+import OverviewSurveillance from "./OverviewSurveillance.jsx";
 import { summarizeOverviewInventory } from "./overview-metrics.js";
 import { computeEssentialCoverage } from "./essential-coverage.js";
 import "./overview.css";
@@ -49,7 +51,7 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
       <div className="pv-overview-date"><Icon name="compass" size={17} /><time dateTime={localDate}>{today.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</time></div>
     </header>
 
-    <OverviewInsights summary={overview.summary} priorities={overview.priorities} propertyName={propertyName} onCategory={onCategory} onNavigate={onNavigate} onAdd={onAdd} onReview={() => {
+    <OverviewInsights coverage={coverage} summary={overview.summary} priorities={overview.priorities} propertyName={propertyName} onCategory={onCategory} onNavigate={onNavigate} onAdd={onAdd} onReview={() => {
       setShowAllPriorities(true);
       const heading = document.getElementById('pv-priorities-title');
       heading?.focus({ preventScroll: true });
@@ -61,6 +63,10 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
       <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <EssentialCoverage key={essential.key} coverage={coverage[essential.key]} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} stats={overview.summary.categories.find(row => row.key === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
       <div className="pv-essential-people"><p className="pv-essential-note">Food and water plan for <strong>{rationPeople.length} {rationPeople.length === 1 ? "dependant" : "dependants"}</strong> selected in Your People.</p><FoodWaterInfo /><button type="button" className="pv-text-link" onClick={() => onNavigate("community")}>Manage dependants<Icon name="arrow" size={14}/></button></div>
     </section>
+
+    <OverviewSurveillance onOpen={() => onNavigate("surveillance")} />
+
+    <LocationView compact onOpen={() => onNavigate("location")} onCategory={onCategory} items={items}/>
 
     <div className="pv-overview-columns">
       <section className="pv-overview-panel pv-priorities" aria-labelledby="pv-priorities-title">

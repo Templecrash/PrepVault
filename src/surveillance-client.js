@@ -22,6 +22,9 @@ export function normalizeSurveillance(data) {
       photos: reveal.connected && Array.isArray(reveal.photos) ? reveal.photos.slice(0, 1000).filter(photo => photo && identifier(photo.id) && identifier(photo.cameraId)).map(photo => ({
         id: identifier(photo.id), cameraId: identifier(photo.cameraId), capturedAt: timestamp(photo.capturedAt), receivedAt: timestamp(photo.receivedAt),
       })) : [],
+      latestPhotos: reveal.connected && Array.isArray(reveal.latestPhotos) ? reveal.latestPhotos.slice(0, 1000).filter(photo => photo && identifier(photo.id) && identifier(photo.cameraId)).map(photo => ({
+        id: identifier(photo.id), cameraId: identifier(photo.cameraId), capturedAt: timestamp(photo.capturedAt), receivedAt: timestamp(photo.receivedAt),
+      })) : undefined,
       checkedAt: timestamp(reveal.checkedAt), error: text(reveal.error),
       hasMore: reveal.hasMore === true, limit: Number.isInteger(reveal.limit) && reveal.limit > 0 && reveal.limit <= 1000 ? reveal.limit : 100,
     },

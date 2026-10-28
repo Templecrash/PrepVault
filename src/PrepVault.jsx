@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
 import "leaflet/dist/leaflet.css";
@@ -7,7 +7,7 @@ import { buildNavigationHealth } from "./navigation-health.js";
 import Welcome from "./Welcome.jsx";
 import AccountAuth from "./AccountAuth.jsx";
 import { getAccountSession, signOutAccount, ACCOUNT_SESSION_EVENT } from "./account-auth-client.js";
-import { switchAccountWorkspace, readWorkspaceOwner, isWorkspaceSettingKey } from "./account-workspace.js";
+import { switchAccountWorkspace, readWorkspaceOwner, captureWorkspaceSettings } from "./account-workspace.js";
 import HouseholdSetup from "./HouseholdSetup.jsx";
 import BugOutPlan from "./BugOutPlan.jsx";
 import PlanNotice from "./PlanNotice.jsx";
@@ -23,7 +23,17 @@ import CategoryDetailView from "./CategoryDetailView.jsx";
 import { buildEssentialPlanning } from "./essential-planning.js";
 import PropertyView from "./PropertyView.jsx";
 import { getDefensePositions, patchPositionAssignment } from "./defense-positions.js";
-import AuthPanel from "./ProviderConnectionPanel.jsx";
+import SettingsBackups from "./SettingsBackups.jsx";
+import { isLocalEdition } from "./runtime-mode.js";
+import { CONVERSATION_NOTES_KEY, captureConversationNotes } from "./conversation-notes.js";
+import { readStoredPlan, readBackupFile, persistRestoredSnapshot, MAX_BACKUP_FILE_BYTES } from "./backup-storage.js";
+import { getOfflineLibraryStatus, prepareOfflineLibrary, listSavedHandbooks } from "./handbook-offline.js";
+import BarcodeScanner from "./BarcodeScanner.jsx";
+import PreparednessCalendar from "./PreparednessCalendar.jsx";
+import SkillsLibrary from "./SkillsLibrary.jsx";
+import OfflineMaps from "./OfflineMaps.jsx";
+import LocationView from "./LocationView.jsx";
+import WeatherNews from "./WeatherNews.jsx";
 import ScenarioView from "./ScenarioView.jsx";
 import "./legacy-details.css";
 import ResourcePlanningView from "./ResourcePlanningView.jsx";
@@ -1458,178 +1468,6 @@ function NewsTicker({ news, expanded, setExpanded }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   BARCODE PRODUCT DATABASE
-   ═══════════════════════════════════════════════════════════ */
-const BARCODE_DB = {
-  "041000000191": { name: "Folgers Classic Roast Coffee", category: "recreational", subType: "caffeine", qty: 1, fields: { recBrand: "Folgers", deviceLocation: "" } },
-  "037000185710": { name: "Duracell AA 24-pack", category: "batteries", subType: "aa", qty: 24, fields: { batteryBrand: "Duracell", batteryCount: "24", isRechargeable: "No", batteryChemistry: "Alkaline" } },
-  "037000216216": { name: "Duracell AAA 16-pack", category: "batteries", subType: "aaa", qty: 16, fields: { batteryBrand: "Duracell", batteryCount: "16", isRechargeable: "No", batteryChemistry: "Alkaline" } },
-  "039800109781": { name: "Energizer D Cell 4-pack", category: "batteries", subType: "dCell", qty: 4, fields: { batteryBrand: "Energizer", batteryCount: "4", isRechargeable: "No", batteryChemistry: "Alkaline" } },
-  "036000291452": { name: "Huggies Little Movers Diapers", category: "kids", subType: "diapers", qty: 1, fields: { kidName: "", diaperSize: "Size 4" } },
-  "030000318980": { name: "Mountain House Beef Stroganoff", category: "food", subType: "freezeDried", qty: 1, fields: { calories: "250", expiryDate: "" } },
-  "041333662046": { name: "Berkey Black Filter (2-pack)", category: "equipment", subType: "waterFilter", qty: 2, fields: { filterType: "Berkey", lifespanGallons: "3000", gallonsUsed: "0" } },
-  "075020044280": { name: "Bic Classic Lighter 5-pack", category: "recreational", subType: "lighter", qty: 5, fields: { bobItemQty: "5" } },
-  "312547780063": { name: "Infant Tylenol (acetaminophen)", category: "kids", subType: "kidMeds", qty: 1, fields: { kidName: "", medication: "Acetaminophen" } },
-  "312547781138": { name: "Children's Benadryl", category: "kids", subType: "kidMeds", qty: 1, fields: { kidName: "", medication: "Diphenhydramine" } },
-  "300450552044": { name: "Band-Aid Variety Pack", category: "medical", subType: "firstAidKit", qty: 1, fields: { kitLevel: "Basic" } },
-  "041457000014": { name: "Sta-Bil Fuel Stabilizer", category: "fuel", subType: "gasoline", qty: 1, fields: { stabilized: "Yes" } },
-  "071641112148": { name: "Smirnoff Vodka 1.75L", category: "alcohol", subType: "vodka", qty: 1, fields: { alcBrand: "Smirnoff", alcVolume: "1.75L", alcABV: "40" } },
-  "082000004806": { name: "Jack Daniel's Old No.7 750ml", category: "alcohol", subType: "whiskey", qty: 1, fields: { alcBrand: "Jack Daniel's", alcVolume: "750ml", alcABV: "40" } },
-  "040000522805": { name: "Snickers Bar 6-pack", category: "food", subType: "cannedGoods", qty: 6, fields: { calories: "250" } },
-  "036000465235": { name: "Cottonelle Wipes 168ct", category: "kids", subType: "wipes", qty: 1, fields: { bobItemQty: "1" } },
-  "071641001275": { name: "Crown Royal 750ml", category: "alcohol", subType: "whiskey", qty: 1, fields: { alcBrand: "Crown Royal", alcVolume: "750ml", alcABV: "40" } },
-  "013000006408": { name: "Spam Classic 12oz", category: "food", subType: "cannedGoods", qty: 1, fields: { calories: "180" } },
-  "070382014063": { name: "Enfamil NeuroPro Powder", category: "kids", subType: "formula", qty: 1, fields: { formulaType: "Powder" } },
-  "036000451351": { name: "Kleenex 3-pack", category: "hygiene", subType: "toiletPaper", qty: 3, fields: {} },
-  "044000002718": { name: "Marlboro Red Kings", category: "recreational", subType: "cigarettes", qty: 1, fields: { recBrand: "Marlboro Red" } },
-  "818290019710": { name: "MIRA Safety NBC-77 SOF Filter", category: "nbc", subType: "filters", qty: 1, fields: { nbcFilterType: "NBC-77 SOF", nbcFilterThread: "40mm NATO (STANAG)" } },
-  "818290019703": { name: "MIRA Safety CM-6M Gas Mask", category: "nbc", subType: "respirator", qty: 1, fields: { nbcBrand: "MIRA Safety", nbcModel: "CM-6M", nbcFilterThread: "40mm NATO (STANAG)" } },
-  "015706007269": { name: "SureFire CR123A 12-pack", category: "batteries", subType: "cr123a", qty: 12, fields: { batteryBrand: "SureFire", batteryCount: "12", isRechargeable: "No", batteryChemistry: "Lithium" } },
-};
-
-function BarcodeScanner({ onScan, onClose }) {
-  const dialogRef = useDialogFocus(onClose);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [manualCode, setManualCode] = useState("");
-  const [scanning, setScanning] = useState(false);
-  const [cameraError, setCameraError] = useState("");
-  const [lastScanned, setLastScanned] = useState(null);
-  const [flash, setFlash] = useState(false);
-  const streamRef = useRef(null);
-  const intervalRef = useRef(null);
-
-  useEffect(() => {
-    startCamera();
-    return () => stopCamera();
-  }, []);
-
-  const stopCamera = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-  };
-
-  const startCamera = async () => {
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) { setCameraError("Camera not available — use manual entry below"); return; }
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } });
-      streamRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
-      setScanning(true);
-
-      if ("BarcodeDetector" in window) {
-        const detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"] });
-        intervalRef.current = setInterval(async () => {
-          if (!videoRef.current || videoRef.current.readyState < 2) return;
-          try {
-            const barcodes = await detector.detect(videoRef.current);
-            if (barcodes.length > 0) {
-              const code = barcodes[0].rawValue;
-              handleCode(code);
-            }
-          } catch (e) { /* scan frame error, continue */ }
-        }, 300);
-      } else {
-        setCameraError("Auto-detect not supported in this browser — enter barcode manually");
-      }
-    } catch (e) {
-      setCameraError("Camera access denied — enter barcode manually below");
-    }
-  };
-
-  const handleCode = (code) => {
-    const product = BARCODE_DB[code];
-    setFlash(true);
-    setTimeout(() => setFlash(false), 400);
-    if (product) {
-      setLastScanned({ code, ...product, found: true });
-    } else {
-      setLastScanned({ code, found: false });
-    }
-  };
-
-  const confirmScan = () => {
-    if (lastScanned?.found) { stopCamera(); onScan(lastScanned); }
-  };
-
-  const submitManual = () => {
-    if (!manualCode.trim()) return;
-    handleCode(manualCode.trim());
-  };
-
-  return (
-    <div ref={dialogRef} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)", zIndex: 1100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "30px 20px", overflowY: "auto" }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 16, padding: 24, width: "100%", maxWidth: 480 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 20 }}>📷</span> Barcode Scanner
-          </h3>
-          <button onClick={onClose} style={{ ...btnSt, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.58)", fontSize: 16, padding: "4px 10px" }}>✕</button>
-        </div>
-
-        {/* Camera View */}
-        <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 14, background: "#000", border: "1px solid #e0e6da" }}>
-          <video ref={videoRef} style={{ width: "100%", height: 240, objectFit: "cover", display: "block" }} muted playsInline />
-          <canvas ref={canvasRef} style={{ display: "none" }} />
-          {/* Scan overlay crosshairs */}
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <div style={{ width: "70%", height: 80, border: "2px solid rgba(33,76,57,0.6)", borderRadius: 8, position: "relative" }}>
-              <div style={{ position: "absolute", top: -1, left: -1, width: 20, height: 20, borderTop: "3px solid #214c39", borderLeft: "3px solid #214c39", borderRadius: "4px 0 0 0" }} />
-              <div style={{ position: "absolute", top: -1, right: -1, width: 20, height: 20, borderTop: "3px solid #214c39", borderRight: "3px solid #214c39", borderRadius: "0 4px 0 0" }} />
-              <div style={{ position: "absolute", bottom: -1, left: -1, width: 20, height: 20, borderBottom: "3px solid #214c39", borderLeft: "3px solid #214c39", borderRadius: "0 0 0 4px" }} />
-              <div style={{ position: "absolute", bottom: -1, right: -1, width: 20, height: 20, borderBottom: "3px solid #214c39", borderRight: "3px solid #214c39", borderRadius: "0 0 4px 0" }} />
-              {scanning && <div style={{ position: "absolute", top: "50%", left: 8, right: 8, height: 2, background: "#214c39", borderRadius: 1, animation: "pulse 1.5s infinite" }} />}
-            </div>
-          </div>
-          {flash && <div style={{ position: "absolute", inset: 0, background: "rgba(34,197,94,0.2)", transition: "opacity 0.3s" }} />}
-          {scanning && <div style={{ position: "absolute", top: 8, left: 8, display: "flex", alignItems: "center", gap: 4, background: "rgba(0,0,0,0.6)", padding: "5px 8px", borderRadius: 6 }}><div style={{ width: 6, height: 6, borderRadius: 3, background: "#ef4444", animation: "pulse 1s infinite" }} /><span style={{ fontSize: 11, color: "#243d30", fontWeight: 700 }}>SCANNING</span></div>}
-        </div>
-
-        {cameraError && <div style={{ fontSize: 11, color: "#f59e0b", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{cameraError}</div>}
-
-        {/* Manual Entry */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          <input value={manualCode} onChange={(e) => setManualCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitManual()} placeholder="Enter barcode manually (UPC/EAN)..." style={{ ...inp, flex: 1, margin: 0, fontSize: 12, fontFamily: M }} />
-          <button onClick={submitManual} style={{ ...btnSt, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.6)", fontSize: 11, padding: "8px 14px", flexShrink: 0 }}>Look Up</button>
-        </div>
-
-        {/* Scan Result */}
-        {lastScanned && (
-          <div style={{ ...cardSt, padding: 14, borderLeft: "3px solid " + (lastScanned.found ? "#22c55e" : "#f59e0b") }}>
-            {lastScanned.found ? (<>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 22 }}>{CATEGORIES[lastScanned.category]?.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{lastScanned.name}</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{CATEGORIES[lastScanned.category]?.label} → {CATEGORIES[lastScanned.category]?.subTypes[lastScanned.subType]?.label}</div>
-                </div>
-                <span style={{ fontSize: 11, padding: "4px 6px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", fontWeight: 700 }}>FOUND</span>
-              </div>
-              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M, marginBottom: 10 }}>UPC: {lastScanned.code} · Qty: {lastScanned.qty}</div>
-              <button onClick={confirmScan} style={{ ...btnSt, width: "100%", background: "#22c55e", color: "#000", fontWeight: 700, fontSize: 13, padding: "10px 0" }}>✓ Add to Inventory</button>
-            </>) : (<>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 18 }}>❓</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>Unknown Barcode</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{lastScanned.code}</div>
-                </div>
-              </div>
-              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Not in product database. You can add it manually with + Supply.</div>
-            </>)}
-          </div>
-        )}
-
-        {/* Quick stats */}
-        <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-          {Object.keys(BARCODE_DB).length} products in database · Point camera at UPC barcode
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
   const dialogRef = useDialogFocus(onClose);
   const [cat, setCat] = useState(editItem?.category || initialCategory || "water");
@@ -1692,129 +1530,12 @@ function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
 function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, dismissResetKey }) {
   const M = "'DM Sans',sans-serif";
 
-  /* ── Live Weather State ── */
-  const [weather, setWeather] = useState(null);
-  const [weatherLoading, setWeatherLoading] = useState(false);
-  const [weatherError, setWeatherError] = useState(null);
-  const [weatherSource, setWeatherSource] = useState("sample"); // 'sample' | 'live' | 'cached'
-
   const [showActHistory, setShowActHistory] = useState(false);
   const [showAllActions, setShowAllActions] = useState(false);
   const [dismissedProfileCTA, setDismissedProfileCTA] = useState(() => localStorage.getItem("prepvault-dismiss-profile-cta") === "1");
-
-  /* Reset dismiss flags when demo mode is re-entered */
   useEffect(() => {
-    if (dismissResetKey > 0) {
-      setDismissedProfileCTA(false);
-      localStorage.removeItem("prepvault-dismiss-profile-cta");
-    }
+    if (dismissResetKey > 0) { setDismissedProfileCTA(false); localStorage.removeItem("prepvault-dismiss-profile-cta"); }
   }, [dismissResetKey]);
-
-  /* ── Live News State ── */
-  const [news, setNews] = useState(null);
-  const [newsLoading, setNewsLoading] = useState(false);
-  const [newsSource, setNewsSource] = useState("sample"); // 'sample' | 'live' | 'cached'
-
-  /* ── Fetch Weather ── */
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchWeather() {
-      // Try to get coordinates from propAddress or use geolocation
-      let lat, lng;
-      try {
-        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000, maximumAge: 300000 }));
-        lat = pos.coords.latitude;
-        lng = pos.coords.longitude;
-      } catch { /* geolocation unavailable or denied */ }
-
-      if (!lat || !lng) {
-        // Check localStorage cache
-        const cached = localStorage.getItem("pv-weather-cache");
-        if (cached) { try { const c = JSON.parse(cached); if (Date.now() - new Date(c.fetchedAt).getTime() < 3600000) { setWeather(c); setWeatherSource("cached"); return; } } catch {} }
-        return; // No location, keep sample data
-      }
-
-      setWeatherLoading(true);
-      try {
-        const apiBase = import.meta.env.VITE_API_URL || "";
-        const res = await fetch(`${apiBase}/api/weather/current?lat=${lat}&lng=${lng}`);
-        if (!res.ok) throw new Error("Weather API " + res.status);
-        const data = await res.json();
-        if (!cancelled) {
-          setWeather(data);
-          setWeatherSource("live");
-          localStorage.setItem("pv-weather-cache", JSON.stringify(data));
-        }
-      } catch (err) {
-        console.warn("Weather fetch failed:", err.message);
-        // Try cache fallback
-        const cached = localStorage.getItem("pv-weather-cache");
-        if (cached && !cancelled) { try { setWeather(JSON.parse(cached)); setWeatherSource("cached"); } catch {} }
-        else if (!cancelled) setWeatherError(err.message);
-      } finally { if (!cancelled) setWeatherLoading(false); }
-    }
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 30 * 60 * 1000); // refresh every 30 min
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
-
-  /* ── Fetch News (with geolocation) ── */
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchNews() {
-      try {
-        // Get user's location for local news
-        let locationParams = "";
-        try {
-          const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000, maximumAge: 600000 }));
-          locationParams = `&lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`;
-        } catch { /* geolocation unavailable, use defaults */ }
-
-        const apiBase = import.meta.env.VITE_API_URL || "";
-        const res = await fetch(`${apiBase}/api/news/feed?${locationParams}`);
-        if (!res.ok) throw new Error("News API " + res.status);
-        const data = await res.json();
-        if (!cancelled && data.articles?.length > 0) {
-          setNews(data.articles);
-          setNewsSource("live");
-          localStorage.setItem("pv-news-cache", JSON.stringify(data.articles));
-        }
-      } catch {
-        // Try cache fallback
-        const cached = localStorage.getItem("pv-news-cache");
-        if (cached && !cancelled) { try { setNews(JSON.parse(cached)); setNewsSource("cached"); } catch {} }
-      } finally { if (!cancelled) setNewsLoading(false); }
-    }
-    setNewsLoading(true);
-    fetchNews();
-    const interval = setInterval(fetchNews, 30 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
-
-  /* ── Sample fallback data ── */
-  const sampleWeather = {
-    current: { temp: -8, feels_like: -14, humidity: 78, wind_speed: 22, wind_dir: "NW", description: "Light Snow", icon: "🌨️", city: "Toronto, ON" },
-    forecast: [
-      { day: "Wed", icon: "🌨️", hi: -6, lo: -12 },
-      { day: "Thu", icon: "❄️", hi: -9, lo: -18 },
-      { day: "Fri", icon: "☁️", hi: -4, lo: -11 },
-      { day: "Sat", icon: "🌤️", hi: -1, lo: -8 },
-      { day: "Sun", icon: "☀️", hi: 2, lo: -5 },
-    ],
-    alerts: climate === "cold" ? [{ title: "Extreme cold warning", desc: "Wind chill to -25°C tonight. Check heating fuel and insulate pipes." }] : [],
-  };
-  const sampleNews = [
-    { title: "Ontario hydro rates to increase 4.2% in March", source: "CBC News", time: "2h ago", severity: "amber", tag: "GRID", url: "https://www.cbc.ca/news/business/ontario-hydro-rates-increase" },
-    { title: "Supply chain delays: canned goods prices up 12% nationally", source: "Globe & Mail", time: "6h ago", severity: "amber", tag: "FOOD", url: "https://www.theglobeandmail.com/business/article-supply-chain-canned-goods" },
-    { title: "Environment Canada: lake-effect snow squalls through Thursday", source: "Weather Network", time: "8h ago", severity: "amber", tag: "WEATHER", url: "https://www.theweathernetwork.com/ca/alerts/ontario/snow-squalls" },
-    { title: "Highway 401 closures this weekend — detour via Hwy 7", source: "CTV Toronto", time: "10h ago", severity: "info", tag: "ROUTES", url: "https://www.ctvnews.ca/toronto/highway-401-closures-weekend" },
-  ];
-
-  const w = weather || sampleWeather;
-  const currentWeather = w.current || sampleWeather.current;
-  const forecast = w.forecast || sampleWeather.forecast;
-  const weatherAlerts = w.alerts || [];
-  const newsItems = news || sampleNews;
 
   /* ── Continuity Metrics ── */
   const cont = useMemo(() => {
@@ -2075,91 +1796,7 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         );
       })()}
 
-      {/* ── Weather & Local News ── */}
-      <div className="pcs-weather-news" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {/* Local Weather */}
-        <div style={{ ...cardSt, padding: 16, background: "linear-gradient(135deg, rgba(14,165,233,0.04), rgba(14,165,233,0.01))", border: "1px solid rgba(14,165,233,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>🌤️ Local Weather</h3>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: weatherSource === "live" ? "rgba(34,197,94,0.1)" : weatherSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(36,61,48,0.06)", color: weatherSource === "live" ? "#22c55e" : weatherSource === "cached" ? "#0ea5e9" : "rgba(36,61,48,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{weatherSource === "live" ? "LIVE" : weatherSource === "cached" ? "CACHED" : "SAMPLE"}</span>
-              {currentWeather.city && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{currentWeather.city}</span>}
-            </div>
-          </div>
-          {weatherLoading && !weather ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⟳ Loading weather...</div>
-          ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 36, fontWeight: 800, fontFamily: M, color: "#0ea5e9", lineHeight: 1 }}>{currentWeather.temp}°</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Feels like {currentWeather.feels_like}°</div>
-                </div>
-                <div style={{ fontSize: 40, lineHeight: 1 }}>{currentWeather.icon || "🌤️"}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(36,61,48,0.6)" }}>{currentWeather.description}</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>Wind: {currentWeather.wind_dir} {currentWeather.wind_speed} km/h · Humidity: {currentWeather.humidity}%</div>
-                </div>
-              </div>
-              {forecast.length > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(forecast.length, 5)}, 1fr)`, gap: 4 }}>
-                  {forecast.slice(0, 5).map((d, i) => (
-                    <div key={i} style={{ textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "rgba(47,76,39,0.02)" }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>{d.day}</div>
-                      <div style={{ fontSize: 16, margin: "3px 0" }}>{d.icon}</div>
-                      <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)" }}>{d.hi}°</div>
-                      <div style={{ fontSize: 11, fontFamily: M, color: "rgba(36,61,48,0.58)" }}>{d.lo}°</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {weatherAlerts.length > 0 && weatherAlerts.map((alert, i) => (
-                <div key={i} style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 11, color: "rgba(245,158,11,0.6)" }}>
-                  ⚠ {alert.title || alert.desc || "Weather alert active"}
-                  {alert.desc && alert.title && <span> — {alert.desc.slice(0, 120)}</span>}
-                </div>
-              ))}
-              {weatherAlerts.length === 0 && climate === "cold" && weatherSource === "sample" && (
-                <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.04)", borderLeft: "2px solid #f59e0b", fontSize: 11, color: "rgba(245,158,11,0.6)" }}>
-                  ⚠ Extreme cold warning — wind chill to -25°C tonight. Check heating fuel and insulate pipes.
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Local News */}
-        <div style={{ ...cardSt, padding: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <h3 style={{ margin: 0, fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 2 }}>📰 Local News</h3>
-            <span style={{ fontSize: 7, padding: "2px 5px", borderRadius: 3, background: newsSource === "live" ? "rgba(34,197,94,0.1)" : newsSource === "cached" ? "rgba(14,165,233,0.1)" : "rgba(36,61,48,0.06)", color: newsSource === "live" ? "#22c55e" : newsSource === "cached" ? "#0ea5e9" : "rgba(36,61,48,0.2)", fontWeight: 700, letterSpacing: 0.5 }}>{newsSource === "live" ? "LIVE" : newsSource === "cached" ? "CACHED" : "SAMPLE"}</span>
-          </div>
-          {newsLoading && !news ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>⟳ Loading news...</div>
-          ) : (
-            <div style={{ display: "grid", gap: 3 }}>
-              {newsItems.slice(0, 6).map((n, i) => {
-                const sevColors = { critical: "#ef4444", amber: "#f59e0b", info: "#0ea5e9", green: "#22c55e" };
-                const col = sevColors[n.severity] || "#6b7280";
-                const isClickable = !!n.url;
-                return (
-                  <div key={i} onClick={() => isClickable && window.open(n.url, "_blank", "noopener,noreferrer")} style={{ display: "flex", gap: 10, padding: "5px 10px", borderRadius: 8, background: "rgba(47,76,39,0.015)", borderLeft: "2px solid " + col + "40", transition: "background 0.15s", cursor: isClickable ? "pointer" : "default" }} onMouseOver={e => e.currentTarget.style.background = "rgba(36,61,48,0.04)"} onMouseOut={e => e.currentTarget.style.background = "rgba(36,61,48,0.015)"}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: isClickable ? "rgba(36,61,48,0.75)" : "rgba(36,61,48,0.65)", lineHeight: 1.4 }}>{n.title}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{n.source}</span>
-                        <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>{n.time}</span>
-                        {isClickable && <span style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>↗</span>}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 7, padding: "2px 6px", borderRadius: 4, background: col + "10", color: col, fontWeight: 700, alignSelf: "flex-start", flexShrink: 0, letterSpacing: 0.5 }}>{n.tag}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+      <WeatherNews />
 
       {/* ── Action Bar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, padding: "4px 0" }} onClick={(e) => e.stopPropagation()}>
@@ -2726,40 +2363,8 @@ function PrepsTab({ items, setSelCat, openAdd, people, climate, allAlerts, showA
 
 /* ── AuthPanel — Moved outside PropertyTab to prevent re-mount on each render ── */
 function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, setPins, routes, setRoutes, mapSetups, setMapSetups, properties, activePropertyId, amenities, user, items, onSetup, members, demoData, onOpenPropertyMap }) {
-  const [nestAuth, setNestAuth] = useState({ email: "", password: "", connected: false, showPw: false, error: "", loading: false });
-  const [liveNestDevices, setLiveNestDevices] = useState(null);
   const [trapStatus, setTrapStatus] = useState(() => { try { return JSON.parse(localStorage.getItem("prepvault-trap-status") || "{}"); } catch { return {}; } });
   useEffect(() => { try { localStorage.setItem("prepvault-trap-status", JSON.stringify(trapStatus)); } catch {} }, [trapStatus]);
-
-  const handleAuth = async (setter, state) => {
-    if (!state.email || !state.password) { setter(p => ({ ...p, error: "Enter email and password" })); return; }
-    setter(p => ({ ...p, loading: true, error: "" }));
-    try {
-      if (user && user.authProvider !== "neon" && supabaseConfigured) {
-        const session = await supabase.auth.getSession();
-        const token = session?.data?.session?.access_token;
-        if (token) {
-          const apiBase = import.meta.env.VITE_API_URL || "";
-          const res = await fetch(`${apiBase}/api/smart-home/nest/auth`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: state.email, password: state.password }) });
-          if (res.ok) {
-            setter(p => ({ ...p, password: "", loading: false, connected: true, error: "" }));
-            const devices = await fetch(`${apiBase}/api/smart-home/nest/devices`, { headers: { Authorization: `Bearer ${token}` } });
-            if (devices.ok) { const data = await devices.json(); setLiveNestDevices(data.devices); }
-            return;
-          }
-          const data = await res.json().catch(() => ({}));
-          setter(p => ({ ...p, password: "", loading: false, error: data.error || "Connection failed" }));
-          return;
-        }
-      }
-      setter(p => ({ ...p, password: "", loading: false, connected: false, error: "Sign in to a cloud account to connect this service." }));
-    } catch {
-      setter(p => ({ ...p, password: "", loading: false, connected: false, error: "Could not connect. Check your connection and try again." }));
-    }
-  };
-  const handleDisconnect = setter => { setter({ email: "", password: "", connected: false, showPw: false, error: "", loading: false }); setLiveNestDevices(null); };
-  const displayNestDevices = liveNestDevices || SMART_HOME.nest.devices;
-
 
   const primaryId = properties.some(property => property.id === "prop1") ? "prop1" : properties[0]?.id;
   const selectedPins = activePropertyId === "all" ? properties.flatMap(property => mapSetups[property.id]?.pins || (property.id === primaryId ? pins : [])) : mapSetups[activePropertyId]?.pins || (activePropertyId === primaryId ? pins : []);
@@ -2775,52 +2380,7 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
   };
   return <PropertyView propSub={propSub} setPropSub={setPropSub} items={items} pins={selectedPins} defenseTypes={CATEGORIES.defense.subTypes} defensePinTypes={MAP_PIN_TYPES.defense} positionRecords={positionRecords} members={members} sampleRoles={demoData ? DEFENSE_ROLES : []} showProperties={activePropertyId === "all"} onSaveAssignment={saveAssignment} onOpenPropertyMap={openPropertyMap} trapStatus={trapStatus} setTrapStatus={setTrapStatus} onSetup={onSetup}
     map={<PropertyMapWorkspace pins={pins} propAddress={propAddress} setPropAddress={setPropAddress} mapSetups={mapSetups} setMapSetups={setMapSetups} routes={routes} setRoutes={setRoutes} properties={properties} activePropertyId={activePropertyId} layers={MAP_LAYERS} pinTypes={MAP_PIN_TYPES} defenseRoles={demoData ? DEFENSE_ROLES : []} />}
-    systems={<div>
-          {/* Nest / Google Home Auth */}
-          <AuthPanel title="Nest / Google Home Login" icon="🏠" color="#06b6d4" auth={nestAuth} setAuth={setNestAuth} provider="Google Nest" providerId="nest" onAuth={handleAuth} onDisconnect={handleDisconnect} />
-          {nestAuth.connected ? (
-            <div style={{ ...cardSt, borderLeft: "3px solid #06b6d4" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 22 }}>🏠</span>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>Nest Devices</div>
-                <span style={{ fontSize: 11, padding: "4px 8px", borderRadius: 8, background: "rgba(6,182,212,0.1)", color: "#06b6d4", fontWeight: 700 }}>{displayNestDevices.length} devices</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
-                {displayNestDevices.map((d, i) => (
-                  <div key={i} style={{ padding: "12px 14px", background: "rgba(47,76,39,0.02)", borderRadius: 8, borderLeft: d.type === "lock" ? (d.status === "Locked" ? "3px solid #22c55e" : "3px solid #f59e0b") : "3px solid rgba(255,255,255,0.06)" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                      {d.type === "lock" ? "🔐" : d.type === "smoke" ? "🔥" : "🌡️"} {d.n}
-                    </div>
-                    {d.type === "lock" ? (
-                      <div>
-                        <div style={{ fontSize: 11, color: d.status === "Locked" ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>
-                          {d.status === "Locked" ? "✓ Locked" : "⚠ Unlocked"} · 🔋 {d.bat}
-                        </div>
-                        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                          <button style={{ ...btnSt, padding: "5px 10px", fontSize: 11, background: d.status === "Locked" ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", color: d.status === "Locked" ? "#ef4444" : "#22c55e", border: "1px solid " + (d.status === "Locked" ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)") }}>
-                            {d.status === "Locked" ? "Unlock" : "Lock"}
-                          </button>
-                        </div>
-                      </div>
-                    ) : d.type === "smoke" ? (
-                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>✓ OK · 🔋 {d.bat} · CO: {d.co}</div>
-                    ) : (
-                      <div>
-                        <div style={{ fontSize: 24, fontWeight: 800, fontFamily: M }}>{d.temp}</div>
-                        <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Set: {d.set} · {d.hum} · {d.mode}</div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{ ...cardSt, padding: "30px 20px", textAlign: "center", borderStyle: "dashed" }}>
-              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🏠</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(36,61,48,0.58)" }}>Connect Google Nest to view locks, thermostats, and smoke detectors</div>
-            </div>
-          )}
-        </div>} />;
+    systems={<section className="pv-card" style={{ padding: 24 }}><h3>Google Nest</h3><p>Google Nest monitoring is not connected in PrepVault. Use Google Home to check your devices. PrepVault does not currently control locks, thermostats or alarms through this integration.</p><a className="pv-button pv-secondary" href="https://home.google.com/" target="_blank" rel="noreferrer">Open Google Home</a></section>} />;
 }
 
 function CommunityTab({ user, contacts, setContacts, onSignIn }) {
@@ -3091,14 +2651,14 @@ function OpportunitiesTab({ items: allItems, people, climate, gardenBeds, dismis
 const SUPPLY_CATEGORIES = Object.fromEntries(Object.entries(CATEGORIES).filter(([key]) => !["food", "water"].includes(key)));
 
 const PV_STORAGE_KEY = "prepvault-db";
-function loadSaved() {
-  try {
-    const raw = localStorage.getItem(PV_STORAGE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (data && Array.isArray(data.items)) return validateSnapshot(data);
-    return null;
-  } catch { return null; }
+function snapshotStatus() {
+  try { const value = JSON.parse(localStorage.getItem("pcs-db") || "null"); return { exists: Boolean(value), encrypted: value?.enc === true, savedAt: value?.savedAt || null }; }
+  catch { return { exists: true, encrypted: false, savedAt: null }; }
+}
+function downloadFile(text, name) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const link = document.createElement("a"); link.href = url; link.download = name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const INVALID_WORKSPACE_OWNER = Symbol("invalid-workspace-owner");
@@ -3107,17 +2667,19 @@ function safeWorkspaceOwner() {
 }
 
 function emptyPlan() {
-  return { version: 4, items: [], people: 1, climate: "cold", pins: [], propAddress: "", mapSetups: {}, routes: [],
+  return { version: 4, items: [], people: 1, dailyCalTarget: 2000, climate: "cold", pins: [], propAddress: "", mapSetups: {}, routes: [],
     properties: DEFAULT_PROPERTIES.slice(0, 1).map(property => ({ ...property })), activePropertyId: "prop1", members: [], contacts: [],
     callSigns: [], codeWords: [], rallyPoints: [], codes: [], gardenBeds: [], actionLog: [], soilTests: [], compostBins: [],
     livestock: [], slaughterLog: [], bugOutEntries: [], propertyProfile: { ...DEFAULT_PROPERTY_PROFILE }, demoData: false, localSettings: {} };
 }
 
 export default function PrepVault() {
-  const saved = useRef(loadSaved());
+  const initialPlan = useRef(readStoredPlan(localStorage));
+  const saved = useRef(initialPlan.current.snapshot || (isLocalEdition() ? emptyPlan() : null));
+  const [recoveryError, setRecoveryError] = useState(initialPlan.current.error);
   const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
-  const [dailyCalTarget, setDailyCalTarget] = useState(2000);
+  const [dailyCalTarget, setDailyCalTarget] = useState(() => saved.current?.dailyCalTarget ?? 2000);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [inventorySearch, setInventorySearch] = useState({ query: "", status: "all", key: 0 });
@@ -3187,7 +2749,7 @@ export default function PrepVault() {
     try { const s = localStorage.getItem("prepvault-alerts-dismissed-until"); if (s && parseInt(s, 10) > Date.now()) return parseInt(s, 10); } catch {} return null;
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session") && !localStorage.getItem("prepvault-workspace-open"));
+  const [showLanding, setShowLanding] = useState(() => { try { return !localStorage.getItem("prepvault-active-session") && !localStorage.getItem("prepvault-workspace-open"); } catch { return false; } });
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
   const [importPw, setImportPw] = useState("");
@@ -3195,9 +2757,14 @@ export default function PrepVault() {
   const [lastSaved, setLastSaved] = useState(() => saved.current ? new Date().toISOString() : null);
   const [encryptedDb, setEncryptedDb] = useState(false);
   const [dbPassphrase, setDbPassphrase] = useState("");
-  const [showDbPw, setShowDbPw] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const backupOperation = useRef(0);
+  const backupRunning = useRef(false);
+  const [pendingRestore, setPendingRestore] = useState(null);
+  const [savedSnapshotStatus, setSavedSnapshotStatus] = useState(snapshotStatus);
+  const [offlineStatus, setOfflineStatus] = useState({ supported: true, ready: false, savedCount: 0, totalCount: HANDBOOKS.length });
   const [toast, setToast] = useState(null);
-  const importRef = useRef(null);
+
 
   /* ── Auth + Sync State ── */
   const [user, setUser] = useState(null);
@@ -3210,8 +2777,8 @@ export default function PrepVault() {
   const sessionGeneration = useRef(0);
   const verifiedIdentityRef = useRef(undefined);
   const workspaceOwnerRef = useRef(safeWorkspaceOwner());
-  const [dismissedOpps, setDismissedOpps] = useState(() => JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"));
-  useEffect(() => localStorage.setItem("prepvault-dismissed-opps", JSON.stringify(dismissedOpps)), [dismissedOpps]);
+  const [dismissedOpps, setDismissedOpps] = useState(() => { try { const value = JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"); return Array.isArray(value) ? value : []; } catch { return []; } });
+  useEffect(() => { if (!recoveryError) { try { localStorage.setItem("prepvault-dismissed-opps", JSON.stringify(dismissedOpps)); } catch { /* Autosave reports storage errors. */ } } }, [dismissedOpps, recoveryError]);
   const [syncStatus, setSyncStatus] = useState("local"); // 'local' | 'syncing' | 'synced' | 'error' | 'offline'
   const syncEngineRef = useRef(null);
   const currentSnapshotRef = useRef(null);
@@ -3233,14 +2800,14 @@ export default function PrepVault() {
   const saveTimerRef = useRef(null);
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    if (!authReady) return;
+    if (!authReady || recoveryError) return;
     setDbStatus("unsaved");
     const persistenceOwner = workspaceOwnerRef.current;
     const persist = () => {
       if (safeWorkspaceOwner() !== persistenceOwner) return;
       try {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
-          items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
+          items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
           soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
           propertyProfile, demoData,
@@ -3255,7 +2822,7 @@ export default function PrepVault() {
     saveTimerRef.current = setTimeout(persist, 350);
     window.addEventListener("pagehide", persist);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); window.removeEventListener("pagehide", persist); };
-  }, [authReady, user?.id, items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, demoData]);
+  }, [authReady, recoveryError, user?.id, items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, demoData]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -3267,9 +2834,12 @@ export default function PrepVault() {
   /* ── Alert Dismissal Persistence + Auto-Expire ── */
   const alertsDismissed = alertsDismissedUntil !== null && alertsDismissedUntil > Date.now();
   useEffect(() => {
-    if (alertsDismissedUntil) localStorage.setItem("prepvault-alerts-dismissed-until", String(alertsDismissedUntil));
-    else localStorage.removeItem("prepvault-alerts-dismissed-until");
-  }, [alertsDismissedUntil]);
+    if (recoveryError) return;
+    try {
+      if (alertsDismissedUntil) localStorage.setItem("prepvault-alerts-dismissed-until", String(alertsDismissedUntil));
+      else localStorage.removeItem("prepvault-alerts-dismissed-until");
+    } catch { /* Autosave reports storage errors. */ }
+  }, [alertsDismissedUntil, recoveryError]);
   useEffect(() => {
     if (!alertsDismissedUntil) return;
     const remaining = alertsDismissedUntil - Date.now();
@@ -3289,6 +2859,7 @@ export default function PrepVault() {
 
   /* ── Verified account session and separate device workspaces ── */
   useEffect(() => {
+    if (recoveryError) return;
     let active = true;
     const refresh = async event => {
       const changedSession = event?.type === ACCOUNT_SESSION_EVENT;
@@ -3315,7 +2886,7 @@ export default function PrepVault() {
     window.addEventListener("focus", refresh);
     window.addEventListener("storage", otherWorkspace);
     return () => { active = false; window.removeEventListener(ACCOUNT_SESSION_EVENT, refresh); window.removeEventListener("focus", refresh); window.removeEventListener("storage", otherWorkspace); };
-  }, [sessionAttempt]);
+  }, [sessionAttempt, recoveryError]);
 
   /* Legacy cloud identities must never receive a Neon user ID. */
   useEffect(() => {
@@ -3341,7 +2912,8 @@ export default function PrepVault() {
       restoreSnapshot(result.snapshot, true, false);
       setShowQuickStart(false); setShowStartPlan(false); setUpgradeNotices([]); setShowAdd(false);
       setShowScanner(false); setShowSecurity(false); setCrisisMode(false); setCrisisType(null); setCrisisStart(null);
-      setRevealedCodes({}); setDbPassphrase(""); setShowDbPw(false); setExportPw(""); setImportPw("");
+      setRevealedCodes({}); setDbPassphrase(""); setExportPw(""); setImportPw("");
+      backupOperation.current += 1; backupRunning.current = false; setBackupBusy(false); setPendingRestore(null); setSavedSnapshotStatus(snapshotStatus());
       setEncryptedDb(false); setSecMsg(""); setToast(null); navigate("dashboard");
     }
     verifiedIdentityRef.current = nextId;
@@ -3369,135 +2941,124 @@ export default function PrepVault() {
   const getDbSnapshot = () => ({
     version: 4,
     timestamp: new Date().toISOString(),
-    items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
+    items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
     members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
     soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, demoData,
-    localSettings: Object.fromEntries(Object.keys(localStorage).filter(isWorkspaceSettingKey).map(k => [k, localStorage.getItem(k)])),
+    localSettings: captureWorkspaceSettings(localStorage),
     meta: { categories: Object.keys(CATEGORIES).length, scenarios: Object.keys(SCENARIOS).length, properties: properties.length }
   });
 
-  useLayoutEffect(() => { currentSnapshotRef.current = getDbSnapshot(); });
+  const getBackupSnapshot = () => { const data = getDbSnapshot(); return { ...data, localSettings: { ...data.localSettings, [CONVERSATION_NOTES_KEY]: captureConversationNotes(localStorage, user?.id || null) } }; };
+  useLayoutEffect(() => { if (recoveryError) return; try { currentSnapshotRef.current = getDbSnapshot(); } catch { /* Backup actions report storage failures without replacing the working plan. */ } });
 
-  const restoreSnapshot = (raw, includeSettings = true, notifyLimit = true) => {
-    const data = validateSnapshot(raw);
-    data.mapSetups ??= includeSettings ? {} : (currentSnapshotRef.current?.mapSetups || mapSetups);
-    data.bugOutEntries ??= includeSettings ? [] : (currentSnapshotRef.current?.bugOutEntries || []);
-    data.routes ??= includeSettings ? [] : (currentSnapshotRef.current?.routes || routes);
+  const prepareRestoredSnapshot = (raw, includeSettings = true) => {
+    const validated = validateSnapshot(raw);
+    const data = includeSettings ? { ...emptyPlan(), ...validated } : { ...currentSnapshotRef.current, ...validated };
+    if (includeSettings) data.localSettings = { [CONVERSATION_NOTES_KEY]: "[]", ...data.localSettings };
     if (data.items.some(i => !CATEGORIES[i.category] || !CATEGORIES[i.category].subTypes[i.subType])) throw new Error("Backup contains an unknown supply category or type.");
+    if (!CLIMATES[data.climate]) throw new Error("Backup contains an unknown climate.");
+    if (data.activePropertyId !== "all" && !data.properties.some(property => property.id === data.activePropertyId)) data.activePropertyId = data.properties[0].id;
+    return data;
+  };
+  const restoreSnapshot = (raw, includeSettings = true, notifyLimit = true) => {
+    const prepared = prepareRestoredSnapshot(raw, includeSettings);
+    const data = persistRestoredSnapshot(localStorage, prepared, { includeSettings });
+    // Durable storage succeeds before any visible state changes.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     const arrays = { items: setItems, pins: setPins, properties: setProperties, members: setMembers, contacts: setContacts, callSigns: setCallSigns, codeWords: setCodeWords, rallyPoints: setRallyPoints, codes: setCodes, gardenBeds: setGardenBeds, actionLog: setActionLog, soilTests: setSoilTests, compostBins: setCompostBins, livestock: setLivestock, slaughterLog: setSlaughterLog, bugOutEntries: setBugOutEntries };
     Object.entries(arrays).forEach(([key, setter]) => { if (data[key] !== undefined) setter(data[key]); });
-    if (data.people !== undefined) setPeople(data.people);
-    if (data.climate !== undefined && CLIMATES[data.climate]) setClimate(data.climate);
-    if (data.propAddress !== undefined) setPropAddress(data.propAddress);
-    // Full backup imports replace the map workspace, including older backups
-    // without these fields. Core cloud refreshes preserve this device-only data.
-    if (data.mapSetups !== undefined || includeSettings) setMapSetups(data.mapSetups || {});
-    if (data.routes !== undefined || includeSettings) setRoutes(data.routes || []);
-    if (data.activePropertyId !== undefined) setActivePropertyId(data.activePropertyId);
-    if (data.propertyProfile) setPropertyProfile(data.propertyProfile);
-    if (data.demoData !== undefined) setDemoData(data.demoData);
-    if (includeSettings && data.localSettings && typeof data.localSettings === "object") Object.entries(data.localSettings).forEach(([key, value]) => {
-      if (isWorkspaceSettingKey(key) && typeof value === "string") localStorage.setItem(key, value);
-    });
-    if (includeSettings && data.localSettings) {
+    setPeople(data.people); setDailyCalTarget(data.dailyCalTarget ?? 2000); setClimate(data.climate); setPropAddress(data.propAddress);
+    setMapSetups(data.mapSetups || {}); setRoutes(data.routes || []); setActivePropertyId(data.activePropertyId);
+    setPropertyProfile(data.propertyProfile); setDemoData(data.demoData);
+    if (includeSettings) {
       try { const dismissed = JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"); setDismissedOpps(Array.isArray(dismissed) ? dismissed : []); } catch { setDismissedOpps([]); }
       const until = Number(localStorage.getItem("prepvault-alerts-dismissed-until"));
       setAlertsDismissedUntil(Number.isFinite(until) && until > Date.now() ? until : null);
+      setRestoreVersion(version => version + 1);
     }
-    if (includeSettings) { setRestoreVersion(version => version + 1); setDailyCalTarget(2000); }
     if (notifyLimit) { const notices = categoryUpgradeNotices(items, data.items); if (notices.length) setUpgradeNotices(notices); }
-    saved.current = data;
-    setSelCat(null);
-    localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
-    setLastSaved(new Date().toISOString());
-    setDbStatus("saved");
+    saved.current = data; currentSnapshotRef.current = data;
+    setSelCat(null); setLastSaved(data.savedAt); setDbStatus("saved"); setRecoveryError("");
   };
-
-  const handleEncryptedExport = async () => {
-    if (!exportPw || exportPw.length < 6) { setSecMsg("⚠ Password must be at least 6 characters"); return; }
-    try {
-      setSecMsg("🔐 Encrypting...");
-      const data = getDbSnapshot();
-      const encrypted = await encryptData(data, exportPw);
-      const blob = new Blob([JSON.stringify({ pcs: true, enc: "AES-256-GCM", kdf: "PBKDF2-SHA256-310K", payload: encrypted })], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "pcs-backup-" + new Date().toISOString().slice(0, 10) + ".enc.json";
-      a.click();
-      URL.revokeObjectURL(url);
-      setSecMsg("✅ Encrypted backup downloaded — AES-256-GCM");
-      setExportPw("");
-    } catch (e) {
-      setSecMsg("❌ Export failed: " + e.message);
-    }
+  const runBackupOperation = async (name, action) => {
+    if (backupRunning.current) return;
+    backupRunning.current = true;
+    const operation = ++backupOperation.current;
+    const owner = safeWorkspaceOwner();
+    const current = () => operation === backupOperation.current && owner === safeWorkspaceOwner() && owner === workspaceOwnerRef.current;
+    setBackupBusy(name); setSecMsg("");
+    try { await action(current, owner); }
+    catch (error) { if (current()) setSecMsg(error.message || "The operation failed. Your current plan has not been changed."); }
+    finally { if (operation === backupOperation.current) { backupRunning.current = false; setBackupBusy(false); } }
   };
-
-  const handleEncryptedImport = async (file) => {
-    const importOwner = workspaceOwnerRef.current;
-    if (!importPw) { setSecMsg("⚠ Enter decryption password"); return; }
-    try {
-      setSecMsg("🔓 Decrypting...");
-      const text = await file.text();
-      const wrapper = JSON.parse(text);
-      if (!wrapper.pcs || !wrapper.payload) { setSecMsg("❌ Not a valid PrepVault backup file"); return; }
-      const data = await decryptData(wrapper.payload, importPw);
-      if (importOwner !== safeWorkspaceOwner()) return;
-      restoreSnapshot(data);
-      setSecMsg("✅ Restored " + (data.items?.length || 0) + " items from encrypted backup");
-      setImportPw("");
-    } catch (e) {
-      setSecMsg("❌ Decryption failed — wrong password or corrupt file");
-    }
+  const closeSettings = () => {
+    if (backupRunning.current) return;
+    backupOperation.current += 1; setShowSecurity(false); setExportPw(""); setImportPw(""); setDbPassphrase(""); setPendingRestore(null); setSecMsg("");
   };
-
-  const handleLocalSave = async () => {
-    try {
-      setDbStatus("saving");
-      const data = getDbSnapshot();
-      if (encryptedDb && dbPassphrase.length < 6) { setDbStatus("unsaved"); setSecMsg("Use a passphrase of at least 6 characters."); return; }
-      if (encryptedDb) {
-        const encrypted = await encryptData(data, dbPassphrase);
-        localStorage.setItem("pcs-db", JSON.stringify({ enc: true, payload: encrypted }));
-      } else {
-        localStorage.setItem("pcs-db", JSON.stringify({ enc: false, payload: data }));
-      }
-      setDbStatus(encryptedDb ? "encrypted" : "saved");
-      setLastSaved(new Date().toISOString());
-      setSecMsg("✅ Saved to local database" + (encryptedDb ? " (encrypted)" : ""));
-    } catch (e) {
-      setDbStatus("unsaved");
-      setSecMsg("⚠ Local save failed — storage may be unavailable");
-    }
+  const handleEncryptedExport = () => runBackupOperation("export", async current => {
+    if (exportPw.length < 12) throw new Error("Use a passphrase of at least 12 characters for a new backup.");
+    const encrypted = await encryptData(getBackupSnapshot(), exportPw);
+    if (!current()) return;
+    downloadFile(JSON.stringify({ pcs: true, enc: "AES-256-GCM", kdf: "PBKDF2-SHA256-310K", payload: encrypted }), `prepvault-backup-${new Date().toISOString().slice(0, 10)}.enc.json`);
+    setSecMsg("Encrypted complete plan backup downloaded. Keep your passphrase separately."); setExportPw("");
+  });
+  const stageRestore = (data, label, owner) => {
+    const prepared = prepareRestoredSnapshot(data);
+    setPendingRestore({ data: prepared, label, owner, id: Date.now() });
+    setSecMsg("Backup verified. Review its contents and confirm before replacing this plan.");
   };
-
-  const handleLocalLoad = async () => {
-    const importOwner = workspaceOwnerRef.current;
-    try {
-      const result = localStorage.getItem("pcs-db");
-      if (!result) { setSecMsg("⚠ No local database found"); return; }
-      const wrapper = JSON.parse(result);
-      let data;
-      if (wrapper.enc) {
-        if (!dbPassphrase) { setSecMsg("⚠ Enter database passphrase to decrypt"); return; }
-        data = await decryptData(wrapper.payload, dbPassphrase);
-      } else {
-        data = wrapper.payload;
-      }
-      if (importOwner !== safeWorkspaceOwner()) return;
-      restoreSnapshot(data);
-      setDbStatus(wrapper.enc ? "encrypted" : "saved");
-      setSecMsg("✅ Loaded " + (data.items?.length || 0) + " items from local database");
-    } catch (e) {
-      setSecMsg("❌ Load failed — " + (e.message.includes("decrypt") ? "wrong passphrase" : e.message));
-    }
+  const handleEncryptedImport = file => runBackupOperation("import", async (current, owner) => {
+    if (file.size > MAX_BACKUP_FILE_BYTES) throw new Error("Choose a PrepVault backup smaller than 64 MB.");
+    const data = await readBackupFile(await file.text(), importPw);
+    if (!current()) return;
+    stageRestore(data, file.name, owner); setImportPw("");
+  });
+  const confirmRestore = () => runBackupOperation("restore", async (current, owner) => {
+    if (!pendingRestore || owner !== pendingRestore.owner || !current()) throw new Error("Your workspace changed. Review the backup again.");
+    restoreSnapshot(pendingRestore.data);
+    setSecMsg(`Restored ${pendingRestore.data.items.length} inventory entries and the saved plan settings.`);
+    setPendingRestore(null); setImportPw(""); setDbPassphrase("");
+  });
+  const handleLocalSave = () => runBackupOperation("snapshot-save", async current => {
+    if (encryptedDb && dbPassphrase.length < 12) throw new Error("Use a passphrase of at least 12 characters for a new encrypted snapshot.");
+    const data = getBackupSnapshot();
+    const payload = encryptedDb ? await encryptData(data, dbPassphrase) : data;
+    if (!current()) return;
+    localStorage.setItem("pcs-db", JSON.stringify({ enc: encryptedDb, payload, savedAt: new Date().toISOString() }));
+    setSavedSnapshotStatus(snapshotStatus()); setDbPassphrase("");
+    setSecMsg(encryptedDb ? "Encrypted browser snapshot saved. The working plan itself remains unencrypted." : "Browser snapshot saved. Download a backup too: browser cleanup can remove this copy.");
+  });
+  const handleLocalLoad = () => runBackupOperation("snapshot-load", async (current, owner) => {
+    const raw = localStorage.getItem("pcs-db");
+    if (!raw) throw new Error("No browser snapshot has been saved.");
+    const wrapper = JSON.parse(raw);
+    if (typeof wrapper.enc !== "boolean") throw new Error("The saved snapshot is not a supported backup.");
+    if (wrapper.enc && !dbPassphrase) throw new Error("Enter the passphrase used for this browser snapshot.");
+    const data = wrapper.enc ? await decryptData(wrapper.payload, dbPassphrase) : wrapper.payload;
+    if (!current()) return;
+    stageRestore(data, "Browser snapshot", owner); setDbPassphrase("");
+  });
+  const handleDbWipe = () => {
+    try { localStorage.removeItem("pcs-db"); setSavedSnapshotStatus(snapshotStatus()); setSecMsg("Browser snapshot removed. Your working plan is unchanged."); }
+    catch { setSecMsg("The browser snapshot could not be removed."); }
   };
-
-  const handleDbWipe = async () => {
-    if (!window.confirm("Delete the saved local backup? Your current working plan will be kept.")) return;
-    localStorage.removeItem("pcs-db");
-    setSecMsg("Local backup deleted. Your current working plan is unchanged.");
-  };
+  useEffect(() => {
+    if (!showSecurity) return;
+    let active = true;
+    setSavedSnapshotStatus(snapshotStatus());
+    Promise.all([getOfflineLibraryStatus(), listSavedHandbooks(HANDBOOKS)]).then(([status, ids]) => {
+      if (active) setOfflineStatus({ ...status, savedCount: ids.length, totalCount: HANDBOOKS.length });
+    }).catch(() => { if (active) setOfflineStatus({ supported: false, ready: false, savedCount: 0, totalCount: HANDBOOKS.length }); });
+    return () => { active = false; };
+  }, [showSecurity]);
+  const handlePrepareOffline = () => runBackupOperation("offline", async current => {
+    const status = await prepareOfflineLibrary();
+    const ids = await listSavedHandbooks(HANDBOOKS);
+    if (!current()) return;
+    setOfflineStatus({ ...status, savedCount: ids.length, totalCount: HANDBOOKS.length });
+    setSecMsg("App files saved in this browser. Save guides in Emergency, or download the local edition for a copy independent of this website.");
+  });
+  const settingsPanel = <SettingsBackups onClose={closeSettings} itemCount={items.length} dbStatus={dbStatus} lastSaved={lastSaved} isOffline={isOffline} user={user} syncEnabled={Boolean(user && !user.isLocal && user.authProvider !== "neon" && supabaseConfigured)} message={secMsg} busy={backupBusy} exportPw={exportPw} setExportPw={setExportPw} onExport={handleEncryptedExport} importPw={importPw} setImportPw={setImportPw} onImport={handleEncryptedImport} restorePreview={pendingRestore ? { id: pendingRestore.id, label: pendingRestore.label, itemCount: pendingRestore.data.items.length, propertyCount: pendingRestore.data.properties.length, peopleCount: pendingRestore.data.contacts.length, settingCount: Object.keys(pendingRestore.data.localSettings || {}).length } : null} onConfirmRestore={confirmRestore} onCancelRestore={() => setPendingRestore(null)} encryptedDb={encryptedDb} setEncryptedDb={setEncryptedDb} dbPassphrase={dbPassphrase} setDbPassphrase={setDbPassphrase} onSaveSnapshot={handleLocalSave} onLoadSnapshot={handleLocalLoad} onRemoveSnapshot={handleDbWipe} snapshotStatus={savedSnapshotStatus} offlineStatus={offlineStatus} onPrepareOffline={handlePrepareOffline} onOpenEmergency={() => { closeSettings(); navigate("emergency"); }} isLocalEdition={isLocalEdition()} localAppUrl={isLocalEdition() ? null : "/local/prepvault-local.zip"} />;
 
   /* ── Property-filtered items ── */
   const propItems = activePropertyId === "all" ? items : items.filter(i => (i.propertyId || "prop1") === activePropertyId);
@@ -3527,7 +3088,7 @@ export default function PrepVault() {
   };
   const handleScan = (product) => {
     setShowScanner(false);
-    const newItem = { id: uid(), category: product.category, subType: product.subType, name: product.name, quantity: product.qty || 1, location: "", fields: product.fields || {}, addedDate: new Date().toISOString().split("T")[0], propertyId: activePropertyId === "all" ? "prop1" : activePropertyId };
+    const newItem = { id: uid(), category: product.category, subType: product.subType, name: product.name, quantity: product.quantity || product.qty || 1, barcode: product.barcode || product.code || "", location: product.location || "", fields: product.fields || {}, addedDate: new Date().toISOString().split("T")[0], propertyId: activePropertyId === "all" ? "prop1" : activePropertyId };
     showCategoryUpgradeNotice([...items, newItem]);
     setItems((p) => [...p, newItem]);
     showToast("📷 " + product.name + " scanned and added");
@@ -3667,7 +3228,7 @@ export default function PrepVault() {
 
   const renderContent = () => {
     if (selCat) {
-      return <CategoryDetailView key={selCat} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
+      return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={selCat} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
     }
     switch (activeTab) {
       case "bugout":
@@ -3684,11 +3245,19 @@ export default function PrepVault() {
         return <Surveillance />;
       case "property":
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} onSetup={openSetup} members={[...contacts, ...members]} demoData={demoData} onOpenPropertyMap={setActivePropertyId} />;
+      case "calendar":
+        return <PreparednessCalendar key={restoreVersion} items={propItems} gardenBeds={gardenBeds} soilTests={soilTests} compostBins={compostBins} livestock={livestock} slaughterLog={slaughterLog} bugOutEntries={bugOutEntries} onCategory={openCategory} onNavigate={navigate}/>;
+      case "skills":
+        return <SkillsLibrary onOpenEmergency={() => navigate("emergency")}/>;
+      case "offline-maps":
+        return <OfflineMaps key={restoreVersion} onOpenPropertyMap={() => navigate("property")} onSignIn={() => setShowAuth(true)}/>;
+      case "location":
+        return <LocationView items={propItems} onCategory={openCategory}/>;
       case "dependencies":
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "food":
       case "water":
-        return <CategoryDetailView key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget)} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
+        return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget)} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
       case "inventory-search":
       case "preps": {
         const allInventory = activeTab === "inventory-search";
@@ -3696,7 +3265,7 @@ export default function PrepVault() {
         const listedCategories = allInventory ? CATEGORIES : SUPPLY_CATEGORIES;
         const listedAlerts = allInventory ? visibleAlerts : visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category));
         const addSupply = () => openAdd(allInventory ? undefined : "medical");
-        return <><InventoryView key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water and Supplies together across your selected property." : "Equipment and everyday essentials, beyond food and water."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
+        return <><InventoryView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} propertyId={activePropertyId} onManagePeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water and Supplies together across your selected property." : "Equipment and everyday essentials, beyond food and water."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       }
       case "community":
         return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} user={user} contacts={contacts} setContacts={setContacts} />;
@@ -3705,7 +3274,7 @@ export default function PrepVault() {
       case "rationing":
         return <RationingPlanner items={propItems} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onManagePeople={() => navigate("community")} />;
       case "comms":
-        return <CommunicationsView plan={COMMS_PLAN} frequencies={EMERGENCY_FREQUENCIES} prowords={PROWORDS} phonetic={NATO_PHONETIC} equipmentTypes={CATEGORIES.comms.subTypes} sampleChat={SAMPLE_CHAT} onSupplies={() => openCategory("comms")} items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
+        return <CommunicationsView plan={COMMS_PLAN} frequencies={EMERGENCY_FREQUENCIES} prowords={PROWORDS} phonetic={NATO_PHONETIC} equipmentTypes={CATEGORIES.comms.subTypes} sampleChat={demoData ? SAMPLE_CHAT : []} onSupplies={() => openCategory("comms")} items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
         return <FarmingView cropDatabase={CROP_DATABASE} growingZones={GROWING_ZONES} climates={CLIMATES} caloriesPerLb={CALORIES_PER_LB} onSupplies={() => openCategory("farm")} items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
       case "systems":
@@ -3719,6 +3288,7 @@ export default function PrepVault() {
 
   const renderAuthModal = () => <AccountAuth initialMode={authMode} onClose={() => setShowAuth(false)} onSignedIn={handleSignedIn} />;
 
+  if (recoveryError) return <div className="pv-workspace"><main className="pv-main"><section className="pv-card" style={{ maxWidth: 680, margin: "60px auto", padding: 28 }}><h1>Recover your saved plan</h1><p role="alert">{recoveryError}</p><p>Your current file has been preserved. Review a backup below to restore your plan.</p><button className="pv-button pv-secondary" onClick={() => { try { downloadFile(localStorage.getItem(PV_STORAGE_KEY) || "", "prepvault-recovery.json"); } catch { setSecMsg("Browser storage could not be read."); } }}>Download saved data for recovery</button><label className="pv-field">Backup passphrase<input type="password" value={importPw} onChange={event => setImportPw(event.target.value)} autoComplete="off" /></label><label className="pv-field">Choose backup<input type="file" accept=".json" disabled={Boolean(backupBusy)} onChange={event => { if (event.target.files[0]) handleEncryptedImport(event.target.files[0]); event.target.value = ""; }} /></label>{secMsg && <p role="status">{secMsg}</p>}{pendingRestore && <div><p>{pendingRestore.data.items.length} inventory entries verified. Restoring replaces the unreadable working file.</p><button className="pv-button pv-primary" disabled={Boolean(backupBusy)} onClick={confirmRestore}>Restore verified backup</button><button className="pv-button pv-secondary" disabled={Boolean(backupBusy)} onClick={() => setPendingRestore(null)}>Cancel</button></div>}</section></main></div>;
   if (!authReady) return <div className="pv-account-gate"><Icon name="shield" size={30}/><h1>{sessionError ? "Reconnect to your plan" : "Opening your workspace…"}</h1><p role="status">{sessionError || "Checking your secure sign-in."}</p>{sessionError && <><button className="pv-button pv-primary" onClick={() => { setSessionError(""); setSessionAttempt(value => value + 1); }}>Try again</button><button className="pv-button pv-secondary" onClick={() => { try { ++sessionGeneration.current; applyAccount(null); } catch (error) { setSessionError(error.message); } }}>Use a separate guest plan</button></>}</div>;
 
   if (showLanding) return <Welcome hasPlan={!demoData} user={user} onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { if (user) enterWorkspace(); else { setShowAuth(true); setAuthMode("login"); } }}>{showAuth && renderAuthModal()}</Welcome>;
@@ -3915,7 +3485,7 @@ export default function PrepVault() {
         <div style={{ position: "fixed", bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 70px))", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 12, background: toast.type === "success" ? "rgba(34,197,94,0.95)" : toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(33,76,57,0.95)", color: "#243d30", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 2000, animation: "slideUp 0.2s ease", whiteSpace: "nowrap", maxWidth: "90vw", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</div>
       )}
       {showAdd && <AddItemModal onAdd={handleAdd} onClose={() => { setShowAdd(false); setEditItem(null); }} editItem={editItem} initialCategory={addCat} />}
-      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && <BarcodeScanner categories={CATEGORIES} items={propItems} initialCategory={["food", "water"].includes(activeTab) ? activeTab : "food"} onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
       {/* ═══ Auth Modal ═══ */}
       {showAuth && renderAuthModal()}
@@ -3957,149 +3527,7 @@ export default function PrepVault() {
         </div>
       )}
 
-      {/* ═══ Security & Privacy Panel ═══ */}
-      {showSecurity && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 5000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowSecurity(false)}>
-          <div style={{ background: "#ffffff", borderRadius: 14, width: "92%", maxWidth: 560, maxHeight: "90vh", overflow: "auto", border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: "18px 22px", borderBottom: "1px solid #e0e6da", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>🔒 Security & Privacy</h3>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>All encryption runs locally — nothing leaves your device</div>
-              </div>
-              <button onClick={() => setShowSecurity(false)} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 20, cursor: "pointer" }}>×</button>
-            </div>
-
-            <div style={{ padding: "16px 22px" }}>
-              {/* Status Row */}
-              <div className="pcs-sec-status-grid">
-                <div style={{ padding: 12, borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", textAlign: "center" }}>
-                  <div style={{ fontSize: 18, marginBottom: 4 }}>{isOffline ? "📡" : "🌐"}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: isOffline ? "#f59e0b" : "#22c55e" }}>{isOffline ? "Offline" : "Online"}</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{isOffline ? "No data leaves device" : "Network detected"}</div>
-                </div>
-                <div style={{ padding: 12, borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", textAlign: "center" }}>
-                  <div style={{ fontSize: 18, marginBottom: 4 }}>{dbStatus === "encrypted" ? "🔐" : dbStatus === "saved" ? "💾" : "⚪"}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: dbStatus === "encrypted" ? "#22c55e" : dbStatus === "saved" ? "#0ea5e9" : "rgba(36,61,48,0.3)" }}>
-                    {dbStatus === "encrypted" ? "Encrypted" : dbStatus === "saved" ? "Saved" : dbStatus === "saving" ? "Saving..." : "Not Saved"}
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{lastSaved ? "Last: " + new Date(lastSaved).toLocaleTimeString() : "No local backup"}</div>
-                </div>
-                <div style={{ padding: 12, borderRadius: 8, background: "rgba(47,76,39,0.02)", border: "1px solid #e0e6da", textAlign: "center" }}>
-                  <div style={{ fontSize: 18, marginBottom: 4 }}>📦</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)" }}>{items.length} Items</div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{people} people · {climate}</div>
-                </div>
-              </div>
-
-              {/* Messages */}
-              {secMsg && (
-                <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: secMsg.startsWith("✅") ? "rgba(34,197,94,0.06)" : secMsg.startsWith("❌") || secMsg.startsWith("⚠") ? "rgba(239,68,68,0.06)" : "rgba(36,61,48,0.02)", border: "1px solid " + (secMsg.startsWith("✅") ? "rgba(34,197,94,0.15)" : secMsg.startsWith("❌") || secMsg.startsWith("⚠") ? "rgba(239,68,68,0.15)" : "rgba(36,61,48,0.06)"), fontSize: 11, color: "rgba(36,61,48,0.6)" }}>
-                  {secMsg}
-                </div>
-              )}
-
-              {/* ── Local Database ── */}
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>💾 Local Database</div>
-                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <label style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", flex: 1 }}>
-                      <input type="checkbox" checked={encryptedDb} onChange={(e) => setEncryptedDb(e.target.checked)} style={{ marginRight: 6 }} />
-                      Encrypt this saved backup (AES-256-GCM)
-                    </label>
-                  </div>
-                  {encryptedDb && (
-                    <div style={{ position: "relative", marginBottom: 10 }}>
-                      <input type={showDbPw ? "text" : "password"} value={dbPassphrase} onChange={(e) => setDbPassphrase(e.target.value)} placeholder="Database passphrase (min 6 chars)" style={{ width: "100%", padding: "8px 36px 8px 10px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit", boxSizing: "border-box" }} />
-                      <button onClick={() => setShowDbPw(!showDbPw)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "rgba(36,61,48,0.58)", padding: 0 }}>{showDbPw ? "🙈" : "👁️"}</button>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={handleLocalSave} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 700, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>💾 Save</button>
-                    <button onClick={handleLocalLoad} style={{ ...btnSt, flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>📂 Load</button>
-                    <button onClick={handleDbWipe} style={{ ...btnSt, padding: "8px 12px", fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,0.06)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>🗑️</button>
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 6, lineHeight: 1.5 }}>
-                    Your working plan remains in browser storage. This option protects the saved backup only. {encryptedDb ? "AES-256-GCM with PBKDF2-SHA256 (310K iterations). Without your passphrase, data is unrecoverable." : "Set a passphrase to protect this backup."}
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Encrypted Export ── */}
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📤 Encrypted Export</div>
-                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 8 }}>Download a password-protected backup file. AES-256-GCM encrypted — unreadable without the password.</div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input type="password" value={exportPw} onChange={(e) => setExportPw(e.target.value)} placeholder="Encryption password (min 6 chars)" style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
-                    <button onClick={handleEncryptedExport} style={{ ...btnSt, padding: "8px 16px", fontSize: 11, fontWeight: 700, background: "rgba(168,85,247,0.08)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>🔐 Export</button>
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 6 }}>File: pcs-backup-YYYY-MM-DD.enc.json · Portable, offline, tamper-evident</div>
-                </div>
-              </div>
-
-              {/* ── Encrypted Import ── */}
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📥 Encrypted Import</div>
-                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginBottom: 8 }}>Restore from an encrypted backup file. Requires the same password used during export.</div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input type="password" value={importPw} onChange={(e) => setImportPw(e.target.value)} placeholder="Decryption password" style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 11, fontFamily: "inherit" }} />
-                    <button onClick={() => importRef.current?.click()} style={{ ...btnSt, padding: "8px 16px", fontSize: 11, fontWeight: 700, background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)" }}>📂 Import</button>
-                    <input ref={importRef} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) handleEncryptedImport(e.target.files[0]); e.target.value = ""; }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Offline Mode Info ── */}
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>📡 Offline Mode</div>
-                <div style={{ padding: 14, background: "rgba(47,76,39,0.02)", borderRadius: 8, border: "1px solid #e0e6da" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 5, background: isOffline ? "#f59e0b" : "#22c55e", boxShadow: "0 0 6px " + (isOffline ? "#f59e0b60" : "#22c55e60") }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: isOffline ? "#f59e0b" : "#22c55e" }}>{isOffline ? "Offline — saved on this device" : "Online — Network Detected"}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>
-                    {isOffline
-                      ? "No network connection detected. Keep this tab open to work with saved supplies and plans. Connected accounts can sync core data when a connection returns."
-                      : user && !user.isLocal && user.authProvider !== "neon"
-                        ? "Your connected account can sync supplies, properties and household settings. Saved map images, their markers, travel routes and other planning details remain on this device; export a complete backup to keep them safe."
-                        : "Your working plan is saved in this browser. Maps, weather, live feeds and connected services use the network. Export a complete backup before moving to another device."
-                    }
-                  </div>
-                  {!isOffline && (
-                    <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(245,158,11,0.04)", borderRadius: 6, borderLeft: "3px solid #f59e0b", fontSize: 11, color: "rgba(245,158,11,0.6)" }}>
-                      Keep this tab open if you lose your connection. Reloading the app and using live services may require the internet.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Security Specs ── */}
-              <div style={{ padding: 14, background: "rgba(47,76,39,0.01)", borderRadius: 8, border: "1px solid #e5eadd" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Security Specifications</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-                  {[
-                    ["Cipher", "AES-256-GCM"],
-                    ["Key Derivation", "PBKDF2-SHA256"],
-                    ["Iterations", "310,000"],
-                    ["Salt", "128-bit random"],
-                    ["IV", "96-bit random"],
-                    ["Storage", "Local only"],
-                    ["Telemetry", "None"],
-                    ["Core data sync", user && !user.isLocal && user.authProvider !== "neon" && supabaseConfigured ? "Enabled" : "Disabled"],
-                  ].map(([k, v], i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                      <span>{k}</span>
-                      <span style={{ fontFamily: M, color: "rgba(36,61,48,0.58)" }}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {showSecurity && settingsPanel}
     </WorkspaceShell>
   );
 }

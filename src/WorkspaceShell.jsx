@@ -6,6 +6,9 @@ import NavHealthMeter from './NavHealthMeter.jsx';
 
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
+  { id: 'location', label: 'Location', icon: 'compass' },
+  { id: 'calendar', label: 'Calendar', icon: 'calendar' },
+  { id: 'offline-maps', label: 'Offline maps', icon: 'map' },
   { id: 'food', label: 'Food', icon: 'leaf' },
   { id: 'water', label: 'Water', icon: 'water' },
   { id: 'preps', label: 'Supplies', icon: 'box' },
@@ -20,7 +23,8 @@ const destinations = [
   { id: 'farming', label: 'Grow & sustain', icon: 'leaf' },
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },
-  { id: 'codes', label: 'Codes', icon: 'key', group: 'REFERENCE LIBRARY' },
+  { id: 'skills', label: 'Skills', icon: 'book', group: 'REFERENCE LIBRARY' },
+  { id: 'codes', label: 'Codes', icon: 'key' },
   { id: 'manuals', label: 'Manuals', icon: 'book' },
   { id: 'emergency', label: 'Emergency', icon: 'shield' },
 ];
@@ -31,6 +35,8 @@ function PropertyDialog({ onClose, children }) {
 }
 
 export default function WorkspaceShell({ activeTab, onNavigate, onHome, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, onSearch, alertCount, inventoryAlertCounts = {}, navigationHealth = {}, getPrepChatContext, prepChatResetKey, children }) {
+  const [calendarDay, setCalendarDay] = useState(() => new Date().getDate());
+  useEffect(() => { const timer = setInterval(() => setCalendarDay(new Date().getDate()), 60_000); return () => clearInterval(timer); }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [propertyOpen, setPropertyOpen] = useState(false);
@@ -82,7 +88,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
         <label><span>YOUR SPACE</span><select aria-label="Active property" value={propertyId} onChange={e => onProperty(e.target.value)}><option value="all">All properties</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <button className="pv-icon-button" aria-label="Manage properties" onClick={() => setPropertyOpen(true)}><Icon name="settings" size={16}/></button>
       </div>
-      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} aria-describedby={navigationHealth[d.id] ? `pv-nav-health-${d.id}` : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}<NavHealthMeter health={navigationHealth[d.id]} descriptionId={`pv-nav-health-${d.id}`} /></button></div>)}</nav>
+      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} aria-describedby={navigationHealth[d.id] ? `pv-nav-health-${d.id}` : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{d.id === "calendar" && <span className="pv-sidebar-calendar-day" aria-label={`Today is day ${calendarDay}`}>{calendarDay}</span>}{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}<NavHealthMeter health={navigationHealth[d.id]} descriptionId={`pv-nav-health-${d.id}`} /></button></div>)}</nav>
       <div className="pv-sidebar-bottom">
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={onCrisis}><Icon name="shield" size={18}/>{crisisMode ? 'End emergency mode' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
         <button className="pv-settings" onClick={onSecurity}><Icon name="settings" size={18}/> Settings & backups</button>

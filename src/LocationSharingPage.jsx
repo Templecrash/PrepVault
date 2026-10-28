@@ -1,3 +1,5 @@
+import { isLocalEdition } from './runtime-mode.js';
+import LocalServiceNotice from './LocalServiceNotice.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Brand, Icon } from './brand.jsx';
 import { trackingRequest } from './tracking.js';
@@ -39,7 +41,7 @@ function dateLabel(value) {
   return Number.isFinite(date.getTime()) ? date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'the end of this invitation';
 }
 
-export default function LocationSharingPage() {
+function LocationSharingPageOnline() {
   const [session, setSession] = useState(null);
   const [state, setState] = useState({ phase: 'loading', error: '', lastSent: null, accuracy: null });
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -171,4 +173,8 @@ export default function LocationSharingPage() {
     </main>
     <footer className="pv-location-footer">PREPVAULT · KEEP YOUR PEOPLE CLOSE</footer>
   </div>;
+}
+
+export default function LocationSharingPage(props) {
+  return isLocalEdition() ? <LocalServiceNotice title="Location sharing needs the original link.">Open the original HTTPS invitation on the live site to share your location. This local edition does not read invitation tokens or send GPS positions.</LocalServiceNotice> : <LocationSharingPageOnline {...props} />;
 }

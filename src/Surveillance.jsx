@@ -1,3 +1,5 @@
+import { isLocalEdition } from './runtime-mode.js';
+import LocalServiceNotice from './LocalServiceNotice.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './brand.jsx';
 import TrackingOwnerSignIn from './TrackingOwnerSignIn.jsx';
@@ -173,7 +175,7 @@ function OwnerSurveillance({ owner, onUnauthorized, onSignOut }) {
   </>;
 }
 
-export default function Surveillance() {
+function SurveillanceOnline() {
   const [auth, setAuth] = useState({ phase: 'checking', owner: null, message: '' });
   const pending = useRef(null);
   const revision = useRef(0);
@@ -219,4 +221,8 @@ export default function Surveillance() {
   return <section className="pv-inventory pv-surveillance" aria-labelledby="surveillance-title"><header className="pv-inventory-heading"><div><p className="pv-inventory-eyebrow">KEEP AN EYE ON HOME</p><h1 id="surveillance-title">Surveillance<span>.</span></h1><p className="pv-inventory-intro">Camera photos and alarm monitoring, in your private workspace.</p></div></header>
     {auth.phase === 'signed-in' ? <OwnerSurveillance key={auth.owner.id} owner={auth.owner} onUnauthorized={expire} onSignOut={signOut} /> : ['checking', 'signing-out'].includes(auth.phase) ? <div className="pv-surveillance-session" role="status"><Icon name="shield" size={24} />{auth.phase === 'checking' ? 'Checking your private session…' : 'Signing out…'}</div> : ['unavailable', 'signout-failed'].includes(auth.phase) ? <div className="pv-surveillance-session" role="alert"><Icon name="shield" size={24} /><div><strong>{auth.phase === 'signout-failed' ? 'Sign-out has not completed' : 'Your private connection is unavailable'}</strong><p>{auth.message}</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={auth.phase === 'signout-failed' ? signOut : checkSession}>Try again</button></div> : <TrackingOwnerSignIn onSignedIn={checkSession} notice={auth.message} description="Sign in to see your camera photos and manage your surveillance connections." detail="Only your owner account can open this view or access its photos." buttonLabel="Open surveillance" />}
   </section>;
+}
+
+export default function Surveillance(props) {
+  return isLocalEdition() ? <LocalServiceNotice title="Surveillance needs the live site." path="/">Camera photos and alarm monitoring require the hosted service and your connected provider accounts. Their credentials and feeds are not included in this download.</LocalServiceNotice> : <SurveillanceOnline {...props} />;
 }

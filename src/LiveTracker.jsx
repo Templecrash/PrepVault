@@ -1,3 +1,5 @@
+import { isLocalEdition } from './runtime-mode.js';
+import LocalServiceNotice from './LocalServiceNotice.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -190,7 +192,7 @@ function OwnerTracker({ contacts, owner, onSessionExpired, onSignOut }) {
   </section>;
 }
 
-export default function LiveTracker({ contacts = [] }) {
+function LiveTrackerOnline({ contacts = [] }) {
   const [auth, setAuth] = useState({ phase: 'checking', owner: null, message: '' });
   const pending = useRef(null);
   const revision = useRef(0);
@@ -252,4 +254,8 @@ export default function LiveTracker({ contacts = [] }) {
       : ['unavailable', 'signout-failed'].includes(auth.phase) ? <div className="pv-tracker-notice pv-tracker-auth-error" role="alert"><Icon name="shield" size={21} /><div><strong>{auth.phase === 'signout-failed' ? 'Sign-out has not completed' : 'Secure sign-in is unavailable'}</strong><p>{auth.message}</p></div><button className="pv-button pv-secondary" onClick={auth.phase === 'signout-failed' ? signOut : () => { setAuth({ phase: 'checking', owner: null, message: '' }); void checkSession(); }}>Try again</button></div>
         : <TrackingOwnerSignIn notice={auth.message} onSignedIn={owner => { pending.current?.abort(); revision.current += 1; setAuth({ phase: 'signed-in', owner, message: '' }); }} />}
   </section>;
+}
+
+export default function LiveTracker(props) {
+  return isLocalEdition() ? <LocalServiceNotice title="Live tracking needs the live site." path="/">Location invitations and live positions require the hosted service, owner sign-in and an internet connection.</LocalServiceNotice> : <LiveTrackerOnline {...props} />;
 }

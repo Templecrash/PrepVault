@@ -1,0 +1,11 @@
+# Barcode inventory entry
+
+The scanner accepts UPC-A, UPC-E, EAN-8, EAN-13 and manually entered GTIN-14 digits. Leading zeroes are retained, and the check digit is validated before lookup. QR URLs and arbitrary non-product payloads are not accepted.
+
+Camera scanning requires HTTPS (or localhost) and the user's camera permission. The app uses native `BarcodeDetector` when its retail formats are supported, and dynamically loads the pinned `@zxing/browser` decoder otherwise. A photo and manual digits remain available when camera permission is denied or the hardware is unavailable. Photos are decoded on the device and are not uploaded. Camera tracks and pending lookups stop on close; a valid scan pauses detection before looking up the product.
+
+The lookup first reuses the matching barcode from the active inventory, including offline. Public food product details come from the keyless [Open Food Facts product endpoint](https://openfoodfacts.github.io/documentation/docs/Product-Opener/v2/products/get-product-by-code/). Only the validated barcode and a limited list of requested product fields are transmitted, with credentials and referrer omitted. The client waits at most eight seconds, caches public results in memory, and allows at most twelve uncached lookups per minute. A provider rate limit or connection error offers manual entry immediately. Non-food products may need their names entered once.
+
+Every result, including an unknown barcode, leads to the same review form. The user can correct the name, category, item type, quantity, storage location and optional expiry. Quantity uses the selected inventory type's unit; a package is not assumed to equal a pound or gallon. Nutrition is not inferred from per-100g product data. Each submission adds one new inventory batch; existing quantities and expiry dates remain intact. The barcode is stored both on the item and in its `fields` so it survives existing field-based persistence. A later scan can reuse the recorded product details, but never the old lot's expiry.
+
+Tests: `node --test tests/barcode.test.js`. Hardware camera autofocus and lighting still require testing on real target devices; automated decoder checks alone do not establish that a particular camera can read every physical label.

@@ -1,5 +1,6 @@
+import process from 'node:process';
 import { getCached, setCache } from '../_lib/cache.js';
-import { handleCors } from '../_lib/auth-middleware.js';
+import { handlePublicFeedRequest, readFeedCoordinates } from '../_lib/public-feed.js';
 
 const WEATHER_ICONS = {
   '01': '☀️', '02': '⛅', '03': '☁️', '04': '☁️',
@@ -17,16 +18,15 @@ function windDir(deg) {
 }
 
 export default async function handler(req, res) {
-  if (handleCors(req, res)) return;
-
-  const { lat, lng } = req.query;
-  if (!lat || !lng) {
-    return res.status(400).json({ error: 'lat and lng query params required' });
-  }
+  if (handlePublicFeedRequest(req, res)) return;
+  let coordinates;
+  try { coordinates = readFeedCoordinates(req.query || {}, true); }
+  catch { return res.status(400).json({ error: 'Provide a valid latitude and longitude.', code: 'invalid_location' }); }
+  const { lat, lng } = coordinates;
 
   const apiKey = process.env.OPENWEATHERMAP_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'Weather API key not configured' });
+    return res.status(503).json({ error: 'Live weather is not configured for this installation.', code: 'not_configured' });
   }
 
   // Cache by location (rounded to ~1km precision)
@@ -40,12 +40,12 @@ export default async function handler(req, res) {
   try {
     // Use OpenWeatherMap One Call API 3.0
     const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lng}&units=metric&appid=${apiKey}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(2500) });
 
     if (!response.ok) {
       // Fallback to free 2.5 API if 3.0 isn't available
       const fallbackUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&units=metric&appid=${apiKey}`;
-      const fallback = await fetch(fallbackUrl);
+      const fallback = await fetch(fallbackUrl, { signal: AbortSignal.timeout(2500) });
       if (!fallback.ok) throw new Error(`Weather API error: ${fallback.status}`);
 
       const data = await fallback.json();
@@ -67,7 +67,6 @@ export default async function handler(req, res) {
       };
 
       setCache(cacheKey, result);
-      res.setHeader('Cache-Control', 's-maxage=1800');
       return res.status(200).json(result);
     }
 
@@ -102,11 +101,9 @@ export default async function handler(req, res) {
     };
 
     setCache(cacheKey, result);
-    res.setHeader('Cache-Control', 's-maxage=1800');
     res.setHeader('X-Cache', 'MISS');
     return res.status(200).json(result);
-  } catch (err) {
-    console.error('Weather API error:', err);
-    return res.status(502).json({ error: 'Failed to fetch weather data', detail: err.message });
+  } catch {
+    return res.status(502).json({ error: 'Live weather could not be checked. Try again later.', code: 'provider_unavailable' });
   }
 }

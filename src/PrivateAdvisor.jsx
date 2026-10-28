@@ -1,3 +1,5 @@
+import { isLocalEdition } from './runtime-mode.js';
+import LocalServiceNotice from './LocalServiceNotice.jsx';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from './brand.jsx';
 import TrackingOwnerSignIn from './TrackingOwnerSignIn.jsx';
@@ -28,7 +30,7 @@ function ContextDetails({ context }) {
   </details>;
 }
 
-export default function PrivateAdvisor({ getContext }) {
+function PrivateAdvisorOnline({ getContext }) {
   const [auth, setAuth] = useState({ phase: 'checking', owner: null, message: '' });
   const [configured, setConfigured] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -182,4 +184,8 @@ export default function PrivateAdvisor({ getContext }) {
       <p className="pv-advisor-footnote">OpenAI processes your question and app context. Check important details. Closing Survival LLM clears this conversation.</p>
     </div>}
   </section>;
+}
+
+export default function PrivateAdvisor(props) {
+  return isLocalEdition() ? <LocalServiceNotice title="Survival LLM needs the live site." path="/">The AI assistant uses the hosted service and owner sign-in. No AI model or API key is included in this download.</LocalServiceNotice> : <PrivateAdvisorOnline {...props} />;
 }

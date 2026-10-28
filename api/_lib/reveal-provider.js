@@ -221,9 +221,42 @@ export function createRevealProvider({ fetch: request = globalThis.fetch, now = 
       if (!Array.isArray(cameras) || cameras.length > 1000 || !Array.isArray(photos) || photos.length > PHOTO_LIMIT) throw malformed();
       const normalizedCameras = cameras.map(normalizeCamera);
       const ids = new Set(normalizedCameras.map(camera => camera.id));
+      const normalizedPhotos = photos.map(normalizePhoto).filter(photo => ids.has(photo.cameraId));
+      const latest = new Map();
+      for (const photo of normalizedPhotos) {
+        const previous = latest.get(photo.cameraId);
+        if (!previous || Date.parse(photo.receivedAt || '') > Date.parse(previous.receivedAt || '')) latest.set(photo.cameraId, photo);
+      }
+      // REVEAL's first-party HomeFeed passes cameraIds as comma-separated IDs
+      // to photos/v2. Query quiet cameras separately when the global page ends.
+      const missing = results[1].value.response.nextToken ? normalizedCameras.filter(camera => !latest.has(camera.id)) : [];
+      const queue = missing.slice(0, 30);
+      const deadline = now() + 35_000;
+      let incomplete = missing.length > queue.length;
+      await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => {
+        while (queue.length && now() < deadline) {
+          const camera = queue.shift();
+          try {
+            const page = await api(session, `photos/v2?${new URLSearchParams({ size: '1', cameraIds: camera.id })}`);
+            const rows = page?.response?.photos;
+            if (!Array.isArray(rows) || rows.length > 1) throw malformed();
+            if (rows.length) {
+              const photo = normalizePhoto(rows[0]);
+              if (photo.cameraId !== camera.id) throw malformed();
+              latest.set(camera.id, photo);
+            }
+          } catch (error) {
+            if (error.status === 409) throw error;
+            incomplete = true;
+          }
+        }
+      }));
+      if (queue.length) incomplete = true;
       return {
         cameras: normalizedCameras,
-        photos: photos.map(normalizePhoto).filter(photo => ids.has(photo.cameraId)),
+        photos: normalizedPhotos,
+        latestPhotos: [...latest.values()],
+        ...(incomplete ? { error: 'Some camera images could not be checked. Refresh or open REVEAL to verify those cameras.' } : {}),
         checkedAt: new Date(now()).toISOString(),
         hasMore: Boolean(results[1].value.response.nextToken),
         limit: PHOTO_LIMIT,

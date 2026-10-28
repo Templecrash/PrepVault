@@ -1,4 +1,5 @@
 import { OWNER_SIGN_OUT_EVENT } from './tracking-auth.js';
+import { isLocalEdition } from './runtime-mode.js';
 
 export const ACCOUNT_SESSION_EVENT = 'prepvault-account-session-change';
 
@@ -45,6 +46,7 @@ function accountUser(user) {
 }
 
 export async function getAccountSession(options) {
+  if (isLocalEdition()) return null;
   const data = await request('session', undefined, options);
   return accountUser(data.user);
 }

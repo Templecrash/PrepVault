@@ -1,4 +1,5 @@
 import { validateSnapshot } from './storage.js';
+import { CONVERSATION_NOTES_KEY, captureConversationNotes, conversationLegacyKey, normalizeConversationNotesSetting } from './conversation-notes.js';
 
 export const WORKSPACE_DATA_KEY = 'prepvault-db';
 export const WORKSPACE_OWNER_KEY = 'prepvault-workspace-owner';
@@ -7,10 +8,15 @@ export const ACCOUNT_WORKSPACE_PREFIX = 'prepvault-account-workspace-';
 // Deliberately explicit: a new auth SDK or account cache must never become part
 // of a plan backup just because its key starts with "prepvault-".
 const WORKSPACE_SETTINGS = new Set([
+  CONVERSATION_NOTES_KEY,
   'prepvault-alerts-dismissed-until',
   'prepvault-dismiss-profile-cta',
   'prepvault-dismissed-opps',
   'prepvault-radio-log',
+  'prepvault-radio-location',
+  'prepvault-location',
+  'prepvault-calendar',
+  'prepvault-offline-routes',
   'prepvault-radio-volume',
   'prepvault-reference-channels',
   'prepvault-scanner-feed',
@@ -137,7 +143,11 @@ export function switchAccountWorkspace(storage, { accountId, currentSnapshot, em
   assertAccountId(accountId);
   const previousOwner = readWorkspaceOwner(storage);
   const empty = snapshotCopy(emptySnapshot);
-  const current = { ...empty, ...snapshotCopy(currentSnapshot), localSettings: captureWorkspaceSettings(storage) };
+  const currentSettings = captureWorkspaceSettings(storage);
+  if (!Object.hasOwn(currentSettings, CONVERSATION_NOTES_KEY) && storage.getItem(conversationLegacyKey(previousOwner ?? null)) !== null) {
+    currentSettings[CONVERSATION_NOTES_KEY] = captureConversationNotes(storage, previousOwner ?? null);
+  }
+  const current = { ...empty, ...snapshotCopy(currentSnapshot), localSettings: currentSettings };
 
   // A session check on a new device must not claim the guest plan prematurely.
   if (previousOwner === accountId || (previousOwner === undefined && accountId === null)) {
@@ -146,7 +156,13 @@ export function switchAccountWorkspace(storage, { accountId, currentSnapshot, em
 
   const cached = readCachedWorkspace(storage, accountId);
   const claimedUnbound = previousOwner === undefined && accountId !== null && cached === null;
-  const snapshot = cached ? { ...empty, ...cached.snapshot } : claimedUnbound ? current : empty;
+  let snapshot = cached ? { ...empty, ...cached.snapshot } : claimedUnbound ? current : empty;
+  // Older account caches predate scoped notes. Read only the destination's
+  // legacy key; the active new key still belongs to the departing account.
+  if (!claimedUnbound && !Object.hasOwn(snapshot.localSettings, CONVERSATION_NOTES_KEY)) {
+    const legacyNotes = storage.getItem(conversationLegacyKey(accountId));
+    if (legacyNotes !== null) snapshot = { ...snapshot, localSettings: { ...snapshot.localSettings, [CONVERSATION_NOTES_KEY]: normalizeConversationNotesSetting(legacyNotes) } };
+  }
   const currentManualBackup = storage.getItem('pcs-db');
   const manualBackup = cached ? cached.manualBackup : claimedUnbound ? currentManualBackup : null;
   const writes = new Map();

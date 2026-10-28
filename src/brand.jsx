@@ -4,6 +4,8 @@ export function Icon({ name = 'box', size = 20, ...props }) {
     box: <><path d="m3 7 9-4 9 4v10l-9 4-9-4Z"/><path d="m3 7 9 5 9-5M12 12v9M7 5l10 5"/></>,
     search: <><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
     plus: <path d="M12 4v16M4 12h16"/>,
+    minus: <path d="M4 12h16"/>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18M7 14h2m6 0h2M7 17h2"/></>,
     camera: <><path d="M3 7h4l2-3h6l2 3h4v14H3Z"/><circle cx="12" cy="13" r="4"/></>,
     refresh: <><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></>,
     expand: <path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/>,

@@ -1,4 +1,5 @@
 import FoodWaterInfo from "./FoodWaterInfo.jsx";
+import InventoryRecommendations from "./InventoryRecommendations.jsx";
 import { Fragment, useId, useMemo, useState } from 'react';
 import { Icon } from './brand.jsx';
 import './inventory.css';
@@ -9,7 +10,7 @@ const hasValue = value => value !== null && value !== undefined && value !== '';
 const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''));
 
 export default function CategoryDetailView({ catKey, items = [], people, climate, onBack, onAdd, onRemove, onEdit, onQtyChange,
-  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onPeople, onRationing, onScan }) {
+  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onPeople, onRationing, onScan, recommendationPeopleCount = 0, dailyCalTarget = 2000, propertyId, alerts = [], recommendationActions }) {
   const cat = categories[catKey];
   const ci = useMemo(() => items.filter(item => item.category === catKey), [items, catKey]);
   const p = people || 4;
@@ -383,6 +384,8 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
       <summary><span className="pv-category-summary-icon"><Icon name="compass" size={19}/></span><span><strong>{calc.title}</strong><small>{calc.summary || <>{p} people · {climate || 'temperate'} climate · {quantity} items logged</>}</small></span><span className="pv-category-summary-action">View calculations<Icon name="chevron" size={16}/></span></summary>
       <div className="pv-category-analysis-body"><table><caption className="pv-inventory-sr-only">{calc.title} calculations</caption><thead><tr><th scope="col">Measure</th><th scope="col">Basis</th><th scope="col">Result</th></tr></thead><tbody>{calc.rows.map((row, index) => <tr key={`${row.label}-${index}`} className={row.highlight ? 'is-highlighted' : undefined}><th scope="row">{row.label}</th><td>{row.note || '—'}</td><td>{row.value}</td></tr>)}</tbody></table></div>
     </details>}
+
+    <InventoryRecommendations items={ci} categories={categories} categoryKey={catKey} propertyId={propertyId} peopleCount={recommendationPeopleCount} dailyCalTarget={dailyCalTarget} alerts={alerts} onAdd={onAdd} onEdit={onEdit} onManagePeople={onPeople} onRationing={onRationing} actions={recommendationActions}/>
 
     <div className="pv-inventory-workspace">
       <div className="pv-inventory-toolbar">

@@ -1,3 +1,5 @@
+import { isLocalEdition } from './runtime-mode.js';
+import LocalServiceNotice from './LocalServiceNotice.jsx';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './brand.jsx';
 import { useDialogFocus } from './useDialogFocus.js';
@@ -120,7 +122,7 @@ function ModerationView({ onBack, onAction, onAccessLost, revision }) {
   return <div className="pv-board-moderation"><div className="pv-board-thread-nav"><button type="button" className="pv-board-back" onClick={onBack}><Icon name="arrow" size={16}/>All conversations</button><button type="button" className="pv-board-text-button" onClick={resource.refresh} disabled={resource.loading}><Icon name="refresh" size={15}/>Refresh</button></div><div className="pv-board-section-heading"><h2>Reported posts</h2><p>Only you can review these reports. Hiding a conversation also hides its replies.</p></div>{resource.error && <ErrorNotice message={resource.error} onRetry={resource.refresh}/>}{resource.loading && <div className="pv-board-loading" role="status">Loading reports…</div>}{resource.data && !reports.length && <EmptyState icon="check" title="No open reports">Reported messages will appear here for review.</EmptyState>}{reports.map(post => <article className="pv-board-report" key={post.id}><div className="pv-board-location">{placeName(post.country, post.region)} · {post.reportCount} {post.reportCount === 1 ? 'report' : 'reports'}</div><h3>{post.title || 'Reply in a conversation'}</h3><PostMeta post={post}/><p className="pv-board-message">{post.body}</p><p className="pv-board-report-reasons">Reasons: {(post.reasons || []).map(reason => REASONS[reason] || reason).join(', ')}</p><div className="pv-board-post-actions"><button type="button" onClick={() => onAction({ type: 'moderate', post, decision: 'dismiss' })}><Icon name="check" size={14}/>Dismiss reports</button><button type="button" onClick={() => onAction({ type: 'moderate', post, decision: 'hide' })}><Icon name="shield" size={14}/>Hide post</button></div></article>)}{resource.data?.nextCursor && <button type="button" className="pv-board-load-more" disabled={resource.loadingMore} onClick={() => resource.loadMore('reports')}>{resource.loadingMore ? 'Loading…' : 'Load more reports'}</button>}</div>;
 }
 
-export default function MessageBoard({ standalone = false }) {
+function MessageBoardOnline({ standalone = false }) {
   const [session, setSession] = useState(null);
   const [sessionError, setSessionError] = useState('');
   const [sessionRevision, setSessionRevision] = useState(0);
@@ -243,4 +245,8 @@ export default function MessageBoard({ standalone = false }) {
     {action && <BoardDialog title={action.type === 'report' ? 'Report this post' : action.type === 'remove' ? 'Remove your post?' : action.decision === 'hide' ? 'Hide this post?' : 'Dismiss these reports?'} onClose={() => setAction(null)} busy={busy}><form onSubmit={performAction}>{action.type === 'report' ? <><p className="pv-board-dialog-intro">Reports are sent privately to the board moderator.</p><label className="pv-board-field"><span>Reason</span><select value={reportReason} onChange={event => setReportReason(event.target.value)} disabled={busy}>{Object.entries(REASONS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label></> : <p className="pv-board-dialog-intro">{action.type === 'remove' ? 'Your message will no longer be shown. Replies from other people remain visible.' : action.decision === 'hide' ? 'This message will no longer appear publicly. Hiding a conversation also hides its replies.' : 'Keep this post visible and mark its current reports as reviewed.'}</p>}<div className="pv-board-dialog-actions"><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => setAction(null)} disabled={busy}>Cancel</button><button type="submit" className="pv-inventory-button pv-inventory-button-primary" disabled={busy || !session?.alias || !online}>{busy ? 'Saving…' : action.type === 'report' ? 'Send report' : action.type === 'remove' ? 'Remove my post' : action.decision === 'hide' ? 'Hide post' : 'Dismiss reports'}</button></div>{mutationError && <ErrorNotice message={mutationError} onRetry={sessionError ? retrySession : undefined}/>}</form></BoardDialog>}
   </section>;
   return content;
+}
+
+export default function MessageBoard(props) {
+  return isLocalEdition() ? <LocalServiceNotice title="Community board needs the live site." path="/community">Public conversations are held on the live website. This download does not keep a copy of community posts.</LocalServiceNotice> : <MessageBoardOnline {...props} />;
 }

@@ -1,4 +1,5 @@
 import { validateBugOutEntries } from './bug-out.js';
+import { validateLocalSettings } from './local-settings.js';
 
 export const SNAPSHOT_ARRAYS = ['items', 'pins', 'properties', 'members', 'contacts', 'callSigns', 'codeWords', 'rallyPoints', 'codes', 'gardenBeds', 'actionLog', 'soilTests', 'compostBins', 'livestock', 'slaughterLog', 'routes', 'bugOutEntries'];
 
@@ -72,8 +73,10 @@ export function validateSnapshot(value) {
   validateMapPlanning(value);
   if (value.items.some(item => !hasText(item.id) || !hasText(item.category) || !hasText(item.subType) || typeof item.name !== 'string' || !['string', 'number'].includes(typeof item.quantity) || item.quantity === '' || !Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0 || (item.fields !== undefined && !isRecord(item.fields)))) throw new Error('Invalid supply in backup.');
   if (value.people !== undefined && (!Number.isFinite(value.people) || value.people < 1)) throw new Error('Invalid household size.');
+  if (value.dailyCalTarget !== undefined && (!Number.isFinite(value.dailyCalTarget) || value.dailyCalTarget < 1000 || value.dailyCalTarget > 3000)) throw new Error('Invalid daily calorie target.');
   if (value.properties && (!value.properties.length || value.properties.some(p => !hasText(p.id) || !hasText(p.name)))) throw new Error('Invalid properties.');
   for (const key of ['propertyProfile', 'localSettings']) if (value[key] !== undefined && !isRecord(value[key])) throw new Error(`Invalid ${key} in backup.`);
+  validateLocalSettings(value.localSettings);
   for (const key of ['climate', 'propAddress', 'activePropertyId']) if (value[key] !== undefined && typeof value[key] !== 'string') throw new Error(`Invalid ${key} in backup.`);
   if (value.demoData !== undefined && typeof value.demoData !== 'boolean') throw new Error('Invalid sample data flag.');
   const seen = new Set();
