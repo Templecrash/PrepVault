@@ -63,3 +63,92 @@ test('concurrent and immediate repeat calculations are rate limited without dupl
   assert.equal((await run(handler, different)).statusCode, 429);
   time += 1200;
 });
+
+const searchRequest = (query = '100 Queen Street West, Toronto', changes = {}) => request({ body: { action: 'search', query }, ...changes });
+const matches = [{ id: 'photon:W:123', name: 'Toronto City Hall', label: 'Toronto City Hall, Toronto, Ontario, Canada', detail: 'Toronto, Ontario, Canada', latitude: 43.6534, longitude: -79.3839 }];
+
+test('map search requires same-origin owner authentication before provider work', async () => {
+  let calls = 0;
+  const handler = createRoutingHandler({ authenticate: async () => null, search: async () => { calls++; return matches; } });
+  assert.equal((await run(handler, searchRequest())).statusCode, 401);
+  assert.equal((await run(handler, searchRequest('Toronto', { headers: { host: 'prep.example', origin: 'https://evil.example', 'content-type': 'application/json' } }))).statusCode, 403);
+  assert.equal(calls, 0);
+});
+
+test('search action validates query and request bounds without calculating a route', async () => {
+  let searches = 0, calculations = 0;
+  const handler = createRoutingHandler({ authenticate: owner, search: async query => { searches++; assert.equal(query, 'Toronto'); return matches; }, calculate: async () => { calculations++; } });
+  for (const query of [null, {}, '', 'x', 'x'.repeat(151), 'Toronto\u0000']) assert.equal((await run(handler, searchRequest(query))).statusCode, 400);
+  assert.equal((await run(handler, searchRequest('Toronto', { headers: { host: 'prep.example', origin: 'https://prep.example', 'content-type': 'text/plain' } }))).statusCode, 400);
+  assert.equal((await run(handler, searchRequest('Toronto', { body: { action: 'search', query: 'Toronto', padding: 'x'.repeat(16001) } }))).statusCode, 413);
+  const result = await run(handler, searchRequest('  Toronto  '));
+  assert.equal(result.statusCode, 200); assert.deepEqual(result.body, { results: matches });
+  assert.equal(searches, 1); assert.equal(calculations, 0);
+});
+
+test('private search cache is owner-scoped, expires, and rechecks every session', async () => {
+  let time = 100_000, calls = 0, identity = 'owner', authCalls = 0;
+  const handler = createRoutingHandler({ now: () => time, authenticate: async () => { authCalls++; return { id: identity }; }, search: async () => { calls++; return []; } });
+  assert.deepEqual((await run(handler, searchRequest('Toronto'))).body.results, []);
+  const cached = await run(handler, searchRequest('  toronto  '));
+  assert.equal(cached.statusCode, 200); assert.equal(cached.headers['cache-control'], 'private, no-store'); assert.equal(cached.headers['x-content-type-options'], 'nosniff');
+  assert.equal(calls, 1); assert.equal(authCalls, 4);
+  time += 1200; identity = 'other-owner';
+  assert.equal((await run(handler, searchRequest('Toronto'))).statusCode, 200); assert.equal(calls, 2);
+  time += 3600_001; identity = 'owner';
+  assert.equal((await run(handler, searchRequest('Toronto'))).statusCode, 200); assert.equal(calls, 3);
+});
+
+test('search results are withheld if the owner session is revoked or changes', async () => {
+  for (const current of [null, { id: 'someone-else' }]) {
+    let authCalls = 0;
+    const handler = createRoutingHandler({ authenticate: async () => ++authCalls === 1 ? { id: 'owner' } : current, search: async () => matches });
+    const result = await run(handler, searchRequest());
+    assert.equal(result.statusCode, 401); assert.equal(result.body.results, undefined); assert.equal(authCalls, 2);
+  }
+});
+
+test('cached map results also require a second current authentication check', async () => {
+  let authCalls = 0, calls = 0;
+  const handler = createRoutingHandler({ authenticate: async () => ++authCalls === 4 ? null : { id: 'owner' }, search: async () => { calls++; return matches; } });
+  assert.equal((await run(handler, searchRequest())).statusCode, 200);
+  const cached = await run(handler, searchRequest());
+  assert.equal(cached.statusCode, 401); assert.equal(cached.body.results, undefined); assert.equal(calls, 1);
+});
+
+test('search failures are sanitized and release their lock without blocking route calculations', async () => {
+  let time = 100_000, calls = 0;
+  const handler = createRoutingHandler({ now: () => time, authenticate: owner, search: async () => { if (++calls === 1) throw new Error('SECRET upstream address and key'); return matches; }, calculate: async () => ({ ok: true }) });
+  const failure = await run(handler, searchRequest());
+  assert.equal(failure.statusCode, 503); assert.doesNotMatch(JSON.stringify(failure.body), /SECRET|upstream|key/); assert.match(failure.body.error, /Address search/);
+  assert.equal((await run(handler)).statusCode, 200);
+  time += 1200;
+  assert.equal((await run(handler, searchRequest())).statusCode, 200);
+});
+
+test('concurrent and rapid searches are throttled while cached queries avoid provider work', async () => {
+  let resolve, calls = 0, time = 100_000;
+  const handler = createRoutingHandler({ now: () => time, authenticate: owner, search: async () => { calls++; return new Promise(done => { resolve = done; }); } });
+  const pending = run(handler, searchRequest('Toronto')); await new Promise(done => setTimeout(done, 0));
+  assert.equal((await run(handler, searchRequest('Ottawa'))).statusCode, 429); assert.equal(calls, 1);
+  resolve(matches); await pending;
+  assert.equal((await run(handler, searchRequest('Toronto'))).statusCode, 200);
+  const limited = await run(handler, searchRequest('Ottawa'));
+  assert.equal(limited.statusCode, 429); assert.equal(limited.headers['retry-after'], '2'); assert.equal(calls, 1);
+  time += 1200;
+});
+
+test('search cache and daily quota are bounded, with quota resetting the following day', async () => {
+  let time = 100_000, calls = 0;
+  const handler = createRoutingHandler({ now: () => time, authenticate: owner, search: async () => { calls++; return matches; } });
+  for (let index = 0; index < 101; index++) {
+    assert.equal((await run(handler, searchRequest(`Public landmark ${index}`))).statusCode, 200); time += 1200;
+  }
+  assert.equal((await run(handler, searchRequest('Public landmark 0'))).statusCode, 200); time += 1200;
+  assert.equal(calls, 102, 'the oldest result is evicted after the 100-entry cache fills');
+  for (let index = 102; index < 120; index++) { assert.equal((await run(handler, searchRequest(`Public landmark ${index}`))).statusCode, 200); time += 1200; }
+  assert.equal((await run(handler, searchRequest('Another public landmark'))).statusCode, 429); assert.equal(calls, 120);
+  assert.equal((await run(handler, searchRequest('Public landmark 119'))).statusCode, 200);
+  time += 86_400_000;
+  assert.equal((await run(handler, searchRequest('Another public landmark'))).statusCode, 200); assert.equal(calls, 121);
+});

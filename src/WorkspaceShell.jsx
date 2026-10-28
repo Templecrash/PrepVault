@@ -7,7 +7,7 @@ const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
   { id: 'location', label: 'Location', icon: 'compass' },
   { id: 'calendar', label: 'Calendar', icon: 'calendar' },
-  { id: 'offline-maps', label: 'Offline maps', icon: 'map' },
+  { id: 'offline-maps', label: 'Maps', icon: 'map' },
   { id: 'food', label: 'Food', icon: 'leaf' },
   { id: 'water', label: 'Water', icon: 'water' },
   { id: 'preps', label: 'Supplies', icon: 'box' },

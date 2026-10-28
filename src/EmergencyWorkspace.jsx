@@ -26,7 +26,7 @@ const quickLinks = [
   { id: 'community', icon: 'users', title: 'Your people', detail: 'Contacts and dependants' },
   { id: 'location', icon: 'map', title: 'Local conditions', detail: 'Weather and official warnings' },
   { id: 'comms', icon: 'radio', title: 'Communications', detail: 'Radio and your contact plan' },
-  { id: 'offline-maps', icon: 'compass', title: 'Offline maps', detail: 'Saved routes and travel plans' },
+  { id: 'offline-maps', icon: 'compass', title: 'Maps', detail: 'Saved routes and travel plans' },
   { id: 'emergency', icon: 'book', title: 'Emergency guides', detail: 'Handbooks and task pictures' },
 ];
 

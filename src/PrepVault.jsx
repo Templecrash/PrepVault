@@ -3299,7 +3299,7 @@ export default function PrepVault() {
       case "skills":
         return <SkillsLibrary onOpenEmergency={() => navigate("emergency")}/>;
       case "offline-maps":
-        return <OfflineMaps key={restoreVersion} onOpenPropertyMap={() => navigate("property")} onSignIn={() => setShowAuth(true)}/>;
+        return <OfflineMaps key={restoreVersion} onOpenPropertyMap={() => { setPropSub("map"); navigate("property"); }} onSignIn={() => setShowAuth(true)}/>;
       case "location":
         return <LocationView items={propItems} onCategory={openCategory}/>;
       case "dependencies":
