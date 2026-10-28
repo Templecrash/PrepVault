@@ -174,3 +174,5 @@ The catalog at `public/handbooks/sources.json` records original publisher/downlo
 ## License
 
 MIT
+
+Offline route downloads are self-contained HTML files with no scripts or external resources. They contain the saved route drawing, directions and daily stops and open directly without account sign-in. Street basemaps and new route calculations remain online features. The hosted app still verifies account sessions; use the local edition plus an encrypted plan backup for the full workspace offline.
