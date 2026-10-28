@@ -60,6 +60,7 @@ export async function verifyTrackingSignInCode(email, otp, options) {
   // Only the protected session endpoint decides whether this is the owner.
   const owner = await getTrackingOwner(options);
   if (!owner) throw new Error('Your sign-in could not be verified. Please request a new code.');
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('prepvault-account-session-change'));
   return owner;
 }
 
@@ -67,6 +68,9 @@ export async function signOutTrackingOwner(options) {
   const result = await authRequest('signOut', {}, options);
   // Close any other private surfaces only after sign-out has completed.
   // Their unmount cleanup may abort the controller passed to this request.
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(OWNER_SIGN_OUT_EVENT));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(OWNER_SIGN_OUT_EVENT));
+    window.dispatchEvent(new Event('prepvault-account-session-change'));
+  }
   return result;
 }

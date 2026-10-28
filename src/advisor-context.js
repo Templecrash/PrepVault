@@ -149,6 +149,7 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
       harvestLog: rows('growing.harvestLog', input.slaughterLog, item => pick(item, ['id', 'animalType', 'date', 'yieldLbs', 'preservationMethod', 'storageLocation', 'notes'])),
     },
     plans: {
+      bugOutChecklist: rows('plans.bugOutChecklist', input.bugOutEntries, entry => pick(entry, ['id', 'name', 'quantity', 'location', 'assignee', 'notes', 'grabbed', 'inventoryId'])),
       scenario: { id: text(input.selScen), ...pick(input.scenario, ['label', 'desc']), durationDays: number(input.simDuration) },
       emergency: { active: input.crisisMode === true, type: text(input.crisisType), startedAt: input.crisisStart instanceof Date ? input.crisisStart.toISOString() : text(input.crisisStart) },
       completedActions: rows('plans.completedActions', input.actionLog, item => pick(item, ['id', 'taskId', 'desc', 'completedBy', 'completedAt'])),
@@ -173,7 +174,7 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
   context.meta.sections = [
     ['inventory', 'Supplies', rawItems.length], ['household', 'People & care needs', list(input.contacts).length],
     ['property', 'Properties & travel routes', list(input.properties).length], ['derived', 'Coverage & dependencies', 4],
-    ['plans', 'Scenarios & completed actions', list(input.actionLog).length], ['communications', 'Communications plan', list(input.rallyPoints).length],
+    ['plans', 'Bug Out, scenarios & actions', list(input.actionLog).length + list(input.bugOutEntries).length], ['communications', 'Communications plan', list(input.rallyPoints).length],
     ['growing', 'Growing & livestock', list(input.gardenBeds).length + list(input.livestock).length],
     ['references', 'Manuals & emergency references', list(input.manuals).length + list(input.handbooks).length],
   ].map(([key, label, count]) => ({ key, label, count }));
@@ -229,6 +230,7 @@ const CONTEXT_SCHEMA = {
     harvestLog: [fields('id animalType date yieldLbs preservationMethod storageLocation notes')],
   },
   plans: {
+    bugOutChecklist: [fields('id name quantity location assignee notes grabbed inventoryId')],
     scenario: fields('id label desc durationDays'), emergency: fields('active type startedAt'),
     completedActions: [fields('id taskId desc completedBy completedAt')], ...fields('dismissedOpportunityIds'),
   },

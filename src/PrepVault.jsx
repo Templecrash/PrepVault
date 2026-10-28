@@ -4,6 +4,13 @@ import { SyncEngine } from "./sync-engine.js";
 import "leaflet/dist/leaflet.css";
 import WorkspaceShell from "./WorkspaceShell.jsx";
 import Welcome from "./Welcome.jsx";
+import AccountAuth from "./AccountAuth.jsx";
+import { getAccountSession, signOutAccount, ACCOUNT_SESSION_EVENT } from "./account-auth-client.js";
+import { switchAccountWorkspace, readWorkspaceOwner, isWorkspaceSettingKey } from "./account-workspace.js";
+import HouseholdSetup from "./HouseholdSetup.jsx";
+import BugOutPlan from "./BugOutPlan.jsx";
+import PlanNotice from "./PlanNotice.jsx";
+import { categoryUpgradeNotices } from "./plan-limits.js";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
 import DependenciesView from "./DependenciesView.jsx";
@@ -1681,225 +1688,6 @@ function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
   );
 }
 
-function QuickStartWizard({ step, setStep, profile, setProfile, people, setPeople, climate, setClimate, propAddress, setPropAddress, onComplete, onSkip }) {
-  const dialogRef = useDialogFocus(onSkip);
-  const M = "'DM Sans',sans-serif";
-  const cardSt = { background: "#ffffff", borderRadius: 12, border: "1px solid #e0e6da" };
-  const labelSt = { fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "block" };
-  const inp = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "#243d30", fontSize: 13, fontFamily: M, outline: "none", boxSizing: "border-box" };
-
-  const upd = (key, val) => setProfile(p => ({ ...p, [key]: val }));
-  const toggleArr = (key, val) => setProfile(p => {
-    const arr = p[key] || [];
-    return { ...p, [key]: arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val] };
-  });
-
-  const Pill = ({ opts, value, field }) => (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-      {opts.map(o => (
-        <button key={o.v} onClick={() => upd(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: value === o.v ? "rgba(33,76,57,0.12)" : "rgba(36,61,48,0.03)", border: value === o.v ? "1px solid rgba(33,76,57,0.5)" : "1px solid #dce3d5", color: value === o.v ? "#214c39" : "rgba(36,61,48,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-          {o.i && <span style={{ marginRight: 6 }}>{o.i}</span>}{o.l}
-        </button>
-      ))}
-    </div>
-  );
-
-  const Multi = ({ opts, values, field }) => (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-      {opts.map(o => {
-        const sel = (values || []).includes(o.v);
-        return (
-          <button key={o.v} onClick={() => toggleArr(field, o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: sel ? "rgba(33,76,57,0.12)" : "rgba(36,61,48,0.03)", border: sel ? "1px solid rgba(33,76,57,0.5)" : "1px solid #dce3d5", color: sel ? "#214c39" : "rgba(36,61,48,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-            {sel ? "✓ " : ""}{o.i && <span style={{ marginRight: 4 }}>{o.i}</span>}{o.l}
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const STEPS = [
-    { icon: "🏠", title: "Property Infrastructure", desc: "How is your property powered and heated?" },
-    { icon: "💧", title: "Water Situation", desc: "What are your water sources and access?" },
-    { icon: "📍", title: "Location Context", desc: "Tell us about your property location" },
-    { icon: "👥", title: "Household", desc: "Who lives at this property?" },
-    { icon: "🛡️", title: "Existing Capabilities", desc: "What do you already have in place?" },
-  ];
-
-  const renderStep = () => {
-    switch (step) {
-      case 0: return (<>
-        <label style={labelSt}>Heat Sources (select all that apply)</label>
-        <Multi field="heatSource" values={profile.heatSource} opts={[
-          { v: "gas", l: "Natural Gas", i: "🔥" }, { v: "electric", l: "Electric", i: "⚡" }, { v: "wood", l: "Wood Stove", i: "🪵" },
-          { v: "propane", l: "Propane", i: "🛢️" }, { v: "oil", l: "Oil", i: "🛢️" }, { v: "solar_thermal", l: "Solar Thermal", i: "☀️" }, { v: "none", l: "None", i: "❌" },
-        ]} />
-        <label style={labelSt}>Power Sources (select all that apply)</label>
-        <Multi field="powerSource" values={profile.powerSource} opts={[
-          { v: "grid", l: "Grid Only", i: "🔌" }, { v: "solar", l: "Solar", i: "☀️" }, { v: "wind", l: "Wind", i: "💨" },
-          { v: "generator", l: "Generator", i: "⚡" }, { v: "hybrid", l: "Hybrid", i: "🔄" },
-        ]} />
-        <label style={labelSt}>Grid Status</label>
-        <Pill field="gridStatus" value={profile.gridStatus} opts={[
-          { v: "on_grid", l: "On-Grid", i: "🏘️" }, { v: "off_grid", l: "Off-Grid", i: "🏔️" }, { v: "hybrid", l: "Hybrid", i: "🔄" },
-        ]} />
-        <label style={labelSt}>Backup Generator?</label>
-        <Pill field="hasGenerator" value={profile.hasGenerator} opts={[
-          { v: true, l: "Yes", i: "✅" }, { v: false, l: "No", i: "❌" },
-        ]} />
-        {profile.hasGenerator === true && (<>
-          <label style={{ ...labelSt, marginTop: 4 }}>Generator Fuel Types (select all that apply)</label>
-          <Multi field="generatorFuel" values={profile.generatorFuel} opts={[
-            { v: "gas", l: "Gasoline" }, { v: "diesel", l: "Diesel" }, { v: "propane", l: "Propane" }, { v: "dual_fuel", l: "Dual Fuel" },
-          ]} />
-        </>)}
-      </>);
-      case 1: return (<>
-        <label style={labelSt}>Water Sources (select all that apply)</label>
-        <Multi field="waterSource" values={profile.waterSource} opts={[
-          { v: "municipal", l: "Municipal", i: "🏙️" }, { v: "well", l: "Well", i: "🕳️" }, { v: "spring", l: "Spring", i: "⛲" },
-          { v: "lake_river", l: "Lake / River", i: "🏞️" }, { v: "rain", l: "Rain Collection", i: "🌧️" }, { v: "cistern", l: "Cistern", i: "🪣" },
-        ]} />
-        <label style={labelSt}>Fresh Water Access (select all that apply)</label>
-        <Multi field="freshwaterAccess" values={profile.freshwaterAccess} opts={[
-          { v: "lakefront", l: "Lakefront Property", i: "🏖️" }, { v: "river_adjacent", l: "River Adjacent", i: "🏞️" },
-          { v: "within_1km", l: "Within 1 km", i: "🚶" }, { v: "none", l: "None Nearby", i: "🏜️" },
-        ]} />
-        <label style={labelSt}>Sewage System</label>
-        <Pill field="sewage" value={profile.sewage} opts={[
-          { v: "municipal", l: "Municipal Sewer", i: "🏙️" }, { v: "septic", l: "Septic", i: "🕳️" },
-          { v: "outhouse", l: "Outhouse", i: "🚻" }, { v: "none", l: "None", i: "❌" },
-        ]} />
-      </>);
-      case 2: return (<>
-        <label style={labelSt}>Property Address</label>
-        <input style={{ ...inp, marginBottom: 16 }} type="text" value={propAddress || ""} onChange={e => setPropAddress(e.target.value)} placeholder="123 Rural Route 7, Muskoka, ON" />
-        <label style={labelSt}>Population Density</label>
-        <div ref={dialogRef} style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16 }}>
-          {[{ v: "urban", l: "Urban", i: "🏙️", d: "City center, high density" }, { v: "suburban", l: "Suburban", i: "🏘️", d: "Residential area" }, { v: "rural", l: "Rural", i: "🌾", d: "Countryside, farms" }, { v: "remote", l: "Remote", i: "🏔️", d: "Isolated, off-road" }].map(o => (
-            <button key={o.v} onClick={() => upd("populationDensity", o.v)} style={{ ...cardSt, padding: "14px 12px", cursor: "pointer", textAlign: "center", background: profile.populationDensity === o.v ? "rgba(33,76,57,0.1)" : "rgba(36,61,48,0.02)", border: profile.populationDensity === o.v ? "1px solid rgba(33,76,57,0.4)" : "1px solid #e0e6da", transition: "all 0.15s" }}>
-              <div style={{ fontSize: 24, marginBottom: 4 }}>{o.i}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: profile.populationDensity === o.v ? "#214c39" : "#243d30" }}>{o.l}</div>
-              <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{o.d}</div>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-          <div>
-            <label style={labelSt}>Property Size (acres)</label>
-            <input style={inp} type="number" min="0" value={profile.propertyAcres || ""} onChange={e => upd("propertyAcres", e.target.value ? Number(e.target.value) : null)} placeholder="e.g. 50" />
-          </div>
-          <div>
-            <label style={labelSt}>Nearest Town (km)</label>
-            <input style={inp} type="number" min="0" value={profile.nearestTownKm || ""} onChange={e => upd("nearestTownKm", e.target.value ? Number(e.target.value) : null)} placeholder="e.g. 15" />
-          </div>
-        </div>
-        <label style={labelSt}>Geographic Risks (select all that apply)</label>
-        <Multi field="geoRisks" values={profile.geoRisks} opts={[
-          { v: "flood", l: "Flood Zone", i: "🌊" }, { v: "wildfire", l: "Wildfire", i: "🔥" }, { v: "tornado", l: "Tornado", i: "🌪️" },
-          { v: "earthquake", l: "Earthquake", i: "🌍" }, { v: "coastal", l: "Coastal Storm", i: "🌊" },
-          { v: "extreme_cold", l: "Extreme Cold", i: "🥶" }, { v: "extreme_heat", l: "Extreme Heat", i: "🥵" },
-        ]} />
-      </>);
-      case 3: return (<>
-        <label style={labelSt}>Number of People</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <button onClick={() => setPeople(p => Math.max(1, p - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "#243d30", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>−</button>
-          <span style={{ fontSize: 28, fontWeight: 800, fontFamily: M, minWidth: 36, textAlign: "center" }}>{people}</span>
-          <button onClick={() => setPeople(p => Math.min(20, p + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "#243d30", fontSize: 18, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</button>
-        </div>
-        <label style={labelSt}>Climate Zone</label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-          {[{ v: "arctic", l: "Arctic", i: "🧊" }, { v: "cold", l: "Cold", i: "❄️" }, { v: "temperate", l: "Temperate", i: "🌿" }, { v: "hot_dry", l: "Hot & Dry", i: "🏜️" }, { v: "tropical", l: "Tropical", i: "🌴" }, { v: "coastal", l: "Coastal", i: "🌊" }].map(o => (
-            <button key={o.v} onClick={() => setClimate(o.v)} style={{ padding: "8px 14px", borderRadius: 8, background: climate === o.v ? "rgba(33,76,57,0.12)" : "rgba(36,61,48,0.03)", border: climate === o.v ? "1px solid rgba(33,76,57,0.5)" : "1px solid #dce3d5", color: climate === o.v ? "#214c39" : "rgba(36,61,48,0.5)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-              <span style={{ marginRight: 6 }}>{o.i}</span>{o.l}
-            </button>
-          ))}
-        </div>
-        <label style={labelSt}>Special Needs (select all that apply)</label>
-        <Multi field="specialNeeds" values={profile.specialNeeds} opts={[
-          { v: "elderly", l: "Elderly (65+)", i: "👴" }, { v: "children_under5", l: "Children Under 5", i: "👶" },
-          { v: "children_5to12", l: "Children 5-12", i: "🧒" }, { v: "medical", l: "Medical Conditions", i: "💊" },
-          { v: "mobility", l: "Mobility Impaired", i: "♿" },
-        ]} />
-        <label style={labelSt}>Pets & Livestock</label>
-        <Multi field="pets" values={profile.pets} opts={[
-          { v: "dogs", l: "Dogs", i: "🐕" }, { v: "cats", l: "Cats", i: "🐈" },
-          { v: "livestock_small", l: "Small Livestock", i: "🐑" }, { v: "livestock_large", l: "Large Livestock", i: "🐄" },
-          { v: "poultry", l: "Poultry", i: "🐔" }, { v: "horses", l: "Horses", i: "🐴" },
-        ]} />
-      </>);
-      case 4: return (<>
-        <label style={labelSt}>Food Storage Methods</label>
-        <Multi field="foodStorage" values={profile.foodStorage} opts={[
-          { v: "pantry", l: "Pantry Only", i: "🗄️" }, { v: "root_cellar", l: "Root Cellar", i: "🕳️" },
-          { v: "freeze_dried", l: "Freeze-Dried Stash", i: "📦" }, { v: "garden", l: "Garden", i: "🌱" },
-          { v: "farm", l: "Farm", i: "🌾" }, { v: "greenhouse", l: "Greenhouse", i: "🏡" },
-        ]} />
-        <label style={labelSt}>Medical Training (select all that apply)</label>
-        <Multi field="medicalTraining" values={profile.medicalTraining} opts={[
-          { v: "none", l: "None", i: "❌" }, { v: "first_aid", l: "First Aid", i: "🩹" },
-          { v: "emt", l: "EMT / Paramedic", i: "🚑" }, { v: "nurse_doctor", l: "Nurse / Doctor", i: "🏥" },
-        ]} />
-        <label style={labelSt}>Communication Methods (select all that apply)</label>
-        <Multi field="commsCapability" values={profile.commsCapability} opts={[
-          { v: "cell_only", l: "Cell Phone", i: "📱" }, { v: "ham", l: "HAM Radio", i: "📻" },
-          { v: "satellite", l: "Satellite Phone", i: "📡" }, { v: "cb", l: "CB Radio", i: "🔊" },
-          { v: "mesh", l: "Mesh Network", i: "🌐" },
-        ]} />
-        <label style={labelSt}>Defensive Posture (select all that apply)</label>
-        <Multi field="defensivePosture" values={profile.defensivePosture} opts={[
-          { v: "none", l: "None", i: "🚪" }, { v: "basic", l: "Basic Locks", i: "🔒" },
-          { v: "security_system", l: "Security System", i: "📹" }, { v: "fortified", l: "Fortified", i: "🏰" },
-          { v: "armed", l: "Armed", i: "🛡️" },
-        ]} />
-      </>);
-      default: return null;
-    }
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onSkip}>
-      <div style={{ background: "#ffffff", borderRadius: 16, maxWidth: 540, width: "100%", maxHeight: "85vh", overflow: "auto", border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={e => e.stopPropagation()}>
-        {/* Progress bar */}
-        <div style={{ height: 3, background: "rgba(47,76,39,0.04)", borderRadius: "16px 16px 0 0", overflow: "hidden" }}>
-          <div style={{ height: 3, background: "linear-gradient(90deg,#214c39,#e8724a)", width: ((step + 1) / STEPS.length * 100) + "%", transition: "width 0.3s ease" }} />
-        </div>
-        {/* Header */}
-        <div style={{ padding: "28px 32px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 44, marginBottom: 10 }}>{STEPS[step].icon}</div>
-          <h3 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{STEPS[step].title}</h3>
-          <p style={{ margin: "0 0 24px", fontSize: 12, color: "rgba(36,61,48,0.58)" }}>{STEPS[step].desc} · Step {step + 1} of {STEPS.length}</p>
-        </div>
-        {/* Content */}
-        <div style={{ padding: "0 32px 16px" }}>{renderStep()}</div>
-        {/* Navigation */}
-        <div style={{ padding: "12px 32px 20px", display: "flex", justifyContent: "space-between", gap: 8 }}>
-          {step > 0 ? (
-            <button onClick={() => setStep(step - 1)} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid #dce3d5", background: "rgba(47,76,39,0.03)", color: "rgba(36,61,48,0.58)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
-          ) : (
-            <button onClick={onSkip} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid #dce3d5", background: "transparent", color: "rgba(36,61,48,0.58)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Skip for now</button>
-          )}
-          <button onClick={() => {
-            if (step < STEPS.length - 1) setStep(step + 1);
-            else onComplete({ ...profile, completedAt: new Date().toISOString() });
-          }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: step < STEPS.length - 1 ? "linear-gradient(135deg,#214c39,#183d2b)" : "linear-gradient(135deg,#22c55e,#16a34a)", color: "#243d30", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(33,76,57,0.25)" }}>
-            {step < STEPS.length - 1 ? "Next →" : "✓ Complete Setup"}
-          </button>
-        </div>
-        {/* Step dots */}
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", paddingBottom: 20 }}>
-          {STEPS.map((_, i) => (
-            <div key={i} onClick={() => setStep(i)} style={{ width: 8, height: 8, borderRadius: 4, cursor: "pointer", background: i === step ? "#214c39" : i < step ? "rgba(33,76,57,0.35)" : "rgba(36,61,48,0.08)", transition: "background 0.2s" }} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   TAB RENDERERS
-   ═══════════════════════════════════════════════════════════ */
 function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, dismissResetKey }) {
   const M = "'DM Sans',sans-serif";
 
@@ -2946,7 +2734,7 @@ function PropertyTab({ propSub, setPropSub, propAddress, setPropAddress, pins, s
     if (!state.email || !state.password) { setter(p => ({ ...p, error: "Enter email and password" })); return; }
     setter(p => ({ ...p, loading: true, error: "" }));
     try {
-      if (user && supabaseConfigured) {
+      if (user && user.authProvider !== "neon" && supabaseConfigured) {
         const session = await supabase.auth.getSession();
         const token = session?.data?.session?.access_token;
         if (token) {
@@ -3312,6 +3100,18 @@ function loadSaved() {
   } catch { return null; }
 }
 
+const INVALID_WORKSPACE_OWNER = Symbol("invalid-workspace-owner");
+function safeWorkspaceOwner() {
+  try { return readWorkspaceOwner(localStorage); } catch { return INVALID_WORKSPACE_OWNER; }
+}
+
+function emptyPlan() {
+  return { version: 4, items: [], people: 1, climate: "cold", pins: [], propAddress: "", mapSetups: {}, routes: [],
+    properties: DEFAULT_PROPERTIES.slice(0, 1).map(property => ({ ...property })), activePropertyId: "prop1", members: [], contacts: [],
+    callSigns: [], codeWords: [], rallyPoints: [], codes: [], gardenBeds: [], actionLog: [], soilTests: [], compostBins: [],
+    livestock: [], slaughterLog: [], bugOutEntries: [], propertyProfile: { ...DEFAULT_PROPERTY_PROFILE }, demoData: false, localSettings: {} };
+}
+
 export default function PrepVault() {
   const saved = useRef(loadSaved());
   const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
@@ -3326,10 +3126,18 @@ export default function PrepVault() {
   const navigate = (tab) => { setSelCat(null); setActiveTab(tab); if (["preps", "inventory-search"].includes(tab)) setInventorySearch(previous => ({ query: "", status: "all", key: previous.key + 1 })); };
   const openCategory = (category) => { if (category === "property" || category === "codes") navigate("codes"); else if (["food", "water"].includes(category)) navigate(category); else if (Object.hasOwn(CATEGORIES, category)) { navigate("preps"); setSelCat(category); } else navigate("preps"); };
   const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
-  const enterWorkspace = () => { setShowLanding(false); setOnboardStep(null); localStorage.setItem("prepvault-workspace-open", "1"); };
+  const enterWorkspace = () => { setShowLanding(false); localStorage.setItem("prepvault-workspace-open", "1"); };
+  const resetToOwnPlan = () => {
+    setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]);
+    setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]);
+    setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]);
+    setBugOutEntries([]); setDemoData(false); setDailyCalTarget(2000);
+    setPeople(1); setPropAddress(""); setPropertyProfile({ ...DEFAULT_PROPERTY_PROFILE });
+    setProperties(DEFAULT_PROPERTIES.slice(0, 1)); setActivePropertyId("prop1"); navigate("dashboard");
+  };
   const startPlan = () => {
-    if (!saved.current) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); setDailyCalTarget(2000); }
-    enterWorkspace(); openSetup();
+    enterWorkspace();
+    if (demoData) setShowStartPlan(true); else openSetup();
   };
   const [selCat, setSelCat] = useState(null);
   const [properties, setProperties] = useState(() => saved.current?.properties || DEFAULT_PROPERTIES);
@@ -3363,6 +3171,9 @@ export default function PrepVault() {
   const [compostBins, setCompostBins] = useState(() => saved.current?.compostBins || []);
   const [livestock, setLivestock] = useState(() => saved.current?.livestock || []);
   const [slaughterLog, setSlaughterLog] = useState(() => saved.current?.slaughterLog || []);
+  const [bugOutEntries, setBugOutEntries] = useState(() => saved.current?.bugOutEntries || []);
+  const [upgradeNotices, setUpgradeNotices] = useState([]);
+  const [showStartPlan, setShowStartPlan] = useState(false);
   const [actionLog, setActionLog] = useState(() => saved.current?.actionLog || []);
   const [manuals] = useState(SAMPLE_MANUALS);
   const [routes, setRoutes] = useState(() => saved.current?.routes || []);
@@ -3376,7 +3187,6 @@ export default function PrepVault() {
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [showLanding, setShowLanding] = useState(() => !localStorage.getItem("prepvault-active-session") && !localStorage.getItem("prepvault-workspace-open"));
-  const [onboardStep, setOnboardStep] = useState(null);
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
   const [importPw, setImportPw] = useState("");
@@ -3392,12 +3202,13 @@ export default function PrepVault() {
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // 'login' | 'signup'
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [showVerification, setShowVerification] = useState(false);
-  const [verificationEmail, setVerificationEmail] = useState("");
+  const [authReady, setAuthReady] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const [sessionAttempt, setSessionAttempt] = useState(0);
+  const sessionHandlerRef = useRef(null);
+  const sessionGeneration = useRef(0);
+  const verifiedIdentityRef = useRef(undefined);
+  const workspaceOwnerRef = useRef(safeWorkspaceOwner());
   const [dismissedOpps, setDismissedOpps] = useState(() => JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"));
   useEffect(() => localStorage.setItem("prepvault-dismissed-opps", JSON.stringify(dismissedOpps)), [dismissedOpps]);
   const [syncStatus, setSyncStatus] = useState("local"); // 'local' | 'syncing' | 'synced' | 'error' | 'offline'
@@ -3421,13 +3232,16 @@ export default function PrepVault() {
   const saveTimerRef = useRef(null);
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (!authReady) return;
     setDbStatus("unsaved");
+    const persistenceOwner = workspaceOwnerRef.current;
     const persist = () => {
+      if (safeWorkspaceOwner() !== persistenceOwner) return;
       try {
         localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
           items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
-          soilTests, compostBins, livestock, slaughterLog,
+          soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
           propertyProfile, demoData,
           savedAt: new Date().toISOString()
         }));
@@ -3440,7 +3254,7 @@ export default function PrepVault() {
     saveTimerRef.current = setTimeout(persist, 350);
     window.addEventListener("pagehide", persist);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); window.removeEventListener("pagehide", persist); };
-  }, [items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, propertyProfile, demoData]);
+  }, [authReady, user?.id, items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, demoData]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -3472,34 +3286,39 @@ export default function PrepVault() {
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
   }, []);
 
-  /* ── Auth Session Restore ── */
+  /* ── Verified account session and separate device workspaces ── */
   useEffect(() => {
-    if (supabaseConfigured) {
-      // Cloud auth via Supabase
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setUser(session?.user || null);
-      });
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user || null);
-      });
-      return () => subscription.unsubscribe();
-    } else {
-      // Restore local session from localStorage
+    let active = true;
+    const refresh = async event => {
+      const changedSession = event?.type === ACCOUNT_SESSION_EVENT;
+      if (changedSession) { setAuthReady(false); setShowAuth(false); }
+      const generation = ++sessionGeneration.current;
       try {
-        const saved = localStorage.getItem("prepvault-active-session");
-        if (saved) {
-          const session = JSON.parse(saved);
-          if (session?.id && session?.email) {
-            setUser({ id: session.id, email: session.email, isLocal: true });
-          }
+        const nextUser = await getAccountSession();
+        if (active && generation === sessionGeneration.current) {
+          sessionHandlerRef.current?.(nextUser);
+          if (changedSession && nextUser) { setShowLanding(false); localStorage.setItem("prepvault-workspace-open", "1"); }
         }
-      } catch { /* ignore parse errors */ }
-    }
-  }, []);
+      } catch (error) {
+        if (!active || generation !== sessionGeneration.current) return;
+        // Unbound, device-only plans remain usable when the network is offline.
+        if (!error.code?.startsWith("WORKSPACE_") && !changedSession && (safeWorkspaceOwner() == null || (verifiedIdentityRef.current !== undefined && verifiedIdentityRef.current === safeWorkspaceOwner()))) { setAuthReady(true); setSessionError(""); }
+        else { setAuthReady(false); setSessionError(error.message); }
+      }
+    };
+    const otherWorkspace = event => {
+      if (event.key === "prepvault-workspace-owner") window.location.reload();
+    };
+    refresh();
+    window.addEventListener(ACCOUNT_SESSION_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", otherWorkspace);
+    return () => { active = false; window.removeEventListener(ACCOUNT_SESSION_EVENT, refresh); window.removeEventListener("focus", refresh); window.removeEventListener("storage", otherWorkspace); };
+  }, [sessionAttempt]);
 
-  /* ── Sync Engine ── */
+  /* Legacy cloud identities must never receive a Neon user ID. */
   useEffect(() => {
-    if (!user || user.isLocal || !supabaseConfigured) { setSyncStatus("local"); return; }
+    if (!user || user.isLocal || user.authProvider === "neon" || !supabaseConfigured) { setSyncStatus("local"); return; }
     const engine = new SyncEngine(supabase);
     syncEngineRef.current = engine;
     engine.setStatusCallback(setSyncStatus);
@@ -3509,96 +3328,41 @@ export default function PrepVault() {
     return () => { engine.destroy(); syncEngineRef.current = null; };
   }, [user]);
 
-  /* ── Auth Handlers ── */
-  // Local auth helpers (when Supabase isn't configured)
-  const localAuthStore = useCallback(() => {
-    try { return JSON.parse(localStorage.getItem("prepvault-local-accounts") || "{}"); } catch { return {}; }
-  }, []);
-  const hashPassword = useCallback(async (pwd) => {
-    const enc = new TextEncoder();
-    const hash = await crypto.subtle.digest("SHA-256", enc.encode(pwd + "prepvault-salt-2024"));
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
-  }, []);
+  const applyAccount = nextUser => {
+    const nextId = nextUser?.id || null;
+    const previousId = readWorkspaceOwner(localStorage);
+    const result = switchAccountWorkspace(localStorage, {
+      accountId: nextId, currentSnapshot: currentSnapshotRef.current || getDbSnapshot(), emptySnapshot: emptyPlan(),
+    });
+    workspaceOwnerRef.current = readWorkspaceOwner(localStorage);
+    if (result.changed && !result.claimedUnbound) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      restoreSnapshot(result.snapshot, true, false);
+      setShowQuickStart(false); setShowStartPlan(false); setUpgradeNotices([]); setShowAdd(false);
+      setShowScanner(false); setShowSecurity(false); setCrisisMode(false); setCrisisType(null); setCrisisStart(null);
+      setRevealedCodes({}); setDbPassphrase(""); setShowDbPw(false); setExportPw(""); setImportPw("");
+      setEncryptedDb(false); setSecMsg(""); setToast(null); navigate("dashboard");
+    }
+    verifiedIdentityRef.current = nextId;
+    setUser(nextUser); setSyncStatus("local"); setAuthReady(true); setSessionError("");
+    if (previousId && nextId !== previousId) setShowLanding(true);
+    localStorage.removeItem("prepvault-active-session");
+  };
+  useLayoutEffect(() => { sessionHandlerRef.current = applyAccount; });
 
-  const handleAuth = useCallback(async () => {
-    setAuthLoading(true);
-    setAuthError("");
+  const handleSignedIn = nextUser => {
+    ++sessionGeneration.current;
+    applyAccount(nextUser);
+    setShowAuth(false); enterWorkspace();
+    showToast("Signed in securely. Your plan is saved on this device.");
+  };
+  const handleLogout = async () => {
     try {
-      if (supabaseConfigured) {
-        // Cloud auth via Supabase
-        if (authMode === "signup") {
-          const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-          if (error) throw error;
-          setVerificationEmail(authEmail);
-          setShowVerification(true);
-          setAuthLoading(false);
-          return;
-        } else {
-          const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
-          if (error) throw error;
-          showToast("Logged in ✓", "success");
-        }
-      } else {
-        // Local-only auth (works without Supabase)
-        if (!authEmail || !authPassword) throw new Error("Email and password required");
-        if (authPassword.length < 4) throw new Error("Password must be at least 4 characters");
-        const pwHash = await hashPassword(authPassword);
-        const accounts = localAuthStore();
-        const emailKey = authEmail.toLowerCase().trim();
-
-        if (authMode === "signup") {
-          if (accounts[emailKey]) throw new Error("Account already exists. Try signing in.");
-          const localUser = { id: "local-" + crypto.randomUUID(), email: emailKey, pwHash, createdAt: new Date().toISOString() };
-          accounts[emailKey] = localUser;
-          localStorage.setItem("prepvault-local-accounts", JSON.stringify(accounts));
-          setUser({ id: localUser.id, email: emailKey, isLocal: true });
-          localStorage.setItem("prepvault-active-session", JSON.stringify({ id: localUser.id, email: emailKey, isLocal: true }));
-          showToast("Account created (local mode)", "success");
-        } else {
-          const account = accounts[emailKey];
-          if (!account) throw new Error("No account found. Try signing up first.");
-          if (account.pwHash !== pwHash) throw new Error("Incorrect password");
-          setUser({ id: account.id, email: emailKey, isLocal: true });
-          localStorage.setItem("prepvault-active-session", JSON.stringify({ id: account.id, email: emailKey, isLocal: true }));
-          showToast("Logged in ✓ (local mode)", "success");
-        }
-      }
-      setShowAuth(false);
-      setShowLanding(false);
-      setAuthEmail("");
-      setAuthPassword("");
-      // New signups get empty state
-      if (authMode === "signup" && !saved.current && !localStorage.getItem("prepvault-workspace-open")) {
-        setDemoData(false); setDailyCalTarget(2000);
-        setItems([]);
-        setContacts([]);
-        setMembers([{ id: "p1", name: "You", avatar: "👤", role: "Leader", status: "home", lat: null, lng: null, lastPing: "Now", battery: 100, sharing: false, color: "#22c55e" }]);
-        setPins([]);
-        setMapSetups({});
-        setRoutes([]);
-        setCallSigns([{ sign: "BASE", person: "You" }]);
-        setCodeWords([]);
-        setRallyPoints([]);
-        setCodes([]);
-        setOnboardStep(null);
-      }
-    } catch (err) {
-      setAuthError(err.message || "Authentication failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  }, [authMode, authEmail, authPassword, localAuthStore, hashPassword]);
-
-  const handleLogout = useCallback(async () => {
-    if (supabaseConfigured) {
-      await supabase.auth.signOut();
-    } else {
-      setUser(null);
-      localStorage.removeItem("prepvault-active-session");
-    }
-    setSyncStatus("local");
-    showToast("Logged out", "success");
-  }, []);
+      await signOutAccount();
+      ++sessionGeneration.current;
+      applyAccount(null); setShowLanding(true);
+    } catch (error) { showToast(error.message || "Sign-out failed. Please try again.", "error"); }
+  };
 
   /* ── Local working data and optionally encrypted backups ── */
   const getDbSnapshot = () => ({
@@ -3606,19 +3370,20 @@ export default function PrepVault() {
     timestamp: new Date().toISOString(),
     items, people, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
     members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
-    soilTests, compostBins, livestock, slaughterLog, propertyProfile, demoData,
-    localSettings: Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith("prepvault-") && ![PV_STORAGE_KEY, "prepvault-local-accounts", "prepvault-active-session"].includes(k) && !k.startsWith("prepvault-sync-")).map(k => [k, localStorage.getItem(k)])),
+    soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, demoData,
+    localSettings: Object.fromEntries(Object.keys(localStorage).filter(isWorkspaceSettingKey).map(k => [k, localStorage.getItem(k)])),
     meta: { categories: Object.keys(CATEGORIES).length, scenarios: Object.keys(SCENARIOS).length, properties: properties.length }
   });
 
   useLayoutEffect(() => { currentSnapshotRef.current = getDbSnapshot(); });
 
-  const restoreSnapshot = (raw, includeSettings = true) => {
+  const restoreSnapshot = (raw, includeSettings = true, notifyLimit = true) => {
     const data = validateSnapshot(raw);
     data.mapSetups ??= includeSettings ? {} : (currentSnapshotRef.current?.mapSetups || mapSetups);
+    data.bugOutEntries ??= includeSettings ? [] : (currentSnapshotRef.current?.bugOutEntries || []);
     data.routes ??= includeSettings ? [] : (currentSnapshotRef.current?.routes || routes);
     if (data.items.some(i => !CATEGORIES[i.category] || !CATEGORIES[i.category].subTypes[i.subType])) throw new Error("Backup contains an unknown supply category or type.");
-    const arrays = { items: setItems, pins: setPins, properties: setProperties, members: setMembers, contacts: setContacts, callSigns: setCallSigns, codeWords: setCodeWords, rallyPoints: setRallyPoints, codes: setCodes, gardenBeds: setGardenBeds, actionLog: setActionLog, soilTests: setSoilTests, compostBins: setCompostBins, livestock: setLivestock, slaughterLog: setSlaughterLog };
+    const arrays = { items: setItems, pins: setPins, properties: setProperties, members: setMembers, contacts: setContacts, callSigns: setCallSigns, codeWords: setCodeWords, rallyPoints: setRallyPoints, codes: setCodes, gardenBeds: setGardenBeds, actionLog: setActionLog, soilTests: setSoilTests, compostBins: setCompostBins, livestock: setLivestock, slaughterLog: setSlaughterLog, bugOutEntries: setBugOutEntries };
     Object.entries(arrays).forEach(([key, setter]) => { if (data[key] !== undefined) setter(data[key]); });
     if (data.people !== undefined) setPeople(data.people);
     if (data.climate !== undefined && CLIMATES[data.climate]) setClimate(data.climate);
@@ -3631,7 +3396,7 @@ export default function PrepVault() {
     if (data.propertyProfile) setPropertyProfile(data.propertyProfile);
     if (data.demoData !== undefined) setDemoData(data.demoData);
     if (includeSettings && data.localSettings && typeof data.localSettings === "object") Object.entries(data.localSettings).forEach(([key, value]) => {
-      if (key.startsWith("prepvault-") && ![PV_STORAGE_KEY, "prepvault-local-accounts", "prepvault-active-session"].includes(key) && !key.startsWith("prepvault-sync-") && typeof value === "string") localStorage.setItem(key, value);
+      if (isWorkspaceSettingKey(key) && typeof value === "string") localStorage.setItem(key, value);
     });
     if (includeSettings && data.localSettings) {
       try { const dismissed = JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"); setDismissedOpps(Array.isArray(dismissed) ? dismissed : []); } catch { setDismissedOpps([]); }
@@ -3639,6 +3404,7 @@ export default function PrepVault() {
       setAlertsDismissedUntil(Number.isFinite(until) && until > Date.now() ? until : null);
     }
     if (includeSettings) { setRestoreVersion(version => version + 1); setDailyCalTarget(2000); }
+    if (notifyLimit) { const notices = categoryUpgradeNotices(items, data.items); if (notices.length) setUpgradeNotices(notices); }
     saved.current = data;
     setSelCat(null);
     localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
@@ -3667,6 +3433,7 @@ export default function PrepVault() {
   };
 
   const handleEncryptedImport = async (file) => {
+    const importOwner = workspaceOwnerRef.current;
     if (!importPw) { setSecMsg("⚠ Enter decryption password"); return; }
     try {
       setSecMsg("🔓 Decrypting...");
@@ -3674,6 +3441,7 @@ export default function PrepVault() {
       const wrapper = JSON.parse(text);
       if (!wrapper.pcs || !wrapper.payload) { setSecMsg("❌ Not a valid PrepVault backup file"); return; }
       const data = await decryptData(wrapper.payload, importPw);
+      if (importOwner !== safeWorkspaceOwner()) return;
       restoreSnapshot(data);
       setSecMsg("✅ Restored " + (data.items?.length || 0) + " items from encrypted backup");
       setImportPw("");
@@ -3703,6 +3471,7 @@ export default function PrepVault() {
   };
 
   const handleLocalLoad = async () => {
+    const importOwner = workspaceOwnerRef.current;
     try {
       const result = localStorage.getItem("pcs-db");
       if (!result) { setSecMsg("⚠ No local database found"); return; }
@@ -3714,6 +3483,7 @@ export default function PrepVault() {
       } else {
         data = wrapper.payload;
       }
+      if (importOwner !== safeWorkspaceOwner()) return;
       restoreSnapshot(data);
       setDbStatus(wrapper.enc ? "encrypted" : "saved");
       setSecMsg("✅ Loaded " + (data.items?.length || 0) + " items from local database");
@@ -3734,7 +3504,12 @@ export default function PrepVault() {
 
   const openAdd = (c) => { setAddCat(c || null); setEditItem(null); setShowAdd(true); };
   const openEdit = (i) => { setEditItem(i); setAddCat(i.category); setShowAdd(true); };
+  const showCategoryUpgradeNotice = (nextItems) => {
+    const notices = categoryUpgradeNotices(items, nextItems);
+    if (notices.length) setUpgradeNotices(notices);
+  };
   const handleAdd = (i) => {
+    showCategoryUpgradeNotice(editItem ? items.map(item => item.id === i.id ? i : item) : [...items, i]);
     if (editItem) {
       setItems((p) => p.map((x) => (x.id === i.id ? { ...x, ...i, propertyId: x.propertyId || "prop1" } : x)));
       showToast("✏️ " + i.name + " updated");
@@ -3752,6 +3527,7 @@ export default function PrepVault() {
   const handleScan = (product) => {
     setShowScanner(false);
     const newItem = { id: uid(), category: product.category, subType: product.subType, name: product.name, quantity: product.qty || 1, location: "", fields: product.fields || {}, addedDate: new Date().toISOString().split("T")[0], propertyId: activePropertyId === "all" ? "prop1" : activePropertyId };
+    showCategoryUpgradeNotice([...items, newItem]);
     setItems((p) => [...p, newItem]);
     showToast("📷 " + product.name + " scanned and added");
     if (["food", "water"].includes(product.category)) openCategory(product.category);
@@ -3877,7 +3653,7 @@ export default function PrepVault() {
           items, categories: CATEGORIES, people, climate, climateConfig: CLIMATES[climate],
           activePropertyId, properties, propAddress, propertyProfile, mapSetups, pins, routes,
           contacts, members, dailyCalTarget, callSigns, codeWords, rallyPoints, codes,
-          commsPlan: COMMS_PLAN, gardenBeds, soilTests, compostBins, livestock, slaughterLog,
+          commsPlan: COMMS_PLAN, gardenBeds, soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
           actionLog, selScen, scenario: SCENARIOS[selScen], simDuration, crisisMode, crisisType,
           crisisStart, dismissedOpps, allAlerts, manuals, handbooks: HANDBOOKS, demoData,
           device: readAdvisorDeviceContext(localStorage),
@@ -3888,6 +3664,8 @@ export default function PrepVault() {
       return <CategoryDetailView key={selCat} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
     }
     switch (activeTab) {
+      case "bugout":
+        return <BugOutPlan entries={bugOutEntries} setEntries={setBugOutEntries} items={items} contacts={contacts} />;
       case "emergency":
         return <HandbookLibrary crisisMode={crisisMode} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} />;
       case "dashboard":
@@ -3933,70 +3711,18 @@ export default function PrepVault() {
     }
   };
 
-  /* ═══ Auth Modal (reusable) ═══ */
-  const renderAuthModal = () => (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowAuth(false)}>
-      <div style={{ background: "#ffffff", borderRadius: 14, width: "92%", maxWidth: 400, border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ padding: "22px 24px", borderBottom: "1px solid #e0e6da", textAlign: "center" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#214c39,#183d2b)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, fontFamily: M, marginBottom: 10, boxShadow: "0 4px 20px rgba(33,76,57,0.3)" }}>P</div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h3>
-          <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>{authMode === "signup" ? "Sign up to sync your data across devices" : "Sign in to access your cloud data"}</p>
-        </div>
-        <div style={{ padding: "20px 24px" }}>
-          {showVerification ? (
-            <div style={{ textAlign: "center", padding: "10px 0" }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📧</div>
-              <h3 style={{ fontSize: 16, fontWeight: 800, margin: "0 0 8px" }}>Check Your Email</h3>
-              <p style={{ fontSize: 12, color: "rgba(36,61,48,0.58)", margin: "0 0 6px", lineHeight: 1.5 }}>We sent a verification link to</p>
-              <p style={{ fontSize: 13, color: "#214c39", fontWeight: 700, fontFamily: M, margin: "0 0 16px" }}>{verificationEmail}</p>
-              <p style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", margin: "0 0 20px", lineHeight: 1.5 }}>Click the link in the email to verify your account, then sign in.</p>
-              <button onClick={() => { setShowVerification(false); setShowAuth(false); setAuthMode("login"); setAuthEmail(""); setAuthPassword(""); }}
-                style={{ width: "100%", padding: "12px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>
-                OK, I'll Check My Email
-              </button>
-              <button onClick={async () => { try { await supabase.auth.resend({ type: "signup", email: verificationEmail }); showToast("Verification email resent", "success"); } catch { showToast("Failed to resend", "error"); } }}
-                style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", textDecoration: "underline", fontFamily: "inherit" }}>
-                Resend verification email
-              </button>
-            </div>
-          ) : (<>
-          {authError && <div style={{ padding: "8px 12px", marginBottom: 14, borderRadius: 6, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 11, color: "#ef4444" }}>❌ {authError}</div>}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Email</label>
-            <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Password</label>
-            <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder={authMode === "signup" ? "Min 6 characters" : "Your password"} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #dce3d5", background: "#f0f3ec", color: "#243d30", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} onKeyDown={(e) => e.key === "Enter" && handleAuth()} />
-          </div>
-          <button onClick={handleAuth} disabled={authLoading || !authEmail || !authPassword} style={{ width: "100%", padding: "12px", borderRadius: 8, background: authLoading ? "rgba(33,76,57,0.3)" : "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", border: "none", cursor: authLoading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit", opacity: (!authEmail || !authPassword) ? 0.5 : 1 }}>
-            {authLoading ? "⟳ Please wait..." : authMode === "signup" ? "Create Account" : "Sign In"}
-          </button>
-          <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "rgba(36,61,48,0.58)" }}>
-            {authMode === "login" ? <>Don't have an account? <button onClick={() => { setAuthMode("signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#214c39", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign up</button></> : <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#214c39", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", fontSize: 11, padding: 0 }}>Sign in</button></>}
-          </div>
-          <div style={{ marginTop: 16, padding: "10px 12px", background: supabaseConfigured ? "rgba(36,61,48,0.02)" : "rgba(14,165,233,0.04)", borderRadius: 8, border: "1px solid " + (supabaseConfigured ? "rgba(36,61,48,0.04)" : "rgba(14,165,233,0.15)"), textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: supabaseConfigured ? "rgba(36,61,48,0.3)" : "rgba(14,165,233,0.7)", lineHeight: 1.5 }}>
-              {supabaseConfigured ? <>☁️ Cloud sync enabled. Your data syncs across devices.</> : <>💾 Local mode — your account is stored on this device only.{authMode === "signup" ? " Email verification requires cloud mode." : ""}</>}
-            </div>
-          </div>
-          </>)}
-        </div>
-        <div style={{ padding: "12px 24px 18px", borderTop: "1px solid #e5eadd", textAlign: "center" }}>
-          <button onClick={() => { setShowAuth(false); if (showLanding) setShowLanding(false); }} style={{ background: "none", border: "none", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Continue without account →</button>
-        </div>
-      </div>
-    </div>
-  );
+  const renderAuthModal = () => <AccountAuth initialMode={authMode} onClose={() => setShowAuth(false)} onSignedIn={handleSignedIn} />;
 
-  if (showLanding) return <Welcome onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { setShowAuth(true); setAuthMode("login"); }}>{showAuth && renderAuthModal()}</Welcome>;
+  if (!authReady) return <div className="pv-account-gate"><Icon name="shield" size={30}/><h1>{sessionError ? "Reconnect to your plan" : "Opening your workspace…"}</h1><p role="status">{sessionError || "Checking your secure sign-in."}</p>{sessionError && <><button className="pv-button pv-primary" onClick={() => { setSessionError(""); setSessionAttempt(value => value + 1); }}>Try again</button><button className="pv-button pv-secondary" onClick={() => { try { ++sessionGeneration.current; applyAccount(null); } catch (error) { setSessionError(error.message); } }}>Use a separate guest plan</button></>}</div>;
+
+  if (showLanding) return <Welcome hasPlan={!demoData} user={user} onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { if (user) enterWorkspace(); else { setShowAuth(true); setAuthMode("login"); } }}>{showAuth && renderAuthModal()}</Welcome>;
 
   const pageMeta = {
     community: ["Your people", "Stay connected to the people you count on."],
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
   };
   return (
-    <WorkspaceShell getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} crisisMode={crisisMode} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
+    <WorkspaceShell onHome={() => { setShowLanding(true); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} crisisMode={crisisMode} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -4171,9 +3897,12 @@ export default function PrepVault() {
         );
       })()}
 
-      {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
+      {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => setShowStartPlan(true)}>Start my own plan →</button></div>}
+      {crisisMode && <div className="pv-sample-banner"><Icon name="box" size={18}/><span>Your emergency grab list: {bugOutEntries.filter(entry => !entry.grabbed).length} items remaining.</span><button onClick={() => navigate("bugout")}>Open Bug Out →</button></div>}
+      {showStartPlan && <PlanNotice title="Start your own plan" eyebrow="A FRESH START" onClose={() => setShowStartPlan(false)} actions={<><button className="pv-button pv-secondary" onClick={() => setShowStartPlan(false)}>Keep exploring</button><button className="pv-button pv-primary" onClick={() => { resetToOwnPlan(); setShowStartPlan(false); openSetup(); }}>Start my plan</button></>}><p>Replace the sample household with a blank plan, then add your home, people and supplies.</p><p>This clears the sample records and any changes you made to them. You can export a backup from Settings & backups first.</p></PlanNotice>}
+      {upgradeNotices.length > 0 && <PlanNotice title="More room for your preparation" eyebrow="PLAN UPGRADE" onClose={() => setUpgradeNotices([])} actions={<button className="pv-button pv-primary" onClick={() => setUpgradeNotices([])}>Keep planning</button>}><p>The free plan includes 20 entries in each supply category. A paid plan will be needed above that limit.</p><ul>{upgradeNotices.map(notice => <li key={notice.category}><strong>{CATEGORIES[notice.category]?.label || notice.category}</strong><span>{notice.count} entries</span></li>)}</ul><p><strong>You can keep saving for now.</strong> Upgrades aren’t enforced yet, and your entries have been added. Nothing has been charged.</p></PlanNotice>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "board", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "board", "bugout", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
@@ -4185,40 +3914,9 @@ export default function PrepVault() {
       {/* ═══ Auth Modal ═══ */}
       {showAuth && renderAuthModal()}
 
-      {/* ═══ Onboarding Walkthrough ═══ */}
-      {onboardStep !== null && (() => {
-        const steps = [
-          { icon: "👋", title: "Welcome to PrepVault", desc: "Your personal continuity system. Let's take a quick tour of your preparedness dashboard.", action: "Start Tour" },
-          { icon: "🏠", title: "Set Up Your Properties", desc: "Add your primary residence, bug-out locations, and cache sites. Each property tracks its own inventory independently.", action: "Next", tab: "property" },
-          { icon: "📦", title: "Track Your Supplies", desc: "Use the Dashboard to add items across 20+ categories. Track quantities, locations, expiry dates, and consumption rates.", action: "Next", tab: "dashboard" },
-          { icon: "👥", title: "Connect Your People", desc: "Keep contact details in one place and find your group on the tracker.", action: "Next", tab: "community" },
-          { icon: "📡", title: "Monitor Communications", desc: "Open Communications for live radio, check-in schedules, code words, and radio references.", action: "Finish", tab: "comms" },
-        ];
-        const step = steps[onboardStep];
-        return (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: "#ffffff", borderRadius: 16, padding: 32, maxWidth: 420, border: "1px solid #dce3d5", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-              <div style={{ fontSize: 44, textAlign: "center", marginBottom: 16 }}>{step.icon}</div>
-              <h3 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800, textAlign: "center" }}>{step.title}</h3>
-              <p style={{ textAlign: "center", color: "rgba(36,61,48,0.58)", fontSize: 12, lineHeight: 1.6, marginBottom: 24, margin: "0 0 24px" }}>{step.desc}</p>
-              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                <button onClick={() => {
-                  if (onboardStep < steps.length - 1) { setOnboardStep(onboardStep + 1); if (steps[onboardStep + 1].tab) setActiveTab(steps[onboardStep + 1].tab); }
-                  else { setOnboardStep(null); localStorage.setItem("prepvault-onboarding-done", "1"); setActiveTab("dashboard"); }
-                }} style={{ padding: "10px 24px", borderRadius: 8, background: "linear-gradient(135deg,#214c39,#183d2b)", color: "#243d30", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>{step.action}</button>
-                <button onClick={() => { setOnboardStep(null); localStorage.setItem("prepvault-onboarding-done", "1"); }} style={{ padding: "10px 18px", borderRadius: 8, background: "rgba(47,76,39,0.04)", color: "rgba(36,61,48,0.58)", border: "1px solid #dce3d5", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Skip</button>
-              </div>
-              <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 16 }}>
-                {steps.map((_, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: 4, background: i === onboardStep ? "#214c39" : i < onboardStep ? "rgba(33,76,57,0.3)" : "rgba(36,61,48,0.08)", transition: "background 0.2s" }} />)}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* ═══ Quick Start Wizard Modal ═══ */}
       {showQuickStart && (
-        <QuickStartWizard
+        <HouseholdSetup
           step={qsStep} setStep={setQsStep}
           profile={propertyProfile} setProfile={setPropertyProfile}
           people={people} setPeople={setPeople}
@@ -4226,6 +3924,7 @@ export default function PrepVault() {
           propAddress={propAddress} setPropAddress={setPropAddress}
           onComplete={(completed) => { setPropertyProfile(completed); setShowQuickStart(false); showToast("Property profile saved"); }}
           onSkip={() => setShowQuickStart(false)}
+          onPeople={() => navigate("community")}
         />
       )}
 
@@ -4357,7 +4056,7 @@ export default function PrepVault() {
                   <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.6 }}>
                     {isOffline
                       ? "No network connection detected. Keep this tab open to work with saved supplies and plans. Connected accounts can sync core data when a connection returns."
-                      : user && !user.isLocal
+                      : user && !user.isLocal && user.authProvider !== "neon"
                         ? "Your connected account can sync supplies, properties and household settings. Saved map images, their markers, travel routes and other planning details remain on this device; export a complete backup to keep them safe."
                         : "Your working plan is saved in this browser. Maps, weather, live feeds and connected services use the network. Export a complete backup before moving to another device."
                     }
@@ -4382,7 +4081,7 @@ export default function PrepVault() {
                     ["IV", "96-bit random"],
                     ["Storage", "Local only"],
                     ["Telemetry", "None"],
-                    ["Core data sync", user && !user.isLocal && supabaseConfigured ? "Enabled" : "Disabled"],
+                    ["Core data sync", user && !user.isLocal && user.authProvider !== "neon" && supabaseConfigured ? "Enabled" : "Disabled"],
                   ].map(([k, v], i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                       <span>{k}</span>

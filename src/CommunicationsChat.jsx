@@ -14,7 +14,7 @@ function readMessages(key, sampleChat) {
 }
 
 export default function CommunicationsChat({ user, members = [], sampleChat = [] }) {
-  const cloudUserId = supabaseConfigured && user && !user.isLocal ? user.id : null;
+  const cloudUserId = supabaseConfigured && user && !user.isLocal && user.authProvider !== 'neon' ? user.id : null;
   const localKey = `prepvault-chat-${user?.id || 'guest'}`;
   const [localMessages, setLocalMessages] = useState(() => readMessages(localKey, sampleChat));
   const localMessagesRef = useRef(localMessages);

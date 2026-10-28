@@ -1,4 +1,6 @@
-export const SNAPSHOT_ARRAYS = ['items', 'pins', 'properties', 'members', 'contacts', 'callSigns', 'codeWords', 'rallyPoints', 'codes', 'gardenBeds', 'actionLog', 'soilTests', 'compostBins', 'livestock', 'slaughterLog', 'routes'];
+import { validateBugOutEntries } from './bug-out.js';
+
+export const SNAPSHOT_ARRAYS = ['items', 'pins', 'properties', 'members', 'contacts', 'callSigns', 'codeWords', 'rallyPoints', 'codes', 'gardenBeds', 'actionLog', 'soilTests', 'compostBins', 'livestock', 'slaughterLog', 'routes', 'bugOutEntries'];
 
 export const MAX_MAP_IMAGE_LENGTH = 2 * 1024 * 1024;
 
@@ -66,6 +68,7 @@ export function validateSnapshot(value) {
   // optional assignment fields here, preserving historical marker metadata.
   if (value.pins?.some(pin => !validPinAssignmentFields(pin))) throw new Error('Invalid assignment fields in backup pins.');
   if (value.contacts?.some(person => person.isDependant !== undefined && typeof person.isDependant !== 'boolean')) throw new Error('Invalid dependant selection in backup.');
+  if (value.bugOutEntries !== undefined) validateBugOutEntries(value.bugOutEntries);
   validateMapPlanning(value);
   if (value.items.some(item => !hasText(item.id) || !hasText(item.category) || !hasText(item.subType) || typeof item.name !== 'string' || !['string', 'number'].includes(typeof item.quantity) || item.quantity === '' || !Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0 || (item.fields !== undefined && !isRecord(item.fields)))) throw new Error('Invalid supply in backup.');
   if (value.people !== undefined && (!Number.isFinite(value.people) || value.people < 1)) throw new Error('Invalid household size.');
