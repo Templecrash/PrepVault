@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useDialogFocus } from './useDialogFocus.js';
 import { Brand, Icon } from './brand.jsx';
 import PrepChat from './PrepChat.jsx';
-import NavHealthMeter from './NavHealthMeter.jsx';
 
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
@@ -35,7 +34,7 @@ function PropertyDialog({ onClose, children }) {
   return <div className="pv-modal-backdrop" onClick={onClose}><section ref={ref} className="pv-dialog" role="dialog" aria-modal="true" aria-labelledby="property-title" onClick={e => e.stopPropagation()}>{children}</section></div>;
 }
 
-export default function WorkspaceShell({ activeTab, onNavigate, onHome, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, emergencyBanner, onSearch, alertCount, inventoryAlertCounts = {}, navigationHealth = {}, getPrepChatContext, prepChatResetKey, children }) {
+export default function WorkspaceShell({ activeTab, onNavigate, onHome, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, emergencyBanner, onSearch, alertCount, inventoryAlertCounts = {}, getPrepChatContext, prepChatResetKey, children }) {
   const [calendarDay, setCalendarDay] = useState(() => new Date().getDate());
   useEffect(() => { const timer = setInterval(() => setCalendarDay(new Date().getDate()), 60_000); return () => clearInterval(timer); }, []);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -90,7 +89,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
         <label><span>YOUR SPACE</span><select aria-label="Active property" value={propertyId} onChange={e => onProperty(e.target.value)}><option value="all">All properties</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <button className="pv-icon-button" aria-label="Manage properties" onClick={() => setPropertyOpen(true)}><Icon name="settings" size={16}/></button>
       </div>
-      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} aria-describedby={navigationHealth[d.id] ? `pv-nav-health-${d.id}` : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{d.id === "calendar" && <span className="pv-sidebar-calendar-day" aria-label={`Today is day ${calendarDay}`}>{calendarDay}</span>}{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}<NavHealthMeter health={navigationHealth[d.id]} descriptionId={`pv-nav-health-${d.id}`} /></button></div>)}</nav>
+      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{d.id === "calendar" && <span className="pv-sidebar-calendar-day" aria-label={`Today is day ${calendarDay}`}>{calendarDay}</span>}{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
       <div className="pv-sidebar-bottom">
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={() => { setMenuOpen(false); setAccountOpen(false); onCrisis(); }} aria-current={activeTab === 'emergency-mode' ? 'page' : undefined}><Icon name="shield" size={18}/>{crisisMode ? 'Emergency plan · active' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
         <button className="pv-settings" onClick={onSecurity}><Icon name="settings" size={18}/> Settings & backups</button>

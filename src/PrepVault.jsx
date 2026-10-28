@@ -3,7 +3,6 @@ import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
 import "leaflet/dist/leaflet.css";
 import WorkspaceShell from "./WorkspaceShell.jsx";
-import { buildNavigationHealth } from "./navigation-health.js";
 import Welcome from "./Welcome.jsx";
 import AccountAuth from "./AccountAuth.jsx";
 import { getAccountSession, signOutAccount, ACCOUNT_SESSION_EVENT } from "./account-auth-client.js";
@@ -3248,11 +3247,6 @@ export default function PrepVault() {
   }, [items, climate, codes]);
 
   const visibleAlerts = allAlerts.filter(a => !a.id || propItems.some(i => i.id === a.id));
-  const navigationHealth = buildNavigationHealth({
-    items: propItems, supplyCategoryKeys: Object.keys(SUPPLY_CATEGORIES), alerts: visibleAlerts,
-    peopleCount: rationPeople.length, dailyCalTarget, waterGalPerPerson: crisisMode ? emergencyPlan.waterGalPerPerson : 1, contacts, propertyProfile, activePropertyId,
-    mapSetups, routes, callSigns, rallyPoints, bugOutEntries, codes, gardenBeds, soilTests, compostBins, livestock,
-  });
   const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
 
   const getPrepChatContext = () => buildAdvisorContext({
@@ -3353,7 +3347,7 @@ export default function PrepVault() {
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
   };
   return (
-    <WorkspaceShell navigationHealth={navigationHealth} onHome={() => { if (crisisMode) navigate("emergency-mode"); else setShowLanding(true); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={openEmergencyMode} crisisMode={crisisMode} emergencyBanner={crisisMode ? <EmergencyBanner plan={emergencyPlan} schedule={emergencySchedule} onOpen={() => navigateEmergency("emergency-mode")} onNavigate={navigateEmergency} propertyName={emergencyPlan.propertyId === "all" ? "All properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "Property unavailable"} now={emergencyNow}/> : null} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
+    <WorkspaceShell onHome={() => { if (crisisMode) navigate("emergency-mode"); else setShowLanding(true); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={openEmergencyMode} crisisMode={crisisMode} emergencyBanner={crisisMode ? <EmergencyBanner plan={emergencyPlan} schedule={emergencySchedule} onOpen={() => navigateEmergency("emergency-mode")} onNavigate={navigateEmergency} propertyName={emergencyPlan.propertyId === "all" ? "All properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "Property unavailable"} now={emergencyNow}/> : null} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }

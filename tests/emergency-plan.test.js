@@ -4,7 +4,6 @@ import { createEmergencyPlan, validateEmergencyPlan, updateEmergencyPlan, deacti
 import { computeRationing } from '../src/rationing.js';
 import { computeEssentialCoverage } from '../src/essential-coverage.js';
 import { buildEssentialPlanning } from '../src/essential-planning.js';
-import { buildNavigationHealth } from '../src/navigation-health.js';
 
 const now = new Date(2026, 9, 28, 10, 0, 0);
 const today = emergencyDateKey(now);
@@ -259,7 +258,7 @@ test('local day arithmetic survives daylight-saving transitions and elapsed days
   assert.equal(schedule.filter(event => event.type === 'meal').reduce((sum, event) => sum + event.shortfallCalories, 0), 0);
 });
 
-test('emergency water needs stay consistent across schedule, overview, inventory pages, rationing and navigation', () => {
+test('emergency water needs stay consistent across schedule, overview, inventory pages and rationing', () => {
   const plan = makePlan({ waterGalPerPerson: 2.5 });
   const items = [food, water];
   const summary = buildEmergencySummary({ plan, items, rationPeople: people, now });
@@ -274,9 +273,6 @@ test('emergency water needs stay consistent across schedule, overview, inventory
   const inventory = buildEssentialPlanning('water', items, 2, 2000, 2.5);
   assert.equal(inventory.bigNum, '4');
   assert.equal(inventory.rows.find(row => row.label === 'Daily consumption').value, '5 gal/day');
-  const nav = buildNavigationHealth({ items, peopleCount: 2, dailyCalTarget: 2000, waterGalPerPerson: 2.5 });
-  assert.equal(nav.water.level, 'ok');
-  assert.match(nav.water.detail, /4 full days/);
   assert.equal(buildEssentialPlanning('food', items, 2, 2000, 2.5).bigNum, '5');
 });
 
