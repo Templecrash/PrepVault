@@ -54,6 +54,7 @@ import { validateSnapshot } from "./storage.js";
 import { encryptBackup as encryptData, decryptBackup as decryptData } from "./crypto-backup.js";
 
 const MessageBoard = lazy(() => import('./MessageBoard.jsx'));
+const GrowingLibrary = lazy(() => import('./GrowingLibrary.jsx'));
 
 /* ═══════════════════════════════════════════════════════════
    DATA CONSTANTS
@@ -3247,6 +3248,8 @@ export default function PrepVault() {
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} onSetup={openSetup} members={[...contacts, ...members]} demoData={demoData} onOpenPropertyMap={setActivePropertyId} />;
       case "calendar":
         return <PreparednessCalendar key={restoreVersion} items={propItems} gardenBeds={gardenBeds} soilTests={soilTests} compostBins={compostBins} livestock={livestock} slaughterLog={slaughterLog} bugOutEntries={bugOutEntries} onCategory={openCategory} onNavigate={navigate}/>;
+      case "farm-guides":
+        return <Suspense fallback={<p role="status">Opening farm guides…</p>}><GrowingLibrary onOpenFarm={() => navigate("farming")}/></Suspense>;
       case "skills":
         return <SkillsLibrary onOpenEmergency={() => navigate("emergency")}/>;
       case "offline-maps":
@@ -3276,7 +3279,7 @@ export default function PrepVault() {
       case "comms":
         return <CommunicationsView plan={COMMS_PLAN} frequencies={EMERGENCY_FREQUENCIES} prowords={PROWORDS} phonetic={NATO_PHONETIC} equipmentTypes={CATEGORIES.comms.subTypes} sampleChat={demoData ? SAMPLE_CHAT : []} onSupplies={() => openCategory("comms")} items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
-        return <FarmingView cropDatabase={CROP_DATABASE} growingZones={GROWING_ZONES} climates={CLIMATES} caloriesPerLb={CALORIES_PER_LB} onSupplies={() => openCategory("farm")} items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
+        return <FarmingView onOpenGuides={() => navigate("farm-guides")} cropDatabase={CROP_DATABASE} growingZones={GROWING_ZONES} climates={CLIMATES} caloriesPerLb={CALORIES_PER_LB} onSupplies={() => openCategory("farm")} items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
       case "systems":
         return <ResourcePlanningView items={propItems} people={people} climateConfig={CLIMATES[climate] || CLIMATES.temperate} onSetup={openSetup} onSupplies={() => navigate("preps")} opportunities={<OpportunitiesTab items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} dismissedOpps={dismissedOpps} setDismissedOpps={setDismissedOpps} propertyProfile={propertyProfile}/>} />;
       case "simulate":

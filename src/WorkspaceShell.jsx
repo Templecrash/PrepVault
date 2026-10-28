@@ -24,6 +24,7 @@ const destinations = [
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },
   { id: 'skills', label: 'Skills', icon: 'book', group: 'REFERENCE LIBRARY' },
+  { id: 'farm-guides', label: 'Farm guides', icon: 'leaf' },
   { id: 'codes', label: 'Codes', icon: 'key' },
   { id: 'manuals', label: 'Manuals', icon: 'book' },
   { id: 'emergency', label: 'Emergency', icon: 'shield' },
