@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./brand.jsx";
+import OverviewInsights from "./OverviewInsights.jsx";
+import { summarizeOverviewInventory } from "./overview-metrics.js";
 import { computeEssentialCoverage } from "./essential-coverage.js";
 import "./overview.css";
 
@@ -10,27 +12,13 @@ const ESSENTIALS = [
   { key: "power", icon: "bolt", name: "Power", tone: "amber" },
 ];
 
-function Contours() {
-  return <svg className="pv-contours" viewBox="0 0 480 380" fill="none" aria-hidden="true">
-    {Array.from({ length: 13 }, (_, index) => <path key={index}
-      d="M102 -49C208 -63 233 14 243 47C253 80 210 130 251 157C292 184 366 136 402 182C438 228 394 262 405 296C416 330 468 335 485 389"
-      stroke="currentColor" strokeWidth="1" transform={`translate(${index * 14 - 110} ${index * 10 - 65})`} />)}
-    <circle cx="311" cy="182" r="6" fill="currentColor" stroke="none" />
-    <circle cx="311" cy="182" r="14" stroke="currentColor" />
-    <path d="M311 157v10m0 30v10m-25-25h10m30 0h10" stroke="currentColor" />
-  </svg>;
-}
-
-function EssentialCoverage({ category, items, coverage, icon, tone, onClick }) {
-  const types = Object.keys(category?.subTypes || {});
-  const recorded = new Set(items.filter(item => Number(item.quantity ?? 1) > 0).map(item => item.subType));
-  const covered = types.filter(type => recorded.has(type)).length;
+function EssentialCoverage({ category, stats, coverage, icon, tone, onClick }) {
   return <button type="button" className={`pv-essential pv-tone-${tone}`} onClick={onClick}>
     <span className="pv-essential-top"><span className="pv-icon-tile"><Icon name={icon} size={19} /></span><span>{category?.label}</span><Icon name="arrow" size={15} /></span>
     <span className="pv-essential-count">{coverage.days == null ? '—' : coverage.days.toLocaleString()}<span>{coverage.days === 1 ? 'full day' : 'full days'}</span></span>
     <span className="pv-essential-basis">{coverage.basis}</span>
     <span className="pv-essential-detail">{coverage.detail}</span>
-    <span className="pv-essential-foot">{items.length} {items.length === 1 ? 'entry' : 'entries'} · {covered}/{types.length} types in stock</span>
+    <span className="pv-essential-foot">{stats.recordedEntries} {stats.recordedEntries === 1 ? 'entry' : 'entries'} · {stats.stockedTypes}/{stats.totalTypes} types in stock</span>
   </button>;
 }
 
@@ -39,12 +27,12 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
   const coverage = useMemo(() => computeEssentialCoverage(items, rationPeople.length, dailyCalTarget), [items, rationPeople.length, dailyCalTarget]);
   const overview = useMemo(() => {
     const categoryKeys = Object.keys(categories);
-    const coveredKeys = new Set(items.filter(item => Number(item.quantity ?? 1) > 0 && categories[item.category]).map(item => item.category));
+    const summary = summarizeOverviewInventory(items, categories);
     const itemIds = new Set(items.map(item => item.id));
     const relevantAlerts = alerts.filter(alert => !alert.id || itemIds.has(alert.id));
     const uniqueAlerts = [...new Map(relevantAlerts.map(alert => [`${alert.id || alert.name}-${alert.al}`, alert])).values()]
       .sort((a, b) => Number(b.ac === "#ef4444") - Number(a.ac === "#ef4444"));
-    return { categoryKeys, coveredKeys, priorities: uniqueAlerts, coverage: categoryKeys.length ? Math.round(coveredKeys.size / categoryKeys.length * 100) : 0 };
+    return { categoryKeys, summary, priorities: uniqueAlerts };
   }, [items, categories, alerts]);
   const essentialsKeys = new Set(ESSENTIALS.map(essential => essential.key));
   const otherCategories = overview.categoryKeys.filter(key => !essentialsKeys.has(key)).slice(0, 6);
@@ -60,25 +48,22 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
       <div className="pv-overview-date"><Icon name="compass" size={17} /><time dateTime={localDate}>{today.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</time></div>
     </header>
 
-      <section className="pv-readiness-hero" aria-labelledby="pv-coverage-title">
-        <Contours />
-        <div className="pv-hero-meta"><span><span className="pv-status-point" />{propertyName}</span><span>AT A GLANCE</span></div>
-        <div className="pv-hero-body"><div><h2 id="pv-coverage-title">Your preparation,<br />coming together.</h2><p>A clear picture of the supplies you’ve recorded across your everyday essentials and beyond.</p></div>
-          <div className="pv-coverage-number"><strong>{overview.coverage}<span>%</span></strong><span>Inventory coverage</span></div>
-        </div>
-        <div className="pv-hero-bottom"><span><strong>{overview.coveredKeys.size} of {overview.categoryKeys.length}</strong> categories with stock</span><button type="button" onClick={() => onNavigate("inventory-search")}>Explore your inventory <Icon name="arrow" size={17} /></button></div>
-        <p className="pv-hero-note">Coverage reflects recorded categories, not a guarantee of emergency readiness.</p>
-      </section>
+    <OverviewInsights summary={overview.summary} priorities={overview.priorities} propertyName={propertyName} onCategory={onCategory} onNavigate={onNavigate} onAdd={onAdd} onReview={() => {
+      setShowAllPriorities(true);
+      const heading = document.getElementById('pv-priorities-title');
+      heading?.focus({ preventScroll: true });
+      heading?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }} />
 
     <section className="pv-essentials-section" aria-labelledby="pv-essentials-title">
       <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>How long your recorded supplies could last.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("inventory-search")}>All inventory <Icon name="arrow" size={15} /></button></div>
-      <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <EssentialCoverage key={essential.key} coverage={coverage[essential.key]} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} items={items.filter(item => item.category === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
+      <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <EssentialCoverage key={essential.key} coverage={coverage[essential.key]} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} stats={overview.summary.categories.find(row => row.key === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
       <p className="pv-essential-note">Food and water follow your rationing plan. Open a card to update its supplies and coverage details.</p>
     </section>
 
     <div className="pv-overview-columns">
       <section className="pv-overview-panel pv-priorities" aria-labelledby="pv-priorities-title">
-        <div className="pv-panel-heading"><div><h2 id="pv-priorities-title">A little attention goes a long way</h2><p>Maintenance, rotation, and the details that matter.</p></div><span className="pv-count-badge">{overview.priorities.length}</span></div>
+        <div className="pv-panel-heading"><div><h2 id="pv-priorities-title" tabIndex={-1}>A little attention goes a long way</h2><p>Maintenance, rotation, and the details that matter.</p></div><span className="pv-count-badge">{overview.priorities.length}</span></div>
         {overview.priorities.length ? <>
           <div className="pv-priority-list" id="pv-priority-list">{displayedPriorities.map((alert, index) => <button type="button" className="pv-priority-row" key={`${alert.id || alert.name}-${alert.al}-${index}`} onClick={() => reviewAlert(alert)}>
             <span className={`pv-priority-icon ${alert.ac === "#ef4444" ? "urgent" : ""}`}><Icon name="clock" size={17} /></span>
