@@ -42,13 +42,13 @@ export default function PrepChat({ getContext }) {
     }}>
       <header className="pv-prep-chat-heading">
         <span className="pv-prep-chat-mark"><Icon name="advisor" size={23} /></span>
-        <div><h2 id={`${id}-title`}>Prep Chat</h2><p><Icon name="shield" size={12} />Private to you</p></div>
-        <button type="button" ref={closeButton} className="pv-prep-chat-close" onClick={close} aria-label="Close Prep Chat"><Icon name="close" size={19} /></button>
+        <div><h2 id={`${id}-title`}>Survival LLM</h2><p><Icon name="shield" size={12} />Private to you</p></div>
+        <button type="button" ref={closeButton} className="pv-prep-chat-close" onClick={close} aria-label="Close Survival LLM"><Icon name="close" size={19} /></button>
       </header>
       <div className="pv-prep-chat-content"><PrivateAdvisor getContext={getContext} /></div>
     </section>}
-    <button type="button" ref={launcher} className={`pv-prep-chat-launcher${open ? ' is-open' : ''}`} aria-label={open ? 'Close Prep Chat' : 'Open Prep Chat'} aria-expanded={open} aria-controls={open ? id : undefined} aria-haspopup="dialog" onClick={() => open ? close() : setOpen(true)}>
-      <Icon name={open ? 'close' : 'advisor'} size={22} /><span>Prep Chat</span>
+    <button type="button" ref={launcher} className={`pv-prep-chat-launcher${open ? ' is-open' : ''}`} aria-label={open ? 'Close Survival LLM' : 'Open Survival LLM'} aria-expanded={open} aria-controls={open ? id : undefined} aria-haspopup="dialog" onClick={() => open ? close() : setOpen(true)}>
+      <Icon name={open ? 'close' : 'advisor'} size={22} /><span>Survival LLM</span>
     </button>
   </>;
 }

@@ -159,7 +159,7 @@ export default function MessageBoard({ standalone = false }) {
     setSession(previous => previous ? { ...previous, canModerate: false } : previous);
     setModerating(false);
     setAction(previous => previous?.type === 'moderate' ? null : previous);
-    setNotice('Owner verification is needed to review reports. Sign in through Prep Chat, then reopen this page.');
+    setNotice('Owner verification is needed to review reports. Sign in through Survival LLM, then reopen this page.');
   };
   useEffect(() => {
     if (!canModerate) return;
@@ -175,7 +175,7 @@ export default function MessageBoard({ standalone = false }) {
         if (!data.canModerate) {
           setModerating(false);
           setAction(previous => previous?.type === 'moderate' ? null : previous);
-          setNotice('Owner verification is needed to review reports. Sign in through Prep Chat, then reopen this page.');
+          setNotice('Owner verification is needed to review reports. Sign in through Survival LLM, then reopen this page.');
         }
       }).catch(() => {
         if (request.signal.aborted) return;

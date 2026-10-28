@@ -1,5 +1,5 @@
 const TIMEOUT_MS = 65_000;
-const abortError = () => new DOMException('The Prep Chat request was cancelled.', 'AbortError');
+const abortError = () => new DOMException('The Survival LLM request was cancelled.', 'AbortError');
 
 async function advisorRequest(body, { signal } = {}) {
   const controller = new AbortController();
@@ -20,7 +20,7 @@ async function advisorRequest(body, { signal } = {}) {
     if (controller.signal.aborted) throw abortError();
     if (!response.ok || !data || typeof data !== 'object') {
       const error = new Error(typeof data?.error === 'string' && data.error.length <= 300
-        ? data.error : 'Prep Chat is unavailable. Please try again.');
+        ? data.error : 'Survival LLM is unavailable. Please try again.');
       error.status = response.status;
       error.code = typeof data?.code === 'string' ? data.code : undefined;
       throw error;
@@ -28,7 +28,7 @@ async function advisorRequest(body, { signal } = {}) {
     return data;
   } catch (error) {
     if (controller.signal.aborted && !signal?.aborted) {
-      throw new Error('Prep Chat took too long to respond. Please try again.');
+      throw new Error('Survival LLM took too long to respond. Please try again.');
     }
     if (signal?.aborted) throw abortError();
     throw error;
@@ -40,7 +40,7 @@ async function advisorRequest(body, { signal } = {}) {
 
 export async function getAdvisorStatus(options) {
   const data = await advisorRequest(undefined, options);
-  if (typeof data.configured !== 'boolean') throw new Error('The Prep Chat connection could not be checked. Please try again.');
+  if (typeof data.configured !== 'boolean') throw new Error('The Survival LLM connection could not be checked. Please try again.');
   return { configured: data.configured };
 }
 
@@ -54,6 +54,6 @@ export async function askAdvisor(messages, context, options) {
     characters -= history.shift().content.length;
   }
   const data = await advisorRequest({ messages: history, context }, options);
-  if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('Prep Chat returned an empty reply. Please try again.');
+  if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('Survival LLM returned an empty reply. Please try again.');
   return data.reply;
 }

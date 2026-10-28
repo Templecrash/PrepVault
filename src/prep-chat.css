@@ -3,23 +3,30 @@
   z-index: 1000;
   right: max(24px, env(safe-area-inset-right));
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 13px 20px;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 84px;
+  height: 84px;
+  padding: 10px;
   border: 1px solid #214c39;
-  border-radius: 28px;
+  border-radius: 50%;
   background: #214c39;
   color: #fff;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.2;
+  text-align: center;
   box-shadow: 0 6px 24px #193d2b29;
   cursor: pointer;
   transition: background .16s, box-shadow .16s;
 }
+.pv-prep-chat-launcher>svg { flex-shrink: 0; }
+.pv-prep-chat-launcher>span { display: block; max-width: 60px; }
 .pv-prep-chat-launcher:hover { background: #173d2c; box-shadow: 0 8px 28px #193d2b38; }
 .pv-prep-chat-launcher.is-open { background: #fff; color: #214c39; border-color: #d9e2d3; }
 .pv-prep-chat-launcher:focus-visible, .pv-prep-chat-close:focus-visible { outline: 3px solid #87a573; outline-offset: 3px; }
@@ -27,9 +34,9 @@
   position: fixed;
   z-index: 1001;
   right: max(24px, env(safe-area-inset-right));
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(120px + env(safe-area-inset-bottom, 0px));
   width: min(440px, calc(100vw - 48px));
-  height: min(740px, calc(100dvh - 112px - env(safe-area-inset-bottom, 0px)));
+  height: min(740px, calc(100dvh - 144px - env(safe-area-inset-bottom, 0px)));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -87,8 +94,8 @@
 .pv-advisor-floating .pv-tracker-signin-form { padding: 20px 0; border-left: 0; border-top: 1px solid #e7ece2; }
 .pv-advisor-floating .pv-tracker-signin-copy>span:last-child { font-size: 11px; }
 @media(max-width:760px) {
-  .pv-prep-chat-launcher { right: max(16px, env(safe-area-inset-right)); bottom: calc(82px + env(safe-area-inset-bottom, 0px)); min-height: 48px; padding: 12px 17px; }
-  .pv-prep-chat-panel { right: 12px; left: 12px; width: auto; bottom: calc(142px + env(safe-area-inset-bottom, 0px)); height: min(720px, calc(100dvh - 158px - env(safe-area-inset-bottom, 0px))); border-radius: 13px; }
+  .pv-prep-chat-launcher { right: max(16px, env(safe-area-inset-right)); bottom: calc(82px + env(safe-area-inset-bottom, 0px)); width: 76px; height: 76px; padding: 8px; font-size: 10px; }
+  .pv-prep-chat-panel { right: 12px; left: 12px; width: auto; bottom: calc(170px + env(safe-area-inset-bottom, 0px)); height: min(720px, calc(100dvh - 186px - env(safe-area-inset-bottom, 0px))); border-radius: 13px; }
   .pv-prep-chat-heading { padding: 13px 16px; }
   .pv-advisor-floating .pv-advisor-scroll { padding: 13px 16px 0; }
   .pv-advisor-floating .pv-advisor-composer { margin: 0 16px; }
