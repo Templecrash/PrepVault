@@ -309,4 +309,26 @@ export const CROP_GUIDES = [
     'Harvest sprigs as needed and plan protected winter care where the variety is not hardy.',
   ], 'Perennial does not mean winter-hardy everywhere. Check regional advice before leaving plants outdoors.',
   [mn('Growing herbs in home gardens', 'growing-herbs')], ['rosemary', 'salvia rosmarinus', 'container herbs']),
+
+  crop('melons', 'Melons', 'fruit', 'Warm season', 'Match cantaloupe, honeydew or watermelon to the warmth and length of your summer.', [
+    'Choose an early-maturing variety where summers are short; use a sunny, well-drained growing site.',
+    'Wait for warm soil before sowing or transplanting, and avoid disturbing young roots.',
+    'Keep plants watered and allow pollinators access to flowers; seedless watermelon also needs a pollen-producing partner.',
+    'Check each fruit separately for maturity using the guide for its type; watermelon and honeydew do not detach like ripe cantaloupe.',
+  ], 'Watermelon and honeydew are more cold-sensitive than cantaloupe. A planting can fail to ripen if the warm season is too short.',
+  [mn('Growing melons in the home garden', 'growing-melons-in-the-home-garden')], ['melon', 'cantaloupe', 'muskmelon', 'honeydew', 'watermelon', 'rockmelon']),
+
+  crop('oregano', 'Oregano', 'herbs', 'Perennial', 'Choose a culinary oregano with the flavour and winter hardiness you want.', [
+    'Obtain a labelled plant propagated from cuttings if consistent flavour matters; seed-grown plants may differ.',
+    'Plant in full sun with good drainage, including in containers.',
+    'Cut leafy stem tips before flowering while retaining enough leaves for new side shoots; dry surplus with good airflow.',
+  ], 'Greek oregano, marjoram and Mexican oregano are not interchangeable plants. Check the exact type and arrange winter protection where needed.',
+  [{ title: 'Oregano: growing, harvest and varieties', publisher: 'University of Illinois Extension', url: 'https://extension.illinois.edu/herbs/oregano', region: 'Illinois / Midwest, United States' }], ['oregano', 'greek oregano', 'origanum', 'culinary herb']),
+
+  crop('sage', 'Culinary sage', 'herbs', 'Perennial', 'Establish a sunny, well-drained planting for fresh or dried seasoning leaves.', [
+    'Start with cuttings or established culinary sage plants for a quicker useful harvest than seed.',
+    'Use compost-amended soil that drains especially well through winter.',
+    'Prune as spring growth resumes and harvest leaves as needed; replace old woody plants when leaf quality declines.',
+  ], 'Purple, golden and tricolour cultivars can be less winter-hardy than other sage. Check the variety before planning outdoor winter survival.',
+  [{ title: 'Sage: growing, harvest and varieties', publisher: 'University of Illinois Extension', url: 'https://extension.illinois.edu/herbs/sage', region: 'Illinois / Midwest, United States' }], ['sage', 'salvia officinalis', 'garden sage', 'culinary herb']),
 ];
