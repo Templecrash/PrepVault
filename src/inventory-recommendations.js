@@ -25,7 +25,7 @@ function calendarDay(value) {
  * Callers normally pass property-scoped items; propertyId provides an additional
  * scope check when supplied. An unrecorded subtype is never treated as a need.
  */
-export function buildInventoryRecommendations({ items = [], categories = {}, categoryKey = null, propertyId, peopleCount = 0, dailyCalTarget = 2000, alerts = [], now = Date.now() } = {}) {
+export function buildInventoryRecommendations({ items = [], categories = {}, categoryKey = null, propertyId, peopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1, alerts = [], now = Date.now() } = {}) {
   const catalogue = categories && typeof categories === 'object' ? categories : {};
   const entries = Object.entries(catalogue).filter(([key, category]) => category && (!categoryKey || key === categoryKey));
   const keys = new Set(entries.map(([key]) => key));
@@ -68,7 +68,7 @@ export function buildInventoryRecommendations({ items = [], categories = {}, cat
   }
 
   const hasEssentials = keys.has('food') || keys.has('water');
-  const ration = hasEssentials ? computeRationing(valid, peopleCount, dailyCalTarget) : null;
+  const ration = hasEssentials ? computeRationing(valid, peopleCount, dailyCalTarget, waterGalPerPerson) : null;
   const coverage = [];
   if (ration && !ration.peopleCount) suggest('dependants', 85, 'Set who this stock supports', 'Mark dependants in Your People to calculate food and stored-water days. The total number of contacts is not used.', { kind: 'people', label: 'Manage dependants' }, 'users');
   if (ration && keys.has('food')) {
@@ -80,7 +80,7 @@ export function buildInventoryRecommendations({ items = [], categories = {}, cat
     }
     coverage.push({ category: 'food', label: 'Recorded food', days: Number.isFinite(ration.foodDays) ? ration.foodDays : null, note: ration.peopleCount && ration.dailyCalTarget ? `${ration.peopleCount} ${plural(ration.peopleCount, 'dependant')} · ${ration.dailyCalTarget.toLocaleString()} cal/person/day${ration.omittedFoodCount ? ' · incomplete nutrition data' : ''}` : 'Set dependants and a calorie target to estimate days' });
   }
-  if (ration && keys.has('water')) coverage.push({ category: 'water', label: 'Stored water', days: Number.isFinite(ration.waterDays) ? ration.waterDays : null, note: ration.peopleCount ? `${ration.peopleCount} ${plural(ration.peopleCount, 'dependant')} · 1 gal/person/day · sources and treatment add no stored days` : 'Set dependants to estimate days; sources and treatment add no stored days' });
+  if (ration && keys.has('water')) coverage.push({ category: 'water', label: 'Stored water', days: Number.isFinite(ration.waterDays) ? ration.waterDays : null, note: ration.peopleCount ? `${ration.peopleCount} ${plural(ration.peopleCount, 'dependant')} · ${ration.waterGalPerPerson.toLocaleString()} gal/person/day · sources and treatment add no stored days` : 'Set dependants to estimate days; sources and treatment add no stored days' });
 
   const empty = valid.filter(item => Number(item.quantity) === 0);
   if (empty.length) suggest('zero-stock', 60, 'Review entries at zero', `${empty.length} ${plural(empty.length, 'entry', 'entries')} ${empty.length === 1 ? 'is' : 'are'} recorded with no stock, starting with ${nameOf(empty[0])}. Confirm the quantity and whether you still want it in this plan.`, edit(empty[0], 'Review quantity'), 'box');

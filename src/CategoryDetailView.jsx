@@ -1,5 +1,6 @@
 import FoodWaterInfo from "./FoodWaterInfo.jsx";
 import InventoryRecommendations from "./InventoryRecommendations.jsx";
+import { buildEssentialPlanning } from './essential-planning.js';
 import { Fragment, useId, useMemo, useState } from 'react';
 import { Icon } from './brand.jsx';
 import './inventory.css';
@@ -10,12 +11,11 @@ const hasValue = value => value !== null && value !== undefined && value !== '';
 const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''));
 
 export default function CategoryDetailView({ catKey, items = [], people, climate, onBack, onAdd, onRemove, onEdit, onQtyChange,
-  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onPeople, onRationing, onScan, recommendationPeopleCount = 0, dailyCalTarget = 2000, propertyId, alerts = [], recommendationActions }) {
+  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onPeople, onRationing, onScan, recommendationPeopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1, propertyId, alerts = [], recommendationActions }) {
   const cat = categories[catKey];
   const ci = useMemo(() => items.filter(item => item.category === catKey), [items, catKey]);
   const p = people || 4;
   const clim = climates[climate] || climates.temperate;
-  const climMod = clim.waterMod || 1;
   const firewoodMod = clim.firewoodMod || 1;
   const [query, setQuery] = useState('');
   const [type, setType] = useState('all');
@@ -24,54 +24,11 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
   const [expandedId, setExpandedId] = useState(null);
   const id = useId();
 
-  // Preserve the existing category-specific planning model during this visual
-  // redesign. All input constants/helpers come from the parent data source.
+  // Food and water share the active dependant and rationing assumptions even
+  // when this detail view is opened without a parent planning override.
   const legacyCalc = useMemo(() => {
-    if (catKey === "food") {
-      const totalCals = ci.reduce((s, i) => {
-        const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
-        const serv = parseFloat(i.fields?.servings || 1);
-        return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1);
-      }, 0);
-      const dailyNeed = p * 2000;
-      const days = totalCals / Math.max(dailyNeed, 1);
-      return {
-        title: "Caloric Continuity",
-        icon: "🍽️",
-        color: days >= 30 ? "#22c55e" : days >= 7 ? "#f59e0b" : "#ef4444",
-        bigNum: days.toFixed(1),
-        bigUnit: "days",
-        rows: [
-          { label: "Total stored calories", value: Math.round(totalCals).toLocaleString() + " cal" },
-          { label: "People", value: p },
-          { label: "Daily consumption", value: dailyNeed.toLocaleString() + " cal/day", note: p + " × 2,000 cal" },
-          { label: "Reserve", value: days.toFixed(1) + " days", note: Math.round(totalCals).toLocaleString() + " ÷ " + dailyNeed.toLocaleString(), highlight: true },
-        ]
-      };
-    }
-    if (catKey === "water") {
-      const stored = ci.filter((i) => i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
-      const filters = ci.filter((i) => i.subType === "purificationDevice" || i.subType === "purificationTablets").reduce((s, i) => s + (i.quantity || 0), 0);
-      const dailyNeed = p * 1.0 * climMod;
-      const storedDays = stored / Math.max(dailyNeed, 0.1);
-      const filterBonus = filters * 3;
-      const totalDays = storedDays + filterBonus;
-      return {
-        title: "Water Continuity",
-        icon: "💧",
-        color: totalDays >= 14 ? "#22c55e" : totalDays >= 3 ? "#f59e0b" : "#ef4444",
-        bigNum: totalDays.toFixed(1),
-        bigUnit: "days",
-        rows: [
-          { label: "Stored water", value: stored + " gallons" },
-          { label: "People", value: p },
-          { label: "Climate modifier", value: climMod + "×", note: climate || "temperate" },
-          { label: "Daily consumption", value: dailyNeed.toFixed(1) + " gal/day", note: p + " × 1.0 gal × " + climMod },
-          { label: "Storage days", value: storedDays.toFixed(1) + " days", note: stored + " ÷ " + dailyNeed.toFixed(1) },
-          { label: "Filtration bonus", value: "+" + filterBonus + " days", note: filters + " filters × 3 days each" },
-          { label: "Total continuity", value: totalDays.toFixed(1) + " days", highlight: true },
-        ]
-      };
+    if (catKey === "food" || catKey === "water") {
+      return buildEssentialPlanning(catKey, ci, recommendationPeopleCount, dailyCalTarget, waterGalPerPerson);
     }
     if (catKey === "fuel") {
       const gasGals = ci.filter((i) => i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
@@ -341,7 +298,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
       };
     }
     return null;
-  }, [ci, catKey, p, climMod, climate, items, firewoodMod, clim.label, cat.subTypes, parseVolMl]);
+  }, [ci, catKey, p, climate, items, firewoodMod, clim.label, cat.subTypes, parseVolMl, recommendationPeopleCount, dailyCalTarget, waterGalPerPerson]);
   const calc = planningOverride === undefined ? legacyCalc : planningOverride;
   const addLabel = standalone && ['food', 'water'].includes(catKey) ? `Add ${catKey}` : 'Add supply';
 
@@ -385,7 +342,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
       <div className="pv-category-analysis-body"><table><caption className="pv-inventory-sr-only">{calc.title} calculations</caption><thead><tr><th scope="col">Measure</th><th scope="col">Basis</th><th scope="col">Result</th></tr></thead><tbody>{calc.rows.map((row, index) => <tr key={`${row.label}-${index}`} className={row.highlight ? 'is-highlighted' : undefined}><th scope="row">{row.label}</th><td>{row.note || '—'}</td><td>{row.value}</td></tr>)}</tbody></table></div>
     </details>}
 
-    <InventoryRecommendations items={ci} categories={categories} categoryKey={catKey} propertyId={propertyId} peopleCount={recommendationPeopleCount} dailyCalTarget={dailyCalTarget} alerts={alerts} onAdd={onAdd} onEdit={onEdit} onManagePeople={onPeople} onRationing={onRationing} actions={recommendationActions}/>
+    <InventoryRecommendations items={ci} categories={categories} categoryKey={catKey} propertyId={propertyId} peopleCount={recommendationPeopleCount} dailyCalTarget={dailyCalTarget} waterGalPerPerson={waterGalPerPerson} alerts={alerts} onAdd={onAdd} onEdit={onEdit} onManagePeople={onPeople} onRationing={onRationing} actions={recommendationActions}/>
 
     <div className="pv-inventory-workspace">
       <div className="pv-inventory-toolbar">

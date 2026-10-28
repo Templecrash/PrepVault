@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { createEmergencyPlan, toggleEmergencyEvent } from '../src/emergency-plan.js';
 import assert from 'node:assert/strict';
 import { buildAdvisorContext, readAdvisorDeviceContext, sanitizeAdvisorContext } from '../src/advisor-context.js';
 
@@ -200,4 +201,28 @@ test('adviser counts only directory dependants and retains the selection after s
   assert.equal(empty.household.rationing.peopleCount, 0);
   assert.equal(empty.derived.rationing.foodDays, null);
   assert.equal(empty.derived.rationing.waterDays, null);
+});
+
+
+test('adviser includes the saved emergency schedule, property scope and completion without private extras', () => {
+  const plan = toggleEmergencyEvent(createEmergencyPlan({ propertyId: 'home', dailyCalTarget: 2000, waterGalPerPerson: 2 }, now()), '2026-10-26:breakfast', now());
+  const input = { ...fixture(), emergencyPlan: { ...plan, apiKey: 'must-not-pass' }, activePropertyId: 'cabin', crisisMode: true };
+  const context = buildAdvisorContext(input, { now });
+  assert.equal(context.plans.emergency.active, true);
+  assert.equal(context.plans.emergency.propertyId, 'home');
+  assert.equal(context.plans.emergency.coverage.totalWaterGal, 30);
+  assert.equal(context.plans.emergency.coverage.waterDays, 7);
+  assert.equal(context.plans.emergency.today.length, 6);
+  assert.equal(context.plans.emergency.today.find(event => event.key.endsWith(':breakfast')).done, true);
+  assert.equal(context.household.rationing.dailyCalorieTarget, 2000);
+  assert.equal(context.plans.emergency.apiKey, undefined);
+  const sanitized = sanitizeAdvisorContext(context);
+  assert.deepEqual(sanitized.plans.emergency, context.plans.emergency);
+  assert.equal(JSON.stringify(sanitized).includes('must-not-pass'), false);
+});
+
+test('malformed emergency context cannot enable an unvalidated active plan', () => {
+  const context = buildAdvisorContext({ ...fixture(), emergencyPlan: { active: true }, crisisMode: true }, { now });
+  assert.equal(context.plans.emergency.active, false);
+  assert.equal(context.plans.emergency.today, undefined);
 });

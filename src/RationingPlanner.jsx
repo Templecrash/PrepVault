@@ -6,9 +6,9 @@ import './rationing.css';
 
 const format = value => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 
-export default function RationingPlanner({ items, rationPeople, dailyCalTarget, setDailyCalTarget, onManagePeople, showSummary = true }) {
+export default function RationingPlanner({ items, rationPeople, dailyCalTarget, setDailyCalTarget, waterGalPerPerson = 1, onManagePeople, showSummary = true }) {
   const id = useId();
-  const result = computeRationing(items, rationPeople.length, dailyCalTarget);
+  const result = computeRationing(items, rationPeople.length, dailyCalTarget, waterGalPerPerson);
   return <section className="pv-rationing" aria-label="Rationing planner">
     {showSummary && <>
       <header className="pv-rationing-heading"><div><h2>Rationing planner</h2><p>How long your recorded food and stored water could last.</p></div><Icon name="leaf" size={21}/></header>
@@ -18,7 +18,7 @@ export default function RationingPlanner({ items, rationPeople, dailyCalTarget, 
         <div><span>Dependants selected</span><strong>{result.peopleCount}<small> {result.peopleCount === 1 ? 'person' : 'people'}</small></strong><p>{format(result.dailyCalTarget)} calories per day each</p></div>
       </div>
     </>}
-    <p className="pv-rationing-assumption">Estimates use your selected calorie target and 1 gallon of stored water per person per day.</p>
+    <p className="pv-rationing-assumption">Estimates use your selected calorie target and {format(result.waterGalPerPerson)} {result.waterGalPerPerson === 1 ? 'gallon' : 'gallons'} of stored water per person per day for drinking, food preparation and hygiene. This is not a drinking limit.</p>
     {result.omittedFoodCount > 0 && <p className="pv-rationing-notice">{result.omittedFoodCount} food {result.omittedFoodCount === 1 ? 'entry is' : 'entries are'} excluded because calorie or serving information is missing.</p>}
     {!result.peopleCount && <p className="pv-rationing-notice" role="status">Mark dependants in Your People to calculate how long your food and water could last.</p>}
     <div className="pv-rationing-controls">

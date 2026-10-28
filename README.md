@@ -188,3 +188,14 @@ All 100 Farm guides and 16 Skills have an assigned task picture, using 67 origin
 All nine original PDF handbooks (659 pages) were visually audited; the Emergency library and PDF reader provide 17 verified, one-based PDF-page shortcuts to useful pictures and diagrams. Professional manuals retain their training labels. Original PDFs and their hashes remain unchanged. Text-led guides have separate PrepVault task-picture companions where useful. See `docs/handbook-visual-audit.md` for the page-by-page audit method and limitations.
 
 The household and vehicle entries in Manuals are filename references, not attached manufacturer PDFs. They display general orientation pictures with that limitation stated explicitly. The exact equipment model, edition and original document must be confirmed before using manufacturer-specific service procedures.
+
+
+## Coordinated Emergency mode
+
+The sidebar Emergency mode button activates a saved plan and opens a focused workspace. While active, Overview becomes the emergency workspace, every page carries the current mode and property, and mobile shortcuts prioritize the plan, rationing, Bug Out and people. Ending the mode requires an inline confirmation and restores the normal overview.
+
+The plan uses only contacts marked as food/water dependants and the chosen property's recorded supplies. It retains the current calorie target and creates three daily meal targets, a daily stored-water allocation and two household check-ins. Situation, property, duration (1–90 days), targets and times can be adjusted. Schedule completion stays in sync across Emergency mode, Rationing and Calendar and persists through reload, account isolation and encrypted backup/restore. Survival LLM receives bounded emergency settings, coverage and today's completion state.
+
+Emergency food estimates exclude expired/invalid-dated entries, livestock and hunting equipment; unknown nutrition is flagged. Stored-water entries with past/invalid expiry dates are excluded too. Portions are planning suggestions, not a balanced menu or an assurance that food is safe. Check labels, preparation needs, allergies and temperature history. Water is a supply budget covering drinking, preparation and hygiene, never a drinking limit.
+
+These are device-local plans and checklists. Checking tasks does not deduct inventory, send messages, trigger alarms, or run background notifications. Update inventory after use. The downloaded local app and a separate restored backup support this workflow offline; live connected services retain their normal connection requirements.

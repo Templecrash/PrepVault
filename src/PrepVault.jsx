@@ -45,6 +45,8 @@ import Surveillance from "./Surveillance.jsx";
 import { buildAdvisorContext, readAdvisorDeviceContext } from "./advisor-context.js";
 import { HANDBOOKS } from "./handbooks.js";
 import RationingPlanner from "./RationingPlanner.jsx";
+import EmergencyWorkspace, { EmergencyBanner, EmergencySchedule } from "./EmergencyWorkspace.jsx";
+import { createEmergencyPlan, deactivateEmergencyPlan, updateEmergencyPlan, validateEmergencyPlan, buildEmergencySchedule, buildEmergencySummary } from "./emergency-plan.js";
 import { buildFoodWaterRoster } from "./food-water-household.js";
 import HandbookLibrary from "./HandbookLibrary.jsx";
 import PropertyMapWorkspace from "./PropertyMapWorkspace.jsx";
@@ -1068,16 +1070,7 @@ const EMERGENCY_FREQUENCIES = [
   { freq: "156.650", name: "Marine Ch 13 — Bridge", mode: "FM 1W", use: "Bridge-to-bridge navigation safety", license: "marine", band: "marine", priority: "med" },
 ];
 
-const CRISIS_TYPES = [
-  { id: "natural_disaster", name: "Natural Disaster", icon: "🌪️", color: "#0ea5e9", actions: ["Shelter in place or evacuate per local guidance", "Fill all water containers immediately", "Charge all devices and batteries now", "Move critical supplies to ground level (flood) or interior room (tornado/hurricane)", "Activate weather radio monitoring on all NOAA channels"] },
-  { id: "grid_failure", name: "Grid Failure / Blackout", icon: "⚡", color: "#f59e0b", actions: ["Start generator — load-shed to essentials only", "Minimize fridge/freezer openings (stays cold 24-48h sealed)", "Switch to wood/propane heat if available", "Conserve water — well pump requires power", "Activate HAM radio check-in schedule with contacts"] },
-  { id: "civil_unrest", name: "Civil Unrest", icon: "🚨", color: "#ef4444", actions: ["Lock down property perimeter immediately", "Account for all family members — establish check-in", "Avoid travel on main roads and through urban areas", "Monitor police/fire scanner frequencies continuously", "Stage bug-out bags at door in case evacuation needed"] },
-  { id: "pandemic", name: "Pandemic / Quarantine", icon: "🦠", color: "#a855f7", actions: ["Activate quarantine protocols — limit outside contact", "Inventory all medical supplies and PPE immediately", "Set up decontamination zone at entry points", "Establish daily communication schedule with allies", "Begin water and food rationing plan for extended duration"] },
-  { id: "economic", name: "Economic Collapse", icon: "📉", color: "#f97316", actions: ["Secure cash reserves — ATMs and banks may go offline", "Inventory all barter-worthy supplies (fuel, ammo, food)", "Accelerate any pending critical supply purchases now", "Coordinate with community trade network", "Lock down fuel storage — prices spike first in crisis"] },
-  { id: "nuclear_chemical", name: "Nuclear / Chemical / NBC", icon: "☢️", color: "#eab308", actions: ["Shelter in place — DO NOT go outside under any circumstances", "Seal all windows and doors with plastic sheeting and tape", "Take potassium iodide if nuclear (130mg adult dose)", "Activate NBC air filtration system if available", "Monitor official emergency channels for all-clear signal"] },
-  { id: "cyber_attack", name: "Cyber Attack / Infrastructure", icon: "💻", color: "#6366f1", actions: ["Disconnect from internet — air-gap all critical devices", "Switch to offline comms immediately (HAM radio, satellite)", "Verify banking and financial accounts if still accessible", "Activate manual overrides for any smart-home systems", "Assume all digital infrastructure is compromised"] },
-  { id: "supply_chain", name: "Supply Chain Disruption", icon: "🚚", color: "#14b8a6", actions: ["Inventory all consumables — begin rationing plan immediately", "Prioritize acquiring fuel before shortages worsen", "Activate community mutual aid and resource sharing", "Begin garden production if growing season permits", "Identify local alternative supply sources and barter options"] },
-];
+
 
 const NATO_PHONETIC = [
   { letter: "A", word: "Alpha" }, { letter: "B", word: "Bravo" }, { letter: "C", word: "Charlie" },
@@ -2671,7 +2664,7 @@ function emptyPlan() {
   return { version: 4, items: [], people: 1, dailyCalTarget: 2000, climate: "cold", pins: [], propAddress: "", mapSetups: {}, routes: [],
     properties: DEFAULT_PROPERTIES.slice(0, 1).map(property => ({ ...property })), activePropertyId: "prop1", members: [], contacts: [],
     callSigns: [], codeWords: [], rallyPoints: [], codes: [], gardenBeds: [], actionLog: [], soilTests: [], compostBins: [],
-    livestock: [], slaughterLog: [], bugOutEntries: [], propertyProfile: { ...DEFAULT_PROPERTY_PROFILE }, demoData: false, localSettings: {} };
+    livestock: [], slaughterLog: [], bugOutEntries: [], propertyProfile: { ...DEFAULT_PROPERTY_PROFILE }, emergencyPlan: null, demoData: false, localSettings: {} };
 }
 
 export default function PrepVault() {
@@ -2680,9 +2673,9 @@ export default function PrepVault() {
   const [recoveryError, setRecoveryError] = useState(initialPlan.current.error);
   const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
-  const [dailyCalTarget, setDailyCalTarget] = useState(() => saved.current?.dailyCalTarget ?? 2000);
+  const [dailyCalTarget, setDailyCalTarget] = useState(() => saved.current?.emergencyPlan?.active ? saved.current.emergencyPlan.dailyCalTarget : saved.current?.dailyCalTarget ?? 2000);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => saved.current?.emergencyPlan?.active ? "emergency-mode" : "dashboard");
   const [inventorySearch, setInventorySearch] = useState({ query: "", status: "all", key: 0 });
   const [demoData, setDemoData] = useState(() => saved.current?.demoData ?? !saved.current);
   const [showDetailedDashboard, setShowDetailedDashboard] = useState(false);
@@ -2695,7 +2688,7 @@ export default function PrepVault() {
     setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]);
     setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]);
     setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]);
-    setBugOutEntries([]); setDemoData(false); setDailyCalTarget(2000);
+    setBugOutEntries([]); setDemoData(false); setDailyCalTarget(2000); setEmergencyPlan(null);
     setPeople(1); setPropAddress(""); setPropertyProfile({ ...DEFAULT_PROPERTY_PROFILE });
     setProperties(DEFAULT_PROPERTIES.slice(0, 1)); setActivePropertyId("prop1"); navigate("dashboard");
   };
@@ -2710,10 +2703,18 @@ export default function PrepVault() {
   const [newPropName, setNewPropName] = useState("");
   const [newPropType, setNewPropType] = useState("cabin");
   const [showSiteMenu, setShowSiteMenu] = useState(false);
-  const [crisisMode, setCrisisMode] = useState(false);
-  const [crisisStart, setCrisisStart] = useState(null);
-  const [crisisType, setCrisisType] = useState(null);
-  const [showCrisisSelector, setShowCrisisSelector] = useState(false);
+  const [emergencyPlan, setEmergencyPlan] = useState(() => saved.current?.emergencyPlan || null);
+  const crisisMode = emergencyPlan?.active === true;
+  const crisisStart = emergencyPlan?.startedAt || null;
+  const crisisType = emergencyPlan?.scenarioId || null;
+  const [emergencyNow, setEmergencyNow] = useState(() => new Date());
+  useEffect(() => {
+    if (!crisisMode) return;
+    const refresh = () => setEmergencyNow(new Date());
+    const timer = setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    return () => { clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [crisisMode]);
   const [showAdd, setShowAdd] = useState(false);
   const [addCat, setAddCat] = useState(null);
   const [editItem, setEditItem] = useState(null);
@@ -2811,7 +2812,7 @@ export default function PrepVault() {
           items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
           soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
-          propertyProfile, demoData,
+          propertyProfile, emergencyPlan, demoData,
           savedAt: new Date().toISOString()
         }));
         setDbStatus("saved");
@@ -2823,7 +2824,7 @@ export default function PrepVault() {
     saveTimerRef.current = setTimeout(persist, 350);
     window.addEventListener("pagehide", persist);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); window.removeEventListener("pagehide", persist); };
-  }, [authReady, recoveryError, user?.id, items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, demoData]);
+  }, [authReady, recoveryError, user?.id, items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, emergencyPlan, demoData]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -2912,7 +2913,7 @@ export default function PrepVault() {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       restoreSnapshot(result.snapshot, true, false);
       setShowQuickStart(false); setShowStartPlan(false); setUpgradeNotices([]); setShowAdd(false);
-      setShowScanner(false); setShowSecurity(false); setCrisisMode(false); setCrisisType(null); setCrisisStart(null);
+      setShowScanner(false); setShowSecurity(false);
       setRevealedCodes({}); setDbPassphrase(""); setExportPw(""); setImportPw("");
       backupOperation.current += 1; backupRunning.current = false; setBackupBusy(false); setPendingRestore(null); setSavedSnapshotStatus(snapshotStatus());
       setEncryptedDb(false); setSecMsg(""); setToast(null); navigate("dashboard");
@@ -2944,7 +2945,7 @@ export default function PrepVault() {
     timestamp: new Date().toISOString(),
     items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
     members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
-    soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, demoData,
+    soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, emergencyPlan, demoData,
     localSettings: captureWorkspaceSettings(localStorage),
     meta: { categories: Object.keys(CATEGORIES).length, scenarios: Object.keys(SCENARIOS).length, properties: properties.length }
   });
@@ -2955,6 +2956,7 @@ export default function PrepVault() {
   const prepareRestoredSnapshot = (raw, includeSettings = true) => {
     const validated = validateSnapshot(raw);
     const data = includeSettings ? { ...emptyPlan(), ...validated } : { ...currentSnapshotRef.current, ...validated };
+    if (data.emergencyPlan?.active) data.dailyCalTarget = data.emergencyPlan.dailyCalTarget;
     if (includeSettings) data.localSettings = { [CONVERSATION_NOTES_KEY]: "[]", ...data.localSettings };
     if (data.items.some(i => !CATEGORIES[i.category] || !CATEGORIES[i.category].subTypes[i.subType])) throw new Error("Backup contains an unknown supply category or type.");
     if (!CLIMATES[data.climate]) throw new Error("Backup contains an unknown climate.");
@@ -2970,7 +2972,7 @@ export default function PrepVault() {
     Object.entries(arrays).forEach(([key, setter]) => { if (data[key] !== undefined) setter(data[key]); });
     setPeople(data.people); setDailyCalTarget(data.dailyCalTarget ?? 2000); setClimate(data.climate); setPropAddress(data.propAddress);
     setMapSetups(data.mapSetups || {}); setRoutes(data.routes || []); setActivePropertyId(data.activePropertyId);
-    setPropertyProfile(data.propertyProfile); setDemoData(data.demoData);
+    setPropertyProfile(data.propertyProfile); setEmergencyPlan(data.emergencyPlan || null); setDemoData(data.demoData);
     if (includeSettings) {
       try { const dismissed = JSON.parse(localStorage.getItem("prepvault-dismissed-opps") || "[]"); setDismissedOpps(Array.isArray(dismissed) ? dismissed : []); } catch { setDismissedOpps([]); }
       const until = Number(localStorage.getItem("prepvault-alerts-dismissed-until"));
@@ -2981,6 +2983,41 @@ export default function PrepVault() {
     saved.current = data; currentSnapshotRef.current = data;
     setSelCat(null); setLastSaved(data.savedAt); setDbStatus("saved"); setRecoveryError("");
   };
+  // Save emergency actions synchronously: an active indicator must represent a
+  // durable plan, and account switches must never write into another workspace.
+  const commitEmergencyPlan = next => {
+    try {
+      if (!authReady || recoveryError || safeWorkspaceOwner() !== workspaceOwnerRef.current) throw new Error("Reconnect to your workspace before changing emergency mode.");
+      const plan = validateEmergencyPlan(next);
+      if (plan?.active && plan.propertyId !== "all" && !properties.some(property => property.id === plan.propertyId)) throw new Error("Choose an existing property for the emergency plan.");
+      const snapshot = { ...getDbSnapshot(), emergencyPlan: plan, dailyCalTarget: plan?.active ? plan.dailyCalTarget : dailyCalTarget };
+      const persisted = persistRestoredSnapshot(localStorage, snapshot, { includeSettings: false });
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      currentSnapshotRef.current = persisted;
+      saved.current = persisted;
+      setEmergencyPlan(plan); setDailyCalTarget(persisted.dailyCalTarget);
+      setEmergencyNow(new Date()); setDbStatus("saved"); setLastSaved(persisted.savedAt);
+      return true;
+    } catch (error) {
+      setToast({ msg: error.message || "Emergency mode could not be saved. Your plan has not changed.", type: "error" });
+      return false;
+    }
+  };
+  const openEmergencyMode = () => {
+    if (!crisisMode && !commitEmergencyPlan(createEmergencyPlan({ ...emergencyPlan, propertyId: activePropertyId, dailyCalTarget }, new Date()))) return;
+    navigate("emergency-mode");
+    window.scrollTo({ top: 0, behavior: "instant" });
+  };
+  const endEmergencyMode = () => {
+    const saved = commitEmergencyPlan(deactivateEmergencyPlan(emergencyPlan, new Date()));
+    if (saved) navigate("dashboard");
+    return saved;
+  };
+  const updateCalorieTarget = value => {
+    if (crisisMode) commitEmergencyPlan(updateEmergencyPlan(emergencyPlan, { dailyCalTarget: value }));
+    else setDailyCalTarget(value);
+  };
+
   const runBackupOperation = async (name, action) => {
     if (backupRunning.current) return;
     backupRunning.current = true;
@@ -3107,6 +3144,7 @@ export default function PrepVault() {
   };
   const removeProperty = (id) => {
     if (id === "prop1") return;
+    if (crisisMode && emergencyPlan.propertyId === id) { setToast({ msg: "End emergency mode or choose another property in its settings before deleting this property.", type: "error" }); return; }
     if (!window.confirm("Delete this property, its supplies, saved map and travel routes? This cannot be undone.")) return;
     setProperties(p => p.filter(pp => pp.id !== id));
     setItems(p => p.filter(i => i.propertyId !== id));
@@ -3212,7 +3250,7 @@ export default function PrepVault() {
   const visibleAlerts = allAlerts.filter(a => !a.id || propItems.some(i => i.id === a.id));
   const navigationHealth = buildNavigationHealth({
     items: propItems, supplyCategoryKeys: Object.keys(SUPPLY_CATEGORIES), alerts: visibleAlerts,
-    peopleCount: rationPeople.length, dailyCalTarget, contacts, propertyProfile, activePropertyId,
+    peopleCount: rationPeople.length, dailyCalTarget, waterGalPerPerson: crisisMode ? emergencyPlan.waterGalPerPerson : 1, contacts, propertyProfile, activePropertyId,
     mapSetups, routes, callSigns, rallyPoints, bugOutEntries, codes, gardenBeds, soilTests, compostBins, livestock,
   });
   const tabs = [{ id: "dashboard", l: "Dashboard", i: "◈" }, { id: "property", l: "Property", i: "🏠" }, { id: "preps", l: "Preps", i: "📦" }, { id: "community", l: "Team", i: "👥" }, { id: "comms", l: "Comms", i: "📡" }, { id: "farming", l: "Farming", i: "🌱" }];
@@ -3223,21 +3261,35 @@ export default function PrepVault() {
           contacts, members, dailyCalTarget, callSigns, codeWords, rallyPoints, codes,
           commsPlan: COMMS_PLAN, gardenBeds, soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
           actionLog, selScen, scenario: SCENARIOS[selScen], simDuration, crisisMode, crisisType,
-          crisisStart, dismissedOpps, allAlerts, manuals, handbooks: HANDBOOKS, demoData,
+          crisisStart, emergencyPlan, dismissedOpps, allAlerts, manuals, handbooks: HANDBOOKS, demoData,
           device: readAdvisorDeviceContext(localStorage),
         });
 
+  const navigateEmergency = destination => {
+    if (crisisMode && ["food", "water", "rationing"].includes(destination)) setActivePropertyId(emergencyPlan.propertyId);
+    navigate(destination);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  };
+  const emergencyWorkspace = <EmergencyWorkspace plan={emergencyPlan} onChange={commitEmergencyPlan} onActivate={openEmergencyMode} onDeactivate={endEmergencyMode} items={items} rationPeople={rationPeople} onNavigate={navigateEmergency} onCategory={category => { setActivePropertyId(emergencyPlan?.propertyId || activePropertyId); openCategory(category); window.scrollTo({ top: 0, behavior: "instant" }); }} properties={properties} now={emergencyNow}/>;
+  const emergencySummary = crisisMode ? buildEmergencySummary({ plan: emergencyPlan, items, rationPeople, now: emergencyNow }) : null;
+  const emergencySchedule = crisisMode ? buildEmergencySchedule({ plan: emergencyPlan, items, rationPeople, now: emergencyNow }) : [];
   const renderContent = () => {
     if (selCat) {
-      return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={selCat} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
+      return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={selCat} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={selCat} items={propItems} people={people} climate={climate} onBack={() => setSelCat(null)} onAdd={(c) => openAdd(c)} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} />;
     }
     switch (activeTab) {
       case "bugout":
         return <BugOutPlan entries={bugOutEntries} setEntries={setBugOutEntries} items={items} contacts={contacts} />;
       case "emergency":
-        return <HandbookLibrary crisisMode={crisisMode} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} />;
+        return <HandbookLibrary crisisMode={crisisMode} onCrisis={openEmergencyMode} />;
+      case "emergency-mode":
+        return emergencyWorkspace;
       case "dashboard":
-        return <><Overview items={propItems} categories={CATEGORIES} people={contacts.length} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={contacts} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content pv-quiet-legacy"><DashboardTab items={propItems} setSelCat={openCategory} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} dismissResetKey={dismissResetKey} /></div>}</details></>;
+        if (crisisMode) return emergencyWorkspace;
+      // Intentional shared overview renderer for the normal home and optional readiness view.
+      // eslint-disable-next-line no-fallthrough
+      case "readiness":
+        return <><Overview items={propItems} categories={CATEGORIES} people={contacts.length} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onCrisis={openEmergencyMode} onScan={() => setShowScanner(true)} members={contacts} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content pv-quiet-legacy"><DashboardTab items={propItems} setSelCat={openCategory} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "codes":
         return <CodesView onSetup={openSetup} codes={codes} setCodes={setCodes} members={members} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} />;
       case "manuals":
@@ -3247,7 +3299,7 @@ export default function PrepVault() {
       case "property":
         return <PropertyTab propSub={propSub} setPropSub={setPropSub} propAddress={propAddress} setPropAddress={setPropAddress} pins={pins} setPins={setPins} routes={routes} setRoutes={setRoutes} mapSetups={mapSetups} setMapSetups={setMapSetups} properties={properties} activePropertyId={activePropertyId} amenities={amenities} user={user} items={propItems} onSetup={openSetup} members={[...contacts, ...members]} demoData={demoData} onOpenPropertyMap={setActivePropertyId} />;
       case "calendar":
-        return <PreparednessCalendar key={restoreVersion} items={propItems} gardenBeds={gardenBeds} soilTests={soilTests} compostBins={compostBins} livestock={livestock} slaughterLog={slaughterLog} bugOutEntries={bugOutEntries} onCategory={openCategory} onNavigate={navigate}/>;
+        return <PreparednessCalendar key={restoreVersion} items={propItems} gardenBeds={gardenBeds} soilTests={soilTests} compostBins={compostBins} livestock={livestock} slaughterLog={slaughterLog} bugOutEntries={bugOutEntries} emergencyPlan={emergencyPlan} emergencyItems={items} rationPeople={rationPeople} onEmergencyPlanChange={commitEmergencyPlan} onCategory={openCategory} onNavigate={navigate}/>;
       case "farm-guides":
         return <Suspense fallback={<p role="status">Opening farm guides…</p>}><GrowingLibrary onOpenFarm={() => navigate("farming")}/></Suspense>;
       case "skills":
@@ -3260,7 +3312,7 @@ export default function PrepVault() {
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "food":
       case "water":
-        return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget)} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
+        return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget, crisisMode ? emergencyPlan.waterGalPerPerson : 1)} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
       case "inventory-search":
       case "preps": {
         const allInventory = activeTab === "inventory-search";
@@ -3268,14 +3320,14 @@ export default function PrepVault() {
         const listedCategories = allInventory ? CATEGORIES : SUPPLY_CATEGORIES;
         const listedAlerts = allInventory ? visibleAlerts : visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category));
         const addSupply = () => openAdd(allInventory ? undefined : "medical");
-        return <><InventoryView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} propertyId={activePropertyId} onManagePeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water and Supplies together across your selected property." : "Equipment and everyday essentials, beyond food and water."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
+        return <><InventoryView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} onManagePeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water and Supplies together across your selected property." : "Equipment and everyday essentials, beyond food and water."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       }
       case "community":
         return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} user={user} contacts={contacts} setContacts={setContacts} />;
       case "board":
         return <Suspense fallback={<p role="status">Opening the community board…</p>}><MessageBoard /></Suspense>;
       case "rationing":
-        return <RationingPlanner items={propItems} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onManagePeople={() => navigate("community")} />;
+        return <>{crisisMode && <EmergencySchedule plan={emergencyPlan} items={items} rationPeople={rationPeople} onChange={commitEmergencyPlan} onNavigate={navigateEmergency} now={emergencyNow}/>}{crisisMode && <p className="pv-rationing-notice">Emergency estimates below use eligible stock at {emergencyPlan.propertyId === "all" ? "all properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "the selected property"}. Past or invalid expiry dates, livestock and hunting equipment are excluded. Check condition and preparation needs before use.</p>}<RationingPlanner items={emergencySummary ? [...emergencySummary.foodItems, ...emergencySummary.waterItems] : propItems} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={updateCalorieTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} onManagePeople={() => navigate("community")} /></>;
       case "comms":
         return <CommunicationsView plan={COMMS_PLAN} frequencies={EMERGENCY_FREQUENCIES} prowords={PROWORDS} phonetic={NATO_PHONETIC} equipmentTypes={CATEGORIES.comms.subTypes} sampleChat={demoData ? SAMPLE_CHAT : []} onSupplies={() => openCategory("comms")} items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
@@ -3301,7 +3353,7 @@ export default function PrepVault() {
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
   };
   return (
-    <WorkspaceShell navigationHealth={navigationHealth} onHome={() => { setShowLanding(true); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} crisisMode={crisisMode} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
+    <WorkspaceShell navigationHealth={navigationHealth} onHome={() => { if (crisisMode) navigate("emergency-mode"); else setShowLanding(true); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={openEmergencyMode} crisisMode={crisisMode} emergencyBanner={crisisMode ? <EmergencyBanner plan={emergencyPlan} schedule={emergencySchedule} onOpen={() => navigateEmergency("emergency-mode")} onNavigate={navigateEmergency} propertyName={emergencyPlan.propertyId === "all" ? "All properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "Property unavailable"} now={emergencyNow}/> : null} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -3356,132 +3408,12 @@ export default function PrepVault() {
         }
       `}</style>
 
-      {/* ═══ CRISIS ACTIVATE MODE ═══ */}
-      {crisisMode && (() => {
-        const _clim = CLIMATES[climate] || CLIMATES.temperate;
-        const _waterMod = _clim.waterMod || 1;
-        const _firewoodMod = _clim.firewoodMod || 1;
-        const p = people || 4;
-        const fuelGals = items.filter((i) => i.category === "fuel" && i.subType === "gasoline").reduce((s, i) => s + (i.quantity || 0) * (parseFloat(i.fields?.fuelGallons || i.fields?.gallons) || 5), 0);
-        const propTanks = items.filter((i) => i.category === "fuel" && i.subType === "propane").reduce((s, i) => s + (i.quantity || 0), 0);
-        const batteries = items.filter((i) => i.category === "batteries").reduce((s, i) => s + (i.quantity || 0), 0);
-        const solarPanels = items.filter((i) => (i.category === "power" && i.subType === "solarPanel") || (i.category === "electronics" && i.subType === "solarDevice")).reduce((s, i) => s + (i.quantity || 0), 0);
-        const waterGals = items.filter((i) => i.category === "water" && i.subType === "storedWater").reduce((s, i) => s + (i.quantity || 0), 0);
-        const firewoodCords = items.filter((i) => i.category === "firewood").reduce((s, i) => s + (parseFloat(i.fields?.cords) || 0) * (i.quantity || 1), 0);
-        const totalCals = items.filter((i) => i.category === "food").reduce((s, i) => {
-          const cal = parseFloat(i.fields?.totalCalories || i.fields?.caloriesPerServing || i.fields?.calories || 0);
-          const serv = parseFloat(i.fields?.servings || 1);
-          return s + (cal > 500 ? cal : cal * serv) * (i.quantity || 1);
-        }, 0);
-
-        const powerHrs = fuelGals * 5.5 + batteries * 0.3 + solarPanels * 5;
-        const waterDays = waterGals / Math.max(p * 1.0 * _waterMod, 0.1);
-        const heatDays = _firewoodMod > 1 ? (firewoodCords * 30 + propTanks * 4.6 * 91452 / 18000 / 12) / _firewoodMod : 999;
-        const calDays = totalCals / Math.max(p * 2000, 1);
-
-        const elapsed = crisisStart ? Math.floor((new Date() - crisisStart) / 3600000 * 10) / 10 : 0;
-
-        /* Optimization suggestions */
-        const suggestions = [];
-        if (powerHrs > 0) {
-          suggestions.push({ icon: "🧊", action: "Reduce fridge to 4hr/day cycles", gain: "+" + (powerHrs * 0.15).toFixed(1) + "h", detail: "Run fridge 4hrs on, 8hrs off. Keeps food safe 48hrs+ if unopened.", impact: "power", pct: 15 });
-          suggestions.push({ icon: "🔥", action: "Shift to wood/propane heat", gain: "+" + (powerHrs * 0.25).toFixed(1) + "h", detail: "Eliminate furnace blower draw (300-600W). Use wood stove instead.", impact: "power", pct: 25 });
-          suggestions.push({ icon: "🔌", action: "Kill standby devices", gain: "+" + (powerHrs * 0.07).toFixed(1) + "h", detail: "Unplug all non-essential: TV, router, chargers, microwave clock. Phantom loads = ~50W.", impact: "power", pct: 7 });
-          suggestions.push({ icon: "💡", action: "Switch to battery lanterns", gain: "+" + (powerHrs * 0.05).toFixed(1) + "h", detail: "LED lanterns on AA batteries instead of powered lights. Save generator fuel.", impact: "power", pct: 5 });
-        }
-        if (waterDays < 14) {
-          suggestions.push({ icon: "🛁", action: "Fill all bathtubs and containers", gain: "+2-3 days", detail: "Standard bathtub = 40 gal. Fill NOW while pressure exists. Fill pots, buckets, coolers.", impact: "water", pct: 0 });
-          suggestions.push({ icon: "🚿", action: "Eliminate bathing — sponge baths only", gain: "+30% water life", detail: "Sponge bath uses 1qt vs shower at 17gal. Prioritize drinking water.", impact: "water", pct: 30 });
-        }
-        if (calDays < 30) {
-          suggestions.push({ icon: "🍳", action: "Ration to 1,500 cal/person/day", gain: "+" + (calDays * 0.33).toFixed(1) + " days food", detail: "Reduce from 2,000 to 1,500 cal. Sustainable for weeks. Prioritize calorie-dense foods.", impact: "food", pct: 33 });
-        }
-        if (heatDays < 30 && climate === "cold") {
-          suggestions.push({ icon: "🏠", action: "Consolidate to one heated room", gain: "+60% heat duration", detail: "Seal off unused rooms. Hang blankets over doorways. One room = less volume to heat.", impact: "heat", pct: 60 });
-        }
-
-        return (
-          <div style={{ background: "linear-gradient(180deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02) 40%, transparent)", borderBottom: "1px solid rgba(239,68,68,0.1)" }}>
-            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 20px" }}>
-              {/* Status bar */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 4, background: "#ef4444", animation: "pulse 1s infinite" }} />
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", letterSpacing: 2 }}>Crisis Mode Active</div>
-                <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", fontFamily: M }}>Elapsed: {elapsed}h</div>
-                <button onClick={() => { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); }} style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, background: "rgba(47,76,39,0.04)", border: "1px solid #dce3d5", color: "rgba(36,61,48,0.58)", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit" }}>Deactivate</button>
-              </div>
-
-              {/* Immediate Actions for Crisis Type */}
-              {crisisType && (() => {
-                const ct = CRISIS_TYPES.find(c => c.id === crisisType);
-                if (!ct) return null;
-                return (
-                  <div style={{ padding: 14, marginBottom: 12, borderRadius: 10, borderLeft: "4px solid " + ct.color, background: ct.color + "08", border: "1px solid " + ct.color + "20" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 20 }}>{ct.icon}</span>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: ct.color, fontFamily: M }}>{ct.name}</div>
-                    </div>
-                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Immediate Actions</div>
-                    {ct.actions.map((a, i) => (
-                      <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", fontSize: 11, color: "rgba(36,61,48,0.6)" }}>
-                        <span style={{ color: ct.color, fontWeight: 800, fontSize: 12, flexShrink: 0, fontFamily: M }}>{i + 1}.</span>
-                        <span>{a}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-
-              {/* Resource countdown */}
-              <div className="pcs-crisis-grid">
-                {[
-                  { icon: "🔋", label: "Power", value: Math.max(powerHrs - elapsed, 0).toFixed(1), unit: "hrs left", total: powerHrs.toFixed(1) + "h total", color: (powerHrs - elapsed) > 24 ? "#22c55e" : (powerHrs - elapsed) > 6 ? "#f59e0b" : "#ef4444", pct: Math.max((powerHrs - elapsed) / Math.max(powerHrs, 1) * 100, 0) },
-                  { icon: "💧", label: "Water", value: waterDays.toFixed(1), unit: "days left", total: waterGals + " gal stored", color: waterDays > 7 ? "#22c55e" : waterDays > 2 ? "#f59e0b" : "#ef4444", pct: Math.min(waterDays / 14 * 100, 100) },
-                  { icon: "🔥", label: "Heat", value: climate === "cold" ? heatDays.toFixed(1) : "N/A", unit: climate === "cold" ? "days left" : "not needed", total: firewoodCords.toFixed(1) + " cords + " + propTanks + " propane", color: heatDays > 14 ? "#22c55e" : heatDays > 3 ? "#f59e0b" : "#ef4444", pct: climate === "cold" ? Math.min(heatDays / 30 * 100, 100) : 100 },
-                  { icon: "🍽️", label: "Food", value: calDays.toFixed(1), unit: "days left", total: Math.round(totalCals).toLocaleString() + " cal", color: calDays > 14 ? "#22c55e" : calDays > 3 ? "#f59e0b" : "#ef4444", pct: Math.min(calDays / 30 * 100, 100) },
-                ].map((r, i) => (
-                  <div key={i} style={{ background: "#f0f3ec", borderRadius: 10, padding: 12, border: "1px solid " + r.color + "20" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                      <span style={{ fontSize: 14 }}>{r.icon}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase" }}>{r.label}</span>
-                    </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: M, color: r.color, lineHeight: 1 }}>{r.value}</div>
-                    <div style={{ fontSize: 11, color: r.color, marginTop: 2 }}>{r.unit}</div>
-                    <div style={{ height: 3, background: "rgba(47,76,39,0.06)", borderRadius: 2, marginTop: 6 }}>
-                      <div style={{ height: "100%", width: r.pct + "%", background: r.color, borderRadius: 2, transition: "width 1s" }} />
-                    </div>
-                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 3 }}>{r.total}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Optimization suggestions */}
-              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.58)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>⚡ Optimization Suggestions</div>
-              <div className="pcs-opt-grid">
-                {suggestions.slice(0, 6).map((s, i) => (
-                  <div key={i} style={{ padding: "8px 12px", background: "rgba(0,0,0,0.15)", borderRadius: 8, border: "1px solid #e5eadd", display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <span style={{ fontSize: 16, flexShrink: 0 }}>{s.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(36,61,48,0.7)" }}>{s.action}</span>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e", fontFamily: M }}>{s.gain}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", lineHeight: 1.4 }}>{s.detail}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => setShowStartPlan(true)}>Start my own plan →</button></div>}
-      {crisisMode && <div className="pv-sample-banner"><Icon name="box" size={18}/><span>Your emergency grab list: {bugOutEntries.filter(entry => !entry.grabbed).length} items remaining.</span><button onClick={() => navigate("bugout")}>Open Bug Out →</button></div>}
+
       {showStartPlan && <PlanNotice title="Start your own plan" eyebrow="A FRESH START" onClose={() => setShowStartPlan(false)} actions={<><button className="pv-button pv-secondary" onClick={() => setShowStartPlan(false)}>Keep exploring</button><button className="pv-button pv-primary" onClick={() => { resetToOwnPlan(); setShowStartPlan(false); openSetup(); }}>Start my plan</button></>}><p>Replace the sample household with a blank plan, then add your home, people and supplies.</p><p>This clears the sample records and any changes you made to them. You can export a backup from Settings & backups first.</p></PlanNotice>}
       {upgradeNotices.length > 0 && <PlanNotice title="More room for your preparation" eyebrow="PLAN UPGRADE" onClose={() => setUpgradeNotices([])} actions={<button className="pv-button pv-primary" onClick={() => setUpgradeNotices([])}>Keep planning</button>}><p>The free plan includes 20 entries in each supply category. A paid plan will be needed above that limit.</p><ul>{upgradeNotices.map(notice => <li key={notice.category}><strong>{CATEGORIES[notice.category]?.label || notice.category}</strong><span>{notice.count} entries</span></li>)}</ul><p><strong>You can keep saving for now.</strong> Upgrades aren’t enforced yet, and your entries have been added. Nothing has been charged.</p></PlanNotice>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "board", "bugout", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className={!selCat && !["dashboard", "readiness", "emergency-mode", "food", "water", "inventory-search", "board", "bugout", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
@@ -3505,29 +3437,6 @@ export default function PrepVault() {
           onSkip={() => setShowQuickStart(false)}
           onPeople={() => navigate("community")}
         />
-      )}
-
-      {/* ═══ Crisis Type Selector Modal ═══ */}
-      {showCrisisSelector && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowCrisisSelector(false)}>
-          <div style={{ background: "#ffffff", borderRadius: 16, border: "2px solid rgba(239,68,68,0.3)", maxWidth: 480, width: "100%", padding: 24, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#ef4444", fontFamily: M }}>⚡ Activate Crisis Mode</h2>
-            <p style={{ margin: "0 0 16px", fontSize: 11, color: "rgba(36,61,48,0.58)" }}>Select the type of crisis to receive targeted immediate action steps.</p>
-            <div style={{ display: "grid", gap: 6 }}>
-              {CRISIS_TYPES.map(ct => (
-                <button key={ct.id} onClick={() => { setCrisisType(ct.id); setCrisisMode(true); setCrisisStart(new Date()); setShowCrisisSelector(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10, border: "1px solid " + ct.color + "30", background: ct.color + "08", cursor: "pointer", textAlign: "left", fontFamily: "inherit", color: "#243d30" }}>
-                  <span style={{ fontSize: 24 }}>{ct.icon}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: ct.color }}>{ct.name}</div>
-                    <div style={{ fontSize: 11, color: "rgba(36,61,48,0.58)", marginTop: 2 }}>{ct.actions[0]}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setShowCrisisSelector(false)} style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 8, border: "1px solid #dce3d5", background: "none", color: "rgba(36,61,48,0.58)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-          </div>
-        </div>
       )}
 
       {showSecurity && settingsPanel}

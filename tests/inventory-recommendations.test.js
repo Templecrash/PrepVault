@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildInventoryRecommendations } from '../src/inventory-recommendations.js';
 import { computeRationing } from '../src/rationing.js';
+import { buildEssentialPlanning } from '../src/essential-planning.js';
 
 const categories = {
   food: { label: 'Food', subTypes: { cannedGoods: { label: 'Canned goods' }, dryGoods: { label: 'Dry goods' }, preserves: { label: 'Preserves' } } },
@@ -70,6 +71,25 @@ test('water equipment and container capacity never create invented stored-water 
   assert.equal(coverage(build(equipment), 'water').days, 0);
   assert.equal(coverage(build([water, ...equipment]), 'water').days, 55);
   assert.match(coverage(build(equipment), 'water').note, /treatment add no stored days/);
+});
+
+test('water recommendations match the active two-gallon plan without changing other recommendations', () => {
+  const items = [food, water, tool];
+  const original = build(items, { peopleCount: 2 });
+  const result = build(items, { peopleCount: 2, waterGalPerPerson: 2 });
+  const waterPlan = buildEssentialPlanning('water', items, 2, 2000, 2);
+  assert.equal(coverage(original, 'water').days, 110);
+  assert.equal(coverage(result, 'water').days, 55);
+  assert.equal(String(coverage(result, 'water').days), waterPlan.bigNum);
+  assert.match(coverage(result, 'water').note, /2 dependants · 2 gal\/person\/day/);
+  assert.deepEqual(coverage(result, 'food'), coverage(original, 'food'));
+  assert.deepEqual(result.suggestions, original.suggestions);
+  assert.deepEqual(result.recordedTypes, original.recordedTypes);
+  const waterOnly = build(items, { categoryKey: 'water', peopleCount: 2, waterGalPerPerson: 2 });
+  assert.equal(coverage(waterOnly, 'water').days, 55);
+  assert.match(coverage(waterOnly, 'water').note, /2 gal\/person\/day/);
+  assert.equal(coverage(build(items, { peopleCount: 0, waterGalPerPerson: 2 }), 'water').days, null);
+  assert.match(coverage(build(items, { waterGalPerPerson: .1 }), 'water').note, /1 gal\/person\/day/);
 });
 
 test('unknown dependant count and calorie target stay unknown with useful navigation actions', () => {

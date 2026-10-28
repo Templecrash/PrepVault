@@ -54,3 +54,10 @@ The README retains the detailed boundaries for Neon owner authentication and opt
 Task diagrams are original local SVGs bundled as data with the app. They include alt descriptions and captions, can be enlarged and downloaded, and require no image-service requests. Farm exports embed each picture; original PDFs keep their existing images and byte hashes. Audited PDF-page shortcuts use file page numbers, not printed chapter labels. No professional clinical PDF is linked as a beginner skill visual.
 
 Equipment Manuals remain filename-only references: general diagrams do not establish that an exact manufacturer manual or service procedure has been reviewed. That distinction is displayed on each expanded record.
+
+
+### Emergency mode
+
+The validated `emergencyPlan` field is part of the working plan, account-isolated snapshots and encrypted backups. Its durable active state changes Overview, the app-wide indicator and mobile shortcuts. Food/water planning is scoped to a chosen property and marked dependants. Three meals, one water allocation and two check-ins are generated in local time for a bounded 1–90 day horizon. Calendar, Rationing and the emergency workspace share completion records. Current targets, property, coverage and today's schedule are included in the adviser's existing bounded allowlist.
+
+Completion does not mutate quantities or send messages. No hardware or background reminders are activated. Existing calorie targets carry forward; water allocations are not drinking limits. Emergency eligibility excludes past/invalid expiry dates and food entries representing livestock/hunting equipment. Normal recorded-inventory totals may include these entries. Plans run locally after restoring a backup in the downloaded app; they are not automatically replicated by legacy core-data sync.

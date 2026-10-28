@@ -40,8 +40,8 @@ function powerCoverage(items) {
   return { days: fullDays(hours / 24), basis, detail: `${format(hours)} hours at your planned load.` };
 }
 
-export function computeEssentialCoverage(items = [], peopleCount = 0, dailyCalTarget = 2000) {
-  const rationing = computeRationing(items, peopleCount, dailyCalTarget);
+export function computeEssentialCoverage(items = [], peopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1) {
+  const rationing = computeRationing(items, peopleCount, dailyCalTarget, waterGalPerPerson);
   const omitted = rationing.omittedFoodCount;
   const foodDetail = !rationing.peopleCount
     ? 'Mark dependants in Your People to estimate.'
@@ -52,7 +52,7 @@ export function computeEssentialCoverage(items = [], peopleCount = 0, dailyCalTa
     water: {
       days: fullDays(rationing.waterDays),
       basis: 'Stored-water coverage',
-      detail: rationing.peopleCount ? `${format(rationing.totalWaterGal)} gal · 1 gal/person/day.` : 'Mark dependants in Your People to estimate.',
+      detail: rationing.peopleCount ? `${format(rationing.totalWaterGal)} gal · ${format(rationing.waterGalPerPerson)} gal/person/day.` : 'Mark dependants in Your People to estimate.',
     },
     food: {
       days: fullDays(rationing.foodDays),

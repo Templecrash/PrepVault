@@ -25,9 +25,9 @@ function EssentialCoverage({ category, stats, coverage, icon, tone, onClick }) {
   </button>;
 }
 
-export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onCrisis, onScan, members = [], rationPeople = [], dailyCalTarget = 2000 }) {
+export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onCrisis, onScan, members = [], rationPeople = [], dailyCalTarget = 2000, waterGalPerPerson = 1 }) {
   const [showAllPriorities, setShowAllPriorities] = useState(false);
-  const coverage = useMemo(() => computeEssentialCoverage(items, rationPeople.length, dailyCalTarget), [items, rationPeople.length, dailyCalTarget]);
+  const coverage = useMemo(() => computeEssentialCoverage(items, rationPeople.length, dailyCalTarget, waterGalPerPerson), [items, rationPeople.length, dailyCalTarget, waterGalPerPerson]);
   const overview = useMemo(() => {
     const categoryKeys = Object.keys(categories);
     const summary = summarizeOverviewInventory(items, categories);

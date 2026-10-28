@@ -15,9 +15,10 @@ const FOOD_TYPES = {
 
 // Stored-water quantity is already measured in gallons. Capacity describes its
 // container and must not be multiplied into the recorded stock a second time.
-export function computeRationing(items = [], peopleCount = 0, dailyCalTarget = 2000) {
+export function computeRationing(items = [], peopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1) {
   const count = Math.floor(numberOrZero(peopleCount));
   const target = numberOrZero(dailyCalTarget);
+  const waterTarget = Math.max(1, Math.min(5, numberOrZero(waterGalPerPerson)));
   const foodItems = items.filter(item => item.category === 'food').map(item => {
     const quantity = numberOrZero(item.quantity);
     const caloriesPerServing = numberOrZero(item.fields?.calories);
@@ -31,9 +32,9 @@ export function computeRationing(items = [], peopleCount = 0, dailyCalTarget = 2
   const totalWaterGal = waterItems.reduce((sum, item) => sum + item.gallons, 0);
   const mealSuggestions = count ? foodItems.filter(item => item.quantity > 0 && item.hasCalorieData).sort((a, b) => b.caloriesPerServing - a.caloriesPerServing).slice(0, 6).map(item => ({ ...item, unitsNeeded: Math.ceil(count / item.servings), shortOnStock: item.quantity < Math.ceil(count / item.servings) })) : [];
   return {
-    peopleCount: count, dailyCalTarget: target, totalCalories, totalWaterGal,
+    peopleCount: count, dailyCalTarget: target, waterGalPerPerson: waterTarget, dailyWaterGal: count ? count * waterTarget : null, totalCalories, totalWaterGal,
     foodDays: count && target ? Math.floor(totalCalories / (count * target)) : null,
-    waterDays: count ? Math.floor(totalWaterGal / count) : null,
+    waterDays: count ? Math.floor(totalWaterGal / (count * waterTarget)) : null,
     omittedFoodCount: foodItems.filter(item => item.quantity > 0 && !item.hasCalorieData).length,
     foodItems, waterItems, mealSuggestions,
   };

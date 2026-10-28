@@ -91,7 +91,7 @@ export function buildNavigationHealth(input = {}) {
   const codes = list(input.codes);
   const supplyKeys = Array.isArray(input.supplyCategoryKeys) ? input.supplyCategoryKeys : [...new Set(items.map(item => item.category).filter(category => !['food', 'water'].includes(category)))];
   const supplies = items.filter(item => supplyKeys.includes(item.category) && !['food', 'water'].includes(item.category));
-  const ration = computeRationing(items, input.peopleCount, input.dailyCalTarget);
+  const ration = computeRationing(items, input.peopleCount, input.dailyCalTarget, input.waterGalPerPerson);
   const food = coverageHealth('food', items, relevantAlerts(alerts, items, ['food']), ration);
   const water = coverageHealth('water', items, relevantAlerts(alerts, items, ['water']), ration);
   const preps = stockHealth(supplies, relevantAlerts(alerts, supplies, supplyKeys), 'supply');

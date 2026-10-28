@@ -5,9 +5,9 @@ const peopleLabel = count => `${format(count)} ${count === 1 ? 'person' : 'peopl
 
 // Dedicated Food and Water pages use the same recorded stock and assumptions
 // as Overview and Rationing. Treatment equipment is not stored drinking water.
-export function buildEssentialPlanning(category, items = [], peopleCount = 0, dailyCalTarget = 2000) {
+export function buildEssentialPlanning(category, items = [], peopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1) {
   if (!['food', 'water'].includes(category)) return null;
-  const ration = computeRationing(items, peopleCount, dailyCalTarget);
+  const ration = computeRationing(items, peopleCount, dailyCalTarget, waterGalPerPerson);
   const count = ration.peopleCount;
   const noPeople = !count;
   const people = { label: 'People in this plan', value: count ? peopleLabel(count) : 'Not set', note: 'Only contacts marked as dependants in Your People' };
@@ -39,13 +39,13 @@ export function buildEssentialPlanning(category, items = [], peopleCount = 0, da
     title: 'Stored-water coverage',
     bigNum: ration.waterDays === null ? '—' : format(ration.waterDays),
     bigUnit: 'full days',
-    summary: missingSettings || `${peopleLabel(count)} · 1 gal/person/day · stored water only`,
+    summary: missingSettings || `${peopleLabel(count)} · ${format(ration.waterGalPerPerson)} gal/person/day · stored water only`,
     rows: [
       { label: 'Stored water', value: `${format(ration.totalWaterGal)} gal`, note: 'Recorded stored-water quantities, in gallons; container capacity is not multiplied again' },
       people,
-      { label: 'Daily consumption', value: noPeople ? 'Not available' : `${format(count)} gal/day`, note: missingSettings || `${format(count)} × 1 gal/person/day, matching Rationing` },
+      { label: 'Daily consumption', value: noPeople ? 'Not available' : `${format(ration.dailyWaterGal)} gal/day`, note: missingSettings || `${format(count)} × ${format(ration.waterGalPerPerson)} gal/person/day for drinking, food preparation and hygiene. This is not a drinking limit.` },
       { label: 'Sources & treatment', value: 'Tracked separately', note: 'Filters, tablets, wells and other sources do not add stored gallons or bonus days' },
-      { label: 'Stored-water coverage', value: ration.waterDays === null ? 'Not available' : `${format(ration.waterDays)} full days`, note: missingSettings || `${format(ration.totalWaterGal)} ÷ ${format(count)}; rounded down`, highlight: true },
+      { label: 'Stored-water coverage', value: ration.waterDays === null ? 'Not available' : `${format(ration.waterDays)} full days`, note: missingSettings || `${format(ration.totalWaterGal)} ÷ ${format(ration.dailyWaterGal)}; rounded down`, highlight: true },
     ],
   };
 }

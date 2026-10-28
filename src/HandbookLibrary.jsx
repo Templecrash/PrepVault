@@ -303,7 +303,7 @@ export default function HandbookLibrary({ onCrisis, crisisMode }) {
     {message && <p className="pv-handbook-message" role="status"><Icon name="check" size={16}/>{message}</p>}
     {error && <p className="pv-handbook-error" role="alert">{error}</p>}
 
-    <div className="pv-handbook-care-note"><Icon name="shield" size={19}/><p>Surgery and clinical manuals are for trained professionals. For urgent care, contact local emergency services.</p>{onCrisis && <button type="button" onClick={onCrisis}>{crisisMode ? 'End emergency mode' : 'Emergency mode'}<Icon name="arrow" size={14}/></button>}</div>
+    <div className="pv-handbook-care-note"><Icon name="shield" size={19}/><p>Surgery and clinical manuals are for trained professionals. For urgent care, contact local emergency services.</p>{onCrisis && <button type="button" onClick={onCrisis}>{crisisMode ? 'Open emergency plan' : 'Emergency mode'}<Icon name="arrow" size={14}/></button>}</div>
 
     <section className="pv-handbook-collection" aria-labelledby="handbook-collection-title">
       <div className="pv-handbook-collection-heading"><h2 id="handbook-collection-title">The handbook collection</h2><span>{checking && savedOnly ? 'Checking…' : `${visibleBooks.length} ${visibleBooks.length === 1 ? 'guide' : 'guides'}`}</span></div>

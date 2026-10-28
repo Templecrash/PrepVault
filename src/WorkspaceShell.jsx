@@ -35,7 +35,7 @@ function PropertyDialog({ onClose, children }) {
   return <div className="pv-modal-backdrop" onClick={onClose}><section ref={ref} className="pv-dialog" role="dialog" aria-modal="true" aria-labelledby="property-title" onClick={e => e.stopPropagation()}>{children}</section></div>;
 }
 
-export default function WorkspaceShell({ activeTab, onNavigate, onHome, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, onSearch, alertCount, inventoryAlertCounts = {}, navigationHealth = {}, getPrepChatContext, prepChatResetKey, children }) {
+export default function WorkspaceShell({ activeTab, onNavigate, onHome, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, emergencyBanner, onSearch, alertCount, inventoryAlertCounts = {}, navigationHealth = {}, getPrepChatContext, prepChatResetKey, children }) {
   const [calendarDay, setCalendarDay] = useState(() => new Date().getDate());
   useEffect(() => { const timer = setInterval(() => setCalendarDay(new Date().getDate()), 60_000); return () => clearInterval(timer); }, []);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -75,11 +75,11 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
     };
   }, [accountOpen]);
   const navigate = id => { onNavigate(id); setMenuOpen(false); setAccountOpen(false); window.scrollTo({ top: 0, behavior: 'instant' }); };
-  const currentDestination = destinations.find(d => d.id === activeTab) || (activeTab === 'inventory-search' ? { label: 'All inventory' } : null);
-  const quickDestinations = destinations.filter(d => ['dashboard', 'preps', 'property', 'community'].includes(d.id));
+  const currentDestination = activeTab === 'emergency-mode' || (activeTab === 'dashboard' && crisisMode) ? { label: 'Emergency mode' } : destinations.find(d => d.id === activeTab) || (activeTab === 'inventory-search' ? { label: 'All inventory' } : activeTab === 'readiness' ? { label: 'Readiness overview' } : null);
+  const quickDestinations = crisisMode ? [{ id: 'emergency-mode', label: 'Emergency', icon: 'shield' }, ...['rationing', 'bugout', 'community'].map(id => destinations.find(destination => destination.id === id))] : destinations.filter(d => ['dashboard', 'preps', 'property', 'community'].includes(d.id));
   const siteName = activeTab === 'board' ? 'Public community' : propertyId === 'all' ? 'All properties' : properties.find(p => p.id === propertyId)?.name || 'My property';
   const status = dbStatus === 'error' ? 'Local save failed' : dbStatus === 'unsaved' ? 'Saving on this device…' : isOffline ? 'Offline · on this device' : syncStatus === 'syncing' ? 'Syncing changes…' : syncStatus === 'synced' ? 'Core data synced' : syncStatus === 'error' ? 'Sync needs attention' : 'Saved on this device';
-  return <div className="pv-workspace">
+  return <div className={`pv-workspace${crisisMode ? " is-emergency-mode" : ""}`}>
     <a className="pv-skip" href="#main-content">Skip to content</a>
     {menuOpen && <button className="pv-nav-scrim" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
     <aside id="pv-main-navigation" className={`pv-sidebar ${menuOpen ? 'is-open' : ''}`} aria-label="Main navigation">
@@ -91,7 +91,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
       </div>
       <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} aria-describedby={navigationHealth[d.id] ? `pv-nav-health-${d.id}` : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{d.id === "calendar" && <span className="pv-sidebar-calendar-day" aria-label={`Today is day ${calendarDay}`}>{calendarDay}</span>}{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}<NavHealthMeter health={navigationHealth[d.id]} descriptionId={`pv-nav-health-${d.id}`} /></button></div>)}</nav>
       <div className="pv-sidebar-bottom">
-        <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={onCrisis}><Icon name="shield" size={18}/>{crisisMode ? 'End emergency mode' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
+        <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={() => { setMenuOpen(false); setAccountOpen(false); onCrisis(); }} aria-current={activeTab === 'emergency-mode' ? 'page' : undefined}><Icon name="shield" size={18}/>{crisisMode ? 'Emergency plan · active' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
         <button className="pv-settings" onClick={onSecurity}><Icon name="settings" size={18}/> Settings & backups</button>
         <div className="pv-sidebar-foot"><span className="pv-status-dot"/>PREPVAULT 2.0<span>Made for real life</span></div>
       </div>
@@ -105,6 +105,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
         <button className="pv-icon-button pv-notifications" aria-label={`${alertCount} supply alerts`} onClick={() => onSearch('', 'attention')}><Icon name="bell"/>{alertCount > 0 && <span/>}</button>
         <div className="pv-account-wrap" ref={accountRef}><button className="pv-avatar" aria-label="Account menu" aria-expanded={accountOpen} aria-controls={accountOpen ? 'pv-account-menu' : undefined} onClick={() => setAccountOpen(!accountOpen)}>{user?.email?.[0]?.toUpperCase() || 'P'}</button>{accountOpen && <div className="pv-dropdown" id="pv-account-menu"><strong>{user?.email || 'Personal workspace'}</strong><p>{user?.authProvider === 'neon' ? 'Verified account · saved on this device' : user?.isLocal ? 'Device account' : user ? 'Connected account' : 'No account required'}</p><button onClick={() => { onSetup(); setAccountOpen(false); }}>Household setup</button><button onClick={() => { onSecurity(); setAccountOpen(false); }}>Settings & backups</button><button onClick={() => { (user ? onLogout : onAccount)(); setAccountOpen(false); }}>{user ? 'Sign out' : 'Sign in / Create account'}</button></div>}</div>
       </header>
+      {emergencyBanner}
       <main id="main-content" tabIndex={-1} className="pv-main">{children}</main>
       <footer className="pv-app-footer"><span>PrepVault<span className="pv-foot-sep">/</span>Prepared for whatever comes.</span><button onClick={onSecurity}><Icon name="shield" size={14}/> Your data, your control</button></footer>
     </div>

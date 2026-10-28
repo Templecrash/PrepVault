@@ -1,5 +1,6 @@
 import { validateBugOutEntries } from './bug-out.js';
 import { validateLocalSettings } from './local-settings.js';
+import { validateEmergencyPlan } from './emergency-plan.js';
 
 export const SNAPSHOT_ARRAYS = ['items', 'pins', 'properties', 'members', 'contacts', 'callSigns', 'codeWords', 'rallyPoints', 'codes', 'gardenBeds', 'actionLog', 'soilTests', 'compostBins', 'livestock', 'slaughterLog', 'routes', 'bugOutEntries'];
 
@@ -62,6 +63,7 @@ export function recordsEqual(left, right) {
 // applying any setter so a malformed backup cannot partially replace a plan.
 export function validateSnapshot(value) {
   if (!isRecord(value) || !Array.isArray(value.items)) throw new Error('This file does not contain a PrepVault inventory.');
+  const emergencyPlan = value.emergencyPlan === undefined ? undefined : validateEmergencyPlan(value.emergencyPlan);
   for (const key of SNAPSHOT_ARRAYS) {
     if (value[key] !== undefined && (!Array.isArray(value[key]) || value[key].some(record => !isRecord(record)))) throw new Error(`Invalid ${key} in backup.`);
   }
@@ -89,7 +91,7 @@ export function validateSnapshot(value) {
     seen.add(id);
     return { ...item, id, propertyId: item.propertyId || 'prop1', quantity: Number(item.quantity), fields: item.fields || {} };
   });
-  return { ...value, items };
+  return { ...value, items, ...(emergencyPlan !== undefined ? { emergencyPlan } : {}) };
 }
 
 export function encodeBytes(bytes) {

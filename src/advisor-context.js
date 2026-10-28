@@ -1,5 +1,6 @@
 import { buildFoodWaterRoster } from './food-water-household.js';
 import { computeRationing } from './rationing.js';
+import { validateEmergencyPlan, buildEmergencySummary, buildEmergencySchedule } from './emergency-plan.js';
 import { computeEssentialCoverage } from './essential-coverage.js';
 import { buildDependencyChecks } from './dependencies.js';
 import { computeResourcePools, buildResourceRows } from './resource-planning.js';
@@ -77,12 +78,16 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
   const householdSize = number(input.people);
   const rationPeople = buildFoodWaterRoster(input.contacts);
   const rationCount = rationPeople.length;
-  const calorieTarget = number(input.dailyCalTarget);
+  let emergencyPlan = null;
+  try { emergencyPlan = validateEmergencyPlan(input.emergencyPlan); } catch { /* Invalid client data must not activate a plan in adviser context. */ }
+  const calorieTarget = number(emergencyPlan?.active ? emergencyPlan.dailyCalTarget : input.dailyCalTarget);
+  const waterGalPerPerson = emergencyPlan?.active ? emergencyPlan.waterGalPerPerson : 1;
+  const emergencySummary = emergencyPlan ? buildEmergencySummary({ plan: emergencyPlan, items: normalizedItems, rationPeople, now: now() }) : null;
   const climateConfig = pick(input.climateConfig, ['label', 'firewoodMod', 'fuelMod', 'waterMod']);
-  const ration = computeRationing(normalizedItems, rationCount ?? 0, calorieTarget ?? 0);
-  const coverage = items => computeEssentialCoverage(items, rationCount ?? 0, calorieTarget ?? 0);
+  const ration = computeRationing(normalizedItems, rationCount ?? 0, calorieTarget ?? 0, waterGalPerPerson);
+  const coverage = items => computeEssentialCoverage(items, rationCount ?? 0, calorieTarget ?? 0, waterGalPerPerson);
   const resources = computeResourcePools(normalizedItems, householdSize > 0 ? householdSize : 1, climateConfig);
-  const scalarMetrics = pick(ration, ['peopleCount', 'dailyCalTarget', 'totalCalories', 'totalWaterGal', 'foodDays', 'waterDays', 'omittedFoodCount']);
+  const scalarMetrics = pick(ration, ['peopleCount', 'dailyCalTarget', 'waterGalPerPerson', 'totalCalories', 'totalWaterGal', 'foodDays', 'waterDays', 'omittedFoodCount']);
   const safePin = pin => ({
     ...pick(pin, ['id', 'layer', 'type', 'label', 'notes', 'assignee', 'x', 'y']),
     ...Object.fromEntries(Object.entries(PIN_ASSIGNMENT_TEXT_LIMITS).filter(([field]) => Object.hasOwn(pin, field)).map(([field, maximum]) => [field, text(pin[field], maximum)])),
@@ -104,6 +109,7 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
         'Manuals are reference metadata; handbook text, map images and embedded files are not provided to the adviser.',
         'Precise live locations, private chats, passwords, access-code values, code-word values, challenge responses and authentication data are excluded.',
         'Live weather/news, current radio audio, active radio monitoring and unsaved child-view simulation sliders are unavailable in this snapshot.',
+        'Emergency schedule completion records actions only and does not consume inventory. Emergency coverage excludes past/invalid expiry dates, livestock and hunting equipment; ordinary inventory coverage includes all recorded stock. Emergency water is a supply allocation, not a limit on drinking.',
         'Legacy member status is not live tracking. Static map x/y values are image percentages, not geographic coordinates.',
       ],
     },
@@ -151,7 +157,12 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
     plans: {
       bugOutChecklist: rows('plans.bugOutChecklist', input.bugOutEntries, entry => pick(entry, ['id', 'name', 'quantity', 'location', 'assignee', 'notes', 'grabbed', 'inventoryId'])),
       scenario: { id: text(input.selScen), ...pick(input.scenario, ['label', 'desc']), durationDays: number(input.simDuration) },
-      emergency: { active: input.crisisMode === true, type: text(input.crisisType), startedAt: input.crisisStart instanceof Date ? input.crisisStart.toISOString() : text(input.crisisStart) },
+      emergency: emergencyPlan ? {
+        ...pick(emergencyPlan, ['active', 'startedAt', 'endedAt', 'propertyId', 'horizonDays', 'dailyCalTarget', 'waterGalPerPerson', 'mealTimes', 'checkInTimes', 'checkedActions']),
+        type: text(emergencyPlan.scenarioId),
+        coverage: pick(emergencySummary, ['peopleCount', 'foodDays', 'waterDays', 'totalCalories', 'totalWaterGal', 'dailyCalories', 'dailyWaterGal', 'planningDaysRemaining', 'foodShortfallCalories', 'waterShortfallGal', 'resupplyDate', 'notes']),
+        today: rows('plans.emergency.today', buildEmergencySchedule({ plan: emergencyPlan, items: normalizedItems, rationPeople, now: now() }), entry => pick(entry, ['key', 'title', 'type', 'time', 'date', 'done', 'householdCalories', 'householdWaterGal', 'shortfallCalories'])),
+      } : { active: input.emergencyPlan == null && input.crisisMode === true, type: text(input.crisisType), startedAt: input.crisisStart instanceof Date ? input.crisisStart.toISOString() : text(input.crisisStart) },
       completedActions: rows('plans.completedActions', input.actionLog, item => pick(item, ['id', 'taskId', 'desc', 'completedBy', 'completedAt'])),
       dismissedOpportunityIds: Array.isArray(input.dismissedOpps) ? input.dismissedOpps.slice(0, 100).map(value => text(value, 120)).filter(Boolean) : [],
     },
@@ -231,7 +242,11 @@ const CONTEXT_SCHEMA = {
   },
   plans: {
     bugOutChecklist: [fields('id name quantity location assignee notes grabbed inventoryId')],
-    scenario: fields('id label desc durationDays'), emergency: fields('active type startedAt'),
+    scenario: fields('id label desc durationDays'), emergency: {
+      ...fields('active type startedAt endedAt propertyId horizonDays dailyCalTarget waterGalPerPerson mealTimes checkInTimes checkedActions'),
+      coverage: fields('peopleCount foodDays waterDays totalCalories totalWaterGal dailyCalories dailyWaterGal planningDaysRemaining foodShortfallCalories waterShortfallGal resupplyDate notes'),
+      today: [fields('key title type time date done householdCalories householdWaterGal shortfallCalories')],
+    },
     completedActions: [fields('id taskId desc completedBy completedAt')], ...fields('dismissedOpportunityIds'),
   },
   references: {
@@ -239,7 +254,7 @@ const CONTEXT_SCHEMA = {
     handbooks: [fields('id title publisher edition category description audience usageNote path checkedAt')],
   },
   derived: {
-    rationing: fields('peopleCount dailyCalTarget totalCalories totalWaterGal foodDays waterDays omittedFoodCount'),
+    rationing: fields('peopleCount dailyCalTarget waterGalPerPerson totalCalories totalWaterGal foodDays waterDays omittedFoodCount'),
     essentialCoverage: coverageSchema, coverageByProperty: [{ ...fields('propertyId'), ...coverageSchema }],
     dependencyChecks: [fields('id name depends backup risk desc fix')],
     resourcePools: fields('fuelGals propaneGals firewoodCords waterGals batteries solarPanels totalCals genKwh propaneKwh solarDailyKwh batteryKwh totalKwh climMod people'),

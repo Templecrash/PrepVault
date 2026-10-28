@@ -3,9 +3,9 @@ import { Icon } from './brand.jsx';
 import { buildInventoryRecommendations } from './inventory-recommendations.js';
 import './inventory-recommendations.css';
 
-export default function InventoryRecommendations({ items = [], categories = {}, categoryKey, propertyId, peopleCount = 0, dailyCalTarget = 2000, alerts = [], onAdd, onEdit, onManagePeople, onRationing, onCategory, actions }) {
+export default function InventoryRecommendations({ items = [], categories = {}, categoryKey, propertyId, peopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1, alerts = [], onAdd, onEdit, onManagePeople, onRationing, onCategory, actions }) {
   const headingId = useId();
-  const result = buildInventoryRecommendations({ items, categories, categoryKey, propertyId, peopleCount, dailyCalTarget, alerts });
+  const result = buildInventoryRecommendations({ items, categories, categoryKey, propertyId, peopleCount, dailyCalTarget, waterGalPerPerson, alerts });
   const actionFor = action => {
     if (action?.kind === 'edit' && onEdit) return () => onEdit(action.item);
     if (action?.kind === 'add' && onAdd) return () => onAdd(action.categoryKey);
