@@ -1,4 +1,6 @@
 export const LOCATION_KEY = 'prepvault-location';
+export const LOCATION_WATCHLIST_KEY = 'prepvault-location-watchlist';
+export const MAX_WATCHED_LOCATIONS = 8;
 export const LOCATION_EVENT = 'prepvault-location-change';
 export function normalizeLocation(value) {
   if (!value || typeof value !== 'object' || !['name', 'country', 'countryCode'].every(key => typeof value[key] === 'string' && value[key].trim() && value[key].length <= 150) || !/^[A-Z]{2}$/.test(value.countryCode) || !Number.isFinite(value.latitude) || Math.abs(value.latitude) > 90 || !Number.isFinite(value.longitude) || Math.abs(value.longitude) > 180) throw new Error('Choose a valid location.');
@@ -7,6 +9,32 @@ export function normalizeLocation(value) {
 export function readLocation(storage) { try { return normalizeLocation(JSON.parse(storage.getItem(LOCATION_KEY))); } catch { return null; } }
 export function saveLocation(storage, value) {
   const next = normalizeLocation(value); storage.setItem(LOCATION_KEY, JSON.stringify(next));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(LOCATION_EVENT));
+  return next;
+}
+// Provider IDs can differ for the same town. Coordinates keep selection stable
+// across search results without conflating different places with the same name.
+export function locationWatchKey(value) {
+  const point = normalizeLocation(value);
+  return `${point.countryCode}:${point.latitude.toFixed(5)},${point.longitude.toFixed(5)}`;
+}
+export function normalizeLocationWatchlist(value) {
+  if (!Array.isArray(value) || value.length > MAX_WATCHED_LOCATIONS) throw new Error(`Track up to ${MAX_WATCHED_LOCATIONS} cities.`);
+  const points = value.map(normalizeLocation);
+  const keys = points.map(locationWatchKey);
+  if (new Set(keys).size !== keys.length) throw new Error('This city is already in your watchlist.');
+  return points;
+}
+export function readLocationWatchlist(storage) {
+  try {
+    const raw = storage.getItem(LOCATION_WATCHLIST_KEY);
+    if (raw === null) { const primary = readLocation(storage); return primary ? [primary] : []; }
+    return normalizeLocationWatchlist(JSON.parse(raw));
+  } catch { throw new Error('Your saved city watchlist could not be read. Restore a backup before changing it.'); }
+}
+export function saveLocationWatchlist(storage, value) {
+  const next = normalizeLocationWatchlist(value);
+  storage.setItem(LOCATION_WATCHLIST_KEY, JSON.stringify(next));
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(LOCATION_EVENT));
   return next;
 }
