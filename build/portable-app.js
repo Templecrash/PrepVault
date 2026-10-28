@@ -3,6 +3,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
+import { Buffer } from 'node:buffer';
 import { createHandbookWorker } from './handbook-worker.js';
 
 const BUILD_DIR = dirname(fileURLToPath(import.meta.url));
@@ -60,7 +61,7 @@ const README = `PREPVAULT — LOCAL EDITION
 5. Open Settings & backups and restore your encrypted backup. Verify your supplies, maps and people, then download a new backup after making changes.
 
 WHAT WORKS WITHOUT INTERNET
-Inventory, people/dependants, rationing, planning calculations, codes, saved map images and pins, saved route geometry and directions, daily travel plans, Calendar tasks, Skills checklists, growing records, Bug Out, manual radio notes, backup encryption/restore and the included original PDF handbooks.
+Inventory, people/dependants, rationing, planning calculations, codes, saved map images and pins, saved route geometry and directions, daily travel plans, Calendar tasks, illustrated Skills and Farm guides, growing records, Bug Out, manual radio notes, backup encryption/restore and the included original PDF handbooks.
 
 WHAT REQUIRES THE LIVE WEBSITE
 Secure owner sign-in, Survival LLM, live GPS sharing, community posts, cameras/alarms, internet radio, new route calculation, street map tiles, weather and news. These are not bundled services. External connections are blocked by this edition's content security policy. Links you choose to open in another tab may use the internet.

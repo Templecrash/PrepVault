@@ -50,7 +50,11 @@ test('offline field guide is self-contained, readable without scripts, and expor
   assert.match(html, /publisher manuals.*need internet access/);
   assert.equal((html.match(/<article /g) || []).length, guides.length);
   assert.equal((html.match(/href="#guide-/g) || []).length, guides.length);
-  assert.doesNotMatch(html, /<(?:script|iframe|img|link|form)\b|\bsrc\s*=|url\(/i);
+  assert.doesNotMatch(html.replace(/src="data:[^"]+"/g, ''), /<(?:script|iframe|link|form)\b|url\(/i);
+  const images = [...html.matchAll(/<img src="([^"]+)"/g)];
+  assert.equal(images.length, guides.length, 'Every exported guide includes its task picture');
+  for (const [, src] of images) assert.match(src, /^data:image\/svg\+xml;charset=utf-8,/);
+  assert.match(html, /img-src data:/);
   for (const guide of guides) assert.ok(html.includes(guide.title));
   assert.throws(() => farmGuidesToHtml([]), /at least one/);
 });
@@ -62,5 +66,5 @@ test('offline export escapes content and drops unsafe reference links', () => {
       { title: 'No credentials', url: 'https://user:secret@example.com', publisher: 'Bad', region: 'Anywhere' }],
   }]);
   assert.match(html, /&lt;script&gt;/);
-  assert.doesNotMatch(html, /<script|<img|href="javascript:|user:secret|onmouseover="/);
+  assert.doesNotMatch(html, /<script|<img src=x|href="javascript:|user:secret|onmouseover="/);
 });

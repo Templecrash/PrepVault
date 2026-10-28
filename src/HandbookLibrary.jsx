@@ -5,6 +5,10 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Icon } from './brand.jsx';
 import { useDialogFocus } from './useDialogFocus.js';
 import { HANDBOOKS } from './handbooks.js';
+import { HANDBOOK_VISUALS } from './handbook-visuals.js';
+import { SKILL_VISUALS } from './reference-visuals.js';
+import GuideIllustration from './GuideIllustration.jsx';
+import { handbookStartPage } from './guide-illustration.js';
 import { getHandbookUrl, getOfflineLibraryStatus, listSavedHandbooks, prepareOfflineLibrary, removeHandbook, saveHandbook } from './handbook-offline.js';
 import './handbook-library.css';
 
@@ -14,19 +18,20 @@ const categories = [...new Set(HANDBOOKS.map(book => book.category))];
 const totalBytes = HANDBOOKS.reduce((sum, book) => sum + book.bytes, 0);
 const fileSize = bytes => bytes >= 1000000 ? `${(bytes / 1000000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`;
 
-export function HandbookReader({ book, onClose }) {
+export function HandbookReader({ book, onClose, initialPage = 1 }) {
   const dialog = useDialogFocus(onClose);
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const renderTask = useRef(null);
   const [pdf, setPdf] = useState(null);
   const [documentError, setDocumentError] = useState('');
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageInput, setPageInput] = useState('1');
+  const [pageNumber, setPageNumber] = useState(() => handbookStartPage(initialPage, book.pages));
+  const [pageInput, setPageInput] = useState(() => String(handbookStartPage(initialPage, book.pages)));
   const [zoom, setZoom] = useState(1);
   const [width, setWidth] = useState(0);
   const [rendered, setRendered] = useState({ key: '', error: '', text: '' });
   const url = getHandbookUrl(book);
+  const illustratedPages = HANDBOOK_VISUALS[book.id]?.pages || [];
   const renderKey = `${pageNumber}:${zoom}:${width}`;
   const ready = Boolean(pdf) && rendered.key === renderKey && !rendered.error;
   const error = documentError || (rendered.key === renderKey ? rendered.error : '');
@@ -124,6 +129,7 @@ export function HandbookReader({ book, onClose }) {
         </div>
         <div className="pv-handbook-zoom-controls"><button type="button" aria-label="Zoom out" disabled={zoom <= 0.5 || !pdf} onClick={() => setZoom(value => Math.max(0.5, value - 0.25))}>−</button><button type="button" disabled={!pdf} onClick={() => setZoom(1)} aria-label="Fit page to width">{zoom === 1 ? 'Fit width' : `${Math.round(zoom * 100)}%`}</button><button type="button" aria-label="Zoom in" disabled={zoom >= 2.5 || !pdf} onClick={() => setZoom(value => Math.min(2.5, value + 0.25))}>+</button></div>
       </div>
+      {illustratedPages.length > 0 && <nav className="pv-handbook-page-figures" aria-label="Illustrated handbook pages"><span>Pictures & diagrams</span>{illustratedPages.map(item => <button type="button" key={item.page} disabled={!pdf} aria-pressed={pageNumber === item.page} onClick={() => goToPage(item.page)}>{item.title} · p. {item.page}</button>)}</nav>}
       <div className="pv-handbook-pages" ref={viewportRef} tabIndex={0} aria-label="Handbook page" aria-busy={!ready && !error}>
         {error ? <div className="pv-handbook-reader-error" role="alert"><p>{error}</p><a href={url} download={book.path.split('/').at(-1)}>Download the original PDF</a></div> : !ready && <p className="pv-handbook-page-loading" role="status">{pdf ? `Rendering page ${pageNumber}…` : 'Opening handbook…'}</p>}
         <canvas ref={canvasRef} className={ready ? '' : 'is-loading'} role="img" aria-label={`${book.title}, page ${pageNumber}${pdf ? ` of ${pdf.numPages}` : ''}`}/>
@@ -131,6 +137,24 @@ export function HandbookReader({ book, onClose }) {
       </div>
       <p className="pv-handbook-reader-note">{book.audience === 'professional' ? 'This clinical reference is for trained professionals. ' : ''}Page numbers follow the PDF file. Use the original download to print or keep a separate copy.</p>
     </section>
+  </div>;
+}
+
+const COMPANION_SKILLS = {
+  'emergency-wound-care': 'protect-wounds',
+  'emergency-drinking-water': 'safe-water',
+  'food-water-emergencies': 'food-outage',
+  'generator-safety': 'generator-co',
+  'disaster-response-safety': 'safe-cleanup',
+};
+
+function HandbookVisuals({ book, canRead, onRead }) {
+  const visual = HANDBOOK_VISUALS[book.id];
+  const companion = SKILL_VISUALS[COMPANION_SKILLS[book.id]];
+  if (!visual) return null;
+  return <div className="pv-handbook-visuals"><strong>{visual.status === 'illustrated' ? 'Pictures & diagrams inside' : 'Text-led reference'}</strong><p>{visual.summary}</p>
+    {visual.pages.length > 0 && <div className="pv-handbook-visual-links">{visual.pages.map(item => <button type="button" key={item.page} disabled={!canRead} onClick={() => onRead({ ...book, initialPage: item.page })} title={item.description}>{item.title} · PDF p. {item.page}</button>)}</div>}
+    {companion && <details className="pv-handbook-companion"><summary>View PrepVault task picture</summary><GuideIllustration visual={companion}/></details>}
   </div>;
 }
 
@@ -286,16 +310,16 @@ export default function HandbookLibrary({ onCrisis, crisisMode }) {
       <div className="pv-handbook-filters"><label className="pv-handbook-search"><Icon name="search" size={17}/><input type="search" aria-label="Search handbooks" placeholder="Search topics, titles, or publishers…" value={query} onChange={event => setQuery(event.target.value)}/></label><label className="pv-handbook-category"><span className="pv-handbook-sr-only">Handbook topic</span><select aria-label="Handbook topic" value={category} onChange={event => setCategory(event.target.value)}><option value="all">All topics</option>{categories.map(value => <option key={value} value={value}>{value}</option>)}</select></label><label className="pv-handbook-saved-filter"><input type="checkbox" checked={savedOnly} onChange={event => setSavedOnly(event.target.checked)}/>Saved offline only</label></div>
       {checking && savedOnly ? <p className="pv-handbook-empty" role="status">Checking this browser’s saved copies…</p> : visibleBooks.length ? <div className="pv-handbook-list">{visibleBooks.map(book => {
         const isSaved = saved.has(book.id);
-        const canRead = online || isSaved;
+        const canRead = isLocalEdition() || online || isSaved;
         const url = getHandbookUrl(book);
         return <article className="pv-handbook-card" key={book.id}>
           <div className="pv-handbook-cover" aria-hidden="true"><Icon name={book.category.toLowerCase().includes('water') ? 'water' : book.audience === 'professional' ? 'plus' : 'shield'} size={28}/><span>FIELD<br/>REFERENCE</span></div>
-          <div className="pv-handbook-book"><div className="pv-handbook-tags"><span>{book.category}</span>{book.audience === 'professional' && <span className="pv-handbook-professional">Professional reference</span>}{isSaved && <span className="pv-handbook-saved"><Icon name="check" size={12}/>Saved offline</span>}</div><h3>{book.title}</h3><p>{book.description}</p>{book.usageNote && <p className="pv-handbook-edition-note">{book.usageNote}</p>}<div className="pv-handbook-metadata"><a href={book.sourceUrl} target="_blank" rel="noreferrer" title={`View the original source from ${book.publisher}`}>{book.publisher}<Icon name="arrow" size={12}/></a><span>{book.edition}</span><span>PDF · {fileSize(book.bytes)}</span></div><div className="pv-handbook-actions"><button className="pv-button pv-handbook-read" type="button" disabled={!canRead} onClick={() => setReading(book)} aria-label={`Read ${book.title}`}>Read guide<Icon name="arrow" size={14}/></button><a className={!canRead ? 'is-disabled' : undefined} href={url} download={book.path.split('/').at(-1)} aria-disabled={!canRead || undefined} onClick={event => { if (!canRead) event.preventDefault(); }} aria-label={`Download ${book.title} PDF`}><Icon name="download" size={15}/>Download PDF</a>{isSaved ? <button className="pv-handbook-offline-action" type="button" disabled={Boolean(busy) || checking} onClick={() => void removeSaved(book)} aria-label={`Remove ${book.title} from offline library`}>{busy === book.id && !progress ? 'Removing…' : 'Remove offline copy'}</button> : <button className="pv-handbook-offline-action" type="button" disabled={!canSave} onClick={() => void saveBooks([book])} aria-label={`Save ${book.title} offline`}>{busy === book.id ? 'Saving…' : 'Save offline'}</button>}</div><details className="pv-handbook-source-use"><summary>Source &amp; use</summary><p>{book.citation || `${book.title}. ${book.publisher}. ${book.edition}.`}</p><p>{book.license || 'Publisher terms apply.'}{book.licenseUrl && <> <a href={book.licenseUrl} target="_blank" rel="noreferrer">Read license</a></>}</p><p>Original, unmodified PDF. Follow current local guidance and the training requirements stated in the handbook.</p></details></div>
+          <div className="pv-handbook-book"><div className="pv-handbook-tags"><span>{book.category}</span>{book.audience === 'professional' && <span className="pv-handbook-professional">Professional reference</span>}{isSaved && <span className="pv-handbook-saved"><Icon name="check" size={12}/>Saved offline</span>}</div><h3>{book.title}</h3><p>{book.description}</p>{book.usageNote && <p className="pv-handbook-edition-note">{book.usageNote}</p>}<div className="pv-handbook-metadata"><a href={book.sourceUrl} target="_blank" rel="noreferrer" title={`View the original source from ${book.publisher}`}>{book.publisher}<Icon name="arrow" size={12}/></a><span>{book.edition}</span><span>PDF · {fileSize(book.bytes)}</span></div><div className="pv-handbook-actions"><button className="pv-button pv-handbook-read" type="button" disabled={!canRead} onClick={() => setReading(book)} aria-label={`Read ${book.title}`}>Read guide<Icon name="arrow" size={14}/></button><a className={!canRead ? 'is-disabled' : undefined} href={url} download={book.path.split('/').at(-1)} aria-disabled={!canRead || undefined} onClick={event => { if (!canRead) event.preventDefault(); }} aria-label={`Download ${book.title} PDF`}><Icon name="download" size={15}/>Download PDF</a>{isSaved ? <button className="pv-handbook-offline-action" type="button" disabled={Boolean(busy) || checking} onClick={() => void removeSaved(book)} aria-label={`Remove ${book.title} from offline library`}>{busy === book.id && !progress ? 'Removing…' : 'Remove offline copy'}</button> : <button className="pv-handbook-offline-action" type="button" disabled={!canSave} onClick={() => void saveBooks([book])} aria-label={`Save ${book.title} offline`}>{busy === book.id ? 'Saving…' : 'Save offline'}</button>}</div><HandbookVisuals book={book} canRead={canRead} onRead={setReading}/><details className="pv-handbook-source-use"><summary>Source &amp; use</summary><p>{book.citation || `${book.title}. ${book.publisher}. ${book.edition}.`}</p><p>{book.license || 'Publisher terms apply.'}{book.licenseUrl && <> <a href={book.licenseUrl} target="_blank" rel="noreferrer">Read license</a></>}</p><p>Original, unmodified PDF. Follow current local guidance and the training requirements stated in the handbook.</p></details></div>
         </article>;
       })}</div> : <div className="pv-handbook-empty"><Icon name={savedOnly && !availableBooks.length ? 'download' : 'search'} size={27}/><h3>{savedOnly && !availableBooks.length ? 'Your offline shelf is ready to fill.' : 'No guides match that search.'}</h3><p>{savedOnly && !availableBooks.length ? 'Save the collection above or view all guides to choose individual handbooks. Saved copies will appear here.' : 'Try a different topic or a shorter search.'}</p>{query || category !== 'all' ? <button type="button" className="pv-text-link" onClick={() => { setQuery(''); setCategory('all'); }}>Clear filters</button> : <button type="button" className="pv-text-link" onClick={() => setSavedOnly(false)}>View all guides <Icon name="arrow" size={14}/></button>}</div>}
     </section>
 
     <footer className="pv-handbook-footnote"><Icon name="shield" size={17}/><div><p>Offline copies belong to this browser and device. Clearing site data or browser storage cleanup can remove them. Download PDFs for copies you manage yourself. {capability.persistent ? 'Persistent browser storage is enabled. ' : ''}Medical guidance and local procedures can change.</p><p>Original guides are free from their publishers. Included for personal, noncommercial use; publisher licenses apply. No publisher endorses PrepVault.</p></div></footer>
-    {reading && <HandbookReader book={reading} onClose={() => setReading(null)}/>}
+    {reading && <HandbookReader key={`${reading.id}:${reading.initialPage || 1}`} book={reading} initialPage={reading.initialPage || 1} onClose={() => setReading(null)}/>}
   </div>;
 }

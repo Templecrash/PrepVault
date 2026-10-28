@@ -20,14 +20,14 @@ The 2.0 redesign adds a consistent forest-green identity, a responsive workspace
 | Rationing | Dedicated food/water planning using only marked dependants and the selected property’s stock |
 | Bug Out | Persisted grab list with quantities, locations, assignments, notes, order and collected-item checks |
 | Codes / Manuals | Neutral reference pages; code values stay hidden until revealed |
-| Skills | 16 searchable, attributed starter checklists with Bug in/out and experience filters, official online guides and related original PDF handbooks |
-| Farm guides | Searchable crop, fruit, herb, nut, livestock and farm-method references with regional source labels, original starter checklists and self-contained offline HTML downloads |
+| Skills | 16 illustrated, searchable, attributed starter checklists with Bug in/out and experience filters, official online guides and related original PDF handbooks |
+| Farm guides | Searchable crop, fruit, herb, nut, livestock and farm-method references with regional source labels, original starter checklists, labelled task pictures and self-contained illustrated offline HTML downloads |
 | Offline maps | Owner-authorized online route calculation with ordered stops, saved geometry/directions, daily travel estimates, JSON/GPX export and printing |
 | Community board | Public anonymous conversations and replies; country/state/province filters, browser-owned post removal, reports and owner moderation; direct public page at `/community` |
 | Grow & sustain | Production estimates, seeds, calendar, soil tests, compost, rotation, livestock, garden beds and growing guide |
 | Scenario lab | Original scenarios, household/climate controls, duration estimates and scenario guidance |
 | Resource planning | Stock estimates, conversions, trade-offs and opportunities |
-| Emergency | Searchable original handbooks, in-site PDF reader, publisher/edition/license details, individual PDF downloads, a portable ZIP pack, verified offline copies, save-all with progress, per-guide removal and offline reopening |
+| Emergency | Searchable original handbooks, in-site PDF reader with audited illustration-page shortcuts, publisher/edition/license details, individual PDF downloads, a portable ZIP pack, verified offline copies, save-all with progress, per-guide removal and offline reopening |
 
 ## Download and run on your computer
 
@@ -71,7 +71,7 @@ Overview’s essential cards show full days of coverage. Water and food use the 
 
 **Skills** provides 16 short, original checklists based on named official sources, with beginner, practice-first and training-required labels. Related books open in the existing PDF reader. Clinical manuals are not promoted as beginner skills. Checklists ship with the app; links marked **Online guide** are external resources and are not cached by the handbook download. The handbooks keep their original source and license metadata. This is a curated reference collection, not comprehensive instruction for every crisis.
 
-**Farm guides** sits under Reference Library and is also linked from Farm. It covers vegetables, fruit, herbs, staples, nuts, livestock and supporting methods. Search includes aliases, practices, source publishers and regions. Filters select topic, collection and climate focus; a climate label does not establish local suitability or planting dates. Each entry contains an original starter checklist and named links to full publisher guides. **Download all guides**, **Download these guides** and individual downloads create self-contained HTML with an index, checklists and source links; they open without internet or sign-in and can be printed to PDF. Publisher websites/manuals are not copied into these downloads. The same original checklists ship in the local app and saved application shell.
+**Farm guides** sits under Reference Library and is also linked from Farm. It covers vegetables, fruit, herbs, staples, nuts, livestock and supporting methods. Search includes aliases, practices, source publishers and regions. Filters select topic, collection and climate focus; a climate label does not establish local suitability or planting dates. Each entry contains an original starter checklist, an expandable original task diagram and named links to full publisher guides. **Download all guides**, **Download these guides** and individual downloads create self-contained HTML with an index, checklists, embedded task pictures and source links; they open without internet or sign-in and can be printed to PDF. Publisher websites/manuals are not copied into these downloads. The same original checklists ship in the local app and saved application shell.
 
 **Offline maps** calculates driving, highway-avoiding or walking routes online using OpenStreetMap data through FOSSGIS/Valhalla. Up to six stops are visited in their displayed order; the app does not optimize their order. Up to four user-selected circles can be requested as avoidance areas. These circles are not verified municipal boundaries, and the app does not automatically avoid every town or choose the route with the fewest people. Route estimates have no live traffic, current disaster conditions or closure feed. Highway avoidance can fail to produce a route or leave a provider-reported highway segment; review the returned result and warnings.
 
@@ -179,3 +179,12 @@ The catalog at `public/handbooks/sources.json` records original publisher/downlo
 MIT
 
 Offline route downloads are self-contained HTML files with no scripts or external resources. They contain the saved route drawing, directions and daily stops and open directly without account sign-in. Street basemaps and new route calculations remain online features. The hosted app still verifies account sessions; use the local edition plus an encrypted plan backup for the full workspace offline.
+
+
+## Illustrated references
+
+All 100 Farm guides and 16 Skills have an assigned task picture, using 67 original labelled SVG diagrams across the reference library (47 Farm diagrams and 20 Skills/equipment diagrams). Each has text descriptions, captions, an enlarged view and picture downloads. Their SVG content is bundled with the application, so pictures work in the saved app and local edition without fetching an image service. Farm HTML downloads embed every selected guide’s picture directly as a data URI. The public SVG source files in `public/guide-illustrations/` match the bundled copies.
+
+All nine original PDF handbooks (659 pages) were visually audited; the Emergency library and PDF reader provide 17 verified, one-based PDF-page shortcuts to useful pictures and diagrams. Professional manuals retain their training labels. Original PDFs and their hashes remain unchanged. Text-led guides have separate PrepVault task-picture companions where useful. See `docs/handbook-visual-audit.md` for the page-by-page audit method and limitations.
+
+The household and vehicle entries in Manuals are filename references, not attached manufacturer PDFs. They display general orientation pictures with that limitation stated explicitly. The exact equipment model, edition and original document must be confirmed before using manufacturer-specific service procedures.

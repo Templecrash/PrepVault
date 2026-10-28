@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './brand.jsx';
+import GuideIllustration from './GuideIllustration.jsx';
+import { SKILL_VISUALS } from './reference-visuals.js';
+import { SKILL_HANDBOOK_VISUALS } from './handbook-visuals.js';
 import { HandbookReader } from './HandbookLibrary.jsx';
 import { HANDBOOKS } from './handbooks.js';
 import { getHandbookUrl, listSavedHandbooks } from './handbook-offline.js';
@@ -87,9 +90,15 @@ export default function SkillsLibrary({ onOpenEmergency }) {
             <Icon name="chevron" size={17} className="pv-skills-chevron"/>
           </summary>
           <div className="pv-skills-detail">
+            <GuideIllustration visual={SKILL_VISUALS[skill.id]}/>
             <div className="pv-skills-checklist"><h2>Start here</h2><ol>{skill.checklist.map(step => <li key={step}>{step}</li>)}</ol><p className="pv-skills-caution"><Icon name="shield" size={16}/><span>{skill.caution}</span></p></div>
             <div className="pv-skills-references"><h2>Go deeper</h2>
               {skill.sources.map(item => <a className="pv-skills-source" href={item.url} key={item.url} target="_blank" rel="noopener noreferrer"><span className="pv-skills-source-tag">Online guide</span><strong>{item.title}</strong><span>{item.publisher} <Icon name="arrow" size={14}/></span></a>)}
+              {(SKILL_HANDBOOK_VISUALS[skill.id] || []).length > 0 && <div className="pv-skill-visual-reference"><p>Illustrated pages in the original handbooks</p><div className="pv-handbook-visual-links">{SKILL_HANDBOOK_VISUALS[skill.id].map(reference => {
+                const book = booksById.get(reference.bookId);
+                if (!book) return null;
+                return <button type="button" key={`${reference.bookId}-${reference.page}`} disabled={!local && !online && !saved.has(reference.bookId)} onClick={() => setReading({ ...book, initialPage: reference.page })}>{reference.title} · PDF p. {reference.page}</button>;
+              })}</div></div>}
               <h3>Related handbooks</h3>
               {skill.handbookIds.map(id => {
                 const book = booksById.get(id);
@@ -101,8 +110,8 @@ export default function SkillsLibrary({ onOpenEmergency }) {
           </div>
         </details>
       </article>)}</div> : <div className="pv-inventory-empty"><span><Icon name="search" size={30}/></span><h2>No skills match</h2><p>Try another topic or clear your filters to explore the collection.</p><button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={clearFilters}>Clear filters</button></div>}
-      <div className="pv-inventory-footer pv-skills-offline-note"><Icon name="download" size={16}/><p>{local ? 'Checklists and included PDFs work in this local app. ' : 'Checklists are part of the app; save the site and handbooks in Emergency before going offline. '}Links marked “Online guide” need an internet connection.{!online && ' You are currently offline.'}{storageError && ' Saved PDF status could not be checked.'}</p>{onOpenEmergency && <button type="button" onClick={onOpenEmergency}>Open Emergency <Icon name="arrow" size={14}/></button>}</div>
+      <div className="pv-inventory-footer pv-skills-offline-note"><Icon name="download" size={16}/><p>{local ? 'Checklists, task pictures and included PDFs work in this local app. ' : 'Checklists and task pictures are part of the app; save the site and handbooks in Emergency before going offline. '}Links marked “Online guide” need an internet connection.{!online && ' You are currently offline.'}{storageError && ' Saved PDF status could not be checked.'}</p>{onOpenEmergency && <button type="button" onClick={onOpenEmergency}>Open Emergency <Icon name="arrow" size={14}/></button>}</div>
     </div>
-    {reading && <HandbookReader key={reading.id} book={reading} onClose={() => setReading(null)}/>}
+    {reading && <HandbookReader key={`${reading.id}:${reading.initialPage || 1}`} book={reading} initialPage={reading.initialPage || 1} onClose={() => setReading(null)}/>}
   </section>;
 }

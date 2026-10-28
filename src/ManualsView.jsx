@@ -1,5 +1,7 @@
 import { Fragment, useId, useState } from 'react';
 import { Icon } from './brand.jsx';
+import GuideIllustration from './GuideIllustration.jsx';
+import { MANUAL_CATEGORY_VISUALS } from './reference-visuals.js';
 import './inventory.css';
 import './manuals.css';
 
@@ -65,7 +67,7 @@ export default function ManualsView({ manuals = [], onSetup, onEmergency }) {
               <td className="pv-manuals-file" data-label="File reference"><span>{manual.file || 'Not recorded'}</span></td>
               <td className="pv-manuals-toggle"><button type="button" onClick={toggle} aria-label={`${expanded ? 'Hide' : 'Show'} ${manual.title} details`} aria-expanded={expanded} aria-controls={expanded ? id : undefined}><Icon name="chevron" size={17}/></button></td>
             </tr>
-            {expanded && <tr className="pv-manuals-detail-row"><td colSpan={5}><div className="pv-manuals-detail" id={id} role="region" aria-label={`${manual.title} notes`}><h2>Reference notes</h2><p>{manual.desc || 'No notes recorded for this reference.'}</p></div></td></tr>}
+            {expanded && <tr className="pv-manuals-detail-row"><td colSpan={5}><div className="pv-manuals-detail" id={id} role="region" aria-label={`${manual.title} notes`}><h2>Reference notes</h2><p>{manual.desc || 'No notes recorded for this reference.'}</p><p className="pv-manuals-file-note">File reference only: the original manual is not attached. This picture is general orientation, not a verified procedure for your equipment. Match the model and edition before following service instructions.</p><GuideIllustration visual={MANUAL_CATEGORY_VISUALS[manual.cat]}/></div></td></tr>}
           </Fragment>;
         })}</tbody>
       </table> : <div className="pv-inventory-empty"><span><Icon name="search" size={30}/></span><h2>{filtersActive ? 'No manuals match' : 'No manual references yet'}</h2><p>{filtersActive ? 'Try another search or clear your filters to see all references.' : 'Your household and equipment references will appear here.'}</p>{filtersActive && <button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={clearFilters}>Clear filters</button>}</div>}
