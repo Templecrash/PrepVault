@@ -62,8 +62,8 @@ test('empty or invalid roster keeps stock totals visible and coverage unknown', 
     assert.equal(waterPlan.bigNum, '—');
     assert.equal(row(foodPlan, 'Recorded calories').value, '60,000 cal');
     assert.equal(row(waterPlan, 'Stored water').value, '220 gal');
-    assert.match(foodPlan.summary, /Add people in Rationing/);
-    assert.match(waterPlan.summary, /Add people in Rationing/);
+    assert.match(foodPlan.summary, /Mark dependants in Your People/);
+    assert.match(waterPlan.summary, /Mark dependants in Your People/);
     assert.equal(row(waterPlan, 'Daily consumption').value, 'Not available');
   }
 });

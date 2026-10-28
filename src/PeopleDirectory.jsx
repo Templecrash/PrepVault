@@ -1,11 +1,12 @@
 import { useId, useState } from 'react';
 import { Icon } from './brand.jsx';
 import { useDialogFocus } from './useDialogFocus.js';
+import FoodWaterInfo from './FoodWaterInfo.jsx';
 import './people.css';
 
 const EMPTY_PERSON = {
   name: '', group: 'Your Group', role: '', phone: '', address: '', age: '',
-  bloodType: 'Unknown', medical: 'None', allergies: 'None', skills: '', notes: '',
+  bloodType: 'Unknown', medical: 'None', allergies: 'None', skills: '', notes: '', isDependant: false,
 };
 const BLOOD_TYPES = ['Unknown', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const groupName = person => person.group?.trim() || 'Ungrouped';
@@ -47,6 +48,10 @@ function PersonDialog({ person, groups, onSave, onClose }) {
           <datalist id={`${id}-groups`}>{groups.map(group => <option key={group} value={group}/>)}</datalist>
           {field('phone', 'Phone or contact method', { type: 'text', autoComplete: 'tel' })}
           {field('address', 'Address', { wide: true, autoComplete: 'street-address' })}
+        </div>
+        <div className="pv-people-dependant-field">
+          <button type="button" className="pv-people-dependant" aria-pressed={draft.isDependant === true} aria-describedby={`${id}-dependant-note`} onClick={() => update('isDependant', draft.isDependant !== true)}><Icon name={draft.isDependant === true ? 'check' : 'plus'} size={14}/>Dependant</button>
+          <p id={`${id}-dependant-note`}>Include this person in your food and water plan. Mark yourself too if you use these supplies.</p>
         </div>
         <details className="pv-people-optional">
           <summary>Care & background <span>Optional details</span></summary>
@@ -90,6 +95,11 @@ export default function PeopleDirectory({ contacts, setContacts }) {
   const query = search.trim().toLowerCase();
   const filtered = contacts.filter(person => (!selectedGroup || groupName(person) === selectedGroup) && (!query || ['name', 'group', 'role', 'phone', 'medical', 'allergies', 'skills', 'notes'].some(field => String(person[field] || '').toLowerCase().includes(query))));
   const visibleGroups = [...new Set(filtered.map(groupName))];
+  const dependantCount = contacts.filter(person => person.isDependant === true).length;
+  const toggleDependant = person => {
+    setContacts(current => current.map(contact => contact.id === person.id ? { ...contact, isDependant: contact.isDependant !== true } : contact));
+    setMessage(`${person.name} ${person.isDependant === true ? 'is no longer marked as a dependant' : 'marked as a dependant'}.`);
+  };
   const save = draft => {
     const saved = { ...draft, id: editor.person?.id || personId() };
     setContacts(current => editor.person ? current.map(person => person.id === saved.id ? { ...person, ...saved } : person) : [...current, saved]);
@@ -120,6 +130,7 @@ export default function PeopleDirectory({ contacts, setContacts }) {
     setMessage(`${person.name} restored.`);
   };
   return <section className="pv-people-directory" aria-label="People directory">
+    <div className="pv-people-plan-summary"><div><strong>{dependantCount} {dependantCount === 1 ? 'dependant' : 'dependants'} for food & water</strong><span id={`${id}-planning-note`}>{dependantCount ? 'Only marked dependants count toward these supplies.' : 'Mark people as dependants to calculate your food and water coverage.'}</span></div><FoodWaterInfo /></div>
     <div className="pv-people-toolbar">
       <label className="pv-people-search"><Icon name="search" size={18}/><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Find someone…" aria-label="Search people"/>{search && <button aria-label="Clear people search" onClick={() => setSearch('')}><Icon name="close" size={15}/></button>}</label>
       <select className="pv-people-group-filter" value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)} aria-label="Filter people by group"><option value="">All groups</option>{groups.map(group => <option key={group}>{group}</option>)}{selectedGroup && !groups.includes(selectedGroup) && <option>{selectedGroup}</option>}</select>
@@ -133,6 +144,7 @@ export default function PeopleDirectory({ contacts, setContacts }) {
         const isExpanded = expanded === person.id;
         const detailsId = `${id}-${person.id}`;
         return <article className={`pv-people-person ${isExpanded ? 'is-expanded' : ''}`} key={person.id}>
+          <div className="pv-people-person-heading">
           <button className="pv-people-row" onClick={() => setExpanded(isExpanded ? null : person.id)} aria-expanded={isExpanded} aria-controls={isExpanded ? detailsId : undefined} aria-label={`Details for ${person.name}`} aria-describedby={`${detailsId}-role ${detailsId}-contact ${detailsId}-care`}>
             <span className="pv-people-initials" aria-hidden="true">{initials(person.name)}</span>
             <span className="pv-people-identity"><strong>{person.name}</strong><span id={`${detailsId}-role`}>{person.role || 'No role recorded'}</span></span>
@@ -140,6 +152,8 @@ export default function PeopleDirectory({ contacts, setContacts }) {
             <span className="pv-people-care" id={`${detailsId}-care`}>{(hasCareNote(person.medical) || hasCareNote(person.allergies)) && <><Icon name="shield" size={14}/>Care notes</>}</span>
             <Icon name="chevron" size={17} className="pv-people-chevron"/>
           </button>
+          <button type="button" className="pv-people-dependant" aria-label={`Dependant: ${person.name}`} aria-pressed={person.isDependant === true} aria-describedby={`${id}-planning-note`} onClick={() => toggleDependant(person)}><Icon name={person.isDependant === true ? 'check' : 'plus'} size={14}/>Dependant</button>
+          </div>
           {isExpanded && <PersonDetails person={person} id={detailsId} onEdit={() => setEditor({ person })} onRemove={() => remove(person)}/>}
         </article>;
       })}</div>

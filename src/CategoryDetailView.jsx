@@ -1,3 +1,4 @@
+import FoodWaterInfo from "./FoodWaterInfo.jsx";
 import { Fragment, useId, useMemo, useState } from 'react';
 import { Icon } from './brand.jsx';
 import './inventory.css';
@@ -8,7 +9,7 @@ const hasValue = value => value !== null && value !== undefined && value !== '';
 const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''));
 
 export default function CategoryDetailView({ catKey, items = [], people, climate, onBack, onAdd, onRemove, onEdit, onQtyChange,
-  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onRationing, onScan }) {
+  categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onPeople, onRationing, onScan }) {
   const cat = categories[catKey];
   const ci = useMemo(() => items.filter(item => item.category === catKey), [items, catKey]);
   const p = people || 4;
@@ -371,6 +372,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
       <div><p className="pv-inventory-eyebrow">{standalone ? 'YOUR EVERYDAY ESSENTIALS' : 'YOUR SUPPLIES, IN DETAIL'}</p><h1 id={`${id}-title`}>{cat.label}<span>.</span></h1><p className="pv-inventory-intro">{cat.desc}</p></div>
       <div className="pv-inventory-actions">{onRationing && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onRationing}><Icon name="ration" size={18}/>Rationing</button>}{onScan && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onScan}><Icon name="scan" size={18}/>Scan barcode</button>}<button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={() => onAdd(catKey)}><Icon name="plus" size={18}/>{addLabel}</button></div>
     </header>
+    {onPeople && <div className="pv-category-people"><span>Food and water count only dependants selected in Your People.</span><FoodWaterInfo /><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onPeople}><Icon name="users" size={16}/>Manage dependants</button></div>}
     <div className="pv-inventory-overview">
       <button type="button" className="pv-inventory-stat pv-inventory-stat-action" aria-pressed={!filtersActive} onClick={clearFilters}><span className="pv-inventory-stat-icon"><Icon name="box" size={22}/></span><div><span className="pv-inventory-stat-value">{ci.length}<small>recorded supplies</small></span><p>{quantity} total quantity recorded</p></div><Icon name="arrow" size={18}/></button>
       <div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><Icon name="list" size={22}/></span><div><span className="pv-inventory-stat-value">{subtypeEntries.filter(([key]) => recordedTypes.has(key)).length}<small>of {subtypeEntries.length} types recorded</small></span><p>Explore the full category below</p></div></div>

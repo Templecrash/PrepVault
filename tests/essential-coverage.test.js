@@ -25,7 +25,7 @@ test('current household and calorie settings control food/water days, with empty
   const noPeople = computeEssentialCoverage(items, 0, 2000);
   assert.equal(noPeople.water.days, null);
   assert.equal(noPeople.food.days, null);
-  assert.match(noPeople.water.detail, /Add people/);
+  assert.match(noPeople.water.detail, /Mark dependants in Your People/);
   assert.equal(computeEssentialCoverage(items, 4, 0).food.days, null);
 });
 

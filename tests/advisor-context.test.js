@@ -8,7 +8,7 @@ const categories = {
   food: { label: 'Food', subTypes: { cannedGoods: { label: 'Canned goods', unit: 'cans', fields: ['calories', 'servings', 'expiryDate'] } } },
 };
 const fixture = () => ({
-  categories, people: 3, rationPeople: [{ id: 'r1', name: 'One' }, { id: 'r2', name: 'Two' }], dailyCalTarget: 2500,
+  categories, people: 3, contacts: [{ id: 'r1', name: 'One', isDependant: true }, { id: 'r2', name: 'Two', isDependant: true }], dailyCalTarget: 2500,
   climate: 'cold', climateConfig: { label: 'Cold', firewoodMod: 1.8, waterMod: 0.8, fuelMod: 1.5 },
   activePropertyId: 'home', properties: [{ id: 'home', name: 'Home', type: 'home' }, { id: 'cabin', name: 'Cabin', type: 'cabin' }],
   items: [
@@ -178,4 +178,26 @@ test('device context reads only the three explicitly approved non-auth storage k
   assert.deepEqual(context.radioLog, [{ text: 'A weather note' }]);
   assert.deepEqual(context.savedStations, []);
   assert.deepEqual(context.trapStatus, {});
+});
+
+
+test('adviser counts only directory dependants and retains the selection after sanitization', () => {
+  const input = { ...fixture(), people: 20, rationPeople: [{ id: 'stale', name: 'Old list' }], contacts: [
+    { id: 'self', name: 'You', isDependant: true },
+    { id: 'friend', name: 'Friend', isDependant: false },
+    { id: 'legacy', name: 'Legacy contact' },
+  ] };
+  const context = buildAdvisorContext(input, { now });
+  assert.equal(context.household.rationing.peopleCount, 1);
+  assert.equal(context.derived.rationing.waterDays, 45);
+  assert.deepEqual(context.household.rationing.people.map(person => person.id), ['self']);
+  const clean = sanitizeAdvisorContext(context);
+  assert.equal(clean.household.contacts[0].isDependant, true);
+  assert.equal(clean.household.contacts[1].isDependant, false);
+  assert.equal(clean.household.rationing.people[0].isDependant, true);
+  input.contacts[0].isDependant = false;
+  const empty = buildAdvisorContext(input, { now });
+  assert.equal(empty.household.rationing.peopleCount, 0);
+  assert.equal(empty.derived.rationing.foodDays, null);
+  assert.equal(empty.derived.rationing.waterDays, null);
 });

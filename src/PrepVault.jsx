@@ -27,6 +27,7 @@ import Surveillance from "./Surveillance.jsx";
 import { buildAdvisorContext, readAdvisorDeviceContext } from "./advisor-context.js";
 import { HANDBOOKS } from "./handbooks.js";
 import RationingPlanner from "./RationingPlanner.jsx";
+import { buildFoodWaterRoster } from "./food-water-household.js";
 import HandbookLibrary from "./HandbookLibrary.jsx";
 import PropertyMapWorkspace from "./PropertyMapWorkspace.jsx";
 import { Icon } from "./brand.jsx";
@@ -3315,12 +3316,7 @@ export default function PrepVault() {
   const saved = useRef(loadSaved());
   const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
   const [people, setPeople] = useState(() => saved.current?.people ?? 4);
-  const [rationPeopleOverride, setRationPeopleOverride] = useState(null);
   const [dailyCalTarget, setDailyCalTarget] = useState(2000);
-  const defaultRationPeople = useMemo(() => Array.from({ length: Math.max(0, Math.floor(Number(people) || 0)) }, (_, i) => ({ id: "rp" + i, name: "Person " + (i + 1) })), [people]);
-  const rationPeople = rationPeopleOverride ?? defaultRationPeople;
-  const setRationPeople = useCallback(update => setRationPeopleOverride(current => typeof update === "function" ? update(current ?? defaultRationPeople) : update), [defaultRationPeople]);
-  const resetRationPeople = () => setRationPeopleOverride(null);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [inventorySearch, setInventorySearch] = useState({ query: "", status: "all", key: 0 });
@@ -3332,7 +3328,7 @@ export default function PrepVault() {
   const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
   const enterWorkspace = () => { setShowLanding(false); setOnboardStep(null); localStorage.setItem("prepvault-workspace-open", "1"); };
   const startPlan = () => {
-    if (!saved.current) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); }
+    if (!saved.current) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setContacts([]); setMembers([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setDemoData(false); setDailyCalTarget(2000); }
     enterWorkspace(); openSetup();
   };
   const [selCat, setSelCat] = useState(null);
@@ -3357,6 +3353,7 @@ export default function PrepVault() {
   const [mapSetups, setMapSetups] = useState(() => saved.current?.mapSetups || {});
   const [members, setMembers] = useState(() => saved.current?.members || SAMPLE_MEMBERS);
   const [contacts, setContacts] = useState(() => saved.current?.contacts || SAMPLE_CONTACTS);
+  const rationPeople = useMemo(() => buildFoodWaterRoster(contacts), [contacts]);
   const [callSigns, setCallSigns] = useState(() => saved.current?.callSigns || COMMS_PLAN.callSigns);
   const [codeWords, setCodeWords] = useState(() => saved.current?.codeWords || COMMS_PLAN.codeWords);
   const [rallyPoints, setRallyPoints] = useState(() => saved.current?.rallyPoints || COMMS_PLAN.rallyPoints);
@@ -3572,7 +3569,7 @@ export default function PrepVault() {
       setAuthPassword("");
       // New signups get empty state
       if (authMode === "signup" && !saved.current && !localStorage.getItem("prepvault-workspace-open")) {
-        setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000);
+        setDemoData(false); setDailyCalTarget(2000);
         setItems([]);
         setContacts([]);
         setMembers([{ id: "p1", name: "You", avatar: "👤", role: "Leader", status: "home", lat: null, lng: null, lastPing: "Now", battery: 100, sharing: false, color: "#22c55e" }]);
@@ -3641,7 +3638,7 @@ export default function PrepVault() {
       const until = Number(localStorage.getItem("prepvault-alerts-dismissed-until"));
       setAlertsDismissedUntil(Number.isFinite(until) && until > Date.now() ? until : null);
     }
-    if (includeSettings) { setRestoreVersion(version => version + 1); setRationPeopleOverride(null); setDailyCalTarget(2000); }
+    if (includeSettings) { setRestoreVersion(version => version + 1); setDailyCalTarget(2000); }
     saved.current = data;
     setSelCat(null);
     localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
@@ -3879,7 +3876,7 @@ export default function PrepVault() {
   const getPrepChatContext = () => buildAdvisorContext({
           items, categories: CATEGORIES, people, climate, climateConfig: CLIMATES[climate],
           activePropertyId, properties, propAddress, propertyProfile, mapSetups, pins, routes,
-          contacts, members, rationPeople, dailyCalTarget, callSigns, codeWords, rallyPoints, codes,
+          contacts, members, dailyCalTarget, callSigns, codeWords, rallyPoints, codes,
           commsPlan: COMMS_PLAN, gardenBeds, soilTests, compostBins, livestock, slaughterLog,
           actionLog, selScen, scenario: SCENARIOS[selScen], simDuration, crisisMode, crisisType,
           crisisStart, dismissedOpps, allAlerts, manuals, handbooks: HANDBOOKS, demoData,
@@ -3894,7 +3891,7 @@ export default function PrepVault() {
       case "emergency":
         return <HandbookLibrary crisisMode={crisisMode} onCrisis={() => { if (crisisMode) { setCrisisMode(false); setCrisisStart(null); setCrisisType(null); } else setShowCrisisSelector(true); }} />;
       case "dashboard":
-        return <><Overview items={propItems} categories={CATEGORIES} people={people} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={members} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content pv-quiet-legacy"><DashboardTab items={propItems} setSelCat={openCategory} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} dismissResetKey={dismissResetKey} /></div>}</details></>;
+        return <><Overview items={propItems} categories={CATEGORIES} people={contacts.length} property={activePropertyId === "all" ? "All properties" : activeProp} alerts={visibleAlerts} onNavigate={navigate} onCategory={openCategory} onAdd={() => openAdd()} onCrisis={() => setShowCrisisSelector(true)} onScan={() => setShowScanner(true)} members={contacts} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget}/><details className="pv-legacy-details" onToggle={e => setShowDetailedDashboard(e.currentTarget.open)}><summary><Icon name="compass"/> Readiness details, weather & activity</summary>{showDetailedDashboard && <div className="pv-legacy-content pv-quiet-legacy"><DashboardTab items={propItems} setSelCat={openCategory} openAdd={openAdd} people={people} climate={climate} allAlerts={allAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} crisisMode={crisisMode} setCrisisMode={setCrisisMode} setCrisisStart={setCrisisStart} setShowScanner={setShowScanner} propAddress={propAddress} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} members={members} codes={codes} actionLog={actionLog} setActionLog={setActionLog} propertyProfile={propertyProfile} onOpenQuickStart={openSetup} setActiveTab={setActiveTab} dismissResetKey={dismissResetKey} /></div>}</details></>;
       case "codes":
         return <CodesView onSetup={openSetup} codes={codes} setCodes={setCodes} members={members} revealedCodes={revealedCodes} setRevealedCodes={setRevealedCodes} />;
       case "manuals":
@@ -3907,7 +3904,7 @@ export default function PrepVault() {
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "food":
       case "water":
-        return <CategoryDetailView key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget)} onRationing={() => navigate("rationing")} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
+        return <CategoryDetailView key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget)} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
       case "inventory-search":
       case "preps": {
         const allInventory = activeTab === "inventory-search";
@@ -3922,7 +3919,7 @@ export default function PrepVault() {
       case "board":
         return <Suspense fallback={<p role="status">Opening the community board…</p>}><MessageBoard /></Suspense>;
       case "rationing":
-        return <RationingPlanner items={propItems} rationPeople={rationPeople} setRationPeople={setRationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onResetPeople={resetRationPeople} />;
+        return <RationingPlanner items={propItems} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={setDailyCalTarget} onManagePeople={() => navigate("community")} />;
       case "comms":
         return <CommunicationsView plan={COMMS_PLAN} frequencies={EMERGENCY_FREQUENCIES} prowords={PROWORDS} phonetic={NATO_PHONETIC} equipmentTypes={CATEGORIES.comms.subTypes} sampleChat={SAMPLE_CHAT} onSupplies={() => openCategory("comms")} items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
@@ -4174,7 +4171,7 @@ export default function PrepVault() {
         );
       })()}
 
-      {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setRationPeopleOverride(null); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
+      {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => { if (window.confirm("Start your own plan? This clears the sample inventory and household records on this device.")) { setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]); setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]); setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]); setDemoData(false); setDailyCalTarget(2000); openSetup(); } }}>Start my own plan →</button></div>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
       <div key={restoreVersion} className={!selCat && !["dashboard", "food", "water", "inventory-search", "board", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
 

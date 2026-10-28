@@ -44,7 +44,7 @@ export function computeEssentialCoverage(items = [], peopleCount = 0, dailyCalTa
   const rationing = computeRationing(items, peopleCount, dailyCalTarget);
   const omitted = rationing.omittedFoodCount;
   const foodDetail = !rationing.peopleCount
-    ? 'Add people in Rationing to estimate.'
+    ? 'Mark dependants in Your People to estimate.'
     : !rationing.dailyCalTarget
       ? 'Set a calorie target in Rationing.'
       : `${format(rationing.dailyCalTarget)} cal/person/day.`;
@@ -52,7 +52,7 @@ export function computeEssentialCoverage(items = [], peopleCount = 0, dailyCalTa
     water: {
       days: fullDays(rationing.waterDays),
       basis: 'Stored-water coverage',
-      detail: rationing.peopleCount ? `${format(rationing.totalWaterGal)} gal · 1 gal/person/day.` : 'Add people in Rationing to estimate.',
+      detail: rationing.peopleCount ? `${format(rationing.totalWaterGal)} gal · 1 gal/person/day.` : 'Mark dependants in Your People to estimate.',
     },
     food: {
       days: fullDays(rationing.foodDays),

@@ -10,11 +10,11 @@ export function buildEssentialPlanning(category, items = [], peopleCount = 0, da
   const ration = computeRationing(items, peopleCount, dailyCalTarget);
   const count = ration.peopleCount;
   const noPeople = !count;
-  const people = { label: 'People in this plan', value: count ? peopleLabel(count) : 'Not set', note: 'Uses your current Rationing roster' };
+  const people = { label: 'People in this plan', value: count ? peopleLabel(count) : 'Not set', note: 'Only contacts marked as dependants in Your People' };
 
   if (category === 'food') {
     const noTarget = !ration.dailyCalTarget;
-    const missingSettings = noPeople ? 'Add people in Rationing to estimate coverage.' : noTarget ? 'Set a calorie target in Rationing to estimate coverage.' : '';
+    const missingSettings = noPeople ? 'Mark dependants in Your People to estimate coverage.' : noTarget ? 'Set a calorie target in Rationing to estimate coverage.' : '';
     const omitted = ration.omittedFoodCount;
     const nutritionNote = omitted ? `${omitted} ${omitted === 1 ? 'entry needs' : 'entries need'} nutrition details.` : '';
     const dailyNeed = count * ration.dailyCalTarget;
@@ -34,7 +34,7 @@ export function buildEssentialPlanning(category, items = [], peopleCount = 0, da
     };
   }
 
-  const missingSettings = noPeople ? 'Add people in Rationing to estimate coverage.' : '';
+  const missingSettings = noPeople ? 'Mark dependants in Your People to estimate coverage.' : '';
   return {
     title: 'Stored-water coverage',
     bigNum: ration.waterDays === null ? '—' : format(ration.waterDays),

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./brand.jsx";
+import FoodWaterInfo from "./FoodWaterInfo.jsx";
 import OverviewInsights from "./OverviewInsights.jsx";
 import { summarizeOverviewInventory } from "./overview-metrics.js";
 import { computeEssentialCoverage } from "./essential-coverage.js";
@@ -58,7 +59,7 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
     <section className="pv-essentials-section" aria-labelledby="pv-essentials-title">
       <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>How long your recorded supplies could last.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("inventory-search")}>All inventory <Icon name="arrow" size={15} /></button></div>
       <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <EssentialCoverage key={essential.key} coverage={coverage[essential.key]} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} stats={overview.summary.categories.find(row => row.key === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
-      <p className="pv-essential-note">Food and water follow your rationing plan. Open a card to update its supplies and coverage details.</p>
+      <div className="pv-essential-people"><p className="pv-essential-note">Food and water plan for <strong>{rationPeople.length} {rationPeople.length === 1 ? "dependant" : "dependants"}</strong> selected in Your People.</p><FoodWaterInfo /><button type="button" className="pv-text-link" onClick={() => onNavigate("community")}>Manage dependants<Icon name="arrow" size={14}/></button></div>
     </section>
 
     <div className="pv-overview-columns">
@@ -85,7 +86,7 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
     </div>
 
     <section className="pv-household-strip" aria-label="Your household and quick actions">
-      <div className="pv-household-intro"><span className="pv-icon-tile"><Icon name="users" size={21} /></span><div><h2>Preparation is a team effort.</h2><p>{people} {people === 1 ? "person" : "people"} in your household · {members.length} team {members.length === 1 ? "member" : "members"} recorded</p></div></div>
+      <div className="pv-household-intro"><span className="pv-icon-tile"><Icon name="users" size={21} /></span><div><h2>Preparation is a team effort.</h2><p>{people} {people === 1 ? "person" : "people"} in your directory · {rationPeople.length} {rationPeople.length === 1 ? "dependant" : "dependants"} for food & water</p></div></div>
       <div className="pv-team-initials" aria-hidden="true">{members.slice(0, 4).map((member, index) => <span key={member.id || index}>{String(member.name || "?").slice(0, 1).toUpperCase()}</span>)}{members.length > 4 && <span>+{members.length - 4}</span>}</div>
       <button type="button" className="pv-overview-button pv-button-outline" onClick={() => onNavigate("community")}>Your team<Icon name="arrow" size={16} /></button>
     </section>
