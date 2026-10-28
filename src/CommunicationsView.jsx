@@ -9,7 +9,7 @@ import RadioTalk from './RadioTalk.jsx';
 import './inventory.css';
 import './communications.css';
 
-const SECTIONS = [['scanner', 'Radio'], ['talk', 'Talk'], ['commsplan', 'Communications plan']];
+const SECTIONS = [['scanner', 'Radio'], ['talk', 'Radio services'], ['commsplan', 'Communications plan']];
 const BANDS = { noaa: 'NOAA', ham2m: '2m', ham70cm: '70cm', hamhf: 'HF', gmrs: 'GMRS', frs: 'FRS', murs: 'MURS', cb: 'CB', marine: 'Marine', custom: 'Custom' };
 const DEFAULT_CHANNELS = [
   ['162.400', 'NOAA WX1', 'noaa'], ['146.520', '2m Calling', 'ham2m'], ['146.550', 'Emergency Simplex', 'ham2m'],
@@ -167,7 +167,7 @@ export default function CommunicationsView({ items = [], people, callSigns = [],
     {saveError && <p className="pv-comms-error" role="alert">{saveError}</p>}
 
     <div hidden={section !== 'scanner'} className="pv-comms-stack">
-      <div className="pv-inventory-workspace pv-comms-talk-shortcut"><div><h2>Talk to other radio amateurs</h2><p>Use EchoLink Web from your laptop. No radio equipment required.</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => { chooseSection('talk'); talkTab.current?.focus(); }}><Icon name="radio" size={17}/>Set up two-way radio</button></div>
+      <div className="pv-inventory-workspace pv-comms-talk-shortcut"><div><h2>Sign in to a radio service</h2><p>Two-way amateur radio for Canada and the US, using your own service account.</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => { chooseSection('talk'); talkTab.current?.focus(); }}><Icon name="radio" size={17}/>Browse radio services</button></div>
       <RadioPlayer/>
       <Details title="Physical radio frequencies" count={references.length}><SectionHeading title="Frequency reference" description="North American references for a physical radio. These rows do not contain internet streams. Use the local feed directory above to listen online."><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => setShowAdd(value => !value)} aria-expanded={showAdd}><Icon name="plus" size={17}/>Add frequency</button></SectionHeading>
         {showAdd && <form className="pv-comms-inline-form" onSubmit={addCustomReference}><label className="pv-comms-field">Frequency (MHz)<input value={frequency} onChange={event => setFrequency(event.target.value)} placeholder="146.520" required inputMode="decimal" maxLength={14}/></label><label className="pv-comms-field">Name<input value={frequencyName} onChange={event => setFrequencyName(event.target.value)} placeholder="Local channel" maxLength={100}/></label><button className="pv-inventory-button pv-inventory-button-primary">Save frequency</button>{formError && <p className="pv-comms-error" role="alert">{formError}</p>}</form>}
