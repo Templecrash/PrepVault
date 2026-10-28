@@ -20,7 +20,7 @@ const destinations = [
   { id: 'rationing', label: 'Rationing', icon: 'ration' },
   { id: 'board', label: 'Community board', icon: 'advisor' },
   { id: 'bugout', label: 'Bug Out', icon: 'box', group: 'PLAN AHEAD' },
-  { id: 'farming', label: 'Grow & sustain', icon: 'leaf' },
+  { id: 'farming', label: 'Farm', icon: 'leaf' },
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
   { id: 'systems', label: 'Resource planning', icon: 'bolt' },
   { id: 'skills', label: 'Skills', icon: 'book', group: 'REFERENCE LIBRARY' },
