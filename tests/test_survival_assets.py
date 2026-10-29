@@ -1,5 +1,6 @@
 """Cloud asset integrity tests; small in-memory fixtures, no network or model loads."""
 import copy
+import errno
 import hashlib
 import importlib.util
 import io
@@ -160,6 +161,58 @@ class AssetsTest(unittest.TestCase):
             with self.assertRaises(assets.AssetError):
                 assets.ensure_library(dest)
         self.assertEqual((dest / 'mine').read_text(), 'keep')
+
+    def test_install_falls_back_for_unsupported_rename_flags(self):
+        for code in {errno.ENOSYS, errno.EINVAL, errno.EOPNOTSUPP, errno.ENOTSUP}:
+            with self.subTest(errno=code):
+                staging = self.root / f'staging-{code}'
+                staging.mkdir(); (staging / 'file').write_text('verified')
+                destination = self.root / f'destination-{code}'
+                with patch.object(assets, '_rename_exclusive', side_effect=OSError(code, 'unsupported')):
+                    assets._install(staging, destination)
+                self.assertEqual((destination / 'file').read_text(), 'verified')
+                self.assertFalse(staging.exists())
+                self.assertFalse((self.root / f'.destination-{code}-install.lock').exists())
+
+    def test_install_preserves_staging_and_destination_when_locked_or_existing(self):
+        staging = self.root / 'staging'; staging.mkdir(); (staging / 'file').write_text('verified')
+        destination = self.root / 'destination'
+        lock = self.root / '.destination-install.lock'; lock.mkdir()
+        with self.assertRaisesRegex(assets.AssetError, 'held or stale'):
+            assets._install(staging, destination)
+        self.assertTrue(lock.exists()); self.assertTrue(staging.exists())
+        lock.rmdir(); destination.mkdir(); (destination / 'mine').write_text('keep')
+        with self.assertRaisesRegex(assets.AssetError, 'Destination already exists'):
+            assets._install(staging, destination)
+        self.assertEqual((destination / 'mine').read_text(), 'keep')
+        self.assertEqual((staging / 'file').read_text(), 'verified')
+        self.assertFalse(lock.exists())
+
+    def test_unexpected_rename_failure_reports_errno_without_fallback(self):
+        staging = self.root / 'staging'; staging.mkdir()
+        destination = self.root / 'destination'
+        with patch.object(assets, '_rename_exclusive', side_effect=OSError(errno.EIO, 'input/output error')), patch.object(assets.os, 'rename') as rename:
+            with self.assertRaisesRegex(assets.AssetError, f'errno {errno.EIO}'):
+                assets._install(staging, destination)
+            rename.assert_not_called()
+        self.assertTrue(staging.exists()); self.assertFalse(destination.exists())
+        self.assertFalse((self.root / '.destination-install.lock').exists())
+
+    def test_failed_library_install_retains_verified_extraction_and_retries_without_reextracting(self):
+        body = self.library_zip()
+        pins = copy.deepcopy(assets.PINS); pins['library']['parts'] = [self.part(body)]
+        destination = self.root / 'library'
+        with patch.object(assets, 'PINS', pins), patch.object(assets, '_require_remote'), patch.object(assets.shutil, 'disk_usage', return_value=types.SimpleNamespace(free=10**12)):
+            with patch.object(assets.urllib.request, 'urlopen', return_value=Response(body)), patch.object(assets, '_install', side_effect=assets.AssetError('simulated install failure')):
+                with self.assertRaisesRegex(assets.AssetError, 'simulated'):
+                    assets.ensure_library(destination, progress=self.events.append)
+            staged = list(self.root.glob('.library-install-*'))
+            self.assertEqual(len(staged), 1)
+            self.assertTrue(assets.library_status(staged[0])['ready'])
+            with patch.object(assets, '_extract_library', side_effect=AssertionError('must not extract twice')), patch.object(assets.urllib.request, 'urlopen', side_effect=AssertionError('must not fetch twice')):
+                self.assertTrue(assets.ensure_library(destination, progress=self.events.append)['ready'])
+            self.assertFalse(staged[0].exists())
+            self.assertFalse(list(self.root.glob('.library-download-*')))
 
     def test_library_install_ready_and_detects_index_change(self):
         body = self.library_zip()

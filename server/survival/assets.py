@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import ctypes
+import errno
 import hashlib
 import io
 import json
@@ -293,10 +294,8 @@ def _extract_library(paths, staging, progress):
                 _emit(progress, 'library-extracting', completed=number + 1, total=len(entries))
 
 
-def _install(staging, destination):
-    # Refuse replacement atomically even if a second process creates the destination.
-    if os.path.lexists(destination):
-        raise AssetError('Destination already exists; existing assets were preserved.')
+def _rename_exclusive(staging, destination):
+    """Use the OS non-replacing rename when the mounted filesystem supports it."""
     libc = ctypes.CDLL(None, use_errno=True)
     if sys.platform == 'linux' and hasattr(libc, 'renameat2'):
         rename = libc.renameat2
@@ -309,9 +308,40 @@ def _install(staging, destination):
         rename.restype = ctypes.c_int
         result = rename(os.fsencode(staging), os.fsencode(destination), 4)  # RENAME_EXCL
     else:
-        raise AssetError('Atomic non-replacing installation is unavailable on this platform.')
+        raise OSError(errno.ENOSYS, 'Exclusive rename is unavailable')
     if result:
-        raise AssetError('Atomic installation failed; existing assets were preserved.')
+        code = ctypes.get_errno()
+        raise OSError(code, os.strerror(code))
+
+
+def _install(staging, destination):
+    # Modal Volume v2 may reject renameat2 flags. All provisioners serialize the
+    # existence check and standard rename with the same atomic mkdir lock.
+    lock = destination.parent / ('.' + destination.name + '-install.lock')
+    try:
+        lock.mkdir(mode=0o700)
+    except FileExistsError:
+        raise AssetError('Installation lock is held or stale; staging and existing assets were preserved.') from None
+    except OSError as exc:
+        raise AssetError(f'Installation lock failed (errno {exc.errno}); staging was preserved.') from None
+    try:
+        if os.path.lexists(destination):
+            raise AssetError('Destination already exists; staging and existing assets were preserved.')
+        try:
+            _rename_exclusive(staging, destination)
+        except OSError as exc:
+            unsupported = {errno.ENOSYS, errno.EINVAL, errno.EOPNOTSUPP, errno.ENOTSUP}
+            if exc.errno not in unsupported:
+                raise
+            # The private Volume has a single writer; other installers must use
+            # this lock. Recheck after the rejected syscall before plain rename.
+            if os.path.lexists(destination):
+                raise AssetError('Destination already exists; staging and existing assets were preserved.')
+            os.rename(staging, destination)
+    except OSError as exc:
+        raise AssetError(f'Asset installation failed (errno {exc.errno}); staging and existing assets were preserved.') from None
+    finally:
+        lock.rmdir()
 
 
 def ensure_library(destination='/data/library', *, progress=None):
@@ -326,6 +356,17 @@ def ensure_library(destination='/data/library', *, progress=None):
     work = destination.parent / ('.library-download-' + pack['version'])
     if work.is_symlink():
         raise AssetError('Library cache cannot be a symlink.')
+    # A verified extraction survives install failures. Retry its rename without
+    # downloading, hashing split parts or extracting the 21 GB library again.
+    for pending in sorted(destination.parent.glob('.library-install-*')):
+        if library_status(pending)['ready']:
+            _emit(progress, 'library-install-resuming')
+            _install(pending, destination)
+            if work.exists():
+                shutil.rmtree(work)
+            result = library_status(destination)
+            _emit(progress, 'library-ready', articles=result['articles'], sources=result['sources'])
+            return result
     work.mkdir(mode=0o700, exist_ok=True)
     paths = [work / f'full.{i:03d}' for i in range(len(pack['parts']))]
     remaining = sum(max(0, part['bytes'] - (path.stat().st_size if _regular_file(path) else 0)) for part, path in zip(pack['parts'], paths))
@@ -342,10 +383,13 @@ def ensure_library(destination='/data/library', *, progress=None):
         receipt = {'kind': 'library', 'pinDigest': _pin_digest('library'), 'index': _file_stamp(staging / 'index.sqlite'), **stats}
         (staging / 'pack.json').write_text(json.dumps({'id': 'full', 'version': pack['version']}))
         (staging / RECEIPT).write_text(json.dumps(receipt))
-        _install(staging, destination)
-    finally:
+    except BaseException:
         if staging.exists():
             shutil.rmtree(staging)
+        raise
+    # Keep this outside extraction cleanup: the verified staging directory is
+    # useful for retry when a volume rejects or temporarily fails the rename.
+    _install(staging, destination)
     shutil.rmtree(work)
     _emit(progress, 'library-ready', **stats)
     return library_status(destination)
@@ -362,6 +406,10 @@ def ensure_model(destination='/data/model', *, progress=None):
     staging = destination.parent / ('.model-download-' + MODEL_REVISION)
     if staging.is_symlink():
         raise AssetError('Model cache cannot be a symlink.')
+    if model_status(staging)['ready']:
+        _emit(progress, 'model-install-resuming')
+        _install(staging, destination)
+        return model_status(destination)
     remaining = 0
     for item in PINS['model']['files']:
         path = staging.joinpath(*_safe_name(item['path']).parts)

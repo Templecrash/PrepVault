@@ -19,15 +19,26 @@ The persistent Modal Volume is mounted at `/data`:
 - `/data/library`: `index.sqlite`, text shards, original `SOURCES.md`, `pack.json`, and a verification receipt.
 - `/data/model`: complete pinned Hugging Face snapshot and a verification receipt.
 - `/data/.library-download-2026-10-28`: resumable reference download parts, removed after successful installation.
+- `/data/.library-install-<id>`: verified extracted library retained if final installation fails; the next attempt reuses it without extraction.
 - `/data/.model-download-<revision>`: resumable model staging directory, renamed after verification.
 
 The library downloader checks every part's exact size and SHA256. It reads the split ZIP directly, rejects traversal, symlinks, special files, conflicting names, encrypted entries and oversized archives, and verifies the SQLite source/article counts. It preserves the source attribution file. The model downloader verifies all LFS files against their pinned SHA256 and all ordinary repository files against their Git blob SHA1 and exact size. This includes the model code, not only its weights.
 
-Installation uses an atomic non-replacing rename. An existing directory with missing or different verification metadata is preserved and reported as unverified; it is never silently replaced. An interrupted download can be retried. Run at most one provisioning function against this Volume at a time, and commit the Volume when provisioning succeeds. Never provision into a Volume while inference is reading or writing a replacement asset version.
+Installation acquires an atomic directory lock (`.library-install.lock` or `.model-install.lock`) and checks that the destination is absent. It uses the operating system's non-replacing rename when supported. Modal Volume v2 rejects that flag with `EINVAL`, so the installer falls back to standard directory rename while holding the same lock and checking the destination again. A CPU-only probe verified both the lock and fallback rename on this Volume. Every writer must use this lock; a held or stale lock requires investigation and is never automatically removed by another process.
+
+An existing directory with missing or different verification metadata is preserved and reported as unverified. Unexpected installation errors report their errno and keep verified staging for retry. An interrupted download can also be retried. Run at most one provisioning function against this private Volume at a time, and commit the Volume on both success and failure so resumable data survives. Never provision into a Volume while inference is reading or writing a replacement asset version.
 
 Readiness checks read receipts, file metadata and SQLite source counts; they do not download or rehash 75 GB per request. The Volume must remain private and writable only by the owner's deployment. Tamper-resistant storage is not implied by these checks.
 
 ## Python interface
+
+After account and cost approval, run the separate CPU-only provisioner:
+
+```sh
+modal run --detach -m server.survival.provision::prepare
+```
+
+This entrypoint does not import or allocate the GPU service. Its Volume is `prepvault-survival-assets`, version 2.
 
 ```python
 from server.survival.assets import asset_status, ensure_library, ensure_model
