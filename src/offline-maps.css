@@ -10,3 +10,17 @@
 @media print{.pv-offline-routes .pv-route-online-map{display:none!important}}
 
 .pv-offline-routes .pv-route-print-drawing{display:none}@media print{.pv-offline-routes .pv-route-print-drawing{display:block!important}}
+
+.pv-offline-routes .pv-route-pin-toolbar{padding:4px 0 8px;color:var(--pv-ink)}
+.pv-offline-routes .pv-route-pin-toolbar strong{font-size:13px;font-weight:550}
+.pv-offline-routes .pv-route-pin-toolbar p{margin:5px 0 12px;font-size:12px;line-height:1.6;color:var(--pv-muted)}
+.pv-offline-routes .pv-route-pin-choices{display:flex;flex-wrap:wrap;gap:7px}
+.pv-offline-routes .pv-route-pin-choices button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:7px 12px;border:1px solid var(--pv-border);border-radius:var(--pv-control-radius);background:var(--pv-surface);color:var(--pv-ink);font:inherit;font-size:12px}
+.pv-offline-routes .pv-route-pin-choices button>span{display:grid;place-items:center;width:21px;height:21px;border:1px solid currentColor;border-radius:50%;font-size:10px;font-weight:600}
+.pv-offline-routes .pv-route-pin-choices button:hover{background:var(--pv-subtle)}
+.pv-offline-routes .pv-route-pin-choices button[aria-pressed=true]{background:var(--pv-accent);border-color:var(--pv-accent);color:var(--pv-on-accent)}
+.pv-offline-routes .pv-route-pick-button{min-height:36px;margin:0 0 6px;color:var(--pv-link)}
+.pv-offline-routes .pv-route-pick-button[aria-pressed=true]{text-decoration:underline;text-underline-offset:4px}
+.pv-offline-routes .pv-route-pin-status{font-size:12px;line-height:1.6;color:var(--pv-ink);margin:12px 0}
+.pv-offline-routes .pv-route-match-label{display:block;color:var(--pv-link);font-size:11px;margin:3px 0}
+.pv-offline-routes .pv-route-point-pin:focus-visible{outline:3px solid var(--pv-focus);outline-offset:4px;border-radius:50%}

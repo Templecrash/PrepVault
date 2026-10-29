@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeMapSearchResults, searchMapPlaces, validateMapSearchQuery } from '../api/_lib/map-geocoder.js';
+import { normalizeMapSearchResults, parseCanadianMapAddress, searchMapPlaces, validateMapSearchQuery } from '../api/_lib/map-geocoder.js';
 
 const address = { type: 'Feature', geometry: { type: 'Point', coordinates: [-79.3839, 43.6534] }, properties: { osm_type: 'W', osm_id: 123, name: 'Toronto City Hall', housenumber: '100', street: 'Queen Street West', city: 'Toronto', state: 'Ontario', postcode: 'M5H 2N2', country: 'Canada' } };
 const city = { type: 'Feature', geometry: { type: 'Point', coordinates: [-75.6972, 45.4215] }, properties: { osm_type: 'R', osm_id: 456, name: 'Ottawa', city: 'Ottawa', state: 'Ontario', country: 'Canada' } };
@@ -17,7 +17,7 @@ test('map search validates and normalizes a bounded address or city query before
 
 test('Photon addresses and cities retain useful labels and coordinates without duplicate parts', () => {
   const [result, town] = normalizeMapSearchResults(payload());
-  assert.deepEqual(result, { id: 'photon:W:123', name: 'Toronto City Hall', label: 'Toronto City Hall, 100 Queen Street West, Toronto, Ontario, M5H 2N2, Canada', detail: '100 Queen Street West, Toronto, Ontario, M5H 2N2, Canada', latitude: 43.6534, longitude: -79.3839 });
+  assert.deepEqual(result, { id: 'photon:W:123', name: 'Toronto City Hall', label: 'Toronto City Hall, 100 Queen Street West, Toronto, Ontario, M5H 2N2, Canada', detail: '100 Queen Street West, Toronto, Ontario, M5H 2N2, Canada', latitude: 43.6534, longitude: -79.3839, matchType: 'address', matchLabel: 'Mapped address' });
   assert.equal(town.label, 'Ottawa, Ontario, Canada');
   assert.equal(town.detail, 'Ontario, Canada');
   const unnamed = normalizeMapSearchResults(payload([{ ...address, properties: { ...address.properties, name: undefined } }]))[0];
@@ -65,4 +65,114 @@ test('slow provider requests abort within the configured deadline', async () => 
     return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
   } }), { name: 'AbortError' });
   assert.equal(signal.aborted, true);
+});
+
+test('precision descriptors distinguish an address, a road midpoint, a town and a named place', () => {
+  const rows = normalizeMapSearchResults(payload([
+    address,
+    { ...address, properties: { osm_id: 2, osm_type: 'W', name: 'Steamship Bay Road', type: 'street' } },
+    { ...city, properties: { ...city.properties, type: 'city' } },
+    { ...address, properties: { osm_id: 3, osm_type: 'N', name: 'Dorset Lookout Tower', type: 'house' } },
+  ]));
+  assert.deepEqual(rows.map(row => row.matchType), ['address', 'street', 'area', 'place']);
+  assert.equal(rows[0].matchLabel, 'Mapped address');
+  assert.match(rows[1].matchLabel, /choose exact point/);
+  assert.doesNotMatch(rows[3].matchLabel, /address|exact/i);
+});
+
+test('conservative address parsing supports explicit Canadian province/postcode formats without guessing countries or units', () => {
+  const expected = { housenumber: '1191', street: 'Dorset Scenic Tower Road', locality: 'Dorset', postcode: '', state: 'Ontario', countrycode: 'CA' };
+  assert.deepEqual(parseCanadianMapAddress('1191 Dorset Scenic Tower Road, Dorset, Ontario, Canada'), expected);
+  for (const text of ['1191 Dorset Scenic Tower Road, Dorset, ON P0A 1E0', '1191 Dorset Scenic Tower Road, Dorset, ON, P0A 1E0, Canada']) assert.deepEqual(parseCanadianMapAddress(text), { ...expected, postcode: 'P0A1E0' });
+  for (const text of ['Dorset, Ontario', '100 Mile House, BC, Canada', '3-1191 Dorset Scenic Tower Road, Dorset, ON', '1191 Dorset Scenic Tower Road, Ontario', '1191 Dorset Scenic Tower Road, Dorset, United Kingdom']) assert.equal(parseCanadianMapAddress(text), null, text);
+});
+
+test('a mapped matching street address returns directly without a second provider request', async () => {
+  let calls = 0;
+  const rows = await searchMapPlaces('100 Queen Street West, Toronto, Ontario, Canada', { fetchImpl: async value => {
+    calls++; const url = new URL(value);
+    assert.equal(url.searchParams.get('countrycode'), 'CA');
+    return Response.json(payload([address]));
+  } });
+  assert.equal(calls, 1);
+  assert.equal(rows[0].matchType, 'address');
+});
+
+const ruralStreet = { type: 'Feature', geometry: { type: 'Point', coordinates: [-78.893, 45.252] }, properties: { osm_type: 'W', osm_id: 900, name: 'Dorset Scenic Tower Road', type: 'street', state: 'Ontario', country: 'Canada', city: 'Algonquin Highlands', postcode: 'P0A 1E0' } };
+const ruralAddress = { ...ruralStreet, properties: { ...ruralStreet.properties, osm_id: 901, type: 'house', name: undefined, street: 'Dorset Scenic Tower Road', housenumber: '1191' } };
+const ruralQuery = '1191 Dorset Scenic Tower Rd, Dorset, Ontario, P0A 1E0, Canada';
+
+test('rural fallback accepts a different municipality name only with matching full postcode and address', async () => {
+  const sent = [];
+  const rows = await searchMapPlaces(ruralQuery, { fetchImpl: async value => {
+    const url = new URL(value); sent.push(url);
+    return sent.length === 1 ? Response.json(payload([ruralStreet, { ...ruralAddress, properties: { ...ruralAddress.properties, osm_id: 902, street: 'Unrelated Road' } }, city]))
+      : Response.json(payload([ruralAddress, { ...ruralAddress, properties: { ...ruralAddress.properties, osm_id: 903, state: 'Nova Scotia' } }, { ...ruralAddress, properties: { ...ruralAddress.properties, osm_id: 904, housenumber: '1192' } }]));
+  } });
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1].pathname, '/structured');
+  assert.equal(sent[1].searchParams.get('city'), null);
+  assert.equal(sent[1].searchParams.get('housenumber'), '1191');
+  assert.equal(sent[1].searchParams.get('street'), 'Dorset Scenic Tower Rd');
+  assert.equal(sent[1].searchParams.get('state'), 'Ontario');
+  assert.equal(sent[1].searchParams.get('postcode'), 'P0A1E0');
+  assert.deepEqual(rows.map(row => row.matchType), ['address', 'street']);
+  assert.ok(rows[0].label.includes('Algonquin Highlands'));
+  assert.ok(rows.every(row => !row.label.includes('Unrelated') && !row.label.includes('Nova Scotia') && !row.label.includes('Ottawa')));
+});
+
+test('a missing rural house is never replaced by its town or the same house number on another road', async () => {
+  let calls = 0;
+  const rows = await searchMapPlaces(ruralQuery, { fetchImpl: async () => {
+    calls++;
+    return Response.json(payload(calls === 1 ? [city, { ...ruralAddress, properties: { ...ruralAddress.properties, street: 'Other Road' } }] : []));
+  } });
+  assert.equal(calls, 2);
+  assert.deepEqual(rows, []);
+});
+
+test('shared deadline prevents a slow fallback and preserves only a clearly marked usable road', async () => {
+  for (const features of [[], [ruralStreet]]) {
+    let calls = 0;
+    const request = searchMapPlaces(ruralQuery, { timeoutMs: 15, fetchImpl: async () => { calls++; return Response.json(payload(features)); } });
+    if (features.length) {
+      const rows = await request;
+      assert.equal(rows.length, 1); assert.equal(rows[0].matchType, 'street');
+    } else await assert.rejects(request, { name: 'AbortError' });
+    assert.equal(calls, 1);
+  }
+});
+
+test('an upstream failure is not retried as a looser search or reported as no matching address', async () => {
+  let calls = 0;
+  await assert.rejects(searchMapPlaces(ruralQuery, { fetchImpl: async () => { calls++; return new Response('temporarily unavailable', { status: 503 }); } }), /unavailable/);
+  assert.equal(calls, 1);
+});
+
+test('the same numbered street in another Ontario city is not accepted as the requested address', async () => {
+  const wrongTown = { ...address, properties: { ...address.properties, city: 'Hamilton', postcode: 'L8P 1A1' } };
+  let calls = 0;
+  const rows = await searchMapPlaces('100 Queen Street West, Toronto, Ontario, Canada', { fetchImpl: async () => { calls++; return Response.json(payload([wrongTown])); } });
+  assert.deepEqual(rows, []);
+  assert.equal(calls, 2);
+});
+
+test('a rural municipality mismatch without matching postcode remains unconfirmed', async () => {
+  const rows = await searchMapPlaces('1191 Dorset Scenic Tower Road, Dorset, Ontario, Canada', { fetchImpl: async () => Response.json(payload([ruralAddress, ruralStreet])) });
+  assert.deepEqual(rows, []);
+});
+
+test('a supplied conflicting postcode rejects even a matching city and numbered street', async () => {
+  const rows = await searchMapPlaces('100 Queen Street West, Toronto, Ontario, M1C 1C1, Canada', { fetchImpl: async () => Response.json(payload([address])) });
+  assert.deepEqual(rows, []);
+});
+
+test('district or county locality evidence can confirm an address without inventing postal data', async () => {
+  let calls = 0;
+  const rows = await searchMapPlaces('1191 Dorset Scenic Tower Road, Dorset, Ontario, Canada', { fetchImpl: async () => {
+    calls++;
+    return Response.json(payload([{ ...ruralAddress, properties: { ...ruralAddress.properties, district: 'Dorset', postcode: undefined } }]));
+  } });
+  assert.equal(calls, 1);
+  assert.equal(rows[0].matchType, 'address');
 });

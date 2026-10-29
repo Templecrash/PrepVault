@@ -21,5 +21,5 @@ export async function searchMapPlaces(query, { signal, fetchImpl = fetch } = {})
   }
   if (!Array.isArray(data.results)) throw new Error('Place search returned an invalid response. Try again.');
   return data.results.filter(place => hasMapCoordinates(place) && typeof place.name === 'string' && place.name.trim() && typeof place.label === 'string' && place.label.trim())
-    .slice(0, 6).map((place, index) => ({ id: String(place.id || index), name: place.name.slice(0, 150), label: place.label.slice(0, 150), detail: String(place.detail || '').slice(0, 300), latitude: Number(place.latitude), longitude: Number(place.longitude) }));
+    .slice(0, 6).map((place, index) => ({ id: String(place.id || index), name: place.name.slice(0, 150), label: place.label.slice(0, 150), detail: String(place.detail || '').slice(0, 300), matchType: ['address', 'street', 'place', 'area'].includes(place.matchType) ? place.matchType : undefined, matchLabel: typeof place.matchLabel === 'string' ? place.matchLabel.slice(0, 100) : undefined, latitude: Number(place.latitude), longitude: Number(place.longitude) }));
 }
