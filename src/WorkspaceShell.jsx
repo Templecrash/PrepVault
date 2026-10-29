@@ -12,6 +12,7 @@ const destinations = [
   { id: 'offline-maps', label: 'Maps', icon: 'map' },
   { id: 'food', label: 'Food', icon: 'leaf' },
   { id: 'water', label: 'Water', icon: 'water' },
+  { id: 'power', label: 'Power', icon: 'bolt' },
   { id: 'preps', label: 'Supplies', icon: 'box' },
   { id: 'vehicles', label: 'Vehicles', icon: 'vehicle' },
   { id: 'property', label: 'Property', icon: 'home' },

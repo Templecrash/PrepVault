@@ -300,7 +300,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
     return null;
   }, [ci, catKey, p, climate, items, firewoodMod, clim.label, cat.subTypes, parseVolMl, recommendationPeopleCount, dailyCalTarget, waterGalPerPerson]);
   const calc = planningOverride === undefined ? legacyCalc : planningOverride;
-  const addLabel = standalone && ['food', 'water'].includes(catKey) ? `Add ${catKey}` : 'Add supply';
+  const addLabel = standalone && catKey === 'power' ? 'Add power equipment' : standalone && ['food', 'water'].includes(catKey) ? `Add ${catKey}` : 'Add supply';
 
   const inventory = ci.map(item => ({ item,
     expiry: item.fields?.expiryDate ? expiryStatus(item.fields.expiryDate) : null,
@@ -381,7 +381,7 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
       <div className="pv-category-type-list">{subtypeEntries.map(([key, sub]) => {
         const supplies = ci.filter(item => item.subType === key);
         const total = supplies.reduce((sum, item) => sum + item.quantity, 0);
-        return <div className="pv-category-type" key={key}><span>{sub.label}</span><small>{supplies.length ? `${total} ${sub.unit || ''}` : 'None recorded'}</small><button type="button" onClick={() => { if (supplies.length) { setQuery(''); setStatus('all'); setType(key); } else onAdd(catKey); }}>{supplies.length ? 'View supplies' : 'Add supply'}<Icon name={supplies.length ? 'arrow' : 'plus'} size={14}/></button></div>;
+        return <div className="pv-category-type" key={key}><span>{sub.label}</span><small>{supplies.length ? `${total} ${sub.unit || ''}` : 'None recorded'}</small><button type="button" onClick={() => { if (supplies.length) { setQuery(''); setStatus('all'); setType(key); } else onAdd(catKey, key); }}>{supplies.length ? 'View supplies' : 'Add supply'}<Icon name={supplies.length ? 'arrow' : 'plus'} size={14}/></button></div>;
       })}</div>
     </details>
   </section>;

@@ -25,6 +25,7 @@ import FarmingView from "./FarmingView.jsx";
 import CommunicationsView from "./CommunicationsView.jsx";
 import CategoryDetailView from "./CategoryDetailView.jsx";
 import { buildEssentialPlanning } from "./essential-planning.js";
+import { buildPowerPlanning } from "./power-planning.js";
 import PropertyView from "./PropertyView.jsx";
 import { getDefensePositions, patchPositionAssignment } from "./defense-positions.js";
 import SettingsBackups from "./SettingsBackups.jsx";
@@ -246,11 +247,13 @@ const CATEGORIES = {
     },
   },
   power: {
-    label: "Power", icon: "⚡", color: "#eab308", desc: "Power generation & lighting",
+    label: "Power", icon: "⚡", color: "#eab308", desc: "Generators, solar panels and battery backups — organized for when you need them",
     subTypes: {
-      solarPanel: { label: "Solar", icon: "☀️", fields: ["watts", "inverter"], dailyYield: 8, unit: "panels" },
-      generator: { label: "Generator", icon: "⚙️", fields: ["watts", "fuelType", "runtimeHours"], dailyYield: 24, unit: "gen" },
-      powerBank: { label: "Power Bank", icon: "🪫", fields: ["mah", "isRechargeable", "runtimeHours"], unit: "units" },
+      solarPanel: { label: "Solar panel", icon: "☀️", fields: ["watts", "inverter"], dailyYield: 8, unit: "panels" },
+      generator: { label: "Generator", icon: "⚙️", fields: ["watts", "fuelType", "plannedLoadWatts", "runtimeHours"], dailyYield: 24, unit: "gen" },
+      powerBank: { label: "Power Bank", icon: "🪫", fields: ["mah", "isRechargeable", "plannedLoadWatts", "runtimeHours"], unit: "units" },
+      batteryBackup: { label: "Battery backup / power station", icon: "🔋", fields: ["capacityWh", "watts", "plannedLoadWatts", "runtimeHours", "batteryChemistry"], unit: "units" },
+      ups: { label: "UPS", icon: "🔌", fields: ["capacityWh", "watts", "plannedLoadWatts", "runtimeHours"], unit: "units" },
       headlamp: { label: "Flashlights", icon: "🔦", fields: [], unit: "lights" },
       candles: { label: "Candles", icon: "🕯️", fields: [], unit: "items", consumable: true },
     },
@@ -679,6 +682,8 @@ const FIELD_META = {
   caliber: { label: "Caliber", type: "text", placeholder: "9mm" }, rounds: { label: "Rounds", type: "number", placeholder: "500" },
   level: { label: "Level", type: "select", options: ["II", "IIIA", "III", "IV"] },
   watts: { label: "Watts", type: "number", placeholder: "200" }, inverter: { label: "Inverter", type: "select", options: ["Yes", "Separate", "None"] },
+  capacityWh: { label: "Battery capacity (Wh)", type: "number", placeholder: "2000", help: "Rated energy capacity per unit. Use watt-hours from the manufacturer; capacity alone does not establish runtime." },
+  plannedLoadWatts: { label: "Planned load (watts)", type: "number", placeholder: "150", help: "Combined draw of the devices you plan to run. Record the tested or rated backup runtime at this load." },
   mah: { label: "mAh", type: "number", placeholder: "20000" },
   runtimeHours: { label: "Backup runtime (hours)", type: "number", placeholder: "24", help: "Total hours this entry can support your planned devices with its current fuel or charge. Include all units once; use a tested or manufacturer-rated runtime at that load. Overview uses the longest recorded backup, not a sum of separate sources." },
   /* Firearms */
@@ -2339,7 +2344,7 @@ function OpportunitiesTab({ items: allItems, people, climate, gardenBeds, dismis
 /* ═══════════════════════════════════════════ */
 /* ═══ FARMING TAB ═══                       */
 /* ═══════════════════════════════════════════ */
-const SUPPLY_CATEGORIES = Object.fromEntries(Object.entries(CATEGORIES).filter(([key]) => !["food", "water", "vehicles"].includes(key)));
+const SUPPLY_CATEGORIES = Object.fromEntries(Object.entries(CATEGORIES).filter(([key]) => !["food", "water", "power", "vehicles"].includes(key)));
 
 const PV_STORAGE_KEY = "prepvault-db";
 function snapshotStatus() {
@@ -2389,7 +2394,7 @@ export default function PrepVault() {
   const [showDetailedDashboard, setShowDetailedDashboard] = useState(false);
   const [showDetailedInventory, setShowDetailedInventory] = useState(false);
   const navigate = (tab) => { setSelCat(null); setActiveTab(tab); if (["preps", "inventory-search"].includes(tab)) setInventorySearch(previous => ({ query: "", status: "all", key: previous.key + 1 })); };
-  const openCategory = (category) => { if (category === "property" || category === "codes") navigate("codes"); else if (["food", "water", "vehicles"].includes(category)) navigate(category); else if (Object.hasOwn(CATEGORIES, category)) { navigate("preps"); setSelCat(category); } else navigate("preps"); };
+  const openCategory = (category) => { if (category === "property" || category === "codes") navigate("codes"); else if (["food", "water", "power", "vehicles"].includes(category)) navigate(category); else if (Object.hasOwn(CATEGORIES, category)) { navigate("preps"); setSelCat(category); } else navigate("preps"); window.scrollTo({ top: 0, behavior: "instant" }); };
   const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
   const [selCat, setSelCat] = useState(null);
   const [properties, setProperties] = useState(() => saved.current.properties);
@@ -2877,7 +2882,7 @@ export default function PrepVault() {
       setItems((p) => [...p, { ...i, propertyId: activePropertyId === "all" ? "prop1" : activePropertyId }]);
       showToast("✅ " + i.name + " added to " + (CATEGORIES[i.category]?.label || "inventory"));
     }
-    if (["preps", "food", "water", "vehicles"].includes(activeTab) && (["food", "water", "vehicles"].includes(i.category) || ["food", "water", "vehicles"].includes(activeTab))) openCategory(i.category);
+    if (["preps", "food", "water", "power", "vehicles"].includes(activeTab) && (["food", "water", "power", "vehicles"].includes(i.category) || ["food", "water", "power", "vehicles"].includes(activeTab))) openCategory(i.category);
   };
   const handleRemove = (id) => {
     const item = items.find(i => i.id === id);
@@ -2890,7 +2895,7 @@ export default function PrepVault() {
     showCategoryUpgradeNotice([...items, newItem]);
     setItems((p) => [...p, newItem]);
     showToast("📷 " + product.name + " scanned and added");
-    if (["food", "water"].includes(product.category)) openCategory(product.category);
+    if (["food", "water", "power", "vehicles"].includes(product.category)) openCategory(product.category);
   };
 
   const addProperty = (name = newPropName, type = newPropType) => {
@@ -3071,15 +3076,16 @@ export default function PrepVault() {
         return <VehiclesView items={propItems} categories={CATEGORIES} onAdd={openAdd} onEdit={openEdit} onRemove={handleRemove} onOpenCategory={openCategory} onUpdate={nextItem => { setItems(previous => previous.map(item => item.id === nextItem.id ? { ...item, ...nextItem, propertyId: item.propertyId || "prop1" } : item)); showToast("Vehicle record saved"); }} />;
       case "food":
       case "water":
-        return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget, crisisMode ? emergencyPlan.waterGalPerPerson : 1)} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
+      case "power":
+        return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={activeTab === "power" ? undefined : () => navigate("community")} onRationing={activeTab === "power" ? undefined : () => navigate("rationing")} key={activeTab} standalone planningOverride={activeTab === "power" ? buildPowerPlanning(propItems) : buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget, crisisMode ? emergencyPlan.waterGalPerPerson : 1)} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
       case "inventory-search":
       case "preps": {
         const allInventory = activeTab === "inventory-search";
-        const listedItems = allInventory ? propItems : propItems.filter(item => !["food", "water", "vehicles"].includes(item.category));
+        const listedItems = allInventory ? propItems : propItems.filter(item => !["food", "water", "power", "vehicles"].includes(item.category));
         const listedCategories = allInventory ? CATEGORIES : SUPPLY_CATEGORIES;
         const listedAlerts = allInventory ? visibleAlerts : visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category));
         const addSupply = () => openAdd(allInventory ? undefined : "medical");
-        return <><InventoryView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} onManagePeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water, Vehicles and Supplies across your selected property." : "Equipment and everyday essentials, organized in one place."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
+        return <><InventoryView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} onManagePeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water, Power, Vehicles and Supplies across your selected property." : "Equipment and everyday essentials, organized in one place."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       }
       case "community":
         return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} user={user} contacts={contacts} setContacts={setContacts} />;
@@ -3112,7 +3118,7 @@ export default function PrepVault() {
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
   };
   return (
-    <WorkspaceShell onHome={() => { navigate(crisisMode ? "emergency-mode" : "dashboard"); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={openEmergencyMode} crisisMode={crisisMode} emergencyBanner={crisisMode ? <EmergencyBanner plan={emergencyPlan} schedule={emergencySchedule} onOpen={() => navigateEmergency("emergency-mode")} onNavigate={navigateEmergency} propertyName={emergencyPlan.propertyId === "all" ? "All properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "Property unavailable"} now={emergencyNow}/> : null} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{vehicles: visibleAlerts.filter(alert => alert.category === "vehicles").length, food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
+    <WorkspaceShell onHome={() => { navigate(crisisMode ? "emergency-mode" : "dashboard"); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={openEmergencyMode} crisisMode={crisisMode} emergencyBanner={crisisMode ? <EmergencyBanner plan={emergencyPlan} schedule={emergencySchedule} onOpen={() => navigateEmergency("emergency-mode")} onNavigate={navigateEmergency} propertyName={emergencyPlan.propertyId === "all" ? "All properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "Property unavailable"} now={emergencyNow}/> : null} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{power: visibleAlerts.filter(alert => alert.category === "power").length, vehicles: visibleAlerts.filter(alert => alert.category === "vehicles").length, food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -3179,7 +3185,7 @@ export default function PrepVault() {
         <div style={{ position: "fixed", bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 70px))", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 12, background: toast.type === "success" ? "rgba(34,197,94,0.95)" : toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(33,76,57,0.95)", color: "#243d30", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 2000, animation: "slideUp 0.2s ease", whiteSpace: "nowrap", maxWidth: "90vw", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</div>
       )}
       {showAdd && <InventoryItemDialog categories={CATEGORIES} fieldMeta={FIELD_META} makeId={uid} initialSubType={addSubType} onAdd={handleAdd} onClose={() => { setShowAdd(false); setEditItem(null); }} editItem={editItem} initialCategory={addCat} />}
-      {showScanner && <BarcodeScanner categories={CATEGORIES} items={propItems} initialCategory={["food", "water"].includes(activeTab) ? activeTab : "food"} onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && <BarcodeScanner categories={CATEGORIES} items={propItems} initialCategory={["food", "water", "power"].includes(activeTab) ? activeTab : "food"} onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
       {/* ═══ Auth Modal ═══ */}
       {showAuth && renderAuthModal()}

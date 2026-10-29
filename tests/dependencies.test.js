@@ -19,7 +19,9 @@ test('keeps all thirteen dependency checks and their expanded guidance with no i
 test('uses only the selected property inventory passed to the checklist', () => {
   const inventory = [
     { propertyId: 'home', category: 'fuel', subType: 'gasoline', quantity: 5 },
-    { propertyId: 'home', category: 'batteries', quantity: 12 },
+    { propertyId: 'home', category: 'power', subType: 'generator', quantity: 1 },
+    { propertyId: 'home', category: 'power', subType: 'batteryBackup', quantity: 1 },
+    { propertyId: 'home', category: 'batteries', subType: 'aa', quantity: 12 },
     { propertyId: 'cabin', category: 'electronics', subType: 'solarGadget', quantity: 1 },
     { propertyId: 'cabin', category: 'electronics', subType: 'satPhone', quantity: 1 },
   ];
@@ -27,7 +29,7 @@ test('uses only the selected property inventory passed to the checklist', () => 
   const home = byId(buildDependencyChecks(inventory.filter(item => item.propertyId === 'home')));
   const cabin = byId(buildDependencyChecks(inventory.filter(item => item.propertyId === 'cabin')));
   assert.equal(home.wellpump.backup, 'Generator');
-  assert.equal(home.security.backup, 'Battery backup');
+  assert.equal(home.security.backup, 'Battery backup / power station');
   assert.equal(home.phone.backup, null);
   assert.equal(cabin.wellpump.backup, 'Solar');
   assert.equal(cabin.security.backup, null);
@@ -52,12 +54,63 @@ test('retains communication, water and heating alternatives and their guidance',
   assert.equal(checks.septic.backup, null);
 });
 
-test('does not report fuel or battery matches when their recorded totals are zero', () => {
-  const checks = byId(buildDependencyChecks([
-    { category: 'fuel', subType: 'gasoline', quantity: 0 },
-    { category: 'batteries', quantity: 0 },
+test('requires an actual generator record rather than fuel, its name or another power device', () => {
+  const fuelOnly = byId(buildDependencyChecks([
+    { category: 'fuel', subType: 'gasoline', name: 'Generator fuel', quantity: 25 },
+    { category: 'power', subType: 'powerBank', quantity: 1 },
+    { category: 'equipment', subType: 'generator', quantity: 1 },
   ]));
-  assert.equal(checks.garage.backup, null);
-  assert.equal(checks.medical.backup, null);
-  assert.equal(checks.co_detector.backup, null);
+  for (const id of ['garage', 'wellpump', 'fridge', 'furnace', 'sump', 'medical']) assert.equal(fuelOnly[id].backup, null, id);
+  const generator = byId(buildDependencyChecks([{ category: 'power', subType: 'generator', quantity: '1' }]));
+  for (const id of ['garage', 'wellpump', 'fridge', 'furnace', 'sump', 'medical']) assert.equal(generator[id].backup, 'Generator', id);
+  assert.match(generator.wellpump.fix, /recorded.*Check.*before relying/);
+});
+
+test('recognizes current solar records and preserves both electronics solar aliases', () => {
+  for (const [category, subType] of [['power', 'solarPanel'], ['electronics', 'solarDevice'], ['electronics', 'solarGadget']]) {
+    const checks = byId(buildDependencyChecks([{ category, subType, quantity: 1 }]));
+    assert.equal(checks.wellpump.backup, 'Solar', `${category}/${subType}`);
+    assert.match(checks.wellpump.fix, /recorded.*Check.*before relying/);
+    assert.equal(checks.garage.backup, null);
+  }
+  for (const [category, subType] of [['electronics', 'solarPanel'], ['power', 'solarDevice'], ['batteries', 'solarCharger']]) {
+    assert.equal(byId(buildDependencyChecks([{ category, subType, quantity: 1 }])).wellpump.backup, null, `${category}/${subType}`);
+  }
+});
+
+test('power stations and UPS records suggest device backups without becoming spare cells or pump capacity', () => {
+  for (const [subType, expected] of [['batteryBackup', 'Battery backup / power station'], ['ups', 'UPS']]) {
+    const checks = byId(buildDependencyChecks([{ category: 'power', subType, quantity: 1 }]));
+    for (const id of ['internet', 'security', 'medical']) assert.equal(checks[id].backup, expected, id);
+    for (const id of ['wellpump', 'garage', 'sump', 'co_detector', 'stovefan']) assert.equal(checks[id].backup, null, id);
+    assert.match(checks.medical.fix, /does not confirm compatibility/);
+    assert.match(checks.internet.fix, /does not confirm.*internet provider/);
+  }
+});
+
+test('loose cells remain replacement-battery records and chargers are not stored energy', () => {
+  const cells = byId(buildDependencyChecks([{ category: 'batteries', subType: 'aa', quantity: 12 }]));
+  assert.equal(cells.co_detector.backup, 'Replacement batteries');
+  assert.equal(cells.stovefan.backup, 'Batteries');
+  assert.equal(cells.security.backup, null);
+  assert.equal(cells.medical.backup, null);
+  const chargers = byId(buildDependencyChecks([
+    { category: 'batteries', subType: 'battCharger', quantity: 1 },
+    { category: 'batteries', subType: 'solarCharger', quantity: 1 },
+  ]));
+  assert.equal(chargers.co_detector.backup, null);
+  assert.equal(chargers.stovefan.backup, null);
+  assert.equal(chargers.security.backup, null);
+});
+
+test('zero, missing and invalid quantities never indicate a recorded backup', () => {
+  const types = [
+    ['power', 'generator'], ['power', 'solarPanel'], ['power', 'batteryBackup'], ['power', 'ups'],
+    ['electronics', 'solarGadget'], ['electronics', 'solarDevice'], ['electronics', 'satPhone'],
+    ['comms', 'radio'], ['batteries', 'aa'], ['water', 'purificationTablets'],
+  ];
+  for (const quantity of [0, '0', '', ' ', undefined, null, -1, '-2', NaN, Infinity, 'unknown', true]) {
+    const checks = buildDependencyChecks(types.map(([category, subType]) => ({ category, subType, quantity })));
+    assert.ok(checks.every(check => check.backup === null), String(quantity));
+  }
 });

@@ -25,7 +25,7 @@ export default function InventoryItemDialog({ onAdd, onClose, editItem, initialC
   };
   return <div className="pv-modal-backdrop" onClick={onClose}>
     <section ref={dialogRef} className="pv-dialog pv-item-dialog" role="dialog" aria-modal="true" aria-labelledby="supply-dialog-title" onClick={event => event.stopPropagation()}>
-      <header className="pv-dialog-heading"><div><span className="pv-eyebrow">YOUR INVENTORY</span><h2 id="supply-dialog-title">{editItem ? 'Edit' : 'Add'} {vehicle ? 'vehicle or spare' : 'a supply'}</h2><p className="pv-muted">{definition.desc}. Add what you know; update it anytime.</p></div><button type="button" className="pv-icon-button" aria-label="Close supply form" onClick={onClose}><Icon name="close"/></button></header>
+      <header className="pv-dialog-heading"><div><span className="pv-eyebrow">YOUR INVENTORY</span><h2 id="supply-dialog-title">{editItem ? 'Edit' : 'Add'} {vehicle ? 'vehicle or spare' : category === 'power' ? 'power equipment' : 'a supply'}</h2><p className="pv-muted">{definition.desc}. Add what you know; update it anytime.</p></div><button type="button" className="pv-icon-button" aria-label="Close supply form" onClick={onClose}><Icon name="close"/></button></header>
       <form onSubmit={submit}>
         <div className="pv-item-form-grid">
           <label className="pv-field">Category<select value={category} onChange={event => { const next = event.target.value; setCategory(next); setType(Object.keys(categories[next].subTypes)[0]); if (!editItem) setFields({}); }}>{Object.entries(categories).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
@@ -38,7 +38,7 @@ export default function InventoryItemDialog({ onAdd, onClose, editItem, initialC
           if (!meta) return null;
           return <label className="pv-field" key={key}>{meta.label}{meta.type === 'select' ? <select value={fields[key] ?? ''} onChange={event => updateField(key, event.target.value)}><option value="">Not recorded</option>{meta.options.map(option => <option key={option}>{option}</option>)}</select> : <input type={meta.type} step={meta.type === 'number' ? 'any' : undefined} value={fields[key] ?? ''} onChange={event => updateField(key, event.target.value)} placeholder={meta.placeholder || ''} aria-describedby={meta.help ? `supply-help-${key}` : undefined}/>} {meta.help && <small id={`supply-help-${key}`} className="pv-field-help">{meta.help}</small>}</label>;
         })}</div></fieldset>}
-        <label className="pv-field">Storage location<input value={location} onChange={event => setLocation(event.target.value)} placeholder={vehicle ? 'e.g. Garage, west shelf' : 'e.g. Pantry, shelf 2'}/></label>
+        <label className="pv-field">Storage location<input value={location} onChange={event => setLocation(event.target.value)} placeholder={vehicle || category === 'power' ? 'e.g. Garage, west shelf' : 'e.g. Pantry, shelf 2'}/></label>
         <label className="pv-field">Notes<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Anything else worth remembering" rows={3}/></label>
         {vehicle && <p className="pv-field-help">Open this vehicle on the Vehicles page to track fuel, service history, spare parts, and EMP protection details.</p>}
         {error && <p className="pv-form-error" role="alert">{error}</p>}

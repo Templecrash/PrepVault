@@ -19,6 +19,16 @@ const fixture = () => ({
   ],
 });
 
+test('power capacity and planned load reach the adviser without allowing device credentials', () => {
+  const input = fixture();
+  input.items = [{ id: 'backup', name: 'Backup station', category: 'power', subType: 'batteryBackup', propertyId: 'home', quantity: 1, fields: { capacityWh: 2000, plannedLoadWatts: 150, runtimeHours: 12, password: 'DO_NOT_INCLUDE' } }];
+  const clean = sanitizeAdvisorContext(buildAdvisorContext(input, { now }));
+  assert.equal(clean.inventory.items[0].fields.capacityWh, 2000);
+  assert.equal(clean.inventory.items[0].fields.plannedLoadWatts, 150);
+  assert.equal(clean.inventory.items[0].fields.runtimeHours, 12);
+  assert.equal(JSON.stringify(clean).includes('DO_NOT_INCLUDE'), false);
+});
+
 test('adviser covers all properties and keeps rationing distinct from household assumptions', () => {
   const context = buildAdvisorContext(fixture(), { now });
   assert.equal(context.meta.scope, 'all-properties');

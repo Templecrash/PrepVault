@@ -1,4 +1,5 @@
 import { computeRationing } from './rationing.js';
+import { computePowerCoverage } from './power-planning.js';
 
 const stockQuantity = value => {
   const number = Number(value);
@@ -26,20 +27,6 @@ function medicationCoverage(items) {
   return { days: fullDays(Math.min(...durations)), basis, detail: 'Shortest recorded prescription supply.' };
 }
 
-function powerCoverage(items) {
-  const basis = 'Longest recorded backup';
-  const sources = items.filter(item => item.category === 'power' && ['generator', 'powerBank'].includes(item.subType));
-  if (!sources.length) return { days: null, basis, detail: 'Add backup runtime details to estimate.' };
-  const stocked = sources.filter(item => stockQuantity(item.quantity) > 0);
-  if (!stocked.length) return { days: 0, basis, detail: 'No generator or power bank in stock.' };
-  const durations = stocked.map(item => recordedDuration(item.fields?.runtimeHours));
-  if (durations.some(value => value == null)) return { days: null, basis, detail: 'Add runtime for every stocked backup.' };
-  // Each runtime covers its complete supply entry at the intended load with
-  // current fuel/charge. Adding sources could double-count shared fuel or load.
-  const hours = Math.max(...durations);
-  return { days: fullDays(hours / 24), basis, detail: `${format(hours)} hours at your planned load.` };
-}
-
 export function computeEssentialCoverage(items = [], peopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1) {
   const rationing = computeRationing(items, peopleCount, dailyCalTarget, waterGalPerPerson);
   const omitted = rationing.omittedFoodCount;
@@ -60,6 +47,6 @@ export function computeEssentialCoverage(items = [], peopleCount = 0, dailyCalTa
       detail: `${foodDetail}${omitted ? ` ${omitted} ${omitted === 1 ? 'entry needs' : 'entries need'} nutrition details.` : ''}`,
     },
     medical: medicationCoverage(items),
-    power: powerCoverage(items),
+    power: computePowerCoverage(items),
   };
 }
