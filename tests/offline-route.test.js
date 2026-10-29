@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { avoidancePolygon, calculateRoute, haversineKm, normalizeRoutePlansSetting, planTravelDays, readRoutePlans, routeToGpx, saveRoutePlans, validateRouteRequest, validateSavedRoute } from '../src/offline-route.js';
+import { avoidancePolygon, calculateRoute, getAvoidanceBudget, haversineKm, MAX_AVOIDANCE_BOUNDARY_KM, normalizeRoutePlansSetting, planTravelDays, readRoutePlans, routeToGpx, saveRoutePlans, validateRouteRequest, validateSavedRoute } from '../src/offline-route.js';
 
 const points = [{ name: 'Start', latitude: 0, longitude: 0 }, { name: 'End', latitude: 0, longitude: 0.2 }];
 const route = (changes = {}) => ({ points, mode: 'walk', walkingSpeed: 4, avoidAreas: [], distanceKm: 40, durationSeconds: 36_000, coordinates: [[0, 0], [.1, 0], [.2, 0]], instructions: [{ text: 'Continue east', distanceKm: 40, timeSeconds: 36_000 }], warnings: [], calculatedAt: '2026-10-28T12:00:00Z', ...changes });
@@ -60,6 +60,44 @@ test('avoidance polygons close around the chosen center with kilometre-sized rad
   assert.ok(polygon.every(point => Math.abs(haversineKm(point, [-79.38, 43.65]) - 2) < .02));
 });
 
+test('new calculations enforce one combined avoidance-boundary budget without changing the areas', () => {
+  const area = radiusKm => ({ name: 'Town', latitude: .3, longitude: .3, radiusKm });
+  for (const areas of [[area(1.5)], [area(.5), area(.5), area(.5)], Array.from({ length: 4 }, () => area(.3))]) {
+    const input = { points, mode: 'drive', avoidAreas: areas };
+    assert.deepEqual(validateRouteRequest(input, { providerLimits: true }).avoidAreas, areas);
+  }
+  for (const areas of [[area(2)], [area(1), area(1)], Array.from({ length: 4 }, () => area(.5))]) {
+    const input = { points, mode: 'drive', avoidAreas: areas };
+    const before = structuredClone(input);
+    assert.throws(() => validateRouteRequest(input, { providerLimits: true }), /9\.9 km combined.*Reduce the radii or remove an area/);
+    assert.deepEqual(input, before);
+  }
+});
+
+test('avoidance boundary budgeting conservatively covers polygon perimeter and offers only fitting new circles', () => {
+  assert.equal(getAvoidanceBudget().nextRadiusKm, .5);
+  assert.equal(getAvoidanceBudget([{ radiusKm: '0.5' }, { radiusKm: .5 }]).nextRadiusKm, .5);
+  assert.equal(getAvoidanceBudget([{ radiusKm: 1.3 }]).nextRadiusKm, .2);
+  assert.equal(getAvoidanceBudget([{ radiusKm: 1.5 }]).nextRadiusKm, null);
+  assert.equal(getAvoidanceBudget([{ radiusKm: 2 }]).nextRadiusKm, null);
+  for (const latitude of [0, 43.65, 80, -80]) {
+    const area = { latitude, longitude: -60, radiusKm: 1.5 };
+    const polygon = avoidancePolygon(area);
+    const perimeter = polygon.slice(1).reduce((sum, point, index) => sum + haversineKm(polygon[index], point), 0);
+    const budget = getAvoidanceBudget([area]);
+    assert.ok(perimeter <= budget.boundaryKm);
+    assert.ok(budget.boundaryKm < MAX_AVOIDANCE_BOUNDARY_KM);
+  }
+});
+
+test('a provider limit never prevents reading or exporting previously saved larger avoidance areas', () => {
+  const original = plan({ route: route({ avoidAreas: [{ name: 'Previously saved town', latitude: .3, longitude: .3, radiusKm: 2 }] }) });
+  assert.equal(validateSavedRoute(original.route).avoidAreas[0].radiusKm, 2);
+  const normalized = JSON.parse(normalizeRoutePlansSetting(JSON.stringify([original])));
+  assert.deepEqual(normalized[0].route.avoidAreas, original.route.avoidAreas);
+  assert.match(routeToGpx(normalized[0].route), /<gpx/);
+});
+
 test('saved plans round trip geometry, ordered stops, directions and travel settings', () => {
   const storage = new Map();
   const adapter = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
@@ -89,6 +127,22 @@ test('routing client sends only validated inputs and preserves authentication fa
   assert.equal(sent.url, '/api/routing'); assert.equal(sent.init.credentials, 'same-origin');
   assert.equal(JSON.parse(sent.init.body).untrusted, undefined);
   await assert.rejects(calculateRoute({ points, mode: 'walk' }, { fetchImpl: async () => Response.json({ error: 'Sign in' }, { status: 401 }) }), error => error.status === 401 && /Sign in/.test(error.message));
+});
+
+test('routing client explains network and gateway failures and preserves intentional cancellation', async () => {
+  await assert.rejects(calculateRoute({ points, mode: 'walk' }, { fetchImpl: async () => { throw new TypeError('Failed to fetch'); } }), /Check your internet connection/);
+  await assert.rejects(calculateRoute({ points, mode: 'walk' }, { fetchImpl: async () => new Response('<html>Gateway timeout</html>', { status: 504 }) }), error => error.status === 504 && /Try again shortly/.test(error.message));
+  await assert.rejects(calculateRoute({ points, mode: 'walk' }, { fetchImpl: async () => new Response('<html>Sign in</html>', { status: 401 }) }), error => error.status === 401 && /Sign in/.test(error.message));
+  const cancelled = new DOMException('Cancelled', 'AbortError');
+  await assert.rejects(calculateRoute({ points, mode: 'walk' }, { fetchImpl: async () => { throw cancelled; } }), error => error === cancelled);
+});
+
+test('oversized avoidance areas explain the correction before making a routing request', async () => {
+  let calls = 0;
+  const input = { points, mode: 'drive', avoidAreas: [{ name: 'Town', latitude: .3, longitude: .3, radiusKm: 2 }] };
+  await assert.rejects(calculateRoute(input, { fetchImpl: async () => { calls++; } }), /12\.6 km of boundary.*9\.9 km combined.*Reduce the radii or remove an area/);
+  assert.equal(calls, 0);
+  assert.equal(input.avoidAreas[0].radiusKm, 2);
 });
 
 test('travel plans over one year fail clearly instead of silently omitting the destination', () => {

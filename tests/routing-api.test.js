@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRoutingHandler } from '../api/routing.js';
+import { RouteProviderError } from '../api/_lib/route-provider.js';
 
 const body = { points: [{ name: 'A', latitude: 0, longitude: 0 }, { name: 'B', latitude: 0, longitude: .2 }], mode: 'drive' };
 const request = changes => ({ method: 'POST', headers: { host: 'prep.example', origin: 'https://prep.example', 'content-type': 'application/json' }, body, ...changes });
@@ -51,6 +52,27 @@ test('provider errors are redacted and a failure releases the busy lock for retr
   const first = await run(handler); assert.equal(first.statusCode, 503); assert.doesNotMatch(JSON.stringify(first.body), /SECRET/);
   time += 1200;
   assert.equal((await run(handler)).statusCode, 200);
+});
+
+test('known route failures retain actionable status and logs contain no input or upstream secrets', async () => {
+  for (const [code, status] of [['avoidance_limit', 422], ['location_unreachable', 422], ['no_route', 422], ['rate_limited', 429], ['timeout', 504], ['unavailable', 503]]) {
+    const events = [];
+    const failure = new RouteProviderError(code, { providerStatus: 400, providerCode: 167 });
+    failure.cause = new Error('SECRET address and URL');
+    const handler = createRoutingHandler({ authenticate: owner, calculate: async () => { throw failure; }, reportFailure: event => events.push(event) });
+    const result = await run(handler);
+    assert.equal(result.statusCode, status); assert.equal(result.body.error, failure.message);
+    assert.deepEqual(events, [{ action: 'route', code, providerStatus: 400, providerCode: 167 }]);
+    assert.doesNotMatch(JSON.stringify({ events, body: result.body }), /SECRET|latitude|longitude/);
+    if (status === 429) assert.equal(result.headers['retry-after'], '60');
+  }
+});
+
+test('oversized avoidance boundaries fail before any provider work', async () => {
+  let calls = 0;
+  const handler = createRoutingHandler({ authenticate: owner, calculate: async () => { calls++; } });
+  const result = await run(handler, request({ body: { ...body, avoidAreas: [{ name: 'Town', latitude: .3, longitude: .3, radiusKm: 2 }] } }));
+  assert.equal(result.statusCode, 400); assert.match(result.body.error, /avoid|boundary|radii/i); assert.equal(calls, 0);
 });
 
 test('concurrent and immediate repeat calculations are rate limited without duplicate provider work', async () => {

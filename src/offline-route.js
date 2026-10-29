@@ -1,8 +1,32 @@
 export const ROUTE_PLANS_KEY = 'prepvault-offline-routes';
 export const ROUTE_MODES = ['drive', 'avoid-highways', 'walk'];
+export const MAX_AVOIDANCE_BOUNDARY_KM = 9.9;
+export const MIN_AVOIDANCE_RADIUS_KM = 0.2;
+export const DEFAULT_AVOIDANCE_RADIUS_KM = 0.5;
+
+// The public provider caps the sum of excluded polygon perimeters at 10 km.
+// Budget by circle circumference, which conservatively covers our inscribed
+// 24-sided polygons, and leave room for the provider's distance calculation.
+// https://github.com/valhalla/valhalla/blob/master/src/loki/polygon_search.cc
+export function getAvoidanceBudget(areas = []) {
+  const radiusKm = areas.reduce((sum, area) => {
+    const radius = Number(area?.radiusKm);
+    return sum + (Number.isFinite(radius) && radius > 0 ? radius : 0);
+  }, 0);
+  const boundaryKm = radiusKm * 2 * Math.PI;
+  const remainingRadiusKm = Math.max(0, MAX_AVOIDANCE_BOUNDARY_KM / (2 * Math.PI) - radiusKm);
+  const fittingRadius = Math.floor((remainingRadiusKm + 1e-9) * 10) / 10;
+  return {
+    boundaryKm,
+    exceedsLimit: boundaryKm > MAX_AVOIDANCE_BOUNDARY_KM,
+    maxRadiusKm: Math.floor(MAX_AVOIDANCE_BOUNDARY_KM / (2 * Math.PI) * 10) / 10,
+    nextRadiusKm: fittingRadius >= MIN_AVOIDANCE_RADIUS_KM ? Math.min(DEFAULT_AVOIDANCE_RADIUS_KM, fittingRadius) : null,
+  };
+}
+
 const record = value => value && typeof value === 'object' && !Array.isArray(value);
 const coordinatesValid = (latitude, longitude) => Number.isFinite(latitude) && Math.abs(latitude) <= 85 && Number.isFinite(longitude) && Math.abs(longitude) <= 180;
-export function validateRouteRequest(value) {
+export function validateRouteRequest(value, { providerLimits = false } = {}) {
   if (!record(value) || !ROUTE_MODES.includes(value.mode) || !Array.isArray(value.points) || value.points.length < 2 || value.points.length > 6) throw new Error('Choose two to six locations and a travel mode.');
   const point = value => {
     if (!record(value) || typeof value.name !== 'string' || !value.name.trim() || value.name.length > 150 || !coordinatesValid(value.latitude, value.longitude)) throw new Error('Each stop needs a name and valid latitude and longitude.');
@@ -21,6 +45,10 @@ export function validateRouteRequest(value) {
     if (points.some(stop => haversineKm([stop.longitude, stop.latitude], [p.longitude, p.latitude]) < area.radiusKm)) throw new Error('A stop is inside an area you want to avoid. Move the stop or reduce that area.');
     return { ...p, radiusKm: area.radiusKm };
   });
+  if (providerLimits) {
+    const budget = getAvoidanceBudget(avoidAreas);
+    if (budget.exceedsLimit) throw new Error(`The selected avoidance areas use about ${budget.boundaryKm.toFixed(1)} km of boundary. This routing service supports ${MAX_AVOIDANCE_BOUNDARY_KM} km combined. Reduce the radii or remove an area, then calculate again. For larger areas, choose stops around them and review the route.`);
+  }
   return { points, mode: value.mode, walkingSpeed, avoidAreas };
 }
 export function haversineKm(a, b) {
@@ -84,9 +112,17 @@ export function planTravelDays(route, value = {}) {
   return { days, totalHours, stops, dailyDistanceKm };
 }
 export async function calculateRoute(value, { signal, fetchImpl = fetch } = {}) {
-  const request = validateRouteRequest(value);
-  const response = await fetchImpl('/api/routing', { method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
-  const data = await response.json(); if (!response.ok) { const error = new Error(data.error || 'This route could not be calculated.'); error.status = response.status; throw error; }
+  const request = validateRouteRequest(value, { providerLimits: true });
+  let response;
+  try { response = await fetchImpl('/api/routing', { method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) }); }
+  catch (error) { if (error.name === 'AbortError') throw error; throw new Error('Could not reach the routing service. Check your internet connection and try again. Your stops and saved routes are unchanged.'); }
+  let data;
+  try { data = await response.json(); }
+  catch {
+    const error = new Error([401, 403].includes(response.status) ? 'Sign in again to calculate this route.' : 'The routing service did not respond with a route. Try again shortly. Your stops and saved routes are unchanged.');
+    error.status = response.status; throw error;
+  }
+  if (!response.ok) { const error = new Error(data.error || 'This route could not be calculated.'); error.status = response.status; throw error; }
   return validateSavedRoute(data.route);
 }
 export function routeToGpx(route) {

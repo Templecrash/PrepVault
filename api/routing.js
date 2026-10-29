@@ -1,10 +1,10 @@
 import { Buffer } from 'node:buffer';
 import { authenticateNeonOwner, assertAuthOrigin } from './_lib/neon-owner-auth.js';
 import { validateRouteRequest } from '../src/offline-route.js';
-import { requestProviderRoute } from './_lib/route-provider.js';
+import { requestProviderRoute, RouteProviderError } from './_lib/route-provider.js';
 import { searchMapPlaces, validateMapSearchQuery } from './_lib/map-geocoder.js';
 
-export function createRoutingHandler({ authenticate = authenticateNeonOwner, calculate = requestProviderRoute, search = searchMapPlaces, now = Date.now } = {}) {
+export function createRoutingHandler({ authenticate = authenticateNeonOwner, calculate = requestProviderRoute, search = searchMapPlaces, now = Date.now, reportFailure = details => console.warn('Maps service failure', details) } = {}) {
   let busy = false; let lastRequest = 0; const cache = new Map(); const quota = new Map();
   let searchBusy = false; let lastSearch = -Infinity; const searchCache = new Map(); const searchQuota = new Map();
   return async (req, res) => {
@@ -42,7 +42,7 @@ export function createRoutingHandler({ authenticate = authenticateNeonOwner, cal
         const current = await authenticate(req); if (!current || current.id !== owner.id) return res.status(401).json({ error: 'Sign in again to view these map results.' });
         return res.status(200).json({ results });
       }
-      let input; try { input = validateRouteRequest(body); } catch (error) { return res.status(400).json({ error: error.message }); }
+      let input; try { input = validateRouteRequest(body, { providerLimits: true }); } catch (error) { return res.status(400).json({ error: error.message }); }
       const key = JSON.stringify([owner.id, input]);
       for (const [k, row] of cache) if (row.expires <= now()) cache.delete(k);
       let route = cache.get(key)?.route;
@@ -56,7 +56,14 @@ export function createRoutingHandler({ authenticate = authenticateNeonOwner, cal
       }
       const current = await authenticate(req); if (!current || current.id !== owner.id) return res.status(401).json({ error: 'Sign in again to view this route.' });
       return res.status(200).json({ route });
-    } catch (error) { return res.status([401, 403].includes(error.status) ? error.status : 503).json({ error: [401, 403].includes(error.status) ? 'Sign in on this site to calculate a private route.' : searching ? 'Address search is unavailable. Try again shortly, or enter coordinates.' : 'The routing service could not find or return this route. Try shorter legs or fewer avoidance areas. Saved routes remain available.' }); }
+    } catch (error) {
+      if ([401, 403].includes(error.status)) return res.status(error.status).json({ error: 'Sign in on this site to calculate a private route.' });
+      const failure = error instanceof RouteProviderError ? error : new RouteProviderError('unavailable');
+      // Log only bounded error categories, never route coordinates, names, URLs or raw provider errors.
+      reportFailure({ action: searching ? 'search' : 'route', code: failure.code, providerStatus: failure.providerStatus, providerCode: failure.providerCode });
+      if (failure.status === 429) res.setHeader('Retry-After', '60');
+      return res.status(searching ? 503 : failure.status).json({ error: searching ? 'Address search is unavailable. Try again shortly, or enter coordinates.' : failure.message });
+    }
   };
 }
 export default createRoutingHandler();
