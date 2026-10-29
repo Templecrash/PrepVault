@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRoutingHandler } from '../api/routing.js';
 import { RouteProviderError } from '../api/_lib/route-provider.js';
+import { createAccountAuth } from '../api/_lib/account-auth.js';
 
 const body = { points: [{ name: 'A', latitude: 0, longitude: 0 }, { name: 'B', latitude: 0, longitude: .2 }], mode: 'drive' };
 const request = changes => ({ method: 'POST', headers: { host: 'prep.example', origin: 'https://prep.example', 'content-type': 'application/json' }, body, ...changes });
@@ -11,7 +12,73 @@ async function run(handler, req = request()) {
 }
 const owner = async () => ({ id: 'owner' });
 
-test('routing requires same-origin owner authentication before contacting the provider', async () => {
+const accountEnv = { NEON_AUTH_BASE_URL: 'https://auth.example/neondb/auth', NEON_AUTH_COOKIE_SECRET: 's'.repeat(40), TRACKING_OWNER_EMAIL: 'owner@example.com', TRACKING_OWNER_ID: 'owner-id' };
+const accountTime = Date.parse('2026-10-26T12:00:00Z');
+const accountSession = id => ({ user: { id, email: `${id}@example.com`, emailVerified: true, name: 'Planner' }, session: { userId: id, expiresAt: '2026-10-27T12:00:00Z' } });
+const accountRequest = (id, changes = {}) => request({ ...changes, headers: { ...request().headers, cookie: `__Secure-neon-auth.session_token=${id}`, authorization: 'Bearer forged-owner', ...changes.headers } });
+
+test('ordinary verified accounts can calculate routes and search through provider-verified authentication', async () => {
+  const authCalls = [];
+  const auth = createAccountAuth({ env: accountEnv, now: () => accountTime, proxy: async options => {
+    authCalls.push(options.request);
+    return Response.json(accountSession('ordinary-planner'));
+  } });
+  let calculations = 0, searches = 0;
+  const handler = createRoutingHandler({ authenticate: auth.authenticate, now: () => accountTime, calculate: async input => { calculations++; assert.equal(input.userId, undefined); return { private: 'route' }; }, search: async () => { searches++; return [{ private: 'place' }]; } });
+  const route = await run(handler, accountRequest('ordinary-planner', { body: { ...body, userId: 'owner-id', user: { emailVerified: true, id: 'owner-id' } } }));
+  assert.equal(route.statusCode, 200); assert.deepEqual(route.body.route, { private: 'route' });
+  const search = await run(handler, accountRequest('ordinary-planner', { body: { action: 'search', query: 'Toronto' } }));
+  assert.equal(search.statusCode, 200); assert.deepEqual(search.body.results, [{ private: 'place' }]);
+  assert.equal(calculations, 1); assert.equal(searches, 1); assert.equal(authCalls.length, 4);
+  for (const call of authCalls) {
+    assert.match(call.url, /get-session\?disableCookieCache=true$/);
+    assert.equal(call.headers.get('authorization'), null);
+    assert.equal(call.headers.get('cookie'), '__Secure-neon-auth.session_token=ordinary-planner');
+  }
+});
+
+test('provider-verified account IDs isolate route caches despite forged client identities', async () => {
+  let time = accountTime, calculations = 0;
+  const auth = createAccountAuth({ env: accountEnv, now: () => time, proxy: async options => {
+    const id = options.request.headers.get('cookie').split('=')[1];
+    return Response.json(accountSession(id));
+  } });
+  const handler = createRoutingHandler({ authenticate: auth.authenticate, now: () => time, calculate: async () => ({ calculation: ++calculations }) });
+  const first = accountRequest('planner-one');
+  assert.equal((await run(handler, first)).body.route.calculation, 1);
+  time += 1200;
+  const second = accountRequest('planner-two', { body: { ...body, userId: 'planner-one', accountId: 'planner-one' } });
+  assert.equal((await run(handler, second)).body.route.calculation, 2);
+  assert.equal((await run(handler, first)).body.route.calculation, 1);
+  assert.equal(calculations, 2);
+});
+
+test('unverified accounts cannot invoke map providers and revoked sessions cannot receive results', async () => {
+  for (const action of ['route', 'search']) {
+    let authCalls = 0, providerCalls = 0;
+    const auth = createAccountAuth({ env: accountEnv, now: () => accountTime, proxy: async () => {
+      authCalls++;
+      const data = accountSession('ordinary-planner');
+      data.user.emailVerified = false;
+      return Response.json(data);
+    } });
+    const options = { authenticate: auth.authenticate, now: () => accountTime, calculate: async () => { providerCalls++; return {}; }, search: async () => { providerCalls++; return []; } };
+    const req = accountRequest('ordinary-planner', { body: action === 'route' ? body : { action: 'search', query: 'Toronto' } });
+    const denied = await run(createRoutingHandler(options), req);
+    assert.equal(denied.statusCode, 401); assert.doesNotMatch(denied.body.error, /owner/); assert.equal(providerCalls, 0); assert.equal(authCalls, 1);
+
+    let checks = 0;
+    const revokedAuth = createAccountAuth({ env: accountEnv, now: () => accountTime, proxy: async () => {
+      const data = accountSession('ordinary-planner');
+      if (++checks > 1) data.user.banned = true;
+      return Response.json(data);
+    } });
+    const revoked = await run(createRoutingHandler({ ...options, authenticate: revokedAuth.authenticate }), req);
+    assert.equal(revoked.statusCode, 401); assert.equal(revoked.body.route, undefined); assert.equal(revoked.body.results, undefined); assert.equal(checks, 2);
+  }
+});
+
+test('routing requires same-origin account authentication before contacting the provider', async () => {
   let calls = 0;
   const handler = createRoutingHandler({ authenticate: async () => null, calculate: async () => { calls++; } });
   assert.equal((await run(handler)).statusCode, 401);
@@ -36,7 +103,7 @@ test('session is rechecked after provider calculation and revocation withholds t
   assert.equal(result.statusCode, 401); assert.equal(result.body.route, undefined); assert.equal(authCalls, 2);
 });
 
-test('cache is private to owner and identical requests still require current authentication', async () => {
+test('cache is private to each account and identical requests still require current authentication', async () => {
   let time = 100_000, calls = 0, identity = 'owner', authCalls = 0;
   const handler = createRoutingHandler({ now: () => time, authenticate: async () => { authCalls++; return { id: identity }; }, calculate: async input => ({ count: ++calls, mode: input.mode }) });
   const first = await run(handler); const second = await run(handler);
@@ -89,7 +156,7 @@ test('concurrent and immediate repeat calculations are rate limited without dupl
 const searchRequest = (query = '100 Queen Street West, Toronto', changes = {}) => request({ body: { action: 'search', query }, ...changes });
 const matches = [{ id: 'photon:W:123', name: 'Toronto City Hall', label: 'Toronto City Hall, Toronto, Ontario, Canada', detail: 'Toronto, Ontario, Canada', latitude: 43.6534, longitude: -79.3839 }];
 
-test('map search requires same-origin owner authentication before provider work', async () => {
+test('map search requires same-origin account authentication before provider work', async () => {
   let calls = 0;
   const handler = createRoutingHandler({ authenticate: async () => null, search: async () => { calls++; return matches; } });
   assert.equal((await run(handler, searchRequest())).statusCode, 401);
@@ -108,7 +175,7 @@ test('search action validates query and request bounds without calculating a rou
   assert.equal(searches, 1); assert.equal(calculations, 0);
 });
 
-test('private search cache is owner-scoped, expires, and rechecks every session', async () => {
+test('private search cache is account-scoped, expires, and rechecks every session', async () => {
   let time = 100_000, calls = 0, identity = 'owner', authCalls = 0;
   const handler = createRoutingHandler({ now: () => time, authenticate: async () => { authCalls++; return { id: identity }; }, search: async () => { calls++; return []; } });
   assert.deepEqual((await run(handler, searchRequest('Toronto'))).body.results, []);
@@ -121,7 +188,7 @@ test('private search cache is owner-scoped, expires, and rechecks every session'
   assert.equal((await run(handler, searchRequest('Toronto'))).statusCode, 200); assert.equal(calls, 3);
 });
 
-test('search results are withheld if the owner session is revoked or changes', async () => {
+test('search results are withheld if the account session is revoked or changes', async () => {
   for (const current of [null, { id: 'someone-else' }]) {
     let authCalls = 0;
     const handler = createRoutingHandler({ authenticate: async () => ++authCalls === 1 ? { id: 'owner' } : current, search: async () => matches });

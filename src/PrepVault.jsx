@@ -3069,7 +3069,7 @@ export default function PrepVault() {
       case "offline-maps":
         return <OfflineMaps key={restoreVersion} onOpenPropertyMap={() => { setPropSub("map"); navigate("property"); }} onSignIn={() => setShowAuth(true)}/>;
       case "location":
-        return <LocationView items={propItems} onCategory={openCategory}/>;
+        return <LocationView items={propItems} onCategory={openCategory} onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} onOpenMaps={() => navigate("offline-maps")}/>;
       case "dependencies":
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "vehicles":

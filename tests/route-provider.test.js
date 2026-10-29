@@ -103,3 +103,17 @@ test('large provider bodies are bounded even when Content-Length is missing', as
   await assert.rejects(requestProviderRoute(input, { fetchImpl: async () => oversized }), /too large/i);
   await assert.rejects(requestProviderRoute(input, { fetchImpl: async () => new Response('{}', { headers: { 'Content-Length': '5000001' } }) }), /too large/i);
 });
+
+test('cycling routes use genuine bicycle costing, retain exclusions and save provider movement time', async () => {
+  const bike = { ...input, mode: 'bike', cyclingSpeed: 12, avoidAreas: [{ name: 'Town', latitude: .3, longitude: .3, radiusKm: .5 }] };
+  const provider = buildProviderRouteRequest(bike);
+  assert.equal(provider.costing, 'bicycle');
+  assert.deepEqual(provider.costing_options, { bicycle: { bicycle_type: 'hybrid', cycling_speed: 12 } });
+  assert.equal(provider.exclude_polygons.length, 1);
+  const route = await requestProviderRoute(bike, { fetchImpl: async (_url, options) => {
+    assert.deepEqual(JSON.parse(options.body), provider);
+    return Response.json(response({ summary: { length: 25, time: 9_000 } }));
+  } });
+  assert.equal(route.mode, 'bike'); assert.equal(route.cyclingSpeed, 12); assert.equal(route.durationSeconds, 9_000); assert.equal(route.distanceKm, 25);
+  assert.ok(route.warnings.some(warning => /hybrid bicycle.*surface.*hills/.test(warning)));
+});

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './brand.jsx';
 import LocationBriefing from './LocationBriefing.jsx';
-import { LOCATION_EVENT, readLocation, saveLocation, searchLocations, getLocalConditions, weatherLabel, locationConsiderations, readLocationWatchlist, saveLocationWatchlist, locationWatchKey, MAX_WATCHED_LOCATIONS } from './location.js';
+import LocationTravel from './LocationTravel.jsx';
+import { LOCATION_EVENT, readLocation, saveLocation, searchLocations, getLocalConditions, weatherLabel, locationConsiderations, readLocationWatchlist, saveLocationWatchlist, locationWatchKey, MAX_WATCHED_LOCATIONS, saveLocationDestination } from './location.js';
 import { isLocalEdition } from './runtime-mode.js';
 import './location.css';
 
@@ -67,11 +68,13 @@ function CityCard({ location, row, selected, primary, now, local, onSelect }) {
   return <button type="button" className="pv-location-city" aria-pressed={selected} onClick={onSelect} aria-label={`View ${locationName(location)}`} aria-description={`${primary ? 'Planning area. ' : ''}${weather?.status === 'ready' ? `${number(weather.current.temperature, '°C')}, ${weatherLabel(weather.current.weatherCode)}. ` : ''}${warningText}`}><span className="pv-location-city-top"><strong>{location.name}</strong>{primary && <span>Planning area</span>}</span><span className="pv-location-city-region">{location.region ? `${location.region}, ` : ''}{location.country}</span><span className="pv-location-city-weather"><strong>{weather?.status === 'ready' ? number(weather.current.temperature, '°C') : '—'}</strong><span>{local ? 'Offline' : weather?.status === 'ready' ? weatherLabel(weather.current.weatherCode) : row?.busy ? 'Loading forecast' : 'Forecast unavailable'}</span></span><span className="pv-location-city-alerts"><Icon name="compass" size={13}/>{warningText}</span>{stale && !local && <span className="pv-location-city-stale">Previous check · {checked(row?.data?.fetchedAt)}</span>}</button>;
 }
 
-export default function LocationView({ compact = false, onOpen, onCategory, items = [] }) {
+export default function LocationView({ compact = false, onOpen, onCategory, onSignIn, onOpenMaps, items = [] }) {
   const [places, setPlaces] = useState(readPlaces);
   const [selectedKey, setSelectedKey] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [addingDestination, setAddingDestination] = useState(false);
+  const pickerRef = useRef(null);
   const [rows, setRows] = useState({});
   const [error, setError] = useState('');
   const [removed, setRemoved] = useState(null);
@@ -79,6 +82,11 @@ export default function LocationView({ compact = false, onOpen, onCategory, item
   const [refresh, setRefresh] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const local = isLocalEdition();
+  useEffect(() => {
+    if (!editing || !addingDestination) return;
+    const timer = setTimeout(() => pickerRef.current?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 0);
+    return () => clearTimeout(timer);
+  }, [editing, addingDestination]);
   const primaryKey = places.primary ? locationWatchKey(places.primary) : '';
   const targets = useMemo(() => compact ? places.primary ? [places.primary] : [] : places.locations, [compact, places]);
   const location = compact ? places.primary : targets.find(value => locationWatchKey(value) === selectedKey) || targets.find(value => locationWatchKey(value) === primaryKey) || targets[0];
@@ -114,13 +122,19 @@ export default function LocationView({ compact = false, onOpen, onCategory, item
       if (compact) saveLocation(localStorage, value);
       else {
         const key = locationWatchKey(value);
+        if (addingDestination && places.primary && key === locationWatchKey(places.primary)) throw new Error('Choose a destination different from your home city.');
         if (!places.locations.some(entry => locationWatchKey(entry) === key)) saveLocationWatchlist(localStorage, [...places.locations, value]);
         if (!places.primary) saveLocation(localStorage, value);
-        setSelectedKey(key);
-        setDetailsOpen(true);
-        setNotice(`${value.name} is on your watchlist.`);
+        if (addingDestination && places.primary) {
+          saveLocationDestination(localStorage, value);
+          setNotice(`${value.name} is now your destination. Your planning area and news selection are unchanged.`);
+        } else {
+          setSelectedKey(key);
+          setDetailsOpen(true);
+          setNotice(`${value.name} is on your watchlist.`);
+        }
       }
-      setEditing(false); setError(''); setRemoved(null);
+      setEditing(false); setAddingDestination(false); setError(''); setRemoved(null);
     } catch (problem) { setError(problem.message || 'The city could not be saved on this device.'); }
   };
   const makePrimary = () => {
@@ -137,14 +151,15 @@ export default function LocationView({ compact = false, onOpen, onCategory, item
   };
   const localDetail = !local && location && <section className="pv-location-surface pv-location-detail" aria-label={`Local details for ${locationName(location)}`}><div className="pv-location-detail-heading"><div><p className="pv-inventory-eyebrow">LOCAL CONDITIONS</p><h2>{locationName(location)}</h2></div>{!compact && <div className="pv-location-actions">{activeKey === primaryKey ? <span className="pv-location-planning-label">Planning area</span> : <button type="button" className="pv-text-link" onClick={makePrimary}>Make planning area</button>}<button type="button" className="pv-text-link" onClick={remove}>Remove city</button></div>}</div><Conditions location={location} row={rows[activeKey]} now={now} items={items} onCategory={onCategory}/></section>;
   return <section className={`pv-location ${compact ? 'is-compact' : 'pv-inventory'}`} aria-label={compact ? 'Local conditions overview' : 'Location and local conditions'}>
-    <header className={compact ? 'pv-section-heading' : 'pv-inventory-heading'}><div>{!compact && <p className="pv-inventory-eyebrow">KNOW WHAT’S CHANGING</p>}{compact ? <h2>What’s happening around you</h2> : <h1>Location<span>.</span></h1>}<p>{compact ? location ? `${locationName(location)} · Your planning area` : 'Set a location for weather and official warnings.' : 'Follow your places. Catch the headlines that matter. Keep the bigger picture in view.'}</p></div><div className="pv-location-actions">{!local && (compact ? location && <button type="button" className="pv-text-link" onClick={() => setEditing(value => !value)}>Change location</button> : <button type="button" className="pv-inventory-button pv-inventory-button-secondary" disabled={places.locations.length >= MAX_WATCHED_LOCATIONS || Boolean(places.error)} onClick={() => setEditing(value => !value)}><Icon name="plus" size={15}/>Add city</button>)}{targets.length > 0 && !local && <button type="button" className="pv-text-link" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{busy ? 'Refreshing…' : compact ? 'Refresh' : 'Refresh conditions'}</button>}{compact && onOpen && <button type="button" className="pv-text-link" onClick={onOpen}>Location details<Icon name="arrow" size={15}/></button>}</div></header>
+    <header className={compact ? 'pv-section-heading' : 'pv-inventory-heading'}><div>{!compact && <p className="pv-inventory-eyebrow">KNOW WHAT’S CHANGING</p>}{compact ? <h2>What’s happening around you</h2> : <h1>Location<span>.</span></h1>}<p>{compact ? location ? `${locationName(location)} · Your planning area` : 'Set a location for weather and official warnings.' : 'Follow your places. Catch the headlines that matter. Keep the bigger picture in view.'}</p></div><div className="pv-location-actions">{!local && (compact ? location && <button type="button" className="pv-text-link" onClick={() => { setAddingDestination(false); setEditing(value => !value); }}>Change location</button> : <button type="button" className="pv-inventory-button pv-inventory-button-secondary" disabled={places.locations.length >= MAX_WATCHED_LOCATIONS || Boolean(places.error)} onClick={() => { setAddingDestination(false); setEditing(value => !value); }}><Icon name="plus" size={15}/>Add city</button>)}{targets.length > 0 && !local && <button type="button" className="pv-text-link" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{busy ? 'Refreshing…' : compact ? 'Refresh' : 'Refresh conditions'}</button>}{compact && onOpen && <button type="button" className="pv-text-link" onClick={onOpen}>Location details<Icon name="arrow" size={15}/></button>}</div></header>
     {(error || (!compact && places.error)) && <p role="alert" className="pv-location-error">{error || places.error}</p>}
     {notice && !compact && <p className="pv-location-notice" role="status">{notice}{removed && <button type="button" onClick={undo}>Undo</button>}</p>}
     {local && <div className="pv-location-surface"><p>Live forecasts, warnings and news need the online site. Your saved cities and planning area remain in your backup.</p></div>}
-    {!local && (compact || !places.error) && (editing || (compact ? !location : targets.length === 0)) && <div className="pv-location-surface pv-location-picker-surface"><LocationPicker onChoose={choose} onCancel={editing ? () => setEditing(false) : undefined}/></div>}
+    {!local && (compact || !places.error) && (editing || (compact ? !location : targets.length === 0)) && <div ref={pickerRef} className="pv-location-surface pv-location-picker-surface"><LocationPicker onChoose={choose} onCancel={editing ? () => { setEditing(false); setAddingDestination(false); } : undefined}/></div>}
     {!compact && <section className="pv-location-watchlist" aria-label="Watched cities"><div className="pv-location-subheading"><h2>Your city watchlist</h2><span>{places.locations.length} / {MAX_WATCHED_LOCATIONS} cities</span></div>{targets.length > 0 ? <div className="pv-location-city-grid">{targets.map(value => { const key = locationWatchKey(value); return <CityCard key={key} location={value} row={rows[key]} selected={key === activeKey} primary={key === primaryKey} now={now} local={local} onSelect={() => { setSelectedKey(key); setDetailsOpen(true); }}/>; })}</div> : <p className="pv-location-empty">Add cities to follow their forecasts and official weather notices in one place.</p>}<p className="pv-location-footnote">Choose a city for its local details below. Your planning area is used by Overview and Calendar; selecting another city here does not change it.</p></section>}
     {localDetail && (compact ? localDetail : <details className="pv-location-detail-disclosure" open={detailsOpen} onToggle={event => setDetailsOpen(event.currentTarget.open)}><summary><span>Weather & warnings · {location.name}</span><Icon name="chevron" size={16}/></summary>{localDetail}</details>)}
-    {!compact && <LocationBriefing locations={places.locations}/>}
+    {!compact && <LocationTravel home={places.primary} locations={targets} onAddLocation={places.error ? undefined : () => { setAddingDestination(true); setEditing(true); }} onSignIn={onSignIn} onOpenMaps={onOpenMaps}/>}
+    {!compact && <LocationBriefing activeLocation={location} locations={targets}/>}
 
   </section>;
 }

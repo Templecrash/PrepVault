@@ -53,3 +53,16 @@ test('global briefing request sends no coordinates, watched cities or account cr
   assert.deepEqual(data.articles, []);
   await assert.rejects(getPreparednessBriefing({ fetchImpl: async () => Response.json({ error: 'Feeds unavailable.' }, { status: 503 }) }), /Feeds unavailable/);
 });
+
+test('area brief sends selected city context only and rejects a mismatched-city response', async () => {
+  const location = { name: 'Ottawa', region: 'Ontario', countryCode: 'CA', latitude: 45.42, longitude: -75.69, privateAddress: 'PRIVATE', country: 'Canada' };
+  const coverageContext = { city: 'Ottawa', region: 'Ontario', countryCode: 'CA' };
+  const data = await getPreparednessBriefing({ location, fetchImpl: async (url, options) => {
+    assert.deepEqual(Object.fromEntries(new URL(url, 'https://prep.example').searchParams), coverageContext);
+    assert.doesNotMatch(url, /latitude|longitude|PRIVATE|45.42|75.69/); assert.equal(options.credentials, 'omit');
+    return Response.json({ ...payload([]), coverageContext });
+  } });
+  assert.deepEqual(data.coverageContext, coverageContext);
+  await assert.rejects(getPreparednessBriefing({ location, fetchImpl: async () => Response.json({ ...payload([]), coverageContext: { ...coverageContext, city: 'Toronto' } }) }), /did not match the selected city/);
+  await assert.rejects(getPreparednessBriefing({ location, fetchImpl: async () => Response.json(payload([])) }), /did not match the selected city/);
+});

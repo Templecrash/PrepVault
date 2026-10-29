@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/location-briefing.js": {
+      "maxDuration": 20
+    },
     "api/routing.js": {
       "maxDuration": 30
     },

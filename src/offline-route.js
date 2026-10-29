@@ -1,5 +1,8 @@
 export const ROUTE_PLANS_KEY = 'prepvault-offline-routes';
-export const ROUTE_MODES = ['drive', 'avoid-highways', 'walk'];
+export const ROUTE_MODES = ['drive', 'avoid-highways', 'bike', 'walk'];
+// Public FOSSGIS endpoint limits, verified against its distance-limit responses.
+// Apply only to new calculations; saved plans remain usable independently.
+export const PROVIDER_ROUTE_LIMIT_KM = { walk: 100, bike: 150 };
 export const MAX_AVOIDANCE_BOUNDARY_KM = 9.9;
 export const MIN_AVOIDANCE_RADIUS_KM = 0.2;
 export const DEFAULT_AVOIDANCE_RADIUS_KM = 0.5;
@@ -35,9 +38,13 @@ export function validateRouteRequest(value, { providerLimits = false } = {}) {
   const points = value.points.map(point);
   const directKm = points.slice(1).reduce((sum, p, i) => sum + haversineKm([p.longitude, p.latitude], [points[i].longitude, points[i].latitude]), 0);
   if (directKm < .02) throw new Error('Choose separate starting and destination locations.');
-  if (directKm > (value.mode === 'walk' ? 300 : 3000)) throw new Error('Split this journey into shorter routes (up to 300 km walking or 3,000 km driving between stops).');
+  if (directKm > (value.mode === 'walk' ? 300 : value.mode === 'bike' ? 500 : 3000)) throw new Error('Split this journey into shorter routes (up to 300 km walking, 500 km cycling or 3,000 km driving across your stops).');
+  const providerDistanceLimit = PROVIDER_ROUTE_LIMIT_KM[value.mode];
+  if (providerLimits && providerDistanceLimit && directKm > providerDistanceLimit) throw new Error(`This routing service supports ${value.mode === 'walk' ? 'walking' : 'cycling'} routes up to ${providerDistanceLimit} km. Split this journey into shorter sections. Driving may still be available.`);
   const walkingSpeed = value.walkingSpeed ?? 4;
   if (!Number.isFinite(walkingSpeed) || walkingSpeed < 1 || walkingSpeed > 8) throw new Error('Choose a walking speed between 1 and 8 km/h.');
+  const cyclingSpeed = value.cyclingSpeed ?? 15;
+  if (!Number.isFinite(cyclingSpeed) || cyclingSpeed < 5 || cyclingSpeed > 35) throw new Error('Choose a cycling speed between 5 and 35 km/h.');
   if (value.avoidAreas !== undefined && (!Array.isArray(value.avoidAreas) || value.avoidAreas.length > 4)) throw new Error('Choose up to four areas to avoid.');
   const avoidAreas = (value.avoidAreas || []).map(area => {
     const p = point(area); if (!Number.isFinite(area.radiusKm) || area.radiusKm < .2 || area.radiusKm > 25) throw new Error('Avoidance areas need a radius between 0.2 and 25 km.');
@@ -49,7 +56,7 @@ export function validateRouteRequest(value, { providerLimits = false } = {}) {
     const budget = getAvoidanceBudget(avoidAreas);
     if (budget.exceedsLimit) throw new Error(`The selected avoidance areas use about ${budget.boundaryKm.toFixed(1)} km of boundary. This routing service supports ${MAX_AVOIDANCE_BOUNDARY_KM} km combined. Reduce the radii or remove an area, then calculate again. For larger areas, choose stops around them and review the route.`);
   }
-  return { points, mode: value.mode, walkingSpeed, avoidAreas };
+  return { points, mode: value.mode, walkingSpeed, cyclingSpeed, avoidAreas };
 }
 export function haversineKm(a, b) {
   const radians = value => value * Math.PI / 180;
@@ -74,8 +81,9 @@ export function validateSavedRoute(value) {
   return { ...request, distanceKm: value.distanceKm, durationSeconds: value.durationSeconds, coordinates: value.coordinates.map(p => [...p]), instructions, warnings: Array.isArray(value.warnings) ? value.warnings.filter(s => typeof s === 'string').slice(0, 20).map(s => s.slice(0, 500)) : [], calculatedAt: value.calculatedAt };
 }
 function normalizeTravel(value = {}) {
-  const result = { hoursPerDay: value.hoursPerDay ?? 6, walkingSpeed: value.walkingSpeed ?? 4, drivingHours: value.drivingHours ?? 6, breakMinutes: value.breakMinutes ?? 15 };
+  const result = { hoursPerDay: value.hoursPerDay ?? 6, walkingSpeed: value.walkingSpeed ?? 4, cyclingHours: value.cyclingHours ?? 6, cyclingSpeed: value.cyclingSpeed ?? 15, drivingHours: value.drivingHours ?? 6, breakMinutes: value.breakMinutes ?? 15 };
   if (!Number.isFinite(result.hoursPerDay) || result.hoursPerDay < 1 || result.hoursPerDay > 12 || !Number.isFinite(result.drivingHours) || result.drivingHours < 1 || result.drivingHours > 12 || !Number.isFinite(result.walkingSpeed) || result.walkingSpeed < 1 || result.walkingSpeed > 8 || !Number.isFinite(result.breakMinutes) || result.breakMinutes < 0 || result.breakMinutes > 60) throw new Error('Use 1–12 travel hours/day, 1–8 km/h walking and 0–60 minutes of rest per moving hour.');
+  if (!Number.isFinite(result.cyclingHours) || result.cyclingHours < 1 || result.cyclingHours > 12 || !Number.isFinite(result.cyclingSpeed) || result.cyclingSpeed < 5 || result.cyclingSpeed > 35) throw new Error('Use 1–12 cycling hours/day and a cycling pace between 5 and 35 km/h.');
   return result;
 }
 export function normalizeRoutePlansSetting(raw) {
@@ -91,9 +99,12 @@ export function readRoutePlans(storage) { const raw = storage.getItem(ROUTE_PLAN
 export function saveRoutePlans(storage, rows) { const raw = normalizeRoutePlansSetting(JSON.stringify(rows)); storage.setItem(ROUTE_PLANS_KEY, raw); return JSON.parse(raw); }
 export function planTravelDays(route, value = {}) {
   const travel = normalizeTravel(value);
-  const moveHours = route.mode === 'walk' ? route.distanceKm / travel.walkingSpeed : route.durationSeconds / 3600;
+  // Keep the mapped bicycle estimate (surface/grade/access), scaling it only
+  // when the saved planning pace differs from the pace used for routing.
+  const moveHours = route.mode === 'walk' ? route.distanceKm / travel.walkingSpeed
+    : route.durationSeconds / 3600 * (route.mode === 'bike' ? (route.cyclingSpeed ?? 15) / travel.cyclingSpeed : 1);
   const totalHours = moveHours * (1 + travel.breakMinutes / 60);
-  const budget = route.mode === 'walk' ? travel.hoursPerDay : travel.drivingHours;
+  const budget = route.mode === 'walk' ? travel.hoursPerDay : route.mode === 'bike' ? travel.cyclingHours : travel.drivingHours;
   const days = Math.max(1, Math.ceil(totalHours / budget));
   if (days > 365) throw new Error('This plan exceeds 365 travel days. Split the route or increase your daily travel budget.');
   const dailyDistanceKm = route.distanceKm * budget / totalHours;
@@ -109,7 +120,7 @@ export function planTravelDays(route, value = {}) {
     const longitude = fraction === 1 ? b[0] : ((a[0] + longitudeDelta * fraction + 540) % 360) - 180;
     return { day: i + 1, distanceKm, latitude: a[1] + (b[1] - a[1]) * fraction, longitude, isDestination: distanceKm === route.distanceKm };
   });
-  return { days, totalHours, stops, dailyDistanceKm };
+  return { days, totalHours, movementHours: moveHours, stops, dailyDistanceKm };
 }
 export async function calculateRoute(value, { signal, fetchImpl = fetch } = {}) {
   const request = validateRouteRequest(value, { providerLimits: true });

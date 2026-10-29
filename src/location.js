@@ -1,5 +1,7 @@
 export const LOCATION_KEY = 'prepvault-location';
 export const LOCATION_WATCHLIST_KEY = 'prepvault-location-watchlist';
+export const LOCATION_DESTINATION_KEY = 'prepvault-location-destination';
+export const LOCATION_DESTINATION_EVENT = 'prepvault-location-destination-change';
 export const MAX_WATCHED_LOCATIONS = 8;
 export const LOCATION_EVENT = 'prepvault-location-change';
 export function normalizeLocation(value) {
@@ -36,6 +38,24 @@ export function saveLocationWatchlist(storage, value) {
   const next = normalizeLocationWatchlist(value);
   storage.setItem(LOCATION_WATCHLIST_KEY, JSON.stringify(next));
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(LOCATION_EVENT));
+  return next;
+}
+// A destination is independent of the home/planning area and news selection.
+// Retain only the chosen place, never calculated route geometry or directions.
+export function normalizeLocationDestination(value) {
+  return value === null ? null : normalizeLocation(value);
+}
+export function readLocationDestination(storage) {
+  try {
+    const raw = storage.getItem(LOCATION_DESTINATION_KEY);
+    return raw === null ? null : normalizeLocationDestination(JSON.parse(raw));
+  } catch { throw new Error('Your saved destination could not be read. Restore a valid backup before changing it.'); }
+}
+export function saveLocationDestination(storage, value) {
+  const next = normalizeLocationDestination(value);
+  if (next === null) storage.removeItem(LOCATION_DESTINATION_KEY);
+  else storage.setItem(LOCATION_DESTINATION_KEY, JSON.stringify(next));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(LOCATION_DESTINATION_EVENT));
   return next;
 }
 async function request(query, { signal, fetchImpl = fetch } = {}) {

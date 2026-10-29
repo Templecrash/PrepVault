@@ -100,3 +100,45 @@ test('planning prompts derive from recorded forecast and do not invent warnings 
   assert.ok(rows.some(row => row.title.includes('freezing'))); assert.ok(rows.some(row => row.title.includes('power')));
   assert.ok(rows.some(row => row.title.includes('travel')));
 });
+
+
+test('search keeps usable cities when a sibling provider row is malformed', async () => {
+  const good = { id: 5969782, name: 'Hamilton', admin1: 'Ontario', country: 'Canada', country_code: 'CA', latitude: 43.25011, longitude: -79.84963, timezone: 'America/Toronto' };
+  const rows = [null, { ...good, latitude: 120 }, good, { ...good, name: '' }, { ...good, country_code: '../' }, { ...good, country: 42 }];
+  const handler = createLocationHandler({ now: () => NOW, fetchImpl: async () => Response.json({ results: rows }) });
+  const res = response(); await handler({ method: 'GET', query: { action: 'search', q: 'Hamilton' } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.locations.length, 1);
+  assert.equal(res.body.locations[0].name, 'Hamilton');
+  assert.equal(res.body.locations[0].region, 'Ontario');
+  assert.equal(res.body.locations[0].countryCode, 'CA');
+});
+
+test('search derives the omitted Bermuda country name from its recognised region code', async () => {
+  const hamilton = { id: 3573197, name: 'Hamilton', latitude: 32.2949, longitude: -64.78303, country_code: 'BM', admin1: 'Hamilton city', timezone: 'Atlantic/Bermuda' };
+  const handler = createLocationHandler({ now: () => NOW, fetchImpl: async () => Response.json({ results: [hamilton] }) });
+  const res = response(); await handler({ method: 'GET', query: { action: 'search', q: 'Hamilton' } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.locations, [{ id: '3573197', name: 'Hamilton', region: 'Hamilton city', country: 'Bermuda', countryCode: 'BM', latitude: 32.2949, longitude: -64.78303, timezone: 'Atlantic/Bermuda' }]);
+});
+
+test('all-invalid search results fail without being cached as a false empty match', async () => {
+  let calls = 0;
+  const handler = createLocationHandler({ now: () => NOW, fetchImpl: async () => { calls++; return Response.json({ results: [null, { name: 'Hamilton', country_code: 'ZZ', latitude: 32, longitude: -64 }, { name: 'Hamilton', country: 'Canada', country_code: 'CA', latitude: '43', longitude: -79 }] }); } });
+  for (let index = 0; index < 2; index++) {
+    const res = response(); await handler({ method: 'GET', query: { action: 'search', q: 'Hamilton' } }, res);
+    assert.equal(res.statusCode, 502);
+    assert.equal(res.body.locations, undefined);
+    assert.match(res.body.error, /search is unavailable/);
+  }
+  assert.equal(calls, 2, 'failed parsing must be retried rather than cached as zero results');
+});
+
+test('genuinely empty search results remain a successful no-match response', async () => {
+  for (const payload of [{ results: [] }, { generationtime_ms: 0.2 }]) {
+    const handler = createLocationHandler({ now: () => NOW, fetchImpl: async () => Response.json(payload) });
+    const res = response(); await handler({ method: 'GET', query: { action: 'search', q: 'No match' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.locations, []);
+  }
+});

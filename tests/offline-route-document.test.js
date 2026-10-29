@@ -75,3 +75,13 @@ test('driving export uses driving hours and provider duration rather than walkin
   assert.ok($('.summary').text().includes('12h 0m'));
   assert.doesNotMatch($('.pace').text(), /Walking speed/);
 });
+
+test('cycling export shows cycling pace and its own budget while retaining mapped time', () => {
+  const plan = makePlan(); plan.name = 'Cycle to the cabin'; plan.route.mode = 'bike'; plan.route.cyclingSpeed = 15; plan.route.distanceKm = 120; plan.route.durationSeconds = 36_000;
+  plan.travel = { ...plan.travel, cyclingHours: 5, cyclingSpeed: 10, drivingHours: 12, hoursPerDay: 1, breakMinutes: 0 };
+  const $ = load(routeToOfflineHtml(plan));
+  assert.match($('.subtitle').text(), /Cycling/); assert.match($('.pace').text(), /Cycling budget5 hours \/ day/);
+  assert.match($('.pace').text(), /Cycling pace10 km\/h/); assert.doesNotMatch($('.pace').text(), /Driving|Walking/);
+  assert.equal($('tr[data-day-stop]').length, 3); assert.equal($('tr[data-destination="true"]').length, 1);
+  assert.match($('.summary').text(), /15h 0m/); assert.match($('body').text(), /Cycling pace changes scale the mapped movement estimate/);
+});

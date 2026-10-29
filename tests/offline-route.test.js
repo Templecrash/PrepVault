@@ -155,3 +155,51 @@ test('avoidance areas crossing the date line or polar bounds fail without alteri
     assert.throws(() => validateRouteRequest({ ...input, avoidAreas: [area] }), /map boundary/);
   }
 });
+
+test('cycling accepts its own pace, bounds request distance and preserves bike mode in saved plans', () => {
+  const normalized = validateRouteRequest({ points, mode: 'bike', cyclingSpeed: 18 });
+  assert.equal(normalized.mode, 'bike'); assert.equal(normalized.cyclingSpeed, 18);
+  assert.equal(validateRouteRequest({ points, mode: 'bike' }).cyclingSpeed, 15);
+  for (const cyclingSpeed of [0, 4, 36, Infinity, '15']) assert.throws(() => validateRouteRequest({ points, mode: 'bike', cyclingSpeed }), /cycling speed/);
+  const distant = [{ name: 'Start', latitude: 0, longitude: 0 }, { name: 'End', latitude: 0, longitude: 4.4 }];
+  assert.equal(validateRouteRequest({ points: distant, mode: 'bike' }).mode, 'bike');
+  assert.throws(() => validateRouteRequest({ points: [{ ...distant[0] }, { ...distant[1], longitude: 4.6 }], mode: 'bike' }), /500 km cycling/);
+  assert.throws(() => validateRouteRequest({ points: distant, mode: 'walk' }), /300 km walking/);
+  const saved = JSON.parse(normalizeRoutePlansSetting(JSON.stringify([plan({ route: route({ mode: 'bike', cyclingSpeed: 18 }), travel: { cyclingHours: 4, cyclingSpeed: 18, breakMinutes: 10 } })])))[0];
+  assert.equal(saved.route.mode, 'bike'); assert.equal(saved.route.cyclingSpeed, 18); assert.equal(saved.travel.cyclingHours, 4); assert.equal(saved.travel.cyclingSpeed, 18);
+});
+
+test('cycling day plans use mapped movement time and cycling budget, with pace changes explicit', () => {
+  const bike = route({ mode: 'bike', cyclingSpeed: 15, distanceKm: 120, durationSeconds: 36_000 });
+  const travel = { cyclingSpeed: 15, cyclingHours: 5, drivingHours: 12, hoursPerDay: 1, breakMinutes: 15 };
+  const original = planTravelDays(bike, travel);
+  assert.equal(original.movementHours, 10, 'use the mapped estimate, not distance divided by flat-road pace');
+  assert.equal(original.totalHours, 12.5); assert.equal(original.days, 3); near(original.dailyDistanceKm, 48);
+  assert.equal(original.stops.at(-1).isDestination, true); near(original.stops.at(-1).longitude, .2);
+  const slower = planTravelDays(bike, { ...travel, cyclingSpeed: 10 });
+  assert.equal(slower.movementHours, 15); assert.equal(slower.totalHours, 18.75); assert.equal(slower.days, 4);
+  for (const change of [{ cyclingHours: 0 }, { cyclingHours: 13 }, { cyclingSpeed: 4 }, { cyclingSpeed: '15' }]) assert.throws(() => planTravelDays(bike, { ...travel, ...change }), /cycling/);
+  const legacy = JSON.parse(normalizeRoutePlansSetting(JSON.stringify([plan()])))[0];
+  assert.equal(legacy.travel.cyclingSpeed, 15); assert.equal(legacy.travel.cyclingHours, 6); assert.equal(planTravelDays(legacy.route, legacy.travel).totalHours, 12.5);
+});
+
+test('cycling client keeps the bicycle pace and validates the returned bicycle route', async () => {
+  let body;
+  const result = await calculateRoute({ points, mode: 'bike', cyclingSpeed: 12 }, { fetchImpl: async (_url, init) => { body = JSON.parse(init.body); return Response.json({ route: route({ mode: 'bike', cyclingSpeed: 12 }) }); } });
+  assert.equal(body.mode, 'bike'); assert.equal(body.cyclingSpeed, 12); assert.equal(result.mode, 'bike'); assert.equal(result.cyclingSpeed, 12);
+});
+
+test('public walking and cycling distance caps apply to new calculations without blocking saved routes', async () => {
+  const journey = [{ name: 'Start', latitude: 0, longitude: 0 }, { name: 'End', latitude: 0, longitude: 1.6 }];
+  for (const [mode, limit, label] of [['walk', 100, 'walking'], ['bike', 150, 'cycling']]) {
+    const input = { points: journey, mode };
+    assert.equal(validateRouteRequest(input).mode, mode);
+    assert.throws(() => validateRouteRequest(input, { providerLimits: true }), new RegExp(`${label} routes up to ${limit} km`));
+    let calls = 0;
+    await assert.rejects(calculateRoute(input, { fetchImpl: async () => { calls++; } }), /Split this journey into shorter sections/);
+    assert.equal(calls, 0);
+    const saved = route({ points: journey, coordinates: [[0, 0], [1.6, 0]], mode, distanceKm: 200 });
+    assert.equal(validateSavedRoute(saved).mode, mode);
+  }
+  assert.equal(validateRouteRequest({ points: journey, mode: 'drive' }, { providerLimits: true }).mode, 'drive');
+});

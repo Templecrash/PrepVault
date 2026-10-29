@@ -38,6 +38,66 @@ test('account session accepts verified non-owner while private owner authorizati
   assert.equal(await ownerAuth.authenticate(req('session')), null);
 });
 
+test('reusable account authentication admits an ordinary verified account without owner configuration', async () => {
+  const { auth, calls, proxy } = setup({ config: { NEON_AUTH_BASE_URL: env.NEON_AUTH_BASE_URL, NEON_AUTH_COOKIE_SECRET: env.NEON_AUTH_COOKIE_SECRET } });
+  assert.deepEqual(await auth.authenticate(req('session', { method: 'POST' })), user);
+  assert.equal(calls[0].path, 'get-session');
+  assert.equal(calls[0].request.method, 'GET');
+  assert.equal(calls[0].request.url, 'https://prep.example/api/auth/get-session?disableCookieCache=true');
+  assert.equal(await createNeonOwnerAuth({ env, proxy, now: () => timestamp }).authenticate(req('session')), null);
+});
+
+test('reusable authentication trusts only the current opaque provider session', async () => {
+  const { auth, calls } = setup({ data: { user: { ...user, role: 'owner', secret: 'private-profile-data' }, session } });
+  const request = req('session', { method: 'POST', headers: { cookie: `${cookie}; __Secure-neon-auth.local.session_data=forged`, authorization: 'Bearer forged' }, body: { user: { id: 'owner-id', emailVerified: true }, userId: 'owner-id' } });
+  assert.deepEqual(await auth.authenticate(request), user);
+  assert.deepEqual(await auth.authenticate(request), user);
+  assert.equal(calls.length, 2, 'every call performs fresh session verification');
+  for (const call of calls) {
+    assert.equal(call.request.headers.get('cookie'), cookie);
+    assert.equal(call.request.headers.get('authorization'), null);
+    assert.equal(call.body, '');
+    assert.equal(call.sameSite, 'strict');
+  }
+  for (const value of ['', `${cookie}; ${cookie}`, 'x'.repeat(17000)]) {
+    const signedOut = setup();
+    assert.equal(await signedOut.auth.authenticate(req('session', { headers: { cookie: value, authorization: 'Bearer forged' }, body: { user } })), null);
+    assert.equal(signedOut.calls.length, 0);
+  }
+});
+
+test('reusable authentication rejects unverified, banned, malformed, expired and mismatched sessions', async () => {
+  const invalid = [null, {}, { user, session: null },
+    ...[false, undefined, 'true', 1].map(emailVerified => ({ user: { ...user, emailVerified }, session })),
+    { user: { ...user, banned: true }, session }, { user: { ...user, email: 'invalid' }, session },
+    ...['', 'not valid', 'x'.repeat(201), 12].map(id => ({ user: { ...user, id }, session: { ...session, userId: id } })),
+    { user, session: { ...session, userId: 'another-account' } },
+    ...[undefined, 'bad', new Date(timestamp).toISOString(), '2026-10-25T00:00:00Z'].map(expiresAt => ({ user, session: { ...session, expiresAt } })),
+  ];
+  for (const data of invalid) assert.equal(await setup({ data }).auth.authenticate(req('session')), null);
+});
+
+test('reusable authentication rejects cross-origin requests before contacting the identity provider', async () => {
+  for (const headers of [{ origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' }, { origin: undefined, referer: 'https://evil.example/', 'sec-fetch-site': 'same-origin' }, { origin: undefined }]) {
+    const { auth, calls } = setup();
+    await assert.rejects(auth.authenticate(req('session', { method: 'POST', headers })), error => error.status === 403);
+    assert.equal(calls.length, 0);
+  }
+});
+
+test('reusable authentication fails closed and redacts unavailable or malformed provider responses', async () => {
+  for (const status of [401, 403]) assert.equal(await setup({ status }).auth.authenticate(req('session')), null);
+  for (const options of [{ status: 429 }, { status: 500 }, { status: 400 }, { failure: new Error('SECRET provider config') }, { config: {} }]) {
+    await assert.rejects(setup(options).auth.authenticate(req('session')), error => {
+      assert.equal(error.status, 503);
+      assert.doesNotMatch(error.message, /SECRET|provider config/);
+      return true;
+    });
+  }
+  const auth = createAccountAuth({ env, now: () => timestamp, proxy: async () => new Response('SECRET invalid JSON') });
+  await assert.rejects(auth.authenticate(req('session')), error => error.status === 503 && !error.message.includes('SECRET'));
+});
+
 test('account lookup always validates opaque provider session and returns no credentials', async () => {
   const { run, calls } = setup({ data: { user: { ...user, role: 'admin', secret: 'hidden' }, session } });
   const res = await run('session', { headers: { cookie: `${cookie}; __Secure-neon-auth.local.session_data=forged; other=secret`, authorization: 'Bearer forged' }, body: { id: 'forged' } });

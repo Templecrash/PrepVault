@@ -16,6 +16,7 @@ const WORKSPACE_SETTINGS = new Set([
   'prepvault-radio-location',
   'prepvault-location',
   'prepvault-location-watchlist',
+  'prepvault-location-destination',
   'prepvault-calendar',
   'prepvault-offline-routes',
   'prepvault-radio-volume',

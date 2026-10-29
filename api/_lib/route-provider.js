@@ -64,10 +64,10 @@ export function decodePolyline(encoded) {
   return result;
 }
 export function buildProviderRouteRequest(value) {
-  const request = validateRouteRequest(value, { providerLimits: true }); const walking = request.mode === 'walk';
-  const costing = walking ? 'pedestrian' : 'auto';
+  const request = validateRouteRequest(value, { providerLimits: true }); const walking = request.mode === 'walk'; const cycling = request.mode === 'bike';
+  const costing = walking ? 'pedestrian' : cycling ? 'bicycle' : 'auto';
   return { locations: request.points.map(p => ({ lat: p.latitude, lon: p.longitude, type: 'break' })), costing, units: 'kilometers', language: 'en-US',
-    costing_options: { [costing]: walking ? { walking_speed: request.walkingSpeed } : request.mode === 'avoid-highways' ? { use_highways: 0, exclude_highways: true } : {} },
+    costing_options: { [costing]: walking ? { walking_speed: request.walkingSpeed } : cycling ? { bicycle_type: 'hybrid', cycling_speed: request.cyclingSpeed } : request.mode === 'avoid-highways' ? { use_highways: 0, exclude_highways: true } : {} },
     ...(request.avoidAreas.length ? { exclude_polygons: request.avoidAreas.map(avoidancePolygon) } : {}),
   };
 }
@@ -105,6 +105,7 @@ export async function requestProviderRoute(value, { fetchImpl = fetch, now = Dat
     if (typeof message === 'string') warnings.push(message);
   }
   if (request.mode === 'avoid-highways' && trip.summary?.has_highway) warnings.push('This route still includes a highway segment. Review it before using it.');
+  if (request.mode === 'bike') warnings.push('Cycling uses a hybrid bicycle profile. Check surface, hills, access and your loaded-bike pace before travelling.');
   if (request.avoidAreas.length) warnings.push('Selected circles are avoidance areas, not verified town boundaries. Check the route and local access.');
   return validateSavedRoute({ ...request, coordinates, instructions, warnings, distanceKm: trip.summary?.length, durationSeconds: trip.summary?.time, calculatedAt: new Date(now()).toISOString() });
   } catch { throw new RouteProviderError('invalid_response'); }

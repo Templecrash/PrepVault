@@ -90,6 +90,21 @@ export function createAccountAuth({ env = process.env, proxy = defaultProxy, now
   }
 
   return {
+    async authenticate(req) {
+      assertAuthOrigin(req);
+      const config = readConfig(env);
+      if (!sessionCookie(req)) return null;
+      // Reuse the same opaque-cookie lookup as account restoration. Never
+      // authorize API access from request body/profile claims or a cached user.
+      let response;
+      try { response = await upstream(req, config, 'session'); }
+      catch { throw unavailable(); }
+      if ([401, 403].includes(response.status)) return null;
+      if (!response.ok) throw unavailable();
+      const data = await response.json().catch(() => undefined);
+      if (data === undefined) throw unavailable();
+      return sessionUser(data, now);
+    },
     async handle(req, res) {
       res.setHeader('Cache-Control', 'no-store, private, max-age=0');
       res.setHeader('Pragma', 'no-cache');
@@ -160,3 +175,5 @@ export function createAccountAuth({ env = process.env, proxy = defaultProxy, now
     },
   };
 }
+
+export const authenticateAccount = req => createAccountAuth().authenticate(req);
