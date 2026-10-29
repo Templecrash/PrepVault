@@ -385,6 +385,17 @@ class AdapterTests(unittest.TestCase):
         self.assertNotIn("asgi_app", ast.unparse(worker))
         self.assertNotIn("/Users/", path.read_text())
 
+    def test_independent_provisioning_has_no_gpu_dependency(self):
+        path = Path(__file__).resolve().parents[1] / "server/survival/provision.py"
+        tree = ast.parse(path.read_text())
+        self.assertNotIn("modal_app", path.read_text())
+        self.assertFalse(any(isinstance(node, ast.ClassDef) for node in tree.body))
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "prepare")
+        settings = {keyword.arg for keyword in function.decorator_list[0].keywords}
+        self.assertNotIn("gpu", settings)
+        self.assertIn("volumes", settings)
+        self.assertNotIn("from_registry", path.read_text())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,13 +31,16 @@ They deploy code or allocate cloud resources; they never run the model locally.
 
 ```sh
 modal deploy -m server.survival.modal_app
-modal run -m server.survival.modal_app::provision
+modal run --detach -m server.survival.provision::prepare
 ```
 
 Provisioning downloads the pinned model and complete library directly into the
 cloud volume. It allocates CPU/storage, not a GPU. It is resumable and preserves
 unexpected existing data. Allow storage for the roughly 75 GB model checkpoint,
 21 GB installed library, download staging and container/cache overhead.
+The separate provisioning App imports no GPU application code, so it can run
+while the vLLM image is still building. Run only one provisioning command at a
+time; the original `modal_app::provision` function shares the same volume.
 
 After deployment, set `SURVIVAL_SERVER_URL` in Vercel to the HTTPS base URL of
 the deployed `gateway` function. Deploy the PrepVault API containing
