@@ -176,3 +176,90 @@ test('district or county locality evidence can confirm an address without invent
   assert.equal(calls, 1);
   assert.equal(rows[0].matchType, 'address');
 });
+
+test('town and Canadian province need no separating comma and town text is always retained', () => {
+  const expected = { housenumber: '100', street: 'Queen Street West', locality: 'Toronto', postcode: '', state: 'Ontario', countrycode: 'CA' };
+  for (const query of ['100 Queen Street West, Toronto Ontario', '100 Queen Street West, Toronto ON', '100 Queen Street West, Toronto Ontario, Canada', '100 Queen Street West, Toronto ON Canada']) {
+    assert.deepEqual(parseCanadianMapAddress(query), expected, query);
+  }
+  for (const query of ['100 Queen Street West, Toronto ON M5H 2N2', '100 Queen Street West, Toronto Ontario, M5H 2N2, Canada', '100 Queen Street West, Toronto ON M5H2N2 Canada']) {
+    assert.deepEqual(parseCanadianMapAddress(query), { ...expected, postcode: 'M5H2N2' }, query);
+  }
+  assert.deepEqual(parseCanadianMapAddress('246 Example Road, Test Village British Columbia'), { housenumber: '246', street: 'Example Road', locality: 'Test Village', postcode: '', state: 'British Columbia', countrycode: 'CA' });
+  assert.equal(parseCanadianMapAddress('246 Example Road, Test Village Québec').state, 'Quebec');
+  for (const query of ['246 Example Road, Ontario', '246 Example Road, TorontoOntario', '246 Ontario Road, Toronto', '246 Example Road, Toronto Ontario, United States']) assert.equal(parseCanadianMapAddress(query), null, query);
+});
+
+test('omitting the comma before province cannot admit a namesake address in another municipality', async () => {
+  const wrongTown = { ...address, properties: { ...address.properties, city: 'Hamilton', postcode: 'L8P 1A1' } };
+  const queries = [];
+  const rows = await searchMapPlaces('100 Queen Street West, Toronto Ontario', { fetchImpl: async url => {
+    queries.push(new URL(url));
+    return Response.json(payload([wrongTown]));
+  } });
+  assert.deepEqual(rows, []);
+  assert.equal(queries.length, 2);
+  assert.equal(queries[0].searchParams.get('countrycode'), 'CA');
+});
+
+test('a compact town/province address accepts a genuine matching town without fallback', async () => {
+  let calls = 0;
+  const rows = await searchMapPlaces('100 Queen Street West, Toronto ON M5H 2N2 Canada', { fetchImpl: async () => { calls++; return Response.json(payload([address])); } });
+  assert.equal(calls, 1);
+  assert.equal(rows[0].matchType, 'address');
+});
+
+const villageAnchor = { type: 'Feature', geometry: { type: 'Point', coordinates: [-78.8, 44.4] }, properties: { osm_type: 'N', osm_id: 700, name: 'Test Village', type: 'locality', city: 'Test Township', state: 'Ontario', countrycode: 'CA' } };
+const anchoredRoad = { type: 'Feature', geometry: { type: 'Point', coordinates: [-78.75, 44.45] }, properties: { osm_type: 'W', osm_id: 701, name: 'Example Road', type: 'street', city: 'Test Township', state: 'Ontario', countrycode: 'CA' } };
+const villageQuery = '246 Example Road, Test Village Ontario';
+
+test('verified rural locality anchors find a nearby road under its real municipality without claiming a house match', async () => {
+  const requests = []; const starts = [];
+  const rows = await searchMapPlaces(villageQuery, { fetchImpl: async value => {
+    requests.push(new URL(value)); starts.push(Date.now());
+    return Response.json(payload(requests.length === 1 ? [] : requests.length === 2 ? [villageAnchor] : [anchoredRoad]));
+  } });
+  assert.equal(requests.length, 3);
+  assert.ok(starts[1] - starts[0] >= 1050 && starts[2] - starts[1] >= 1050);
+  assert.equal(requests[1].searchParams.get('q'), 'Test Village, Ontario');
+  assert.equal(requests[2].pathname, '/structured');
+  assert.equal(requests[2].searchParams.get('city'), 'Test Township');
+  assert.equal(requests[2].searchParams.get('street'), 'Example Road');
+  assert.equal(requests[2].searchParams.get('housenumber'), null);
+  assert.equal(requests[2].searchParams.get('layer'), 'street');
+  const box = requests[2].searchParams.get('bbox').split(',').map(Number);
+  assert.ok(box[0] < -78.8 && box[2] > -78.8 && box[1] < 44.4 && box[3] > 44.4);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].matchType, 'street');
+  assert.equal(rows[0].matchLabel, 'Road — choose exact point');
+  assert.doesNotMatch(rows[0].label, /246/);
+});
+
+test('ambiguous, wrong-name, wrong-province or non-area locality results never trigger a road search', async () => {
+  for (const anchors of [
+    [villageAnchor, { ...villageAnchor, properties: { ...villageAnchor.properties, osm_id: 702 }, geometry: { type: 'Point', coordinates: [-79.5, 44.5] } }],
+    [{ ...villageAnchor, properties: { ...villageAnchor.properties, name: 'Other Village' } }],
+    [{ ...villageAnchor, properties: { ...villageAnchor.properties, state: 'Quebec' } }],
+    [{ ...villageAnchor, properties: { ...villageAnchor.properties, type: 'street' } }],
+    [{ ...villageAnchor, properties: { ...villageAnchor.properties, countrycode: 'US', country: 'Canada' } }],
+  ]) {
+    let calls = 0;
+    const rows = await searchMapPlaces(villageQuery, { fetchImpl: async () => Response.json(payload(++calls === 1 ? [] : anchors)) });
+    assert.deepEqual(rows, []);
+    assert.equal(calls, 2);
+  }
+});
+
+test('anchored search rejects unrelated streets, different municipalities and roads outside the 25 km radius', async () => {
+  const wrong = [
+    { ...anchoredRoad, properties: { ...anchoredRoad.properties, name: 'Other Road' } },
+    { ...anchoredRoad, properties: { ...anchoredRoad.properties, city: 'Other Township' } },
+    { ...anchoredRoad, properties: { ...anchoredRoad.properties, state: 'Quebec' } },
+    { ...anchoredRoad, geometry: { type: 'Point', coordinates: [-78.8, 44.7] } },
+    { ...anchoredRoad, properties: { ...anchoredRoad.properties, type: 'house', street: 'Example Road', housenumber: '246' } },
+  ];
+  let calls = 0;
+  const rows = await searchMapPlaces(villageQuery, { fetchImpl: async () => Response.json(payload(++calls === 1 ? [] : calls === 2 ? [villageAnchor] : wrong)) });
+  assert.deepEqual(rows, []);
+  assert.equal(calls, 3);
+});

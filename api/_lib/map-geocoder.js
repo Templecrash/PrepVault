@@ -53,29 +53,49 @@ CANADIAN_REGIONS.set('québec', 'Quebec');
 const canonicalRegion = value => CANADIAN_REGIONS.get(clean(value).toLocaleLowerCase('en')) || '';
 const canonicalLocality = value => clean(value).normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('en').replace(/^(?:city|town|township|county|municipality|district municipality) of /, '').replace(/[.'’]/g, '');
 const canonicalPostcode = value => clean(value, 20).replace(/\s+/g, '').toUpperCase();
+const isCanadianFeature = properties => {
+  const code = clean(properties.countrycode).toUpperCase();
+  return code ? code === 'CA' : clean(properties.country).toLowerCase() === 'canada';
+};
 const STREET_TERMS = /\b(street|st|road|rd|avenue|ave|drive|dr|lane|ln|trail|crescent|cres|court|ct|boulevard|blvd|highway|hwy|way|concession|terrace)\b/i;
 const STREET_ALIASES = { st: 'street', rd: 'road', ave: 'avenue', dr: 'drive', ln: 'lane', cres: 'crescent', ct: 'court', blvd: 'boulevard', hwy: 'highway', n: 'north', s: 'south', e: 'east', w: 'west' };
 const canonicalStreet = value => clean(value).toLocaleLowerCase('en').normalize('NFD').replace(/\p{M}/gu, '').replace(/[.'’]/g, '').replace(/\s+/g, ' ').split(' ').map(word => STREET_ALIASES[word] || word).join(' ');
 
-// Only parse explicit comma-separated Canadian street addresses. Do not guess
-// a user's country from a saved home or strip meaningful words from a query.
+// Parse a numbered street followed by explicit Canadian locality/province
+// information. A comma between town and province is optional; the town text
+// must survive parsing so a province-wide namesake cannot pass the matcher.
 export function parseCanadianMapAddress(query) {
-  const parts = query.split(',').map(part => part.trim()).filter(Boolean);
-  if (parts.length < 3) return null;
+  const parts = query.normalize('NFC').split(',').map(part => part.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
   if (/^canada$/i.test(parts.at(-1))) parts.pop();
+  else parts[parts.length - 1] = parts.at(-1).replace(/\s+canada$/i, '').trim();
   let postcode = '';
   if (/^[A-Z]\d[A-Z] ?\d[A-Z]\d$/i.test(parts.at(-1))) postcode = canonicalPostcode(parts.pop());
   const inlinePostcode = /\s+([A-Z]\d[A-Z] ?\d[A-Z]\d)$/i.exec(parts.at(-1));
   if (inlinePostcode) postcode = canonicalPostcode(inlinePostcode[1]);
-  const last = parts.at(-1)?.replace(/\s+[A-Z]\d[A-Z] ?\d[A-Z]\d$/i, '').trim();
-  const state = canonicalRegion(last);
+  const last = parts.at(-1)?.replace(/\s+[A-Z]\d[A-Z] ?\d[A-Z]\d$/i, '').trim() || '';
+  let state = canonicalRegion(last);
+  let localities = parts.slice(1, -1);
+  if (!state) {
+    const folded = last.toLocaleLowerCase('en');
+    // Long names before their abbreviations; require a word boundary and
+    // a nonempty locality, rather than searching anywhere in the address.
+    const suffix = [...CANADIAN_REGIONS.keys()].sort((a, b) => b.length - a.length)
+      .find(region => folded.endsWith(` ${region}`));
+    if (suffix) {
+      state = CANADIAN_REGIONS.get(suffix);
+      const locality = last.slice(0, -(suffix.length + 1)).trim();
+      if (locality) localities = [...localities, locality];
+    }
+  }
   const address = /^(\d{1,6}[A-Za-z]?)\s+(.+)$/.exec(parts[0]);
-  if (!state || !address || !STREET_TERMS.test(address[2]) || parts.length < 3) return null;
-  return { housenumber: address[1], street: address[2], locality: parts.slice(1, -1).join(', '), postcode, state, countrycode: 'CA' };
+  if (!state || !address || !STREET_TERMS.test(address[2]) || !localities.length) return null;
+  return { housenumber: address[1], street: address[2], locality: localities.join(', '), postcode, state, countrycode: 'CA' };
 }
+
 function addressFeatureMatches(feature, address, requireNumber = false) {
   const p = feature?.properties;
-  if (!p || canonicalRegion(p.state) !== address.state || (clean(p.countrycode).toUpperCase() !== 'CA' && clean(p.country).toLowerCase() !== 'canada')) return false;
+  if (!p || canonicalRegion(p.state) !== address.state || !isCanadianFeature(p)) return false;
   const postcode = canonicalPostcode(p.postcode);
   if (address.postcode && postcode && postcode !== address.postcode) return false;
   const localityMatches = [p.city, p.district, p.county, p.locality].some(value => canonicalLocality(value) === canonicalLocality(address.locality));
@@ -87,6 +107,48 @@ function addressFeatureMatches(feature, address, requireNumber = false) {
   if (number && number.toLowerCase() !== address.housenumber.toLowerCase()) return false;
   return !requireNumber || number.toLowerCase() === address.housenumber.toLowerCase();
 }
+function exactLocalityAnchor(data, address) {
+  const candidates = new Map();
+  for (const feature of data.features) {
+    const p = feature?.properties;
+    if (!p || canonicalLocality(p.name) !== canonicalLocality(address.locality) || canonicalRegion(p.state) !== address.state ||
+        !isCanadianFeature(p)) continue;
+    const [result] = normalizeMapSearchResults({ features: [feature] });
+    if (!result || result.matchType !== 'area') continue;
+    const municipalities = unique([clean(p.city), clean(p.district)]);
+    const municipality = municipalities.find(value => canonicalLocality(value) !== canonicalLocality(address.locality)) || municipalities[0];
+    if (!municipality) continue;
+    const key = `${result.latitude.toFixed(5)},${result.longitude.toFixed(5)}:${canonicalLocality(municipality)}`;
+    candidates.set(key, { latitude: result.latitude, longitude: result.longitude, municipality });
+  }
+  return candidates.size === 1 ? [...candidates.values()][0] : null;
+}
+function distanceKm(a, b) {
+  const radians = value => value * Math.PI / 180;
+  const dLat = radians(b.latitude - a.latitude); const dLng = radians(b.longitude - a.longitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(radians(a.latitude)) * Math.cos(radians(b.latitude)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+}
+function streetSearchBox(anchor) {
+  const latitudeDelta = 25 / 110.574;
+  const longitudeDelta = 25 / (111.32 * Math.cos(anchor.latitude * Math.PI / 180));
+  return [Math.max(-180, anchor.longitude - longitudeDelta), Math.max(-85, anchor.latitude - latitudeDelta),
+    Math.min(180, anchor.longitude + longitudeDelta), Math.min(85, anchor.latitude + latitudeDelta)].join(',');
+}
+function nearbyMatchingStreets(data, address, anchor) {
+  const features = data.features.filter(feature => {
+    const p = feature?.properties;
+    if (!p || p.type !== 'street' || canonicalStreet(clean(p.street) || clean(p.name)) !== canonicalStreet(address.street) ||
+        canonicalRegion(p.state) !== address.state || !isCanadianFeature(p) ||
+        ![p.city, p.district].some(value => canonicalLocality(value) === canonicalLocality(anchor.municipality))) return false;
+    if (address.postcode && canonicalPostcode(p.postcode) && canonicalPostcode(p.postcode) !== address.postcode) return false;
+    const [result] = normalizeMapSearchResults({ features: [feature] });
+    return result && distanceKm(anchor, result) <= 25;
+  }).map(feature => ({ ...feature, properties: { ...feature.properties, housenumber: undefined } }));
+  // A locality anchor finds a road, never a missing numbered address.
+  return normalizeMapSearchResults({ features }).map(result => ({ ...result, matchType: 'street', matchLabel: 'Road — choose exact point' }));
+}
+
 async function pause(ms, signal) {
   if (signal.aborted) throw signal.reason;
   if (ms <= 0) return;
@@ -98,16 +160,19 @@ async function pause(ms, signal) {
 }
 
 // Photon allows reasonable project usage. One explicit search normally makes
-// one request; a parsed rural Canadian address may make one spaced retry on the
-// same provider. Both calls share an eight-second deadline. Never autocomplete.
+// one request; a parsed rural Canadian address may make up to two spaced
+// fallback calls on the same provider. All share one eight-second deadline.
+// Never autocomplete or substitute an unverified town for a street address.
 // https://github.com/komoot/photon/blob/master/docs/api-v1.md#structured-search
 export async function searchMapPlaces(value, { fetchImpl = fetch, timeoutMs = 8000 } = {}) {
   const query = validateMapSearchQuery(value);
   const address = parseCanadianMapAddress(query);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.min(8000, Math.max(1, timeoutMs)));
-  const startedAt = Date.now();
+  let lastRequestAt = -Infinity;
   async function request(path, parameters) {
+    await pause(1100 - (Date.now() - lastRequestAt), controller.signal);
+    lastRequestAt = Date.now();
     const url = new URL(path, 'https://photon.komoot.io');
     url.search = new URLSearchParams({ ...parameters, limit: String(MAX_RESULTS), lang: 'en' }).toString();
     const response = await fetchImpl(url.toString(), {
@@ -143,8 +208,14 @@ export async function searchMapPlaces(value, { fetchImpl = fetch, timeoutMs = 80
     const matched = data.features.filter(feature => addressFeatureMatches(feature, address));
     const primary = normalizeMapSearchResults({ features: matched });
     if (primary.some(result => result.matchType === 'address')) return primary;
+    if (!primary.length) {
+      const locality = await request('/api/', { q: `${address.locality}, ${address.state}`, countrycode: 'CA' });
+      const anchor = exactLocalityAnchor(locality, address);
+      if (!anchor) return [];
+      const roads = await request('/structured', { street: address.street, city: anchor.municipality, state: address.state, countrycode: 'CA', layer: 'street', bbox: streetSearchBox(anchor) });
+      return nearbyMatchingStreets(roads, address, anchor);
+    }
     try {
-      await pause(1100 - (Date.now() - startedAt), controller.signal);
       // Postal villages can differ from OSM municipality names. A full
       // matching postcode can establish locality in that case. Never accept
       // a province-wide number/street match without locality evidence.
