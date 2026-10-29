@@ -26,7 +26,7 @@ async function request(handler, { body = input, method = 'POST', headers = {} } 
 
 function setup({ authenticate = async () => owner, configured = true } = {}) {
   const calls = [];
-  const service = { isConfigured: () => configured, assess: async (body, verified) => { calls.push({ body, verified }); return { reply: 'Ready.' }; } };
+  const service = { status: async () => ({ configured }), assess: async (body, verified) => { calls.push({ body, verified }); return { reply: 'Ready.' }; } };
   return { calls, handler: createAdvisorHandler({ authenticate, getService: () => service }) };
 }
 

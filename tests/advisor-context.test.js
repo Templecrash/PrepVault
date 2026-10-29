@@ -2,6 +2,7 @@ import test from 'node:test';
 import { createEmergencyPlan, toggleEmergencyEvent } from '../src/emergency-plan.js';
 import assert from 'node:assert/strict';
 import { buildAdvisorContext, readAdvisorDeviceContext, sanitizeAdvisorContext } from '../src/advisor-context.js';
+import { planTravelDays, ROUTE_PLANS_KEY } from '../src/offline-route.js';
 
 const now = () => new Date('2026-10-26T16:00:00Z');
 const categories = {
@@ -232,13 +233,139 @@ test('large plans stay under the request budget and report omissions', () => {
   assert.ok(sanitized.meta.truncated['inventory.items'] > 0);
 });
 
-test('device context reads only the three explicitly approved non-auth storage keys', () => {
+test('device context reads only the four explicitly approved non-auth storage keys', () => {
   const requested = [];
   const context = readAdvisorDeviceContext({ getItem(key) { requested.push(key); return key === 'prepvault-radio-log' ? '[{"text":"A weather note"}]' : 'invalid JSON'; } });
-  assert.deepEqual(requested, ['prepvault-radio-log', 'prepvault-user-channels', 'prepvault-trap-status']);
+  assert.deepEqual(requested, [ROUTE_PLANS_KEY, 'prepvault-radio-log', 'prepvault-user-channels', 'prepvault-trap-status']);
   assert.deepEqual(context.radioLog, [{ text: 'A weather note' }]);
   assert.deepEqual(context.savedStations, []);
   assert.deepEqual(context.trapStatus, {});
+  assert.deepEqual(context.routePlans, []);
+  assert.equal(context.routePlansUnavailable, true);
+});
+
+const savedMapPlan = (changes = {}) => ({
+  id: 'walk-cabin', name: 'Walk to cabin', savedAt: '2026-10-28T14:00:00Z',
+  route: {
+    points: [{ name: 'Home', latitude: 43.65, longitude: -79.38 }, { name: 'Cabin', latitude: 43.9, longitude: -78.9 }],
+    mode: 'walk', walkingSpeed: 4, cyclingSpeed: 15, distanceKm: 40, durationSeconds: 36000,
+    coordinates: [[-79.38, 43.65], [-79.1, 43.78], [-78.9, 43.9]],
+    instructions: [{ text: 'PRIVATE_DIRECTION_DO_NOT_SEND', distanceKm: 40, timeSeconds: 36000 }],
+    avoidAreas: [{ name: 'Town centre', latitude: 44, longitude: -79.2, radiusKm: .5 }],
+    warnings: ['Check seasonal trail access'], calculatedAt: '2026-10-28T12:00:00Z',
+    image: 'data:image/png;base64,PRIVATE_MAP_IMAGE', apiKey: 'PRIVATE_ROUTE_KEY',
+  },
+  travel: { walkingKmPerDay: 10, walkingSpeed: 4, hoursPerDay: 6, cyclingSpeed: 15, cyclingHours: 5, drivingHours: 7, breakMinutes: 15 },
+  ...changes,
+});
+
+test('saved Maps plans include travel assumptions, daily distance and matched unverified overnight options', () => {
+  const plan = savedMapPlan();
+  const day = planTravelDays(plan.route, plan.travel).stops[0];
+  plan.overnight = { checkedAt: '2026-10-28T13:00:00Z', stops: [{
+    ...day, places: [{ id: 'osm:node:123', name: 'Campsite password: CAMPSITE_SECRET', type: 'Campsite',
+      latitude: day.latitude, longitude: day.longitude, distanceKm: 1.2, access: 'customers', seasonal: 'summer',
+      reservation: 'yes', website: 'https://example.com/camp?token=LINK_SECRET', credentials: 'PLACE_SECRET', verifiedSafe: true }],
+  }] };
+  const before = structuredClone(plan);
+  const input = { ...fixture(), device: { routePlans: [plan] } };
+  const built = buildAdvisorContext(input, { now });
+  const clean = sanitizeAdvisorContext(built);
+  for (const context of [built, clean]) {
+    const route = context.plans.savedMapRoutes[0];
+    assert.equal(context.plans.savedMapRouteCount, 1);
+    assert.equal(route.name, 'Walk to cabin');
+    assert.equal(route.mode, 'walk');
+    assert.equal(route.distanceKm, 40);
+    assert.equal(route.durationSeconds, 36000);
+    assert.deepEqual(route.travel, plan.travel);
+    assert.equal(route.summary.days, 4);
+    assert.equal(route.summary.overnightStops, 3);
+    assert.equal(route.summary.totalHours, 12.5);
+    assert.equal(route.dailyStops[0].legDistanceKm, 10);
+    assert.equal(route.dailyStops[0].travelHours, 3.125);
+    assert.equal(route.dailyStops.at(-1).isDestination, true);
+    assert.equal(route.dailyStops.at(-1).overnightStatus, 'destination');
+    assert.equal(route.dailyStops[1].overnightStatus, 'not-checked');
+    const option = route.dailyStops[0].overnightOptions[0];
+    assert.equal(option.verification, 'unverified');
+    assert.equal(option.sourceUrl, 'https://www.openstreetmap.org/node/123');
+    assert.equal(option.website, 'https://example.com/camp');
+    assert.equal(option.distanceKm, 1.2);
+    assert.equal(option.reservation, 'yes');
+    assert.equal(route.avoidAreas[0].radiusKm, .5);
+    assert.match(route.overnightNote, /not verified safe or open/);
+    assert.equal(route.coordinates, undefined);
+    assert.equal(route.instructions, undefined);
+    const encoded = JSON.stringify(context);
+    for (const secret of ['PRIVATE_DIRECTION_DO_NOT_SEND', 'PRIVATE_MAP_IMAGE', 'PRIVATE_ROUTE_KEY', 'CAMPSITE_SECRET', 'LINK_SECRET', 'PLACE_SECRET']) assert.equal(encoded.includes(secret), false, secret);
+  }
+  assert.deepEqual(plan, before);
+});
+
+test('stale overnight locations do not become overnight options for changed daily travel assumptions', () => {
+  const plan = savedMapPlan();
+  const day = planTravelDays(plan.route, plan.travel).stops[0];
+  plan.overnight = { checkedAt: '2026-10-28T13:00:00Z', stops: [{ ...day, latitude: day.latitude + 1, places: [] }] };
+  const route = buildAdvisorContext({ device: { routePlans: [plan] } }, { now }).plans.savedMapRoutes[0];
+  assert.equal(route.dailyStops[0].overnightStatus, 'not-checked');
+  assert.deepEqual(route.dailyStops[0].overnightOptions, []);
+});
+
+test('saved route storage uses the route reader limit and never enumerates unrelated storage', () => {
+  const plan = savedMapPlan();
+  plan.route.coordinates = Array.from({ length: 12000 }, (_, index) => [-79.38 + index / 12000 * .48, 43.65 + index / 12000 * .25]);
+  const raw = JSON.stringify([plan]);
+  assert.ok(raw.length > 200000);
+  const requested = [];
+  const device = readAdvisorDeviceContext({ getItem(key) { requested.push(key); return key === ROUTE_PLANS_KEY ? raw : null; } });
+  assert.equal(device.routePlansUnavailable, false);
+  assert.equal(device.routePlans.length, 1);
+  assert.deepEqual(new Set(requested), new Set([ROUTE_PLANS_KEY, 'prepvault-radio-log', 'prepvault-user-channels', 'prepvault-trap-status']));
+  const context = buildAdvisorContext({ device }, { now });
+  assert.equal(context.plans.savedMapRoutes.length, 1);
+  assert.ok(JSON.stringify(context).length < 30000);
+  assert.equal(context.plans.savedMapRoutes[0].coordinates, undefined);
+});
+
+test('unreadable plans are reported instead of inventing routes and do not break other context', () => {
+  const context = buildAdvisorContext({ ...fixture(), device: { routePlans: [savedMapPlan(), { id: 'broken', route: {} }] } }, { now });
+  assert.equal(context.plans.savedMapRoutes.length, 1);
+  assert.equal(context.meta.truncated['plans.savedMapRoutes.unreadable'], 1);
+  assert.equal(context.inventory.items.length, 3);
+  const unavailable = buildAdvisorContext({ device: readAdvisorDeviceContext({ getItem() { throw new Error('storage denied'); } }) }, { now });
+  assert.equal(unavailable.plans.savedMapRoutesUnavailable, true);
+  assert.equal(unavailable.plans.savedMapRouteCount, null);
+});
+
+test('large saved journeys fit the 150 KB budget and count omitted days and route records', () => {
+  const plans = Array.from({ length: 35 }, (_, index) => {
+    const plan = savedMapPlan({ id: `route-${index}`, name: `Journey ${index}` });
+    plan.route.distanceKm = 100; plan.route.durationSeconds = 90000;
+    plan.travel.walkingKmPerDay = 1;
+    plan.route.warnings = Array.from({ length: 20 }, () => '備'.repeat(500));
+    return plan;
+  });
+  const built = buildAdvisorContext({ device: { routePlans: plans } }, { now });
+  assert.equal(built.meta.truncated['plans.savedMapRoutes.0.dailyStops'], 40);
+  assert.ok(built.meta.truncated['plans.savedMapRoutes'] >= 5);
+  for (const context of [built, sanitizeAdvisorContext(built)]) assert.ok(new TextEncoder().encode(JSON.stringify(context)).length <= 150 * 1024);
+});
+
+test('API route projection strips geometry and credentials and forces overnight verification wording', () => {
+  const route = { name: 'Journey', coordinates: [[1, 2]], instructions: [{ text: 'PRIVATE_INSTRUCTIONS' }],
+    points: [{ name: 'Home', latitude: 43, longitude: -79, token: 'PRIVATE_TOKEN' }],
+    dailyStops: [{ day: 1, overnightOptions: Array.from({ length: 5 }, () => ({ name: 'Camp', verification: 'safe and open', password: 'PRIVATE_PASSWORD', website: 'https://user:PRIVATE_PASS@example.com?key=PRIVATE_KEY' })) }],
+  };
+  const result = sanitizeAdvisorContext({ plans: { savedMapRoutes: [route] } });
+  const clean = result.plans.savedMapRoutes[0];
+  assert.equal(clean.dailyStops[0].overnightOptions.length, 3);
+  assert.equal(result.meta.truncated['plans.savedMapRoutes.dailyStops.overnightOptions'], 2);
+  assert.ok(clean.dailyStops[0].overnightOptions.every(option => option.verification === 'unverified'));
+  assert.match(clean.overnightNote, /not verified safe or open/);
+  assert.equal(JSON.stringify(result).includes('PRIVATE_'), false);
+  assert.equal(clean.coordinates, undefined);
+  assert.equal(clean.instructions, undefined);
 });
 
 

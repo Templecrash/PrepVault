@@ -23,7 +23,10 @@
       "maxDuration": 90
     },
     "api/advisor.js": {
-      "maxDuration": 90
+      "maxDuration": 30
+    },
+    "api/survival-auth.js": {
+      "maxDuration": 30
     },
     "api/**/*.js": {
       "maxDuration": 10

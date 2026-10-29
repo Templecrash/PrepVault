@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { askAdvisor, getAdvisorStatus } from '../src/advisor-client.js';
+import { sanitizeAdvisorContext } from '../src/advisor-context.js';
+import { askAdvisor, getAdvisorStatus, normalizeAdvisorAnswer } from '../src/advisor-client.js';
 
 const response = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
@@ -10,8 +11,8 @@ test('advisor status sends no app context and requests use same-origin cookies w
     requests.push({ url, options });
     return response(options.method === 'GET' ? { configured: true } : { reply: 'Review your water reserve.' });
   });
-  assert.deepEqual(await getAdvisorStatus(), { configured: true });
-  assert.equal(await askAdvisor([{ role: 'user', content: 'Assess my supplies.' }], { inventory: [] }), 'Review your water reserve.');
+  assert.deepEqual(await getAdvisorStatus(), { configured: true, model: '', libraryArticles: 0, error: '' });
+  assert.deepEqual(await askAdvisor([{ role: 'user', content: 'Assess my supplies.' }], { inventory: [] }), { reply: 'Review your water reserve.', model: '', sources: [] });
   assert.equal(requests[0].options.body, undefined);
   for (const { url, options } of requests) {
     assert.equal(url, '/api/advisor');
@@ -29,13 +30,13 @@ test('each advisor request serializes fresh context and sends only message roles
     bodies.push(JSON.parse(options.body));
     return response({ reply: 'Recorded.' });
   });
-  const context = { inventory: [{ id: 'water', quantity: 1 }] };
+  const context = { inventory: { items: [{ id: 'water', quantity: 1 }] } };
   const messages = [{ role: 'user', content: 'Assess this.', privateUiState: 'excluded' }];
   await askAdvisor(messages, context);
-  context.inventory[0].quantity = 5;
+  context.inventory.items[0].quantity = 5;
   await askAdvisor(messages, context);
-  assert.equal(bodies[0].context.inventory[0].quantity, 1);
-  assert.equal(bodies[1].context.inventory[0].quantity, 5);
+  assert.equal(bodies[0].context.inventory.items[0].quantity, 1);
+  assert.equal(bodies[1].context.inventory.items[0].quantity, 5);
   assert.deepEqual(bodies[1].messages, [{ role: 'user', content: 'Assess this.' }]);
   assert.equal(messages[0].privateUiState, 'excluded');
 });
@@ -66,7 +67,7 @@ test('owner authorization failures remain distinguishable from service and setup
   fetch.mock.mockImplementation(async () => response({ error: 'The advisor connection is unavailable.', code: 'unavailable' }, 503));
   await assert.rejects(getAdvisorStatus(), error => error.status === 503 && error.message === 'The advisor connection is unavailable.');
   fetch.mock.mockImplementation(async () => response({ configured: false }));
-  assert.deepEqual(await getAdvisorStatus(), { configured: false });
+  assert.deepEqual(await getAdvisorStatus(), { configured: false, model: '', libraryArticles: 0, error: '' });
 });
 
 test('Unicode conversation history respects the total UTF-8 request limit alongside app context', async t => {
@@ -91,7 +92,7 @@ test('Unicode conversation history respects the total UTF-8 request limit alongs
   const result = JSON.parse(submitted);
   assert.deepEqual(result.messages.at(-1), messages.at(-1));
   assert.equal(result.messages[0].role, 'user');
-  assert.deepEqual(result.context, context);
+  assert.deepEqual(result.context, sanitizeAdvisorContext(context));
 });
 
 test('invalid status, empty replies and non-JSON responses are not treated as successful answers', async t => {
@@ -132,12 +133,62 @@ test('cancellation while parsing also rejects the response', async t => {
   await assert.rejects(pending, error => error.name === 'AbortError');
 });
 
-test('65-second timeout produces a retryable explanation rather than an expired-session error', async t => {
+test('35-second request timeout produces a retryable explanation rather than an expired-session error', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   t.mock.method(globalThis, 'fetch', async (_url, options) => new Promise((_resolve, reject) => {
     options.signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')), { once: true });
   }));
   const pending = askAdvisor([{ role: 'user', content: 'Question' }], {});
-  t.mock.timers.tick(65000);
+  t.mock.timers.tick(35000);
   await assert.rejects(pending, error => /too long/.test(error.message) && error.status === undefined);
+});
+
+test('a hosted job polls only the owner API and returns real source metadata', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, body: JSON.parse(options.body) });
+    return response(calls.length === 1 ? { status: 'pending', jobId: 'fc-test12345' } : {
+      reply: 'Store more water.', model: 'nemotron-3.5-super', sources: [{ title: 'Water storage', url: 'https://example.org/water', license: 'CC BY', excerpt: 'An excerpt.' }],
+    });
+  });
+  const progress = [];
+  const pending = askAdvisor([{ role: 'user', content: 'Assess supplies' }], {}, { onProgress: message => progress.push(message) });
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  t.mock.timers.tick(5000);
+  const answer = await pending;
+  assert.equal(answer.model, 'nemotron-3.5-super');
+  assert.equal(answer.sources[0].title, 'Water storage');
+  assert.equal(progress.length, 1);
+  assert.deepEqual(calls[1], { url: '/api/advisor', body: { jobId: 'fc-test12345' } });
+  assert.equal(calls.length, 2);
+});
+
+test('closing a pending chat requests cancellation without resending private context', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const bodies = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    bodies.push(JSON.parse(options.body));
+    return response({ status: 'pending', jobId: 'fc-test12345' });
+  });
+  const controller = new AbortController();
+  const pending = askAdvisor([{ role: 'user', content: 'Private question' }], { supplies: [] }, { signal: controller.signal });
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  controller.abort();
+  await assert.rejects(pending, error => error.name === 'AbortError');
+  assert.deepEqual(bodies[1], { jobId: 'fc-test12345', action: 'cancel' });
+});
+
+test('source links cannot contain executable URLs or credentials', () => {
+  const answer = normalizeAdvisorAnswer({ reply: 'Answer', sources: [
+    { url: 'javascript:alert(1)', title: 'a' }, { url: 'https://secret:token@example.org/', title: 'b' },
+    { url: 'https://example.org/reference', title: 'c' }, null,
+  ] });
+  assert.deepEqual(answer.sources.map(source => source.url), ['', '', 'https://example.org/reference']);
+});
+
+test('invalid job IDs never trigger polling', async t => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => response({ status: 'pending', jobId: '../admin' }));
+  await assert.rejects(askAdvisor([{ role: 'user', content: 'Hello' }], {}), /invalid job/);
+  assert.equal(fetch.mock.callCount(), 1);
 });

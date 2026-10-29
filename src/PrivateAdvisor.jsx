@@ -25,7 +25,7 @@ function ContextDetails({ context }) {
       <p>Your current app data is included each time you ask a question.{Number.isFinite(captured) && ` This snapshot was prepared at ${new Date(captured).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`}</p>
       {sections.length > 0 && <ul className="pv-advisor-sections">{sections.map((section, index) => <li key={section.key || index}><span>{section.label}</span>{Number.isFinite(section.count) && <strong>{section.count}</strong>}</li>)}</ul>}
       {limitations.length > 0 && <ul className="pv-advisor-limitations">{limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul>}
-      <p>OpenAI processes your questions and the included app context to generate replies. Conversations stay in memory while Survival LLM is open and are cleared when you close it, reload or sign out. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noreferrer">How OpenAI handles API data<Icon name="arrow" size={12} /></a></p>
+      <p>Your questions and current app context are sent through PrepVault to your private Survival LLM server on Modal. The server uses the model and reference library to answer. This chat clears when you close it, reload or sign out; it is not added to a personal memory or used to update the model. Modal may retain function inputs and outputs for up to seven days under its <a href="https://modal.com/docs/guide/security" target="_blank" rel="noreferrer">data retention policy</a>.</p>
     </div>
   </details>;
 }
@@ -33,6 +33,8 @@ function ContextDetails({ context }) {
 function PrivateAdvisorOnline({ getContext }) {
   const [auth, setAuth] = useState({ phase: 'checking', owner: null, message: '' });
   const [configured, setConfigured] = useState(false);
+  const [connection, setConnection] = useState(null);
+  const [progress, setProgress] = useState('');
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -52,7 +54,7 @@ function PrivateAdvisorOnline({ getContext }) {
     chatRevision.current += 1;
     chatRequest.current?.abort();
     chatRequest.current = null;
-    setBusy(false);
+    setBusy(false); setProgress('');
   }, []);
 
   const clearConversation = useCallback(() => {
@@ -90,9 +92,15 @@ function PrivateAdvisorOnline({ getContext }) {
       }
       if (ownerRef.current?.id !== owner.id) clearConversation();
       ownerRef.current = owner;
-      const status = await getAdvisorStatus({ signal: controller.signal });
-      if (controller.signal.aborted || revision !== authRevision.current) return;
-      setConfigured(status.configured);
+      try {
+        const status = await getAdvisorStatus({ signal: controller.signal });
+        if (controller.signal.aborted || revision !== authRevision.current) return;
+        setConfigured(status.configured); setConnection(status);
+      } catch (problem) {
+        if (controller.signal.aborted || revision !== authRevision.current) return;
+        if ([401, 403].includes(problem.status)) throw problem;
+        setConfigured(false); setConnection({ error: problem.message });
+      }
       setAuth({ phase: 'signed-in', owner, message: '' });
     } catch (err) {
       if (controller.signal.aborted || revision !== authRevision.current) return;
@@ -139,11 +147,16 @@ function PrivateAdvisorOnline({ getContext }) {
     const controller = new AbortController();
     chatRequest.current = controller;
     const revision = ++chatRevision.current;
-    setMessages(nextMessages); setBusy(true); setError(''); setCanRetry(false);
+    setMessages(nextMessages); setBusy(true); setError(''); setCanRetry(false); setProgress('Connecting to your private Survival LLM server…');
     try {
-      const reply = await askAdvisor(nextMessages, getContext(), { signal: controller.signal });
+      const answer = await askAdvisor(nextMessages, getContext(), { signal: controller.signal, onProgress: message => {
+        if (!controller.signal.aborted && revision === chatRevision.current) setProgress(message);
+      } });
       if (controller.signal.aborted || revision !== chatRevision.current || ownerRef.current?.id !== ownerId) return;
-      setMessages([...nextMessages, { role: 'assistant', content: reply }]);
+      const currentOwner = await getTrackingOwner({ signal: controller.signal });
+      if (controller.signal.aborted || revision !== chatRevision.current) return;
+      if (!currentOwner || currentOwner.id !== ownerId) { expireSession(); return; }
+      setMessages([...nextMessages, { role: 'assistant', content: answer.reply, sources: answer.sources, model: answer.model }]);
     } catch (err) {
       if (controller.signal.aborted || revision !== chatRevision.current) return;
       if (err.status === 401 || err.status === 403) { expireSession(); return; }
@@ -168,24 +181,25 @@ function PrivateAdvisorOnline({ getContext }) {
             : <TrackingOwnerSignIn onSignedIn={checkSession} notice={auth.message} description="Sign in to Survival LLM to assess your supplies and plans." detail="Only your owner account can open this conversation or send your app context to Survival LLM." buttonLabel="Open Survival LLM" />}
       </> : <>
         <div className="pv-advisor-account"><span><Icon name="shield" size={15} />Only you · {auth.owner.email}</span><button type="button" className="pv-advisor-text-button" onClick={signOut}>Sign out</button></div>
+        <div className="pv-advisor-engine"><Icon name="survival" size={17}/><div><strong>{configured ? 'Private server connected' : 'Private Survival LLM'}</strong>{connection?.model && <span>{/nemotron/i.test(connection.model) ? 'NVIDIA Nemotron 3.5 Super' : connection.model}</span>}{connection?.libraryArticles > 0 && <span>{connection.libraryArticles.toLocaleString()} reference articles available</span>}</div></div>
         <ContextDetails context={context} />
         {context?.meta?.isSample && <p className="pv-advisor-sample"><Icon name="book" size={15} />Sample workspace · Survival LLM will identify example data.</p>}
-        {!configured && <div className="pv-advisor-setup" role="status"><Icon name="compass" size={22} /><div><strong>Your private sign-in is connected.</strong><p>Survival LLM still needs to be connected before it can answer questions.</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={checkSession}>Check connection</button></div>}
+        {!configured && <div className="pv-advisor-setup" role="status"><Icon name="compass" size={22} /><div><strong>Private server setup needed.</strong><p>{connection?.error || 'The private model and reference library are not ready yet. Complete the server setup to start chatting.'}</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={checkSession}>Check connection</button></div>}
         <div className="pv-advisor-workspace">
-          <div className="pv-advisor-conversation-heading"><span><Icon name="advisor" size={16} />Your conversation</span><button type="button" className="pv-advisor-text-button" onClick={clearConversation} disabled={!messages.length && !draft && !busy}><Icon name="plus" size={14} />New conversation</button></div>
+          <div className="pv-advisor-conversation-heading"><span><Icon name="survival" size={16} />Your conversation</span><button type="button" className="pv-advisor-text-button" onClick={clearConversation} disabled={!messages.length && !draft && !busy}><Icon name="plus" size={14} />New conversation</button></div>
           {!messages.length ? <div className="pv-advisor-welcome"><h2>How can I help you prepare?</h2><div className="pv-advisor-starters">{STARTERS.map(starter => <button type="button" key={starter.label} disabled={!configured || busy} onClick={() => send(starter.prompt)}><Icon name={starter.icon} size={20} /><strong>{starter.label}</strong><span>{starter.detail}</span><Icon name="arrow" size={15} /></button>)}</div></div>
-            : <div className="pv-advisor-messages" role="log" aria-label="Conversation with Survival LLM" aria-live="polite" aria-relevant="additions text">{messages.map((message, index) => <article key={index} className={`pv-advisor-message is-${message.role}`}><h2>{message.role === 'user' ? 'You' : 'Survival LLM'}</h2><div>{message.content}</div></article>)}{busy && <p className="pv-advisor-thinking" role="status"><span />Reviewing your question and app context…</p>}<div ref={bottom} /></div>}
+            : <div className="pv-advisor-messages" role="log" aria-label="Conversation with Survival LLM" aria-live="polite" aria-relevant="additions text">{messages.map((message, index) => <article key={index} className={`pv-advisor-message is-${message.role}`}><h2>{message.role === 'user' ? 'You' : 'Survival LLM'}</h2><div>{message.content}</div>{message.sources?.length > 0 && <div className="pv-advisor-sources">{message.sources.map((source, sourceIndex) => <details key={sourceIndex}><summary>{source.title || source.source || 'Reference'}</summary><p>{source.source}</p>{source.excerpt && <blockquote>{source.excerpt}</blockquote>}{source.url && <a href={source.url} target="_blank" rel="noreferrer">Original source ↗</a>}{source.license && <small>{source.license}</small>}</details>)}</div>}</article>)}{busy && <p className="pv-advisor-thinking" role="status"><span />{progress || 'Waiting for your private server…'}<button type="button" className="pv-advisor-text-button" onClick={cancelChat}>Stop</button></p>}<div ref={bottom} /></div>}
           {error && <div className="pv-advisor-error" role="alert"><p>{error}</p>{canRetry && !busy && <button type="button" className="pv-advisor-text-button" onClick={() => requestReply(messages)}>Try again<Icon name="arrow" size={14} /></button>}</div>}
         </div>
       </>}
     </div>
     {auth.phase === 'signed-in' && <div className="pv-advisor-compose-area">
       <form className="pv-advisor-composer" onSubmit={event => { event.preventDefault(); send(); }}><label htmlFor={questionId}>Ask Survival LLM</label><textarea id={questionId} ref={composer} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} disabled={!configured || busy} maxLength={6000} rows={2} placeholder="Ask about your supplies, plans or an idea…" /><div><span>{busy ? 'Your conversation stays in this chat.' : 'Ctrl / ⌘ + Enter to send'}{draft.length > 5500 && ` · ${6000 - draft.length} characters left`}</span><button type="submit" className="pv-inventory-button pv-inventory-button-primary" disabled={!configured || busy || !draft.trim()}>{busy ? 'Thinking…' : 'Send'}<Icon name="arrow" size={16} /></button></div></form>
-      <p className="pv-advisor-footnote">OpenAI processes your question and app context. Check important details. Closing Survival LLM clears this conversation.</p>
+      <p className="pv-advisor-footnote">Private server · Internet required. Check the sources. The first answer after idle can take longer while the model starts.</p>
     </div>}
   </section>;
 }
 
 export default function PrivateAdvisor(props) {
-  return isLocalEdition() ? <LocalServiceNotice title="Survival LLM needs the live site." path="/">The AI assistant uses the hosted service and owner sign-in. No AI model or API key is included in this download.</LocalServiceNotice> : <PrivateAdvisorOnline {...props} />;
+  return isLocalEdition() ? <LocalServiceNotice title="Survival LLM needs the live site." path="/">Your private model runs on a server. Open the live site and sign in to use Survival LLM with your plan.</LocalServiceNotice> : <PrivateAdvisorOnline {...props} />;
 }

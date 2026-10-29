@@ -1,4 +1,8 @@
-const TIMEOUT_MS = 65_000;
+import { sanitizeAdvisorContext } from './advisor-context.js';
+
+const TIMEOUT_MS = 35_000;
+const JOB_TIMEOUT_MS = 10 * 60_000;
+const safeText = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
 const abortError = () => new DOMException('The Survival LLM request was cancelled.', 'AbortError');
 
 async function advisorRequest(body, { signal } = {}) {
@@ -41,19 +45,66 @@ async function advisorRequest(body, { signal } = {}) {
 export async function getAdvisorStatus(options) {
   const data = await advisorRequest(undefined, options);
   if (typeof data.configured !== 'boolean') throw new Error('The Survival LLM connection could not be checked. Please try again.');
-  return { configured: data.configured };
+  return { configured: data.configured, model: safeText(data.model, 160),
+    libraryArticles: Number.isSafeInteger(data.libraryArticles) && data.libraryArticles >= 0 ? data.libraryArticles : 0,
+    error: safeText(data.error, 300) };
 }
 
-export async function askAdvisor(messages, context, options) {
+export function normalizeAdvisorAnswer(value) {
+  if (typeof value?.reply !== 'string' || !value.reply.trim() || value.reply.length > 32000) throw new Error('Survival LLM returned an empty reply or an invalid answer. Please try again.');
+  const sources = (Array.isArray(value.sources) ? value.sources : []).filter(source => source && typeof source === 'object' && !Array.isArray(source)).slice(0, 8).map(source => {
+    let url = '';
+    try {
+      const parsed = typeof source.url === 'string' && source.url.length <= 2048 ? new URL(source.url) : null;
+      if (parsed && ['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password) url = parsed.href;
+    } catch { /* Some library articles do not have a public URL. */ }
+    return { title: safeText(source.title, 300), source: safeText(source.source, 300), url,
+      license: safeText(source.license, 2000), excerpt: safeText(source.excerpt, 5000) };
+  });
+  return { reply: value.reply, model: safeText(value.model, 160), sources };
+}
+
+function waitForPoll(signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(abortError()); return; }
+    const cancel = () => { clearTimeout(timer); reject(abortError()); };
+    const timer = setTimeout(() => { signal?.removeEventListener('abort', cancel); resolve(); }, 5000);
+    signal?.addEventListener('abort', cancel, { once: true });
+  });
+}
+
+function cancelJob(jobId) {
+  // Best effort on close/Stop; the server also imposes an independent job timeout.
+  void fetch('/api/advisor', { method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error', keepalive: true,
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId, action: 'cancel' }) }).catch(() => {});
+}
+
+export async function askAdvisor(messages, context, options = {}) {
   // Keep recent completed exchanges and the newest question within the API limit.
   // A fresh context object is serialized for every request, including retries.
+  context = sanitizeAdvisorContext(context);
   const history = messages.slice(-19).map(({ role, content }) => ({ role, content }));
   let characters = history.reduce((total, message) => total + message.content.length, 0);
   const payloadBytes = () => new TextEncoder().encode(JSON.stringify({ messages: history, context })).length;
   while (history.length > 1 && (characters > 60000 || history[0].role === 'assistant' || payloadBytes() > 256 * 1024)) {
     characters -= history.shift().content.length;
   }
-  const data = await advisorRequest({ messages: history, context }, options);
-  if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('Survival LLM returned an empty reply. Please try again.');
-  return data.reply;
+  let jobId;
+  try {
+    let data = await advisorRequest({ messages: history, context }, options);
+    const started = Date.now();
+    if (data.status === 'pending') {
+      if (typeof data.jobId !== 'string' || !/^[a-zA-Z0-9_-]{8,160}$/.test(data.jobId)) throw new Error('Survival LLM returned an invalid job. Please try again.');
+      jobId = data.jobId;
+    }
+    while (data.status === 'pending') {
+      if (Date.now() - started >= JOB_TIMEOUT_MS) throw new Error('Your private server took too long to answer. Please try again.');
+      options.onProgress?.(Date.now() - started < 30000 ? 'Waiting for your private server…' : 'Still waiting for your answer. The model may be starting after idle…');
+      await waitForPoll(options.signal);
+      data = await advisorRequest({ jobId }, options);
+    }
+    const answer = normalizeAdvisorAnswer(data);
+    jobId = null;
+    return answer;
+  } finally { if (jobId) cancelJob(jobId); }
 }

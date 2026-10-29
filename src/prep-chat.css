@@ -106,3 +106,13 @@
   .pv-prep-chat-panel { top: 8px; bottom: 8px; height: auto; }
   .pv-advisor-floating .pv-advisor-footnote { display: none; }
 }
+.pv-advisor-engine { display: flex; gap: 10px; align-items: center; margin: 0 0 14px; padding: 12px; border: 1px solid var(--pv-border, #36383d); border-radius: 10px; color: var(--pv-ink); }
+.pv-advisor-engine > svg { flex: none; color: var(--pv-accent); }
+.pv-advisor-engine > div { display: grid; gap: 4px; font-size: 11px; }
+.pv-advisor-engine span { font-size: 10px; color: var(--pv-muted); overflow-wrap: anywhere; }
+.pv-advisor-sources { margin-top: 12px; }
+.pv-advisor-sources details { border-top: 1px solid var(--pv-border, #36383d); padding: 10px 0; }
+.pv-advisor-sources summary { cursor: pointer; font-size: 11px; line-height: 1.6; }
+.pv-advisor-sources blockquote { margin: 8px 0; border-left: 2px solid var(--pv-accent); padding-left: 12px; max-height: 200px; overflow: auto; white-space: pre-wrap; font-size: 11px; }
+.pv-advisor-sources a, .pv-advisor-sources small { display: block; font-size: 10px; line-height: 1.6; margin-top: 8px; overflow-wrap: anywhere; }
+.pv-advisor-thinking .pv-advisor-text-button { margin-left: auto; }

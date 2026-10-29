@@ -4,6 +4,8 @@ import { validateEmergencyPlan, buildEmergencySummary, buildEmergencySchedule } 
 import { computeEssentialCoverage } from './essential-coverage.js';
 import { buildDependencyChecks } from './dependencies.js';
 import { computeResourcePools, buildResourceRows } from './resource-planning.js';
+import { normalizeRoutePlansSetting, planTravelDays, readRoutePlans } from './offline-route.js';
+import { matchingOvernightStop, OVERNIGHT_DISCLAIMER } from './overnight-stops.js';
 
 const MAX_CONTEXT_BYTES = 150 * 1024;
 const PIN_ASSIGNMENT_TEXT_LIMITS = { assignmentRole: 200, assignmentEquipment: 500 };
@@ -12,6 +14,11 @@ const COMMON_ITEM_FIELDS = ['calories', 'servings', 'expiryDate', 'lastRefreshed
 const VEHICLE_ITEM_FIELDS = ['lastServiceDate', 'nextServiceMileage', 'nextServiceHours', 'mileage', 'mileageUnit', 'hoursOnEngine', 'empProtection', 'empProtectionNotes', 'tankFuel', 'tankCapacity', 'fuelType', 'fuelUnit', 'emergencyEquipment'];
 const VEHICLE_SERVICE_FIELDS = ['id', 'date', 'summary', 'odometer', 'odometerUnit', 'hours', 'oilChanged', 'nextService', 'nextServiceMileage', 'nextServiceHours', 'createdAt'];
 const MAX_VEHICLE_SERVICE_RECORDS = 20;
+const MAX_SAVED_MAP_ROUTES = 30;
+const MAX_ROUTE_DAYS = 60;
+const TRAVEL_FIELDS = ['hoursPerDay', 'walkingSpeed', 'walkingKmPerDay', 'cyclingHours', 'cyclingSpeed', 'drivingHours', 'breakMinutes'];
+const DAY_FIELDS = ['day', 'distanceKm', 'legDistanceKm', 'movementHours', 'travelHours', 'latitude', 'longitude', 'isDestination'];
+const OVERNIGHT_FIELDS = ['id', 'name', 'type', 'latitude', 'longitude', 'distanceKm', 'sourceUrl', 'website', 'access', 'openingHours', 'seasonal', 'reservation', 'fee', 'drinkingWater', 'toilets'];
 const INVENTORY_FIELDS = `airFiltration alcABV alcBrand alcVolume alcWineType ammoType animalCount animalFeedLbs animalFeedType animalNotes animalStatus animalType bagOwner bagWeight bands barLength barricadeType batteryBrand batteryChemistry batteryCount batteryMah batteryVoltage boatEngineHours boatHP boatHullMat boatLength boatMotor boatType bobItemNotes bobItemQty bookAuthor bookEdition bookRegion bookScale bookSubject btuRating bullionFaceValue bullionGoldbackDenom bullionGoldbackState bullionJunkType bullionMetal bullionMint bullionPurchasePrice bullionPurity bullionWeight caliber calories capacity capacityWh plannedLoadWatts certLevel chainsCount chainsawBrand chargerSlots chargerType clothMaterial clothSize clothType clothingType coinCellType containerType contents cords cordsPerMonth count cropName daysSupply daysToHarvest depth deviceBrand deviceLocation deviceModel diaperSize dimensions distance docType expiryDate fertilizerType filterQty filterSize filterType firearmAction fishBaitType fishHookSize fishLineWeight fishLureType fishReelType fishRodType fishTackleContents flowRate fluidType formulaType fuelType gallons gallonsPerTab gallonsUsed gauge gearType gpm harvestMonth hasPlan hasPump heatedGreenhouse hoursOnEngine inverter irrigationType isRechargeable kidAge kidName kidSize kitLevel lastAudited lastInspection lastOilChange lastRefreshed lastReplaced lastRotated lastService lastSwept lengthFt level licensed lifespanGallons lightBattery lightBrand lightBulbType lightBurnTime lightChemColor lightFuel lightLumens magCapacity magnification mah medication mileage miscDesc nbcBrand nbcDosage nbcFilterThread nbcFilterType nbcMaterial nbcModel nbcRating nbcSize nextService oilInterval optic packCapacity partDesc partFor pestControlType petAnimal petCarrierSize petFoodType petMedName petName pfdSize pfdType planExpiry planProvider plantMonth provider pumpType range recBrand recDosage recForm recStrain recWeight rounds runtimeHours seasonalReliability seasoned seedVariety servings soilType spikeType splitterType sqft stabilized tankSize tempRating tireCondition tireSize trapType type vMake vModel vYear watts weightLbs wireLength woodSpecies`.split(' ');
 const INVENTORY_FIELD_SET = new Set([...INVENTORY_FIELDS, ...VEHICLE_ITEM_FIELDS, 'vehicleId']);
 const SECRET_FIELD = /password|passphrase|token|secret|credential|api.?key|private.?key|serial|^pin$|^code$/i;
@@ -24,12 +31,12 @@ function scrubText(value, secretValues = [], maximum = 600) {
   let result = value.trim();
   if (/^data:|-----BEGIN .*PRIVATE KEY-----/i.test(result)) return '[excluded private content]';
   for (const secret of secretValues) result = result.split(secret).join('[redacted]');
-  result = result.replace(/\b(?:password|passphrase|api[_ -]?key|access[_ -]?code|pin|token|secret)\s*[:=]\s*[^\s,;]+/gi, '[redacted credential]')
-    .replace(/\b(?:sk-[A-Za-z0-9_-]{15,}|Bearer\s+[A-Za-z0-9_.-]{15,})\b/g, '[redacted credential]')
-    .replace(/https?:\/\/[^\s<>]+/g, value => {
+  result = result.replace(/https?:\/\/[^\s<>]+/g, value => {
       try { const url = new URL(value); url.username = ''; url.password = ''; url.search = ''; url.hash = ''; return url.href; }
       catch { return '[invalid link]'; }
-    });
+    })
+    .replace(/\b(?:password|passphrase|api[_ -]?key|access[_ -]?code|pin|token|secret)\s*[:=]\s*[^\s,;]+/gi, '[redacted credential]')
+    .replace(/\b(?:sk-[A-Za-z0-9_-]{15,}|Bearer\s+[A-Za-z0-9_.-]{15,})\b/g, '[redacted credential]');
   return result.length > maximum ? `${result.slice(0, maximum)}…` : result;
 }
 
@@ -40,10 +47,15 @@ export function readAdvisorDeviceContext(storage) {
     try { const raw = storage?.getItem(key); return raw && raw.length <= 200_000 ? JSON.parse(raw) : fallback; }
     catch { return fallback; }
   };
+  let routePlans = [], routePlansUnavailable = false;
+  // Saved routes can legitimately exceed the small note-record limit above.
+  // Their own reader enforces the explicit key, 12 MB limit and route schema.
+  try { routePlans = readRoutePlans(storage); } catch { routePlansUnavailable = true; }
   return {
     radioLog: read('prepvault-radio-log', []),
     savedStations: read('prepvault-user-channels', []),
     trapStatus: read('prepvault-trap-status', {}),
+    routePlans, routePlansUnavailable,
   };
 }
 
@@ -99,6 +111,38 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
   });
   const safeFrequency = frequency => pick(frequency, ['freq', 'mode', 'name', 'use', 'power']);
   const device = input.device || {};
+  const savedMapRoutes = [];
+  const recordedMapRoutes = list(device.routePlans);
+  if (recordedMapRoutes.length > MAX_SAVED_MAP_ROUTES) truncations['plans.savedMapRoutes'] = recordedMapRoutes.length - MAX_SAVED_MAP_ROUTES;
+  for (const [index, source] of recordedMapRoutes.slice(0, MAX_SAVED_MAP_ROUTES).entries()) {
+    try {
+      const [plan] = JSON.parse(normalizeRoutePlansSetting(JSON.stringify([source])));
+      const schedule = planTravelDays(plan.route, plan.travel);
+      const path = `plans.savedMapRoutes.${index}`;
+      const result = {
+        ...pick(plan, ['id', 'name', 'savedAt']),
+        ...pick(plan.route, ['mode', 'distanceKm', 'durationSeconds', 'calculatedAt', 'warnings']),
+        points: rows(`${path}.points`, plan.route.points, point => pick(point, ['name', 'latitude', 'longitude']), 6),
+        avoidAreas: rows(`${path}.avoidAreas`, plan.route.avoidAreas, area => pick(area, ['name', 'latitude', 'longitude', 'radiusKm']), 4),
+        travel: pick(plan.travel, TRAVEL_FIELDS),
+        summary: { ...pick(schedule, ['days', 'totalHours', 'movementHours', 'dailyDistanceKm']), overnightStops: Math.max(0, schedule.days - 1) },
+        overnightCheckedAt: text(plan.overnight?.checkedAt),
+        overnightNote: OVERNIGHT_DISCLAIMER,
+        dailyStops: rows(`${path}.dailyStops`, schedule.stops, stop => {
+          const saved = stop.isDestination ? null : matchingOvernightStop(plan.overnight, stop);
+          return {
+            ...pick(stop, DAY_FIELDS),
+            overnightStatus: stop.isDestination ? 'destination' : saved ? saved.places.length ? 'options-found' : 'no-options-found' : 'not-checked',
+            overnightOptions: rows(`${path}.dailyStops.${stop.day}.overnightOptions`, saved?.places, place => ({ ...pick(place, OVERNIGHT_FIELDS), verification: 'unverified' }), 3),
+          };
+        }, MAX_ROUTE_DAYS),
+      };
+      savedMapRoutes.push(result);
+    } catch {
+      truncations['plans.savedMapRoutes.unreadable'] = (truncations['plans.savedMapRoutes.unreadable'] || 0) + 1;
+    }
+  }
+  registered.push({ path: 'plans.savedMapRoutes', values: savedMapRoutes });
   const context = {
     meta: {
       schemaVersion: 1, generatedAt: new Date(now()).toISOString(), isSample: input.demoData === true,
@@ -117,6 +161,7 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
         'Live weather/news, current radio audio, active radio monitoring and unsaved child-view simulation sliders are unavailable in this snapshot.',
         'Emergency schedule completion records actions only and does not consume inventory. Emergency coverage excludes past/invalid expiry dates, livestock and hunting equipment; ordinary inventory coverage includes all recorded stock. Emergency water is a supply allocation, not a limit on drinking.',
         'Legacy member status is not live tracking. Static map x/y values are image percentages, not geographic coordinates.',
+        'Saved Maps waypoints and daily stops are planned geographic locations, not live positions. Route times use saved speed, daily distance, travel-hour and rest assumptions; terrain, weather, closures, load and fitness can change them. Overnight candidates are unverified map listings, not reserved, confirmed safe, open or legally accessible places. Their straight-line detour distances are excluded from daily travel estimates. Only saved route plans are included; unsaved Maps edits are unavailable.',
       ],
     },
     household: {
@@ -161,6 +206,8 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
       harvestLog: rows('growing.harvestLog', input.slaughterLog, item => pick(item, ['id', 'animalType', 'date', 'yieldLbs', 'preservationMethod', 'storageLocation', 'notes'])),
     },
     plans: {
+      savedMapRoutes, savedMapRouteCount: device.routePlansUnavailable ? null : recordedMapRoutes.length,
+      savedMapRoutesUnavailable: device.routePlansUnavailable === true,
       bugOutChecklist: rows('plans.bugOutChecklist', input.bugOutEntries, entry => pick(entry, ['id', 'name', 'quantity', 'location', 'assignee', 'notes', 'grabbed', 'inventoryId'])),
       scenario: { id: text(input.selScen), ...pick(input.scenario, ['label', 'desc']), durationDays: number(input.simDuration) },
       emergency: emergencyPlan ? {
@@ -191,7 +238,7 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
   context.meta.sections = [
     ['inventory', 'Supplies', rawItems.length], ['household', 'People & care needs', list(input.contacts).length],
     ['property', 'Properties & travel routes', list(input.properties).length], ['derived', 'Coverage & dependencies', 4],
-    ['plans', 'Bug Out, scenarios & actions', list(input.actionLog).length + list(input.bugOutEntries).length], ['communications', 'Communications plan', list(input.rallyPoints).length],
+    ['plans', 'Bug Out, saved journeys & actions', list(input.actionLog).length + list(input.bugOutEntries).length + recordedMapRoutes.length], ['communications', 'Communications plan', list(input.rallyPoints).length],
     ['growing', 'Growing & livestock', list(input.gardenBeds).length + list(input.livestock).length],
     ['references', 'Manuals & emergency references', list(input.manuals).length + list(input.handbooks).length],
   ].map(([key, label, count]) => ({ key, label, count }));
@@ -247,6 +294,13 @@ const CONTEXT_SCHEMA = {
     harvestLog: [fields('id animalType date yieldLbs preservationMethod storageLocation notes')],
   },
   plans: {
+    ...fields('savedMapRouteCount savedMapRoutesUnavailable'),
+    savedMapRoutes: [{
+      ...fields('id name savedAt mode distanceKm durationSeconds calculatedAt warnings overnightCheckedAt overnightNote'),
+      points: [fields('name latitude longitude')], avoidAreas: [fields('name latitude longitude radiusKm')],
+      travel: fields(TRAVEL_FIELDS.join(' ')), summary: fields('days totalHours movementHours dailyDistanceKm overnightStops'),
+      dailyStops: [{ ...fields([...DAY_FIELDS, 'overnightStatus'].join(' ')), overnightOptions: [fields([...OVERNIGHT_FIELDS, 'verification'].join(' '))] }],
+    }],
     bugOutChecklist: [fields('id name quantity location assignee notes grabbed inventoryId')],
     scenario: fields('id label desc durationDays'), emergency: {
       ...fields('active type startedAt endedAt propertyId horizonDays dailyCalTarget waterGalPerPerson mealTimes checkInTimes checkedActions'),
@@ -282,16 +336,27 @@ export function sanitizeAdvisorContext(value) {
       .filter(([key, count]) => /^[A-Za-z0-9_.-]{1,160}$/.test(key) && typeof count === 'number' && Number.isFinite(count) && count >= 0).slice(0, 100));
     if (Array.isArray(shape)) {
       const source = list(item);
-      const limit = path === 'inventory.items.fields.vehicleServiceLog' ? MAX_VEHICLE_SERVICE_RECORDS : 1000;
+      const limits = {
+        'inventory.items.fields.vehicleServiceLog': MAX_VEHICLE_SERVICE_RECORDS,
+        'plans.savedMapRoutes': MAX_SAVED_MAP_ROUTES,
+        'plans.savedMapRoutes.points': 6, 'plans.savedMapRoutes.avoidAreas': 4,
+        'plans.savedMapRoutes.dailyStops': MAX_ROUTE_DAYS,
+        'plans.savedMapRoutes.dailyStops.overnightOptions': 3,
+      };
+      const limit = limits[path] || 1000;
       const result = source.slice(0, limit).map(entry => project(entry, shape[0], path, depth + 1));
       arrays.push({ path, values: result });
-      if (source.length > result.length) omitted[path] = source.length - result.length;
+      if (source.length > result.length) omitted[path] = (omitted[path] || 0) + source.length - result.length;
       return result;
     }
     if (!item || typeof item !== 'object' || Array.isArray(item)) return {};
     return Object.fromEntries(Object.entries(shape).filter(([key]) => Object.hasOwn(item, key)).map(([key, child]) => [key, project(item[key], child, path ? `${path}.${key}` : key, depth + 1)]));
   };
   const result = project(value, CONTEXT_SCHEMA);
+  for (const plan of list(result.plans?.savedMapRoutes)) {
+    plan.overnightNote = OVERNIGHT_DISCLAIMER;
+    for (const stop of list(plan.dailyStops)) for (const place of list(stop.overnightOptions)) place.verification = 'unverified';
+  }
   result.meta ||= {};
   result.meta.truncated = { ...result.meta.truncated, ...omitted };
   while (bytes(result) > MAX_CONTEXT_BYTES) {
