@@ -48,7 +48,7 @@ test('daily stops, route markers and total rest time match the saved travel plan
 });
 
 test('date-line projection unwraps saved geometry and keeps overnight markers on the short route', () => {
-  const plan = makePlan(); plan.route.points = [{ name: 'West', latitude: 0, longitude: 179 }, { name: 'East', latitude: 0, longitude: -179 }]; plan.route.coordinates = [[179, 0], [-180, 0], [-179, 0]]; plan.route.distanceKm = 80; plan.travel = { ...plan.travel, hoursPerDay: 10, breakMinutes: 0 };
+  const plan = makePlan(); plan.route.points = [{ name: 'West', latitude: 0, longitude: 179 }, { name: 'East', latitude: 0, longitude: -179 }]; plan.route.coordinates = [[179, 0], [-180, 0], [-179, 0]]; plan.route.distanceKm = 80; plan.travel = { ...plan.travel, hoursPerDay: 10, walkingKmPerDay: 40, breakMinutes: 0 };
   const $ = load(routeToOfflineHtml(plan));
   const projected = $('.route-line').attr('points').split(' ').map(pair => pair.split(',').map(Number));
   assert.equal(projected.length, 3);
@@ -57,6 +57,41 @@ test('date-line projection unwraps saved geometry and keeps overnight markers on
   const midpoint = $('.map-day-stop').attr('transform').match(/translate\(([\d.]+) ([\d.]+)\)/).slice(1).map(Number);
   assert.ok(Math.abs(midpoint[0] - projected[1][0]) < .01);
   assert.match($('tr[data-day-stop="1"]').text(), /-180\.00000/);
+});
+
+test('walking exports include the saved distance cap and each daily distance and time', () => {
+  const plan = makePlan(); plan.travel = { ...plan.travel, walkingKmPerDay: 10, hoursPerDay: 10 };
+  const $ = load(routeToOfflineHtml(plan));
+  assert.equal($('tr[data-day-stop]').length, 4);
+  assert.match($('.pace').text(), /Maximum walking distance10 km \/ day/);
+  assert.match($('tr[data-day-stop="1"]').text(), /Day-end point10 km3h 8m incl\. rests10 km/);
+  assert.match($('body').text(), /both your distance limit and available hours/);
+});
+
+test('offline plans retain map-listed overnight options with safe links and clear limits', () => {
+  const plan = makePlan();
+  const stop = planTravelDays(plan.route, plan.travel).stops[0];
+  const name = 'Camp <img src=x onerror="evil()">';
+  plan.overnight = { checkedAt: '2026-10-28T12:00:00Z', stops: [{ ...stop, places: [{ id: 'osm:node:123', name, type: 'camp_site', latitude: stop.latitude, longitude: stop.longitude, distanceKm: .4, sourceUrl: 'javascript:evil()', website: 'javascript:evil()', access: 'customers', openingHours: 'May–October' }] }] };
+  const $ = load(routeToOfflineHtml(plan));
+  assert.equal($('.overnight-places strong').text(), name);
+  assert.equal($('.overnight-places a').length, 1);
+  assert.equal($('.overnight-places a').attr('href'), 'https://www.openstreetmap.org/node/123');
+  assert.equal($('script,img').length, 0);
+  assert.match($('.overnight-places').text(), /0.4 km straight-line/);
+  assert.match($('body').text(), /not confirmed safe, available or open/);
+  assert.match($('body').text(), /Mapped overnight options checked 2026-10-28 12:00:00 UTC/);
+  assert.match($('body').text(), /walking detours are not included/);
+});
+
+test('changing the daily pace prevents old overnight suggestions appearing under new stops', () => {
+  const plan = makePlan();
+  const oldStop = planTravelDays(plan.route, plan.travel).stops[0];
+  plan.overnight = { checkedAt: '2026-10-28T12:00:00Z', stops: [{ ...oldStop, places: [{ id: 'osm:way:456', name: 'Old day-end campground', type: 'camp_site', latitude: oldStop.latitude, longitude: oldStop.longitude, distanceKm: 0 }] }] };
+  plan.travel.walkingKmPerDay = 10;
+  const $ = load(routeToOfflineHtml(plan));
+  assert.equal($('.overnight-places').length, 0);
+  assert.doesNotMatch($('body').text(), /Old day-end campground/);
 });
 
 test('invalid plans and travel settings cannot generate a misleading offline document', () => {

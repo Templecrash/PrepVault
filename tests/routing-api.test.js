@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { createRoutingHandler } from '../api/routing.js';
 import { RouteProviderError } from '../api/_lib/route-provider.js';
+import { OvernightPlacesError } from '../api/_lib/overnight-places.js';
 import { createAccountAuth } from '../api/_lib/account-auth.js';
 
 const body = { points: [{ name: 'A', latitude: 0, longitude: 0 }, { name: 'B', latitude: 0, longitude: .2 }], mode: 'drive' };
@@ -54,7 +56,7 @@ test('provider-verified account IDs isolate route caches despite forged client i
 });
 
 test('unverified accounts cannot invoke map providers and revoked sessions cannot receive results', async () => {
-  for (const action of ['route', 'search']) {
+  for (const action of ['route', 'search', 'overnight']) {
     let authCalls = 0, providerCalls = 0;
     const auth = createAccountAuth({ env: accountEnv, now: () => accountTime, proxy: async () => {
       authCalls++;
@@ -62,8 +64,8 @@ test('unverified accounts cannot invoke map providers and revoked sessions canno
       data.user.emailVerified = false;
       return Response.json(data);
     } });
-    const options = { authenticate: auth.authenticate, now: () => accountTime, calculate: async () => { providerCalls++; return {}; }, search: async () => { providerCalls++; return []; } };
-    const req = accountRequest('ordinary-planner', { body: action === 'route' ? body : { action: 'search', query: 'Toronto' } });
+    const options = { authenticate: auth.authenticate, now: () => accountTime, calculate: async () => { providerCalls++; return {}; }, search: async () => { providerCalls++; return []; }, overnight: async () => { providerCalls++; return {}; } };
+    const req = accountRequest('ordinary-planner', { body: action === 'route' ? body : action === 'search' ? { action: 'search', query: 'Toronto' } : { action: 'overnight', stops: [{ day: 1, latitude: 0, longitude: 0 }] } });
     const denied = await run(createRoutingHandler(options), req);
     assert.equal(denied.statusCode, 401); assert.doesNotMatch(denied.body.error, /owner/); assert.equal(providerCalls, 0); assert.equal(authCalls, 1);
 
@@ -74,7 +76,7 @@ test('unverified accounts cannot invoke map providers and revoked sessions canno
       return Response.json(data);
     } });
     const revoked = await run(createRoutingHandler({ ...options, authenticate: revokedAuth.authenticate }), req);
-    assert.equal(revoked.statusCode, 401); assert.equal(revoked.body.route, undefined); assert.equal(revoked.body.results, undefined); assert.equal(checks, 2);
+    assert.equal(revoked.statusCode, 401); assert.equal(revoked.body.route, undefined); assert.equal(revoked.body.results, undefined); assert.equal(revoked.body.overnight, undefined); assert.equal(checks, 2);
   }
 });
 
@@ -240,4 +242,104 @@ test('search cache and daily quota are bounded, with quota resetting the followi
   assert.equal((await run(handler, searchRequest('Public landmark 119'))).statusCode, 200);
   time += 86_400_000;
   assert.equal((await run(handler, searchRequest('Another public landmark'))).statusCode, 200); assert.equal(calls, 121);
+});
+
+const overnightStops = [{ day: 1, latitude: 43.7, longitude: -79.4 }];
+const overnightRequest = (stops = overnightStops, changes = {}) => request({ body: { action: 'overnight', stops }, ...changes });
+
+test('overnight discovery requires same-origin authentication before provider calls', async () => {
+  let calls = 0;
+  const handler = createRoutingHandler({ authenticate: async () => null, overnight: async () => { calls++; } });
+  assert.equal((await run(handler, overnightRequest())).statusCode, 401);
+  assert.equal((await run(handler, overnightRequest(undefined, { headers: { host: 'prep.example', origin: 'https://evil.example', 'content-type': 'application/json' } }))).statusCode, 403);
+  assert.equal(calls, 0);
+});
+
+test('overnight discovery validates bounded bodies and passes only day and coordinates', async () => {
+  let calls = 0, searches = 0, calculations = 0, received;
+  const handler = createRoutingHandler({ authenticate: owner, overnight: async stops => { calls++; received = stops; return { stops }; }, search: async () => { searches++; }, calculate: async () => { calculations++; } });
+  for (const stops of [null, [], 'query', Array(21).fill(overnightStops[0]), [{ day: 1, latitude: 86, longitude: 0 }], [{ day: 0, latitude: 0, longitude: 0 }], [overnightStops[0], overnightStops[0]]]) assert.equal((await run(handler, overnightRequest(stops))).statusCode, 400);
+  assert.equal((await run(handler, overnightRequest(undefined, { headers: { ...request().headers, 'content-type': 'text/plain' } }))).statusCode, 400);
+  for (const req of [overnightRequest(undefined, { body: { action: 'overnight', stops: overnightStops, padding: 'x'.repeat(16001) } }), overnightRequest(undefined, { body: 'x'.repeat(16001) }), overnightRequest(undefined, { headers: { ...request().headers, 'content-length': '16001' } })]) assert.equal((await run(handler, req)).statusCode, 413);
+  const valid = await run(handler, overnightRequest(undefined, { body: Buffer.from(JSON.stringify({ action: 'overnight', userId: 'someone-else', stops: [{ ...overnightStops[0], accountId: 'forged', name: 'Private address' }] })) }));
+  assert.equal(valid.statusCode, 200); assert.equal(calls, 1); assert.equal(searches, 0); assert.equal(calculations, 0);
+  assert.deepEqual(received, overnightStops); assert.deepEqual(valid.body, { overnight: { stops: overnightStops } });
+});
+
+test('overnight cache is private per verified account and expires without sharing coordinates', async () => {
+  let time = 100_000, calls = 0, identity = 'one', checks = 0;
+  const handler = createRoutingHandler({ authenticate: async () => { checks++; return { id: identity }; }, now: () => time, overnight: async () => ({ lookup: ++calls }) });
+  assert.equal((await run(handler, overnightRequest())).body.overnight.lookup, 1);
+  const cached = await run(handler, overnightRequest());
+  assert.equal(cached.body.overnight.lookup, 1); assert.equal(checks, 4);
+  assert.equal(cached.headers['cache-control'], 'private, no-store'); assert.equal(cached.headers['x-content-type-options'], 'nosniff');
+  identity = 'two'; time += 2100;
+  assert.equal((await run(handler, overnightRequest(undefined, { body: { action: 'overnight', stops: overnightStops, userId: 'one' } }))).body.overnight.lookup, 2);
+  identity = 'one'; time += 3_600_001;
+  assert.equal((await run(handler, overnightRequest())).body.overnight.lookup, 3);
+});
+
+test('overnight results and cached results are withheld after revocation or identity change', async () => {
+  for (const finalAccount of [null, { id: 'different' }]) {
+    let checks = 0;
+    const handler = createRoutingHandler({ authenticate: async () => ++checks === 1 ? { id: 'one' } : finalAccount, overnight: async () => ({ secret: 'stop' }) });
+    const result = await run(handler, overnightRequest());
+    assert.equal(result.statusCode, 401); assert.equal(result.body.overnight, undefined); assert.equal(checks, 2);
+  }
+  let checks = 0, calls = 0;
+  const handler = createRoutingHandler({ authenticate: async () => ++checks === 4 ? null : { id: 'one' }, overnight: async () => { calls++; return { private: 'place' }; } });
+  assert.equal((await run(handler, overnightRequest())).statusCode, 200);
+  const cached = await run(handler, overnightRequest());
+  assert.equal(cached.statusCode, 401); assert.equal(cached.body.overnight, undefined); assert.equal(calls, 1);
+});
+
+test('concurrent and rapid overnight lookups are bounded without blocking route calculation', async () => {
+  let finish, calls = 0, time = 100_000;
+  const handler = createRoutingHandler({ authenticate: owner, now: () => time, overnight: async () => { calls++; return new Promise(resolve => { finish = resolve; }); }, calculate: async () => ({ route: true }) });
+  const pending = run(handler, overnightRequest()); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal((await run(handler, overnightRequest([{ day: 2, latitude: 44, longitude: -79 }]))).statusCode, 429);
+  assert.equal((await run(handler)).statusCode, 200);
+  finish({ stops: [] }); await pending;
+  assert.equal((await run(handler, overnightRequest())).statusCode, 200);
+  const limited = await run(handler, overnightRequest([{ day: 2, latitude: 44, longitude: -79 }]));
+  assert.equal(limited.statusCode, 429); assert.equal(limited.headers['retry-after'], '3'); assert.equal(calls, 1);
+  time += 2100;
+});
+
+test('overnight failures release the lock and expose only bounded failure categories', async () => {
+  for (const [code, expected] of [['timeout', 504], ['rate_limited', 429], ['invalid_response', 502], ['unavailable', 503]]) {
+    let calls = 0, time = 100_000;
+    const events = [];
+    const failure = new OvernightPlacesError(code); failure.cause = new Error('SECRET coordinates and URL');
+    const handler = createRoutingHandler({ authenticate: owner, now: () => time, overnight: async () => { if (++calls === 1) throw failure; return { stops: [] }; }, reportFailure: event => events.push(event) });
+    const result = await run(handler, overnightRequest());
+    assert.equal(result.statusCode, expected); assert.equal(result.body.error, failure.message);
+    assert.equal(events[0].action, 'overnight'); assert.equal(events[0].code, code);
+    assert.doesNotMatch(JSON.stringify({ result, events }), /SECRET|latitude|longitude/);
+    if (expected === 429) assert.equal(result.headers['retry-after'], '60');
+    time += 2100; assert.equal((await run(handler, overnightRequest())).statusCode, 200);
+  }
+});
+
+test('overnight cache size and daily quota are bounded and reset the next day', async () => {
+  let calls = 0, time = 100_000;
+  const handler = createRoutingHandler({ authenticate: owner, now: () => time, overnight: async () => ({ lookup: ++calls }) });
+  const stops = index => [{ day: index + 1, latitude: 43, longitude: -79 }];
+  for (let index = 0; index < 41; index++) { assert.equal((await run(handler, overnightRequest(stops(index)))).statusCode, 200); time += 2100; }
+  assert.equal((await run(handler, overnightRequest(stops(0)))).body.overnight.lookup, 42, 'oldest entry is evicted after 40 cached queries'); time += 2100;
+  for (let index = 42; index < 60; index++) { assert.equal((await run(handler, overnightRequest(stops(index)))).statusCode, 200); time += 2100; }
+  assert.equal((await run(handler, overnightRequest(stops(60)))).statusCode, 429); assert.equal(calls, 60);
+  assert.equal((await run(handler, overnightRequest(stops(59)))).statusCode, 200, 'cache hits do not consume quota');
+  time += 86_400_000;
+  assert.equal((await run(handler, overnightRequest(stops(60)))).statusCode, 200); assert.equal(calls, 61);
+});
+
+test('routing API accepts long walks for segmentation while retaining cycling and total bounds', async () => {
+  let calls = 0;
+  const handler = createRoutingHandler({ authenticate: owner, calculate: async input => { calls++; return { mode: input.mode }; } });
+  const points = [{ name: 'Start', latitude: 0, longitude: 0 }, { name: 'End', latitude: 0, longitude: 1.6 }];
+  assert.equal((await run(handler, request({ body: { points, mode: 'walk' } }))).statusCode, 200);
+  assert.equal((await run(handler, request({ body: { points, mode: 'bike' } }))).statusCode, 400);
+  assert.equal((await run(handler, request({ body: { points: [points[0], { ...points[1], longitude: 3 }], mode: 'walk' } }))).statusCode, 400);
+  assert.equal(calls, 1);
 });

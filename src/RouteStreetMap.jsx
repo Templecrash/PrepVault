@@ -11,7 +11,7 @@ const pinNode = label => {
 };
 
 // Street tiles are viewed online only. They are never copied into saved plans.
-export default function RouteStreetMap({ route = null, points = EMPTY, avoidAreas = EMPTY, stops = EMPTY, fallback = null, picking = false, pickingLabel = 'location', disabled = false, onMapPick, onPointMove, initialCenter = null, viewRevision, focusPoint = null }) {
+export default function RouteStreetMap({ route = null, points = EMPTY, avoidAreas = EMPTY, stops = EMPTY, overnightPlaces = EMPTY, fallback = null, picking = false, pickingLabel = 'location', disabled = false, onMapPick, onPointMove, initialCenter = null, viewRevision, focusPoint = null }) {
   const host = useRef(null);
   const instance = useRef(null);
   const initial = useRef(initialCenter);
@@ -109,6 +109,13 @@ export default function RouteStreetMap({ route = null, points = EMPTY, avoidArea
       if (point) L.circleMarker([point.latitude, point.longitude], { radius: 7, color: '#fff', fillColor: '#ad8149', fillOpacity: 1, weight: 2 })
         .bindTooltip(labelNode(`Day ${stop.day}: suggested overnight area`)).addTo(features);
     });
+    overnightPlaces.forEach(place => {
+      const point = mapPointCoordinates(place);
+      if (point) L.marker([point.latitude, point.longitude], {
+        icon: L.divIcon({ html: pinNode(`N${place.day}`), className: 'pv-route-point-pin', iconSize: [28, 28], iconAnchor: [14, 14] }),
+        keyboard: true, title: `Night ${place.day}: ${place.name}. Map-listed; confirm access and availability.`,
+      }).bindTooltip(labelNode(`Night ${place.day}: ${place.name} · ${place.type}`)).addTo(features);
+    });
     areas.forEach(area => L.circle([area.latitude, area.longitude], { radius: Number(area.radiusKm) * 1000, color: '#9d6255', weight: 1, fillOpacity: .12 })
       .bindTooltip(labelNode(`Avoid: ${area.name}`)).addTo(features));
 
@@ -133,7 +140,7 @@ export default function RouteStreetMap({ route = null, points = EMPTY, avoidArea
     lastPoints.current = pointSignature;
     lastRevision.current = viewRevision;
     lastRoute.current = route;
-  }, [ready, route, points, avoidAreas, stops, editable, disabled, viewRevision]);
+  }, [ready, route, points, avoidAreas, stops, overnightPlaces, editable, disabled, viewRevision]);
 
   useEffect(() => {
     const enabled = picking && !disabled;

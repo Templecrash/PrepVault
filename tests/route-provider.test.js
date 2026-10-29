@@ -117,3 +117,105 @@ test('cycling routes use genuine bicycle costing, retain exclusions and save pro
   assert.equal(route.mode, 'bike'); assert.equal(route.cyclingSpeed, 12); assert.equal(route.durationSeconds, 9_000); assert.equal(route.distanceKm, 25);
   assert.ok(route.warnings.some(warning => /hybrid bicycle.*surface.*hills/.test(warning)));
 });
+
+const longWalk = { points: [{ name: 'Start', latitude: 0, longitude: 0 }, { name: 'Finish', latitude: 0, longitude: 2.3 }], mode: 'walk', walkingSpeed: 3.5, avoidAreas: [{ name: 'Excluded place', latitude: .5, longitude: 1, radiusKm: .5 }] };
+const corridorPath = Array.from({ length: 24 }, (_, i) => [i / 10, 0]);
+function sectionResponse(coordinates, length = 44, time = 48000) {
+  return Response.json({ trip: { status: 0, summary: { length, time }, legs: [{ shape: encode(coordinates), maneuvers: [{ instruction: 'Walk along the mapped path', length, time }] }] } });
+}
+
+test('long walks return only pedestrian sections and preserve exclusions and the original journey', async () => {
+  const requests = []; const delays = [];
+  const route = await requestProviderRoute(longWalk, { wait: async ms => delays.push(ms), fetchImpl: async (_url, options) => {
+    const sent = JSON.parse(options.body); requests.push(sent);
+    assert.equal(sent.exclude_polygons.length, 1);
+    if (sent.costing === 'auto') {
+      assert.deepEqual(sent.costing_options.auto, { use_highways: 0, exclude_highways: true });
+      return sectionResponse(corridorPath, 900, 999);
+    }
+    assert.equal(sent.costing, 'pedestrian');
+    assert.equal(sent.costing_options.pedestrian.walking_speed, 3.5);
+    const coordinates = sent.locations.map(p => [p.lon, p.lat]);
+    // A distinct pedestrian bend proves the road corridor never becomes output geometry.
+    coordinates.splice(1, 0, [(coordinates[0][0] + coordinates[1][0]) / 2, .01]);
+    return sectionResponse(coordinates, 45, 45000);
+  } });
+  assert.equal(requests[0].costing, 'auto');
+  assert.ok(requests.length > 4 && requests.length <= 17);
+  assert.equal(route.mode, 'walk'); assert.deepEqual(route.points, longWalk.points);
+  assert.equal(route.distanceKm, (requests.length - 1) * 45);
+  assert.equal(route.durationSeconds, (requests.length - 1) * 45000);
+  assert.ok(route.coordinates.some(point => point[1] === .01));
+  assert.equal(route.instructions.length, requests.length - 1);
+  assert.ok(route.warnings.some(warning => /connected walking sections/.test(warning)));
+  assert.deepEqual(route.coordinates[0], [0, 0]); assert.deepEqual(route.coordinates.at(-1), [2.3, 0]);
+  assert.ok(delays.every(ms => ms >= 1100));
+});
+
+test('long walking sections retain user waypoints in their requested order', async () => {
+  const via = { name: 'Required via', latitude: .1, longitude: 1 };
+  const endpointPairs = [];
+  const points = [longWalk.points[0], via, longWalk.points[1]];
+  const route = await requestProviderRoute({ ...longWalk, points }, { wait: async () => {}, fetchImpl: async (_url, options) => {
+    const sent = JSON.parse(options.body);
+    if (sent.costing === 'auto') return Response.json({ trip: { status: 0, summary: { length: 270, time: 12000 }, legs: [leg([[0, 0], [.3, 0], [.6, 0], [1, .1]]), leg([[1, .1], [1.3, .1], [1.6, .1], [2, .1], [2.3, 0]])] } });
+    const coordinates = sent.locations.map(p => [p.lon, p.lat]); endpointPairs.push(coordinates);
+    return sectionResponse(coordinates);
+  } });
+  assert.deepEqual(route.points, points);
+  const viaIndex = endpointPairs.findIndex(pair => pair[1][0] === 1 && pair[1][1] === .1);
+  assert.ok(viaIndex >= 0); assert.deepEqual(endpointPairs[viaIndex + 1][0], [1, .1]);
+});
+
+test('walking provider distance errors trigger section planning even below the direct-distance limit', async () => {
+  let calls = 0;
+  const route = await requestProviderRoute({ ...input, mode: 'walk' }, { wait: async () => {}, fetchImpl: async (_url, options) => {
+    calls++; const sent = JSON.parse(options.body);
+    if (calls === 1) return Response.json({ error_code: 154 }, { status: 400 });
+    if (sent.costing === 'auto') return sectionResponse([[0, 0], [.1, 0], [.2, 0]]);
+    return sectionResponse(sent.locations.map(p => [p.lon, p.lat]));
+  } });
+  assert.equal(calls, 3); assert.equal(route.mode, 'walk');
+  assert.ok(route.warnings.some(warning => /connected walking sections/.test(warning)));
+});
+
+test('a failed or disconnected walking section never returns a partial or driving route', async () => {
+  for (const failure of ['unreachable', 'gap', 'distant-snap']) {
+    let pedestrianCalls = 0;
+    await assert.rejects(requestProviderRoute(longWalk, { wait: async () => {}, fetchImpl: async (_url, options) => {
+      const sent = JSON.parse(options.body);
+      if (sent.costing === 'auto') return sectionResponse(corridorPath);
+      pedestrianCalls++;
+      const coordinates = sent.locations.map(p => [p.lon, p.lat]);
+      if (failure === 'unreachable') return Response.json({ error_code: 171 }, { status: 400 });
+      if (failure === 'gap' && pedestrianCalls > 1) coordinates[0][1] += .005;
+      if (failure === 'distant-snap') coordinates[1][1] += .01;
+      return sectionResponse(coordinates);
+    } }), error => error.code === 'walking_sections');
+  }
+});
+
+test('overlong pedestrian detours split again within a bounded number of sections', async () => {
+  let rejected = false; let walks = 0;
+  const route = await requestProviderRoute(longWalk, { wait: async () => {}, fetchImpl: async (_url, options) => {
+    const sent = JSON.parse(options.body);
+    if (sent.costing === 'auto') return sectionResponse(corridorPath);
+    walks++;
+    if (!rejected) { rejected = true; return Response.json({ error_code: 154 }, { status: 400 }); }
+    return sectionResponse(sent.locations.map(p => [p.lon, p.lat]));
+  } });
+  assert.equal(walks, 8); assert.equal(route.instructions.length, 7);
+});
+
+test('extreme road detours are rejected before spawning unbounded pedestrian requests', async () => {
+  let calls = 0;
+  const longDetour = Array.from({ length: 101 }, (_, i) => [i <= 50 ? i / 10 : (100 - i) / 10 + 2.3 * (i - 50) / 50, i / 100]);
+  await assert.rejects(requestProviderRoute(longWalk, { wait: async () => {}, fetchImpl: async () => { calls++; return sectionResponse(longDetour, 1500); } }), error => error.code === 'walking_corridor_limit');
+  assert.equal(calls, 1);
+});
+
+test('a sparse corridor without intermediate mapped points never becomes a fabricated walking leg', async () => {
+  let calls = 0;
+  await assert.rejects(requestProviderRoute(longWalk, { wait: async () => {}, fetchImpl: async () => { calls++; return sectionResponse([[0, 0], [2.3, 0]], 300); } }), error => error.code === 'walking_sections');
+  assert.equal(calls, 1);
+});

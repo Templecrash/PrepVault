@@ -30,7 +30,7 @@ test('driving pace uses provider movement time and its separate daily budget', (
 });
 
 test('an overnight stop near the date line stays near the route rather than Greenwich', () => {
-  const result = planTravelDays(route({ points: [{ name: 'A', latitude: 0, longitude: 179 }, { name: 'B', latitude: 0, longitude: -179 }], coordinates: [[179, 0], [-179, 0]], distanceKm: 80 }), { hoursPerDay: 10, walkingSpeed: 4, breakMinutes: 0 });
+  const result = planTravelDays(route({ points: [{ name: 'A', latitude: 0, longitude: 179 }, { name: 'B', latitude: 0, longitude: -179 }], coordinates: [[179, 0], [-179, 0]], distanceKm: 80 }), { hoursPerDay: 10, walkingKmPerDay: 40, walkingSpeed: 4, breakMinutes: 0 });
   assert.equal(result.days, 2);
   near(Math.abs(result.stops[0].longitude), 180);
   near(result.stops.at(-1).longitude, -179);
@@ -189,17 +189,69 @@ test('cycling client keeps the bicycle pace and validates the returned bicycle r
   assert.equal(body.mode, 'bike'); assert.equal(body.cyclingSpeed, 12); assert.equal(result.mode, 'bike'); assert.equal(result.cyclingSpeed, 12);
 });
 
-test('public walking and cycling distance caps apply to new calculations without blocking saved routes', async () => {
+test('single-call caps remain enforced while walking journeys can opt into automatic sections', async () => {
   const journey = [{ name: 'Start', latitude: 0, longitude: 0 }, { name: 'End', latitude: 0, longitude: 1.6 }];
   for (const [mode, limit, label] of [['walk', 100, 'walking'], ['bike', 150, 'cycling']]) {
     const input = { points: journey, mode };
     assert.equal(validateRouteRequest(input).mode, mode);
     assert.throws(() => validateRouteRequest(input, { providerLimits: true }), new RegExp(`${label} routes up to ${limit} km`));
-    let calls = 0;
-    await assert.rejects(calculateRoute(input, { fetchImpl: async () => { calls++; } }), /Split this journey into shorter sections/);
-    assert.equal(calls, 0);
     const saved = route({ points: journey, coordinates: [[0, 0], [1.6, 0]], mode, distanceKm: 200 });
     assert.equal(validateSavedRoute(saved).mode, mode);
+    let calls = 0;
+    if (mode === 'walk') {
+      assert.equal(validateRouteRequest(input, { providerLimits: true, allowWalkingSections: true }).mode, 'walk');
+      assert.equal((await calculateRoute(input, { fetchImpl: async () => { calls++; return Response.json({ route: saved }); } })).distanceKm, 200);
+      assert.equal(calls, 1);
+    } else {
+      assert.throws(() => validateRouteRequest(input, { providerLimits: true, allowWalkingSections: true }), /cycling routes up to 150 km/);
+      await assert.rejects(calculateRoute(input, { fetchImpl: async () => { calls++; } }), /Split this journey into shorter sections/);
+      assert.equal(calls, 0);
+    }
   }
   assert.equal(validateRouteRequest({ points: journey, mode: 'drive' }, { providerLimits: true }).mode, 'drive');
+});
+
+test('walking days obey the distance cap even when time would permit walking farther', () => {
+  const result = planTravelDays(route({ distanceKm: 55, durationSeconds: 49_500 }), { hoursPerDay: 12, walkingSpeed: 4, walkingKmPerDay: 20, breakMinutes: 15 });
+  assert.equal(result.days, 3); assert.equal(result.dailyDistanceKm, 20);
+  assert.deepEqual(result.stops.map(stop => stop.legDistanceKm), [20, 20, 15]);
+  assert.deepEqual(result.stops.map(stop => stop.distanceKm), [20, 40, 55]);
+  for (const stop of result.stops) { assert.ok(stop.legDistanceKm <= 20); assert.ok(stop.travelHours <= 12); }
+  near(result.stops.reduce((sum, stop) => sum + stop.travelHours, 0), result.totalHours);
+  assert.equal(result.stops.at(-1).isDestination, true);
+});
+
+test('walking terrain estimates and rest allowance can shorten a planned travel day', () => {
+  const hike = route({ distanceKm: 40, durationSeconds: 72_000 });
+  const result = planTravelDays(hike, { hoursPerDay: 5, walkingSpeed: 4, walkingKmPerDay: 20, breakMinutes: 15 });
+  assert.equal(result.movementHours, 20); assert.equal(result.totalHours, 25);
+  assert.equal(result.days, 5); assert.equal(result.dailyDistanceKm, 8);
+  near(result.stops[0].travelHours, 5);
+  const faster = planTravelDays(hike, { hoursPerDay: 5, walkingSpeed: 8, walkingKmPerDay: 20, breakMinutes: 0 });
+  assert.equal(faster.movementHours, 10);
+  const flatLowerBound = planTravelDays(route({ durationSeconds: 1 }), { walkingSpeed: 4 });
+  assert.equal(flatLowerBound.movementHours, 10);
+});
+
+test('distance-cap defaults preserve older saved plans and invalid caps are rejected', () => {
+  const saved = JSON.parse(normalizeRoutePlansSetting(JSON.stringify([plan()])))[0];
+  assert.equal(saved.travel.walkingKmPerDay, 20);
+  for (const walkingKmPerDay of [0, 51, Infinity, NaN, '20']) assert.throws(() => planTravelDays(route(), { walkingKmPerDay }), /1 and 50 km/);
+  const capped = JSON.parse(normalizeRoutePlansSetting(JSON.stringify([plan({ travel: { walkingKmPerDay: 12 } })])))[0];
+  assert.equal(capped.travel.walkingKmPerDay, 12);
+});
+
+test('saved plans preserve bounded overnight records and sanitize external links', () => {
+  const overnight = { checkedAt: '2026-10-28T12:00:00Z', stops: [{ day: 1, latitude: 0, longitude: .096, places: [{ id: 'osm:node:123', name: 'Campsite', type: 'camp_site', latitude: 0, longitude: .1, distanceKm: .4, sourceUrl: 'https://example.com/forged', website: 'javascript:evil()' }] }] };
+  const saved = JSON.parse(normalizeRoutePlansSetting(JSON.stringify([plan({ overnight })])))[0];
+  assert.equal(saved.overnight.stops[0].places[0].sourceUrl, 'https://www.openstreetmap.org/node/123');
+  assert.equal(saved.overnight.stops[0].places[0].website, undefined);
+  assert.equal(saved.overnight.source, 'OpenStreetMap');
+  assert.throws(() => normalizeRoutePlansSetting(JSON.stringify([plan({ overnight: { ...overnight, checkedAt: 'invalid' } })])));
+});
+
+test('an exact daily-distance multiple has one destination and no extra near-zero day', () => {
+  const result = planTravelDays(route({ distanceKm: 60.000000000001, durationSeconds: 54_000 }), { hoursPerDay: 12, walkingKmPerDay: 20, breakMinutes: 0 });
+  assert.equal(result.days, 3); assert.equal(result.stops.filter(stop => stop.isDestination).length, 1);
+  near(result.stops.at(-1).legDistanceKm, 20);
 });
