@@ -80,7 +80,7 @@ function ErrorNotice({ message, onRetry }) {
   return <div className="pv-board-error" role="alert"><span>{message}</span>{onRetry && <button type="button" onClick={onRetry}>Try again<Icon name="refresh" size={14}/></button>}</div>;
 }
 
-function EmptyState({ icon = 'advisor', title, children }) {
+function EmptyState({ icon = 'messages', title, children }) {
   return <div className="pv-inventory-empty"><span><Icon name={icon} size={30}/></span><h2>{title}</h2><p>{children}</p></div>;
 }
 
@@ -237,7 +237,7 @@ function MessageBoardOnline({ standalone = false }) {
       {list.error && <ErrorNotice message={list.error} onRetry={list.refresh}/>}
       {(!sessionReady || list.loading) && <div className="pv-board-loading" role="status">Loading conversations…</div>}
       {list.data && !threads.length && <EmptyState title="Start a conversation">No conversations here yet. Ask a question or share something useful from your region.</EmptyState>}
-      <div className="pv-board-thread-list">{threads.map(thread => <article key={thread.id} className="pv-board-thread-row"><span className="pv-board-thread-symbol"><Icon name="advisor" size={21}/></span><div className="pv-board-thread-main"><div className="pv-board-location">{placeName(thread.country, thread.region)}</div><h2><button type="button" onClick={() => { setThreadId(thread.id); setNotice(''); }}>{thread.title}</button></h2><p>{thread.body}</p><PostMeta post={thread}/></div><button type="button" className="pv-board-reply-count" aria-label={`Open ${thread.title}, ${thread.replyCount || 0} replies`} onClick={() => { setThreadId(thread.id); setNotice(''); }}><span>{thread.replyCount || 0}</span><small>{thread.replyCount === 1 ? 'reply' : 'replies'}</small><Icon name="chevron" size={16}/></button></article>)}</div>
+      <div className="pv-board-thread-list">{threads.map(thread => <article key={thread.id} className="pv-board-thread-row"><span className="pv-board-thread-symbol"><Icon name="messages" size={21}/></span><div className="pv-board-thread-main"><div className="pv-board-location">{placeName(thread.country, thread.region)}</div><h2><button type="button" onClick={() => { setThreadId(thread.id); setNotice(''); }}>{thread.title}</button></h2><p>{thread.body}</p><PostMeta post={thread}/></div><button type="button" className="pv-board-reply-count" aria-label={`Open ${thread.title}, ${thread.replyCount || 0} replies`} onClick={() => { setThreadId(thread.id); setNotice(''); }}><span>{thread.replyCount || 0}</span><small>{thread.replyCount === 1 ? 'reply' : 'replies'}</small><Icon name="chevron" size={16}/></button></article>)}</div>
       {list.data?.nextCursor && <button type="button" className="pv-board-load-more" onClick={() => list.loadMore('threads')} disabled={list.loadingMore}>{list.loadingMore ? 'Loading…' : 'Load more conversations'}</button>}
       <div className="pv-inventory-footer"><Icon name="shield" size={15}/><span>Keep it helpful, respectful and relevant. Report spam or private information for review.</span></div>
     </div>}
