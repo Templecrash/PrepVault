@@ -11,11 +11,16 @@ export function validateSurvivalJobId(value) {
 }
 
 export function survivalServerUrl(env) {
+  const value = env.SURVIVAL_SERVER_URL;
   let url;
-  try { url = new URL(env.SURVIVAL_SERVER_URL); } catch { return null; }
+  try { url = new URL(value); } catch { return null; }
   // Only the provisioned Modal gateway can receive private app context. A
   // request cannot supply a host, path, credential, model, or provider override.
-  if (url.protocol !== 'https:' || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.modal\.run$/.test(url.hostname) ||
+  // Modal serves both app.modal.run and app.region.modal.run origins.
+  const label = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+  const modalHost = new RegExp(`^${label}(?:\\.${label})?\\.modal\\.run$`);
+  if (typeof value !== 'string' || !/^https:\/\/[a-z0-9.-]+\/?$/i.test(value) ||
+      url.protocol !== 'https:' || !modalHost.test(url.hostname) ||
       url.port || url.username || url.password || url.search || url.hash || url.pathname !== '/') return null;
   return url.origin;
 }

@@ -112,9 +112,17 @@ test('verification enforces fixed origin, JSON body limits, method and bounded r
 test('gateway URL is restricted to HTTPS Modal origins without user-controlled paths or credentials', () => {
   assert.equal(survivalServerUrl(env), env.SURVIVAL_SERVER_URL);
   assert.equal(survivalServerUrl({ SURVIVAL_SERVER_URL: `${env.SURVIVAL_SERVER_URL}/` }), env.SURVIVAL_SERVER_URL);
+  const deployed = 'https://templecrash--prepvault-survival-gateway.us-east.modal.run';
+  assert.equal(survivalServerUrl({ SURVIVAL_SERVER_URL: deployed }), deployed);
+  assert.equal(survivalServerUrl({ SURVIVAL_SERVER_URL: `${deployed}/` }), deployed);
+  assert.equal(survivalServerUrl({ SURVIVAL_SERVER_URL: `https://${'a'.repeat(63)}.us-east.modal.run` }), `https://${'a'.repeat(63)}.us-east.modal.run`);
   for (const value of [undefined, 'http://example.modal.run', 'https://modal.run', 'https://modal.run.evil.example', 'https://evil.example',
     'http://127.0.0.1:8766', 'https://example.modal.run:8443', 'https://user:pass@example.modal.run',
-    'https://example.modal.run/chat', 'https://example.modal.run?x=1', 'https://example.modal.run#fragment']) {
+    'https://example.modal.run/chat', 'https://example.modal.run?x=1', 'https://example.modal.run#fragment',
+    'https://app.region.extra.modal.run', 'https://app.region.modal.run.evil.example', 'https://app.region.modal.run:443',
+    'https://-app.region.modal.run', 'https://app-.region.modal.run', 'https://app.-region.modal.run', 'https://app..modal.run',
+    `https://${'a'.repeat(64)}.us-east.modal.run`, `https://app.${'a'.repeat(64)}.modal.run`,
+    'https://app.region.modal.run@evil.example', ' https://app.region.modal.run', 'https://äpp.region.modal.run']) {
     assert.equal(survivalServerUrl({ SURVIVAL_SERVER_URL: value }), null);
   }
 });

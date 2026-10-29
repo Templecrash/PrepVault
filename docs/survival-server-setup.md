@@ -4,7 +4,7 @@ The floating Survival LLM conversation uses the dedicated Modal server. Its mode
 
 ## Vercel configuration
 
-Set `SURVIVAL_SERVER_URL` to the deployed Modal gateway's exact HTTPS origin, for example `https://your-workspace--prepvault-survival-gateway.modal.run`. A trailing slash is accepted. Paths, credentials, query strings, custom ports and domains outside `*.modal.run` are rejected. This is a server-only variable; never prefix it with `VITE_`.
+Set `SURVIVAL_SERVER_URL` to the deployed Modal gateway's exact HTTPS origin. The current deployment is `https://templecrash--prepvault-survival-gateway.us-east.modal.run`. Both `app.modal.run` and `app.region.modal.run` hostname formats are accepted, with an optional trailing slash. Each hostname label must use ASCII letters, digits or interior hyphens and fit within 63 characters. Additional subdomain levels, paths, credentials, query strings, ports and external domains are rejected. This is a server-only variable; never prefix it with `VITE_`.
 
 The connection reuses the existing owner authentication settings:
 
