@@ -10,6 +10,18 @@ Use DM Sans throughout, with a system fallback. Page titles are 27–34px, weigh
 
 Use the 4/8/12/16/24/32px spacing scale. Surface corners are 10px and control corners are 7px. Reserve shadows for dialogs and floating controls. Avoid colored card fills, gradient headers, decorative progress percentages, and emoji in navigation or form controls.
 
+## Light and dark themes
+
+The theme is applied to `document.documentElement.dataset.theme` as `light` or `dark`. `src/theme.js` persists an explicit choice in `prepvault-theme`; without one, follow the device preference. The top-bar theme control is available throughout the workspace. Keep the setting separate from account and inventory data.
+
+Load `src/dark-mode.css` after `src/design-system.css`. Dark mode uses a deep neutral canvas, slightly raised surfaces, light primary text, and muted secondary text. Use `--pv-link` for text links in dark mode; `--pv-accent` is the darker background of a filled action and requires a white label. Preserve distinct success, warning, and danger states with `--pv-success`, `--pv-warning`, and `--pv-danger`. Do not flatten status colors or rely on color alone.
+
+The dark stylesheet includes scoped paint overrides for existing components with hardcoded light colors. These change colors and shadows without changing layout or interaction. New components should use the shared semantic tokens directly, reducing the need for this compatibility layer. Retained analytics have a bounded inline-style bridge; `!important` is limited to existing forced rules and those inline values. Match complete CSS property boundaries when working with inline styles.
+
+Never invert photos, barcode video, map tiles, geographical annotations, source PDF pages, or instructional diagrams. Darken their surrounding controls and panels while preserving the content. Readiness segment colors remain consistent between themes, with a darker track. Printed routes and references use light surfaces. Embedded third-party services may retain their own theme.
+
+Review both themes on every destination, including selected states, empty states, forms, expanded records, sign-in, settings, and mobile layouts. Verify focus visibility and primary-button contrast, theme persistence after reload, and unchanged source imagery. Parse the complete stylesheet before browser QA; a malformed compatibility rule can prevent later component rules from applying.
+
 ## Page structure
 
 Each destination starts with one clear title, a brief explanation, and its primary action. Place useful facts in a compact summary strip. Put search and filters immediately above the records they control. Prefer aligned rows and tables for comparable records; expand a row or open a focused dialog for details. Do not duplicate the same inventory into page-specific collections.

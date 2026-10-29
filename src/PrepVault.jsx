@@ -1414,7 +1414,7 @@ function getExpiryStatus(e) {
 }
 
 const btnSt = { padding: "10px 20px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, transition: "all 0.15s ease", fontFamily: "inherit" };
-const cardSt = { background: "#ffffff", backdropFilter: "blur(12px)", border: "1px solid #e0e6da", borderRadius: 14, padding: 20 };
+const cardSt = { background: "var(--pv-surface)", backdropFilter: "blur(12px)", border: "1px solid var(--pv-border)", borderRadius: 14, padding: 20 };
 
 /* ═══════════════════════════════════════════════════════════
    COMPONENTS

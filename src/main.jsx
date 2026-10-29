@@ -5,6 +5,10 @@ import PrepVault from './PrepVault.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import LocationSharingPage from './LocationSharingPage.jsx'
 import './design-system.css'
+import './dark-mode.css'
+import { applyTheme, preferredTheme } from './theme.js'
+
+applyTheme(preferredTheme())
 
 const PublicBoardPage = lazy(() => import('./PublicBoardPage.jsx'))
 const path = window.location.pathname.replace(/\/$/, '')

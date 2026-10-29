@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useDialogFocus } from './useDialogFocus.js';
 import { Brand, Icon } from './brand.jsx';
 import PrepChat from './PrepChat.jsx';
+import { useTheme } from './theme.js';
 
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
@@ -36,6 +37,7 @@ function PropertyDialog({ onClose, children }) {
 }
 
 export default function WorkspaceShell({ activeTab, onNavigate, onHome, properties, propertyId, onProperty, onAddProperty, onRemoveProperty, user, syncStatus, dbStatus, isOffline, onAccount, onLogout, onSetup, onSecurity, onCrisis, crisisMode, emergencyBanner, onSearch, alertCount, inventoryAlertCounts = {}, getPrepChatContext, prepChatResetKey, children }) {
+  const { theme, toggleTheme } = useTheme();
   const [calendarDay, setCalendarDay] = useState(() => new Date().getDate());
   useEffect(() => { const timer = setInterval(() => setCalendarDay(new Date().getDate()), 60_000); return () => clearInterval(timer); }, []);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,20 +51,21 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
   useEffect(() => {
     const handleKey = e => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchRef.current?.focus(); }
-      if (e.key === 'Escape') { setMenuOpen(false); setAccountOpen(false); setPropertyOpen(false); }
+      if (e.key === 'Escape' && !e.defaultPrevented) { setMenuOpen(false); setAccountOpen(false); setPropertyOpen(false); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
   useEffect(() => {
     if (!accountOpen) return;
+    accountRef.current?.querySelector('.pv-profile-panel')?.scrollIntoView({ block: 'nearest' });
     const closeOutside = event => {
       if (!accountRef.current?.contains(event.target)) setAccountOpen(false);
     };
     const closeWithEscape = event => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
-      accountRef.current?.querySelector('.pv-avatar')?.focus();
+      accountRef.current?.querySelector('.pv-profile-trigger')?.focus();
       setAccountOpen(false);
     };
     document.addEventListener('pointerdown', closeOutside);
@@ -93,7 +96,11 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
       <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{d.id === "calendar" && <span className="pv-sidebar-calendar-day" aria-label={`Today is day ${calendarDay}`}>{calendarDay}</span>}{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
       <div className="pv-sidebar-bottom">
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={() => { setMenuOpen(false); setAccountOpen(false); onCrisis(); }} aria-current={activeTab === 'emergency-mode' ? 'page' : undefined}><Icon name="shield" size={18}/>{crisisMode ? 'Emergency plan · active' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
-        <button className="pv-settings" onClick={onSecurity}><Icon name="settings" size={18}/> Settings & backups</button>
+        <button className="pv-settings" onClick={() => { setMenuOpen(false); setAccountOpen(false); onSecurity(); }}><Icon name="settings" size={18}/> Settings & backups</button>
+        <div className="pv-sidebar-profile" ref={accountRef} data-pv-profile>
+          <button className="pv-settings pv-profile-trigger" aria-expanded={accountOpen} aria-controls={accountOpen ? 'pv-account-menu' : undefined} onClick={() => setAccountOpen(!accountOpen)}><Icon name="users" size={18}/><span>Profile</span><Icon name="chevron" size={14}/></button>
+          {accountOpen && <div className="pv-profile-panel" id="pv-account-menu"><strong>{user?.email || 'Personal workspace'}</strong><p>{user?.authProvider === 'neon' ? 'Verified account · saved on this device' : user?.isLocal ? 'Device account' : user ? 'Connected account' : 'No account required'}</p><button onClick={() => { setMenuOpen(false); setAccountOpen(false); onSetup(); }}>Household setup</button><button onClick={() => { setMenuOpen(false); setAccountOpen(false); (user ? onLogout : onAccount)(); }}>{user ? 'Sign out' : 'Sign in / Create account'}</button></div>}
+        </div>
         <div className="pv-sidebar-foot"><span className="pv-status-dot"/>PREPVAULT 2.0<span>Made for real life</span></div>
       </div>
     </aside>
@@ -101,10 +108,10 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
       <header className="pv-topbar">
         <button className="pv-mobile-menu pv-icon-button" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="pv-main-navigation"><Icon name="menu"/></button>
         <div className="pv-breadcrumb"><span>{siteName}</span><Icon name="chevron" size={14}/><strong>{currentDestination?.label || 'Overview'}</strong></div>
-        <form className="pv-global-search" onSubmit={e => { e.preventDefault(); onSearch(search); setSearch(''); }}><Icon name="search" size={17}/><input ref={searchRef} aria-label="Search all inventory" placeholder="Search all inventory…" value={search} onChange={e => setSearch(e.target.value)}/><kbd>⌘ K</kbd></form>
+        <form className="pv-global-search" onSubmit={e => { e.preventDefault(); onSearch(search); setSearch(''); }}><Icon name="search" size={17}/><input ref={searchRef} aria-label="Search all inventory" placeholder="Search all inventory…" value={search} onChange={e => setSearch(e.target.value)}/></form>
         <span className={`pv-save-state ${syncStatus === 'error' || dbStatus === 'error' ? 'is-error' : ''}`} title={status}><span className="pv-status-dot"/>{status}</span>
         <button className="pv-icon-button pv-notifications" aria-label={`${alertCount} supply alerts`} onClick={() => onSearch('', 'attention')}><Icon name="bell"/>{alertCount > 0 && <span/>}</button>
-        <div className="pv-account-wrap" ref={accountRef}><button className="pv-avatar" aria-label="Account menu" aria-expanded={accountOpen} aria-controls={accountOpen ? 'pv-account-menu' : undefined} onClick={() => setAccountOpen(!accountOpen)}>{user?.email?.[0]?.toUpperCase() || 'P'}</button>{accountOpen && <div className="pv-dropdown" id="pv-account-menu"><strong>{user?.email || 'Personal workspace'}</strong><p>{user?.authProvider === 'neon' ? 'Verified account · saved on this device' : user?.isLocal ? 'Device account' : user ? 'Connected account' : 'No account required'}</p><button onClick={() => { onSetup(); setAccountOpen(false); }}>Household setup</button><button onClick={() => { onSecurity(); setAccountOpen(false); }}>Settings & backups</button><button onClick={() => { (user ? onLogout : onAccount)(); setAccountOpen(false); }}>{user ? 'Sign out' : 'Sign in / Create account'}</button></div>}</div>
+        <button className="pv-icon-button pv-theme-toggle" aria-label="Dark mode" aria-pressed={theme === 'dark'} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={20}/></button>
       </header>
       {emergencyBanner}
       <main id="main-content" tabIndex={-1} className="pv-main">{children}</main>
