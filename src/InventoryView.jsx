@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDialogFocus } from "./useDialogFocus.js";
 import InventoryRecommendations from "./InventoryRecommendations.jsx";
+import { StatusPanel, StatusRing, StatusBreakdown } from './StatusCharts.jsx';
+import { buildInventoryVisuals, essentialCoverageVisual, inventoryMatchesStatus, recordedQuantity } from './inventory-visuals.js';
 import "./inventory.css";
 
 function InventoryIcon({ name, size = 18 }) {
@@ -35,25 +37,9 @@ function dateValue(value) {
   return parsed;
 }
 
-function conditionOf(item, today) {
-  if (quantityOf(item) === 0) return { id: "empty", label: "Out of stock", tone: "empty", detail: "Ready to restock" };
-  const expiry = dateValue(item.fields?.expiryDate);
-  const refreshed = dateValue(item.fields?.lastRefreshed);
-  if (expiry) {
-    const days = Math.ceil((expiry - today) / 86400000);
-    if (days < 0) return { id: "expired", label: "Expired", tone: "danger", detail: `${Math.abs(days)} days ago` };
-    if (days <= 90) return { id: "soon", label: "Expiring soon", tone: "warning", detail: days === 0 ? "Expires today" : `In ${days} days` };
-  }
-  if (refreshed) {
-    const daysLeft = 180 - Math.floor((today - refreshed) / 86400000);
-    if (daysLeft <= 30) return { id: "rotation", label: "Refresh due", tone: "warning", detail: daysLeft <= 0 ? "Refresh overdue" : `Refresh in ${daysLeft} days` };
-  }
-  return { id: "ready", label: "In stock", tone: "ready", detail: expiry ? expiry.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "No expiry recorded" };
-}
-
 const STATUS_OPTIONS = [
-  ["all", "All statuses"], ["attention", "Needs attention"], ["ready", "In stock"],
-  ["maintenance", "Maintenance due"], ["soon", "Expiring soon"], ["expired", "Expired"], ["rotation", "Refresh due"], ["empty", "Out of stock"],
+  ["all", "All statuses"], ["attention", "Needs review"], ["ready", "In stock"],
+  ["maintenance", "Maintenance due"], ["soon", "Expiring soon"], ["expired", "Expired"], ["rotation", "Refresh due"], ["empty", "Out of stock"], ["unknown", "Unconfirmed"],
 ];
 
 function RemoveSupplyDialog({ item, onCancel, onConfirm, fallbackFocusRef }) {
@@ -65,7 +51,7 @@ function RemoveSupplyDialog({ item, onCancel, onConfirm, fallbackFocusRef }) {
   return <div className="pv-inventory-modal-backdrop" onClick={onCancel}><div ref={dialogRef} className="pv-inventory-confirm" role="dialog" aria-modal="true" aria-labelledby="remove-supply-title" aria-describedby="remove-supply-description" onClick={event => event.stopPropagation()}><span className="pv-inventory-confirm-icon"><InventoryIcon name="box" size={25}/></span><h2 id="remove-supply-title">Remove this supply?</h2><p id="remove-supply-description"><strong>{item.name}</strong> will be removed from your inventory. You can add it again any time.</p><div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onCancel}>Keep supply</button><button type="button" className="pv-inventory-button pv-inventory-button-danger" onClick={onConfirm}>Remove supply</button></div></div></div>;
 }
 
-export default function InventoryView({ items = [], categories = {}, onCategory, onAdd, onEdit, onRemove, onQtyChange, onScan, people = 4, alerts = [], recommendationPeopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1, propertyId, onManagePeople, onRationing, recommendationActions, initialQuery = "", initialStatus = "all", title = "Your supplies", intro = "A place for everything your household depends on.", eyebrow = "KNOW WHAT YOU HAVE", emptyIntro = "Add equipment and everyday supplies to build a clearer picture of your preparation." }) {
+export default function InventoryView({ items = [], categories = {}, onCategory, onAdd, onEdit, onRemove, onQtyChange, onScan, alerts = [], recommendationPeopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1, propertyId, onManagePeople, onRationing, recommendationActions, initialQuery = "", initialStatus = "all", title = "Your supplies", intro = "A place for everything your household depends on.", eyebrow = "KNOW WHAT YOU HAVE", emptyIntro = "Add equipment and everyday supplies to build a clearer picture of your preparation." }) {
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState(initialStatus);
@@ -78,17 +64,15 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
   today.setHours(0, 0, 0, 0);
   const todayTime = today.getTime();
 
-  const inventory = useMemo(() => items.map(item => { const alert = alerts.find(a => a.id === item.id); const condition = conditionOf(item, todayTime); return { ...item, condition: condition.id === "ready" && alert ? {id:"maintenance",label:"Review due",tone:"warning",detail:alert.al} : condition }; }), [items, todayTime, alerts]);
+  const visuals = useMemo(() => buildInventoryVisuals({ items, categories, alerts, propertyId, now: todayTime }), [items, categories, alerts, propertyId, todayTime]);
+  const { inventory } = visuals;
   const categoryEntries = Object.entries(categories);
-  const populated = new Set(items.filter(item => quantityOf(item) > 0 && categories[item.category]).map(item => item.category)).size;
-  const attention = inventory.filter(item => item.condition.id !== "ready").length;
-  const stocked = inventory.filter(item => quantityOf(item) > 0).length;
+  const coverageRows = ['food', 'water', 'medical', 'power'].filter(key => categories[key]).map(key => ({ id: key, label: categories[key].label, ...essentialCoverageVisual(key, visuals.items, recommendationPeopleCount, dailyCalTarget, waterGalPerPerson, inventory) }));
   const narrowed = useMemo(() => {
     const term = query.trim().toLowerCase();
     const result = inventory.filter(item => {
       if (category !== "all" && item.category !== category) return false;
-      if (status === "attention" && item.condition.id === "ready") return false;
-      if (status !== "all" && status !== "attention" && item.condition.id !== status) return false;
+      if (!inventoryMatchesStatus(item, status)) return false;
       const categoryData = categories[item.category];
       const haystack = [item.name, item.location, item.notes, categoryData?.label, categoryData?.subTypes?.[item.subType]?.label, ...Object.values(item.fields || {})].join(" ").toLowerCase();
       return !term || haystack.includes(term);
@@ -114,6 +98,9 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
   const filtersActive = query || category !== "all" || status !== "all";
   const clearFilters = () => { setQuery(""); setCategory("all"); setStatus("all"); };
 
+  const showStatus = next => { clearFilters(); setStatus(next); setView('list'); };
+  const showCategory = next => { clearFilters(); setCategory(next); setView('list'); };
+
   return <section className="pv-inventory" aria-labelledby="inventory-title">
     <header className="pv-inventory-heading">
       <div><p className="pv-inventory-eyebrow">{eyebrow}</p><h1 id="inventory-title">{title}<span>.</span></h1><p className="pv-inventory-intro">{intro}</p></div>
@@ -123,13 +110,13 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
       </div>
     </header>
 
-    <div className="pv-inventory-overview">
-      <div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><InventoryIcon name="box" size={22}/></span><div><span className="pv-inventory-stat-value">{stocked}<small>supplies in stock</small></span><p>Across your selected location</p></div></div>
-      <div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><InventoryIcon name="grid" size={22}/></span><div><span className="pv-inventory-stat-value">{populated}<span className="pv-inventory-stat-total"> / {categoryEntries.length}</span><small>categories covered</small></span><p>Planning for {people} {Number(people) === 1 ? "person" : "people"}</p></div></div>
-      <button type="button" className={`pv-inventory-stat pv-inventory-stat-action${status === "attention" ? " is-selected" : ""}`} onClick={() => { setStatus(status === "attention" ? "all" : "attention"); setView("list"); }} aria-pressed={status === "attention"}><span className={`pv-inventory-stat-icon${attention ? " is-amber" : ""}`}><InventoryIcon name={attention ? "clock" : "check"} size={22}/></span><div><span className="pv-inventory-stat-value">{attention}<small>need attention</small></span><p>{attention ? "Review expiry, refreshes & stock" : "Everything is looking good"}</p></div><InventoryIcon name="arrow"/></button>
-    </div>
+    <StatusPanel title="See what needs a look" description="A snapshot of the inventory at your selected property. Select a chart label to see the matching supplies." eyebrow="YOUR STOCK AT A GLANCE" action={<button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => { clearFilters(); setView('list'); }}>All entries</button>}>
+      <StatusRing title="Stock records" segments={visuals.segments.map(segment => ({ ...segment, onClick: () => showStatus(segment.id) }))} value={visuals.total} label="recorded entries" note="Positive stock with no recorded checks due. Counts entries, not quantities or overall readiness."/>
+      <StatusBreakdown title="Stock variety" rows={visuals.categoryRows.slice(0, 5).map(row => ({ ...row, onClick: () => showCategory(row.id) }))} note={`Positive stock by supply type, not total quantity. Not every catalogue type is required.${categoryEntries.length > 5 ? ' Showing the five categories with the most entries; use the category filter for all.' : ''}`}/>
+      {coverageRows.length > 1 && <StatusBreakdown title="Recorded duration" rows={coverageRows.map(row => ({ ...row, valueLabel: row.value === null ? 'Unknown' : `${row.value}d / ${row.max}d reference`, onClick: () => onCategory?.(row.id) }))} note="Planning references: food and prescriptions 30 days, stored water 14 days, backup power 3 days. Food and water use your selected dependants and ration settings. Open a category for assumptions and missing details."/>}
+    </StatusPanel>
 
-    <InventoryRecommendations items={items} categories={categories} categoryKey={category === "all" ? undefined : category} propertyId={propertyId} peopleCount={recommendationPeopleCount} dailyCalTarget={dailyCalTarget} waterGalPerPerson={waterGalPerPerson} alerts={alerts} onAdd={onAdd} onEdit={onEdit} onCategory={onCategory} onManagePeople={onManagePeople} onRationing={onRationing} actions={recommendationActions}/>
+    <InventoryRecommendations items={visuals.items} categories={categories} categoryKey={category === "all" ? undefined : category} propertyId={propertyId} peopleCount={recommendationPeopleCount} dailyCalTarget={dailyCalTarget} waterGalPerPerson={waterGalPerPerson} alerts={alerts} onAdd={onAdd} onEdit={onEdit} onCategory={onCategory} onManagePeople={onManagePeople} onRationing={onRationing} actions={recommendationActions}/>
 
     <div className="pv-inventory-workspace">
       <div className="pv-inventory-toolbar">
@@ -146,15 +133,15 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
         {narrowed.length > 0 ? <div className="pv-inventory-table-scroll" tabIndex={0} role="region" aria-label="Supplies table; scroll horizontally for more columns"><table className="pv-inventory-table"><thead><tr><th scope="col">Supply</th><th scope="col">Category</th><th scope="col">Location</th><th scope="col">Quantity</th><th scope="col">Status / expiry</th><th scope="col"><span className="pv-inventory-sr-only">Actions</span></th></tr></thead><tbody>{shownItems.map(item => {
           const categoryData = categories[item.category];
           const subtype = categoryData?.subTypes?.[item.subType];
-          return <tr key={item.id}><td><div className="pv-inventory-item"><span className="pv-inventory-item-symbol" aria-hidden="true">{categoryData?.icon || <InventoryIcon name="box"/>}</span><div><button type="button" className="pv-inventory-item-name" onClick={() => onEdit?.(item)}>{item.name}</button><span className="pv-inventory-item-type">{subtype?.label || "Supply"}</span></div></div></td><td><button type="button" className="pv-inventory-category-link" onClick={() => onCategory?.(item.category)}>{categoryData?.label || item.category}<InventoryIcon name="arrow" size={12}/></button></td><td><span className={`pv-inventory-location${!item.location || item.location === "?" ? " is-unset" : ""}`}>{item.location && item.location !== "?" ? item.location : "Not set"}</span></td><td><div className="pv-inventory-quantity"><button type="button" aria-label={`Decrease quantity of ${item.name}`} disabled={quantityOf(item) <= 0} onClick={() => onQtyChange?.(item.id, -1)}><InventoryIcon name="minus" size={12}/></button><span aria-label={`${quantityOf(item)} ${subtype?.unit || "units"}`}>{quantityOf(item).toLocaleString()}</span><button type="button" aria-label={`Increase quantity of ${item.name}`} onClick={() => onQtyChange?.(item.id, 1)}><InventoryIcon name="plus" size={12}/></button></div></td><td><span className={`pv-inventory-status is-${item.condition.tone}`}><i/>{item.condition.label}</span><span className="pv-inventory-expiry">{item.condition.detail}</span></td><td><div className="pv-inventory-row-actions"><button type="button" title="Edit supply" aria-label={`Edit ${item.name}`} onClick={() => onEdit?.(item)}><InventoryIcon name="edit" size={16}/></button><button type="button" className="pv-inventory-delete" title="Remove supply" aria-label={`Remove ${item.name}`} onClick={event => { event.currentTarget.focus(); setPendingDelete(item); }}><InventoryIcon name="trash" size={16}/></button></div></td></tr>;
+          return <tr key={item.id}><td><div className="pv-inventory-item"><span className="pv-inventory-item-symbol" aria-hidden="true">{categoryData?.icon || <InventoryIcon name="box"/>}</span><div><button type="button" className="pv-inventory-item-name" onClick={() => onEdit?.(item)}>{item.name}</button><span className="pv-inventory-item-type">{subtype?.label || "Supply"}</span></div></div></td><td><button type="button" className="pv-inventory-category-link" onClick={() => onCategory?.(item.category)}>{categoryData?.label || item.category}<InventoryIcon name="arrow" size={12}/></button></td><td><span className={`pv-inventory-location${!item.location || item.location === "?" ? " is-unset" : ""}`}>{item.location && item.location !== "?" ? item.location : "Not set"}</span></td><td><div className="pv-inventory-quantity"><button type="button" aria-label={`Decrease quantity of ${item.name}`} disabled={quantityOf(item) <= 0} onClick={() => onQtyChange?.(item.id, -1)}><InventoryIcon name="minus" size={12}/></button><span aria-label={recordedQuantity(item.quantity) === null ? "Quantity not recorded" : `${quantityOf(item)} ${subtype?.unit || "units"}`}>{recordedQuantity(item.quantity)?.toLocaleString() ?? "—"}</span><button type="button" aria-label={`Increase quantity of ${item.name}`} onClick={() => onQtyChange?.(item.id, 1)}><InventoryIcon name="plus" size={12}/></button></div></td><td><span className={`pv-inventory-status is-${item.condition.tone}`}><i/>{item.condition.label}</span><span className="pv-inventory-expiry">{item.condition.detail}</span></td><td><div className="pv-inventory-row-actions"><button type="button" title="Edit supply" aria-label={`Edit ${item.name}`} onClick={() => onEdit?.(item)}><InventoryIcon name="edit" size={16}/></button><button type="button" className="pv-inventory-delete" title="Remove supply" aria-label={`Remove ${item.name}`} onClick={event => { event.currentTarget.focus(); setPendingDelete(item); }}><InventoryIcon name="trash" size={16}/></button></div></td></tr>;
         })}</tbody></table></div> : <div className="pv-inventory-empty"><span><InventoryIcon name={filtersActive ? "search" : "box"} size={30}/></span><h2>{filtersActive ? "No supplies match" : "Make room for peace of mind."}</h2><p>{filtersActive ? "Try a different search or clear your filters." : emptyIntro}</p><button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={filtersActive ? clearFilters : () => onAdd?.()}>{filtersActive ? "Clear filters" : "Add your first supply"}</button></div>}
       </> : <div className="pv-inventory-category-grid">{filteredCategories.map(([key, info]) => {
         const categoryItems = inventory.filter(item => item.category === key);
         const visibleItems = narrowed.filter(item => item.category === key);
         const categoryAttention = categoryItems.filter(item => item.condition.id !== "ready").length;
         const types = Object.keys(info.subTypes || {}).length;
-        const covered = new Set(categoryItems.filter(item => quantityOf(item) > 0).map(item => item.subType)).size;
-        return <button type="button" className="pv-inventory-category-card" key={key} onClick={() => onCategory?.(key)} aria-label={`View ${info.label}: ${categoryItems.length} supplies`}><div className="pv-inventory-category-card-top"><span aria-hidden="true">{info.icon || <InventoryIcon name="box" size={24}/>}</span><InventoryIcon name="arrow"/></div><h2>{info.label}</h2><p>{info.desc || "Keep track of your supplies."}</p><div className="pv-inventory-category-meter" aria-label={`${covered} of ${types} supply types stocked`}><span style={{ width: `${Math.min(100, types ? covered / types * 100 : 0)}%` }}/></div><footer><span><strong>{filtersActive ? visibleItems.length : categoryItems.length}</strong> {filtersActive ? "matching" : "supplies"}</span><span className={categoryAttention ? "pv-inventory-category-attention" : ""}>{categoryAttention ? `${categoryAttention} to review` : `${covered}/${types} types`}</span></footer></button>;
+        const covered = visuals.categoryRows.find(row => row.id === key)?.value || 0;
+        return <button type="button" className="pv-inventory-category-card" key={key} onClick={() => onCategory?.(key)} aria-label={`View ${info.label}: ${categoryItems.length} supplies`}><div className="pv-inventory-category-card-top"><span aria-hidden="true">{info.icon || <InventoryIcon name="box" size={24}/>}</span><InventoryIcon name="arrow"/></div><h2>{info.label}</h2><p>{info.desc || "Keep track of your supplies."}</p><div className="pv-inventory-category-meter" aria-label={`${covered} of ${types} supply types stocked`}><span style={{ width: `${Math.min(100, types ? covered / types * 100 : 0)}%` }}/></div><footer><span><strong>{filtersActive ? visibleItems.length : categoryItems.length}</strong> {filtersActive ? "matching" : "supplies"}</span><span className={categoryAttention ? "pv-inventory-category-attention" : ""}>{categoryAttention ? `${categoryAttention} to check` : `${covered}/${types} types`}</span></footer></button>;
       })}{filteredCategories.length === 0 && <div className="pv-inventory-empty"><h2>No categories match</h2><p>Clear your filters to see every category.</p><button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={clearFilters}>Clear filters</button></div>}</div>}
       <div className="pv-inventory-pagination">{view === "list" && totalPages > 1 && <><span>Page {currentPage} of {totalPages} · {narrowed.length} supplies</span><button disabled={currentPage === 1} onClick={() => setPageState({key: pageKey, number: currentPage - 1})}>Previous</button><button disabled={currentPage === totalPages} onClick={() => setPageState({key: pageKey, number: currentPage + 1})}>Next</button></>}</div><div className="pv-inventory-footer"><InventoryIcon name="check" size={14}/><span>Small steps today. More confidence tomorrow.</span></div>
     </div>

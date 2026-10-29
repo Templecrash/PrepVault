@@ -1,22 +1,26 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import FoodWaterInfo from './FoodWaterInfo.jsx';
 import { Icon } from './brand.jsx';
 import { computeRationing } from './rationing.js';
+import { buildRationingVisuals } from './rationing-visuals.js';
+import { StatusPanel, StatusBar, StatusRing } from './StatusCharts.jsx';
 import './rationing.css';
 
 const format = value => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 
-export default function RationingPlanner({ items, rationPeople, dailyCalTarget, setDailyCalTarget, waterGalPerPerson = 1, onManagePeople, showSummary = true }) {
+export default function RationingPlanner({ items, rationPeople, dailyCalTarget, setDailyCalTarget, waterGalPerPerson = 1, categories = {}, onManagePeople, showSummary = true }) {
   const id = useId();
+  const [planningDays, setPlanningDays] = useState(14);
   const result = computeRationing(items, rationPeople.length, dailyCalTarget, waterGalPerPerson);
+  const visuals = buildRationingVisuals({ items, peopleCount: rationPeople.length, dailyCalTarget, waterGalPerPerson, planningDays, categories });
   return <section className="pv-rationing" aria-label="Rationing planner">
     {showSummary && <>
       <header className="pv-rationing-heading"><div><h2>Rationing planner</h2><p>How long your recorded food and stored water could last.</p></div><Icon name="leaf" size={21}/></header>
-      <div className="pv-rationing-summary" aria-live="polite">
-        <div><span>Food</span><strong>{result.foodDays ?? '—'}<small> days</small></strong><p>{format(result.totalCalories)} calories recorded</p></div>
-        <div><span>Stored water</span><strong>{result.waterDays ?? '—'}<small> days</small></strong><p>{format(result.totalWaterGal)} gallons recorded</p></div>
-        <div><span>Dependants selected</span><strong>{result.peopleCount}<small> {result.peopleCount === 1 ? 'person' : 'people'}</small></strong><p>{format(result.dailyCalTarget)} calories per day each</p></div>
-      </div>
+      <StatusPanel title="Your supply runway" description={`Compare recorded food and stored water for ${result.peopleCount} selected ${result.peopleCount === 1 ? 'dependant' : 'dependants'}. Changing the window only changes this comparison.`} action={<label className="pv-status-window">Planning window<select aria-label="Rationing planning window" value={planningDays} onChange={event => setPlanningDays(Number(event.target.value))}>{[7, 14, 30, 90].map(days => <option key={days} value={days}>{days} days</option>)}</select></label>} note="Bars compare recorded quantities with your selected planning window. They do not confirm expiry, suitability or a balanced diet; review the source supplies before relying on them.">
+        <StatusBar title="Recorded food" {...visuals.food}/>
+        <StatusBar title="Stored water" {...visuals.water}/>
+        <StatusRing title="Food calculation details" {...visuals.foodDetails}/>
+      </StatusPanel>
     </>}
     <p className="pv-rationing-assumption">Estimates use your selected calorie target and {format(result.waterGalPerPerson)} {result.waterGalPerPerson === 1 ? 'gallon' : 'gallons'} of stored water per person per day for drinking, food preparation and hygiene. This is not a drinking limit.</p>
     {result.omittedFoodCount > 0 && <p className="pv-rationing-notice">{result.omittedFoodCount} food {result.omittedFoodCount === 1 ? 'entry is' : 'entries are'} excluded because calorie or serving information is missing.</p>}

@@ -7,6 +7,9 @@
 .pv-farm-nav button[aria-current] { color: #3b5830; background: #edf2e6; border-color: #dee6d4; font-weight: 650; }
 .pv-farm-nav button:hover { background: #f0f4ea; color: #3d5b31; }
 .pv-farm-workspace { overflow: hidden; }
+.pv-farm-status { padding: 0 25px 24px; }
+.pv-farm-status .pv-status-panel { margin: 0; }
+@media(max-width:600px) { .pv-farm-status { padding: 0 17px 22px; } }
 .pv-farm-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 27px 25px 22px; }
 .pv-farm-section-heading h2 { margin: 0; font-size: 19px; letter-spacing: -.4px; font-weight: 600; color: #324e29; }
 .pv-farm-section-heading p { margin: 7px 0 0; font-size: 12px; line-height: 1.7; color: #7b886f; }

@@ -2,7 +2,9 @@ import { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './brand.jsx';
 import { useDialogFocus } from './useDialogFocus.js';
-import { BUG_OUT_LIMITS, BUG_OUT_STARTERS, MAX_BUG_OUT_ENTRIES, createBugOutEntry, moveBugOutEntry, restoreGrabbedChecks, summarizeBugOut, toggleBugOutEntry } from './bug-out.js';
+import { BUG_OUT_LIMITS, BUG_OUT_STARTERS, MAX_BUG_OUT_ENTRIES, createBugOutEntry, moveBugOutEntry, restoreGrabbedChecks, toggleBugOutEntry } from './bug-out.js';
+import { StatusPanel, StatusRing, StatusBar, StatusBreakdown } from './StatusCharts.jsx';
+import { buildBugOutStatus, hasPlanningDetail } from './household-status.js';
 import './bug-out.css';
 
 const newId = () => `bo-${crypto.randomUUID()}`;
@@ -51,7 +53,9 @@ export default function BugOutPlan({ entries = [], setEntries, items = [], conta
   const [undoAction, setUndoAction] = useState(null);
   const [notice, setNotice] = useState('');
   const id = useId();
-  const summary = summarizeBugOut(entries);
+  const summary = buildBugOutStatus(entries, items);
+  const incomplete = entries.find(entry => ['quantity', 'location', 'assignee'].some(key => !hasPlanningDetail(entry[key])));
+  const stockReview = summary.outOfStock + summary.unknownStock + summary.missingLink;
   const search = query.trim().toLowerCase();
   const shown = entries.filter(entry => (!remainingOnly || !entry.grabbed) && [entry.name, entry.quantity, entry.location, entry.assignee, entry.notes].join(' ').toLowerCase().includes(search));
   const full = entries.length >= MAX_BUG_OUT_ENTRIES;
@@ -96,7 +100,18 @@ export default function BugOutPlan({ entries = [], setEntries, items = [], conta
   };
   return <section className={`pv-bugout${grabMode ? ' is-grab-mode' : ''}`} aria-labelledby={`${id}-title`}>
     <header className="pv-bugout-heading"><div><span className="pv-bugout-eyebrow">PLAN BEFORE YOU NEED IT</span><h1 id={`${id}-title`}>Bug Out<span>.</span></h1><p>Know what to grab, where it is, and who is bringing it.</p></div><div className="pv-bugout-actions"><button type="button" className={`pv-button ${grabMode ? 'pv-secondary' : 'pv-primary'}`} aria-pressed={grabMode} onClick={switchGrabMode}><Icon name={grabMode ? 'edit' : 'check'} size={18}/>{grabMode ? 'Edit checklist' : 'Grab mode'}</button>{!grabMode && <button type="button" className="pv-button pv-secondary" disabled={full} onClick={() => setEditor({ entry: null })}><Icon name="plus" size={17}/>Add item</button>}</div></header>
-    <div className="pv-bugout-progress"><div><strong>{summary.remaining}</strong><span>left to grab</span></div><div className="pv-bugout-progress-main"><span><strong>{summary.grabbed} of {summary.total}</strong> marked grabbed</span><progress aria-label="Items marked grabbed" max={Math.max(summary.total, 1)} value={summary.grabbed}/><small>{grabMode ? 'Follow your list in order. Check each item when it is with you.' : 'Arrange your list in the order you want to collect it.'}</small></div>{summary.grabbed > 0 && <button type="button" className="pv-bugout-text" onClick={reset}><Icon name="refresh" size={15}/>Reset checks</button>}</div>
+    <StatusPanel title="Ready to leave?" description={grabMode ? 'Follow your list in order. Check each item when it is with you.' : 'Arrange your list, fill in the collection details, then check items as you grab them.'} note="Checks record collection progress. They do not change stock or confirm that your supplies cover every need." action={summary.grabbed > 0 && <button type="button" className="pv-bugout-text" onClick={reset}><Icon name="refresh" size={15}/>Reset checks</button>}>
+      <StatusRing title="Departure checklist" value={summary.remaining} label="left to grab" emptyLabel="No checklist yet" segments={[
+        { id: 'grabbed', label: 'Marked grabbed', value: summary.grabbed, tone: 'good' },
+        { id: 'remaining', label: 'Still to grab', value: summary.remaining, tone: 'warning', onClick: () => { setRemainingOnly(true); setQuery(''); } },
+      ]} note="An item counts only when you mark it grabbed; a storage location does not mean it is packed."/>
+      <StatusBar title="Collection details" value={summary.detailed} max={summary.total} valueLabel={summary.total ? `${summary.detailed} of ${summary.total}` : 'No items yet'} targetLabel="items with a complete grab plan" tone={summary.total ? summary.missingDetails ? 'warning' : 'good' : 'unknown'} note="Amount, location and person responsible are all recorded. These details can be prepared before a departure." onClick={!grabMode && incomplete ? () => setEditor({ entry: incomplete }) : undefined} actionLabel="Complete the next item"/>
+      <StatusBreakdown title="Linked supply checks" rows={[
+        { id: 'stocked', label: 'Source has stock', value: summary.inStock, max: summary.total, tone: 'good' },
+        { id: 'review', label: 'Source needs checking', value: stockReview, max: summary.total, tone: summary.outOfStock ? 'danger' : 'warning' },
+        { id: 'custom', label: 'Custom / unlinked', value: summary.custom, max: summary.total, tone: 'unknown' },
+      ]} note={stockReview ? `${summary.outOfStock} linked entries out of stock, ${summary.unknownStock} with unknown quantities and ${summary.missingLink} missing from inventory. Review the amount you need to take.` : 'Linked stock is a reference, not a reservation. Custom items need a separate stock check.'}/>
+    </StatusPanel>
     <div className="pv-bugout-feedback" role="status">{notice && <><span>{notice}</span>{undoAction && <button type="button" className="pv-bugout-text" onClick={undo}>Undo</button>}<button type="button" className="pv-bugout-icon" aria-label="Dismiss checklist notice" onClick={() => { setNotice(''); setUndoAction(null); }}><Icon name="close" size={16}/></button></>}</div>
     {entries.length ? <div className="pv-bugout-workspace">
       <div className="pv-bugout-toolbar"><label className="pv-bugout-search"><Icon name="search" size={17}/><input type="search" placeholder="Find an item, place or person…" aria-label="Search Bug Out checklist" value={query} onChange={event => setQuery(event.target.value)}/></label><button type="button" className="pv-bugout-filter" aria-pressed={remainingOnly} onClick={() => setRemainingOnly(current => !current)}>{remainingOnly ? 'Show all items' : 'Only left to grab'}</button><span>{shown.length} {shown.length === 1 ? 'item' : 'items'}</span></div>

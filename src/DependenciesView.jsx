@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Icon } from './brand.jsx';
-import { buildDependencyChecks } from './dependencies.js';
+import { StatusPanel, StatusRing, StatusBreakdown } from './StatusCharts.jsx';
+import { buildDependencyChecks, summarizeDependencies } from './dependencies.js';
 import './inventory.css';
 import './dependencies.css';
 
@@ -24,9 +25,7 @@ export default function DependenciesView({ items = [], onSupplies, onSetup }) {
   const [sort, setSort] = useState('name');
   const [expandedId, setExpandedId] = useState(null);
   const dependencies = useMemo(() => buildDependencyChecks(items), [items]);
-  const critical = dependencies.filter(item => item.risk === 'critical').length;
-  const missing = dependencies.filter(item => !item.backup).length;
-  const hidden = dependencies.filter(item => item.hidden).length;
+  const summary = summarizeDependencies(dependencies);
   const filtersActive = Boolean(query.trim()) || priority !== 'all' || status !== 'all';
   const clearFilters = () => { setQuery(''); setPriority('all'); setStatus('all'); };
   const visible = useMemo(() => {
@@ -58,11 +57,13 @@ export default function DependenciesView({ items = [], onSupplies, onSetup }) {
       </div>
     </header>
 
-    <div className="pv-inventory-overview">
-      <button type="button" className="pv-inventory-stat pv-inventory-stat-action" aria-pressed={priority === 'critical' && status === 'all'} onClick={() => quickFilter('priority', 'critical')}><span className="pv-inventory-stat-icon"><Icon name="shield" size={22}/></span><div><span className="pv-inventory-stat-value">{critical}<small>critical checks</small></span><p>Start with essential systems</p></div><Icon name="arrow" size={18}/></button>
-      <button type="button" className="pv-inventory-stat pv-inventory-stat-action" aria-pressed={status === 'missing' && priority === 'all'} onClick={() => quickFilter('status', 'missing')}><span className="pv-inventory-stat-icon"><Icon name="bolt" size={22}/></span><div><span className="pv-inventory-stat-value">{missing}<small>without a backup</small></span><p>No match in your selected supplies</p></div><Icon name="arrow" size={18}/></button>
-      <button type="button" className="pv-inventory-stat pv-inventory-stat-action" aria-pressed={status === 'hidden' && priority === 'all'} onClick={() => quickFilter('status', 'hidden')}><span className="pv-inventory-stat-icon"><Icon name="search" size={22}/></span><div><span className="pv-inventory-stat-value">{hidden}<small>hidden dependencies</small></span><p>Easy to overlook until an outage</p></div><Icon name="arrow" size={18}/></button>
-    </div>
+    <StatusPanel title="Where your backup plan needs attention" description={`${summary.criticalMissing} critical ${summary.criticalMissing === 1 ? 'check has' : 'checks have'} no matching backup in your supplies.`} note="This checklist covers common household systems. A possible inventory match still needs a capacity, compatibility and working-equipment check." action={<button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => quickFilter('status', 'hidden')}>Hidden dependencies</button>}>
+      <StatusRing title="Backup matches" value={summary.missing} label="without a match" segments={[
+        { id: 'missing', label: 'No backup found', value: summary.missing, tone: 'danger', onClick: () => quickFilter('status', 'missing') },
+        { id: 'possible', label: 'Possible · needs checking', value: summary.possible, tone: 'warning', onClick: () => quickFilter('status', 'backup') },
+      ]} note="Matching a supply does not verify that the system will work during an outage."/>
+      <StatusBreakdown title="Unmatched checks by priority" rows={summary.priorities.map(row => ({ id: row.id, label: row.id[0].toUpperCase() + row.id.slice(1), value: row.missing, max: row.total, valueLabel: `${row.missing} of ${row.total} without a match`, tone: row.missing ? ['critical', 'high'].includes(row.id) ? 'danger' : 'warning' : 'neutral', onClick: () => { clearFilters(); setPriority(row.id); setStatus('missing'); } }))} note={`${summary.hiddenMissing} unmatched ${summary.hiddenMissing === 1 ? 'check is' : 'checks are'} easy-to-overlook dependencies.`}/>
+    </StatusPanel>
 
     <div className="pv-inventory-workspace">
       <div className="pv-inventory-toolbar">

@@ -2,6 +2,8 @@ import { useId, useState } from 'react';
 import { Icon } from './brand.jsx';
 import { useDialogFocus } from './useDialogFocus.js';
 import FoodWaterInfo from './FoodWaterInfo.jsx';
+import { StatusPanel, StatusRing, StatusBar, StatusBreakdown } from './StatusCharts.jsx';
+import { buildPeopleStatus, peopleRecordMatches } from './household-status.js';
 import './people.css';
 
 const EMPTY_PERSON = {
@@ -86,6 +88,7 @@ function PersonDetails({ person, onEdit, onRemove, id }) {
 export default function PeopleDirectory({ contacts, setContacts }) {
   const [search, setSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
+  const [recordFilter, setRecordFilter] = useState('all');
   const [expanded, setExpanded] = useState(null);
   const [editor, setEditor] = useState(null);
   const [removed, setRemoved] = useState(null);
@@ -93,9 +96,10 @@ export default function PeopleDirectory({ contacts, setContacts }) {
   const id = useId();
   const groups = [...new Set(contacts.map(groupName))];
   const query = search.trim().toLowerCase();
-  const filtered = contacts.filter(person => (!selectedGroup || groupName(person) === selectedGroup) && (!query || ['name', 'group', 'role', 'phone', 'medical', 'allergies', 'skills', 'notes'].some(field => String(person[field] || '').toLowerCase().includes(query))));
+  const filtered = contacts.filter(person => peopleRecordMatches(person, recordFilter) && (!selectedGroup || groupName(person) === selectedGroup) && (!query || ['name', 'group', 'role', 'phone', 'medical', 'allergies', 'skills', 'notes'].some(field => String(person[field] || '').toLowerCase().includes(query))));
   const visibleGroups = [...new Set(filtered.map(groupName))];
-  const dependantCount = contacts.filter(person => person.isDependant === true).length;
+  const status = buildPeopleStatus(contacts);
+  const showRecords = filter => { setRecordFilter(filter); setSearch(''); setSelectedGroup(''); };
   const toggleDependant = person => {
     setContacts(current => current.map(contact => contact.id === person.id ? { ...contact, isDependant: contact.isDependant !== true } : contact));
     setMessage(`${person.name} ${person.isDependant === true ? 'is no longer marked as a dependant' : 'marked as a dependant'}.`);
@@ -107,6 +111,7 @@ export default function PeopleDirectory({ contacts, setContacts }) {
     setExpanded(saved.id);
     setSearch('');
     setSelectedGroup('');
+    setRecordFilter('all');
     setMessage(`${saved.name} ${editor.person ? 'updated' : 'added'}.`);
   };
   const remove = person => {
@@ -126,17 +131,30 @@ export default function PeopleDirectory({ contacts, setContacts }) {
     setRemoved(null);
     setSearch('');
     setSelectedGroup('');
+    setRecordFilter('all');
     setExpanded(person.id);
     setMessage(`${person.name} restored.`);
   };
   return <section className="pv-people-directory" aria-label="People directory">
-    <div className="pv-people-plan-summary"><div><strong>{dependantCount} {dependantCount === 1 ? 'dependant' : 'dependants'} for food & water</strong><span id={`${id}-planning-note`}>{dependantCount ? 'Only marked dependants count toward these supplies.' : 'Mark people as dependants to calculate your food and water coverage.'}</span></div><FoodWaterInfo /></div>
+    <StatusPanel title="Your people, connected" description="See which contact details and responsibilities still need recording." note="These charts describe your directory. They do not confirm anyone’s location, safety or check-in status.">
+      <StatusRing title="Contact methods" value={`${status.contact}/${status.total}`} label="recorded" emptyLabel="No people yet" segments={[
+        { id: 'contact', label: 'Contact recorded', value: status.contact, tone: 'good', onClick: () => showRecords('contact') },
+        { id: 'missing', label: 'Needs a contact', value: status.missingContact, tone: 'unknown', onClick: () => showRecords('no-contact') },
+      ]} note="A phone number or another contact method, as entered in the directory."/>
+      <StatusBar title="Roles recorded" value={status.role} max={status.total} valueLabel={status.total ? `${status.role} of ${status.total}` : 'No people yet'} targetLabel="people with a role" tone={status.total ? status.missingRole ? 'warning' : 'good' : 'unknown'} note="A recorded responsibility helps everyone know their part. This does not rate skills or experience." onClick={status.missingRole ? () => showRecords('no-role') : undefined} actionLabel={`Review ${status.missingRole} missing ${status.missingRole === 1 ? 'role' : 'roles'}`}/>
+      <StatusBreakdown title="Food & water planning" rows={[
+        { id: 'dependants', label: 'Marked dependants', value: status.dependants, max: status.total, tone: 'neutral', onClick: () => showRecords('dependants') },
+        { id: 'others', label: 'Other contacts', value: status.others, max: status.total, tone: 'unknown', onClick: () => showRecords('other') },
+      ]} note="Only marked dependants count toward food and water needs. Mark yourself too if you use these supplies."/>
+    </StatusPanel>
+    <div className="pv-people-plan-note"><p id={`${id}-planning-note`}>Use the Dependant button beside each person to include them in food and water planning.</p><FoodWaterInfo /></div>
     <div className="pv-people-toolbar">
       <label className="pv-people-search"><Icon name="search" size={18}/><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Find someone…" aria-label="Search people"/>{search && <button aria-label="Clear people search" onClick={() => setSearch('')}><Icon name="close" size={15}/></button>}</label>
       <select className="pv-people-group-filter" value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)} aria-label="Filter people by group"><option value="">All groups</option>{groups.map(group => <option key={group}>{group}</option>)}{selectedGroup && !groups.includes(selectedGroup) && <option>{selectedGroup}</option>}</select>
+      <select className="pv-people-group-filter" value={recordFilter} onChange={event => setRecordFilter(event.target.value)} aria-label="Filter people by recorded details"><option value="all">All records</option><option value="contact">Contact recorded</option><option value="no-contact">Needs a contact</option><option value="no-role">Needs a role</option><option value="dependants">Marked dependants</option><option value="other">Other contacts</option></select>
       <button className="pv-button pv-primary" onClick={() => setEditor({ person: null })}><Icon name="plus" size={17}/>Add person</button>
     </div>
-    <div className="pv-people-directory-meta"><span>{filtered.length} {filtered.length === 1 ? 'person' : 'people'}{search || selectedGroup ? ` of ${contacts.length}` : ' in your directory'}</span><span>Select a person to view details</span></div>
+    <div className="pv-people-directory-meta"><span>{filtered.length} {filtered.length === 1 ? 'person' : 'people'}{search || selectedGroup || recordFilter !== 'all' ? ` of ${contacts.length}` : ' in your directory'}</span><span>Select a person to view details</span></div>
     <div role="status" className={removed || message ? 'pv-people-feedback' : 'pv-people-feedback is-empty'}>{removed ? <><span>{removed.person.name} removed.</span><button className="pv-people-text-button" onClick={undo}>Undo</button><button className="pv-people-icon-button" aria-label="Dismiss removal notice" onClick={() => setRemoved(null)}><Icon name="close" size={15}/></button></> : message}</div>
     {visibleGroups.map(group => <section key={group} className="pv-people-group" aria-label={group}>
       <header><h2>{group}</h2><span>{filtered.filter(person => groupName(person) === group).length}</span></header>
@@ -158,7 +176,7 @@ export default function PeopleDirectory({ contacts, setContacts }) {
         </article>;
       })}</div>
     </section>)}
-    {!filtered.length && <div className="pv-people-empty"><span><Icon name="users" size={27}/></span><h2>{contacts.length ? 'No matching people' : 'Keep your people close'}</h2><p>{contacts.length ? 'Try another name, role or group.' : 'Add the people you count on and keep their contact details in one place.'}</p>{contacts.length ? <button className="pv-button pv-secondary" onClick={() => { setSearch(''); setSelectedGroup(''); }}>Clear filters</button> : <button className="pv-button pv-primary" onClick={() => setEditor({ person: null })}>Add your first person</button>}</div>}
+    {!filtered.length && <div className="pv-people-empty"><span><Icon name="users" size={27}/></span><h2>{contacts.length ? 'No matching people' : 'Keep your people close'}</h2><p>{contacts.length ? 'Try another name, role, group or record filter.' : 'Add the people you count on and keep their contact details in one place.'}</p>{contacts.length ? <button className="pv-button pv-secondary" onClick={() => showRecords('all')}>Clear filters</button> : <button className="pv-button pv-primary" onClick={() => setEditor({ person: null })}>Add your first person</button>}</div>}
     {editor && <PersonDialog person={editor.person} groups={[...new Set(['Your Group', ...groups])]} onSave={save} onClose={() => setEditor(null)}/>}
   </section>;
 }

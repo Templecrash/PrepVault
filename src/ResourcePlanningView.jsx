@@ -1,6 +1,7 @@
 import { Fragment, useId, useMemo, useState } from 'react';
 import { Icon } from './brand.jsx';
-import { CONVERSIONS, computeResourcePools, buildResourceSystems, buildResourceRows, buildStockConversions, computeResourceTradeoff } from './resource-planning.js';
+import { StatusPanel, StatusBar, StatusBreakdown } from './StatusCharts.jsx';
+import { CONVERSIONS, computeResourcePools, buildResourceSystems, buildResourceRows, buildStockConversions, computeResourceTradeoff, buildResourceVisualSummary } from './resource-planning.js';
 import './inventory.css';
 import './resource-planning.css';
 
@@ -30,15 +31,15 @@ function ResourceRows({ rows, query, setQuery, filter, setFilter, people, climat
   if (sort === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
   if (sort === 'coverage') filtered.sort((a, b) => (a.days ?? Infinity) - (b.days ?? Infinity));
   return <div className="pv-inventory-workspace">
-    <div className="pv-inventory-toolbar"><SearchField label="Search resources" placeholder="Search resources or planning assumptions…" value={query} onChange={setQuery} /><label className="pv-inventory-select"><span className="pv-inventory-sr-only">Resource status</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">All resources</option><option value="below">Below planning target</option><option value="met">Meets planning target</option><option value="stock">Stock count only</option></select></label></div>
-    <div className="pv-inventory-results-bar"><p aria-live="polite"><strong>{filtered.length}</strong> {filtered.length === 1 ? 'resource' : 'resources'} · {people} {people === 1 ? 'person' : 'people'} · {climate}{(query || filter !== 'all') && <button onClick={clear}>Clear filters <Icon name="close" size={12} /></button>}</p><label className="pv-inventory-sort">Sort by <select aria-label="Sort resources" value={sort} onChange={event => setSort(event.target.value)}><option value="default">Planning order</option><option value="name">Name, A–Z</option><option value="coverage">Coverage, low first</option></select></label></div>
+    <div className="pv-inventory-toolbar"><SearchField label="Search resources" placeholder="Search resources or planning assumptions…" value={query} onChange={setQuery} /><label className="pv-inventory-select"><span className="pv-inventory-sr-only">Resource status</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">All resources</option><option value="below">Below planning target</option><option value="met">Meets planning target</option><option value="stock">Coverage not estimated</option></select></label></div>
+    <div className="pv-inventory-results-bar"><p aria-live="polite"><strong>{filtered.length}</strong> {filtered.length === 1 ? 'resource' : 'resources'} · {people} {people === 1 ? 'dependant' : 'dependants'} · {climate}{(query || filter !== 'all') && <button onClick={clear}>Clear filters <Icon name="close" size={12} /></button>}</p><label className="pv-inventory-sort">Sort by <select aria-label="Sort resources" value={sort} onChange={event => setSort(event.target.value)}><option value="default">Planning order</option><option value="name">Name, A–Z</option><option value="coverage">Coverage, low first</option></select></label></div>
     {filtered.length ? <table className="pv-inventory-table pv-resource-table"><thead><tr><th scope="col">Resource</th><th scope="col">Recorded stock</th><th scope="col">Estimated coverage</th><th scope="col">Planning target</th><th scope="col"><span className="pv-inventory-sr-only">Details</span></th></tr></thead><tbody>
       {filtered.map(row => {
         const open = expanded === row.id;
         const toggle = () => setExpanded(open ? null : row.id);
         return <Fragment key={row.id}><tr className={open ? 'is-expanded' : ''}>
-          <td className="pv-resource-name"><div className="pv-inventory-item"><span className="pv-inventory-item-symbol" aria-hidden="true">{row.icon}</span><div><button className="pv-inventory-item-name" onClick={toggle} aria-expanded={open} aria-controls={open ? `${id}-${row.id}` : undefined}>{row.name}</button><span className="pv-inventory-item-type">{row.days === null ? 'Track by quantity' : belowTarget(row) ? 'Below planning target' : 'Meets planning target'}</span></div></div></td>
-          <td data-label="Recorded stock">{row.qty} {row.unit || ''}</td><td data-label="Estimated coverage"><strong className="pv-resource-value">{row.days === null ? 'Not estimated' : `${number(row.days)} days`}</strong></td><td data-label="Planning target">{row.target ? `${row.target} days` : '—'}</td>
+          <td className="pv-resource-name"><div className="pv-inventory-item"><span className="pv-inventory-item-symbol" aria-hidden="true">{row.icon}</span><div><button className="pv-inventory-item-name" onClick={toggle} aria-expanded={open} aria-controls={open ? `${id}-${row.id}` : undefined}>{row.name}</button><span className="pv-inventory-item-type">{row.days === null ? row.target ? 'Planning data needed' : 'Track by quantity' : belowTarget(row) ? 'Below planning target' : 'Meets planning target'}</span></div></div></td>
+          <td data-label="Recorded stock">{row.qty} {row.unit || ''}</td><td data-label="Estimated coverage"><strong className="pv-resource-value">{row.days === null ? 'Not estimated' : `${row.minimum ? 'At least ' : ''}${number(row.days)} days`}</strong></td><td data-label="Planning target">{row.target ? `${row.target} days` : '—'}</td>
           <td className="pv-resource-toggle"><button onClick={toggle} aria-label={`${open ? 'Hide' : 'Show'} ${row.name} assumptions`} aria-expanded={open} aria-controls={open ? `${id}-${row.id}` : undefined}><Icon name="chevron" size={17} /></button></td>
         </tr>{open && <tr className="pv-resource-detail-row"><td colSpan={5}><div className="pv-resource-detail" id={`${id}-${row.id}`}><h3>Planning basis</h3><p>{row.detail}</p><p>{row.days === null ? 'A quantity alone does not establish how long this resource will last.' : 'Coverage uses the model’s preset consumption and equipment assumptions. Adjust your plan to the equipment and conditions you actually have.'}</p></div></td></tr>}</Fragment>;
       })}
@@ -97,21 +98,25 @@ function SystemMap({ systems }) {
   </div>;
 }
 
-export default function ResourcePlanningView({ items, people, climateConfig, opportunities, onSetup, onSupplies }) {
+export default function ResourcePlanningView({ items, people, climateConfig, dailyCalTarget = 2000, waterGalPerPerson = 1, opportunities, onSetup, onSupplies }) {
   const [section, setSection] = useState('stock');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [from, setFrom] = useState('power');
   const [to, setTo] = useState('heat');
   const [amount, setAmount] = useState(25);
-  const resources = useMemo(() => computeResourcePools(items, people, climateConfig), [items, people, climateConfig]);
-  const rows = useMemo(() => buildResourceRows(items, people, climateConfig), [items, people, climateConfig]);
+  const resources = useMemo(() => computeResourcePools(items, people, climateConfig, { dailyCalTarget, waterGalPerPerson }), [items, people, climateConfig, dailyCalTarget, waterGalPerPerson]);
+  const rows = useMemo(() => buildResourceRows(items, people, climateConfig, { dailyCalTarget, waterGalPerPerson }), [items, people, climateConfig, dailyCalTarget, waterGalPerPerson]);
   const systems = useMemo(() => buildResourceSystems(items, resources), [items, resources]);
-  const shortfalls = rows.filter(belowTarget).length;
+  const summary = buildResourceVisualSummary(resources, rows);
   const showResources = status => { setSection('stock'); setQuery(''); setFilter(status); };
   return <section className="pv-inventory pv-resource-planning" aria-labelledby="resource-planning-title">
     <header className="pv-inventory-heading"><div><p className="pv-inventory-eyebrow">MAKE YOUR RESOURCES GO FURTHER</p><h1 id="resource-planning-title">Resource planning<span>.</span></h1><p className="pv-inventory-intro">See what you have, how it connects, and where your plan could improve.</p></div><div className="pv-inventory-actions"><button className="pv-inventory-button pv-inventory-button-secondary" onClick={onSetup}><Icon name="settings" size={18} />Household setup</button><button className="pv-inventory-button pv-inventory-button-primary" onClick={onSupplies}><Icon name="box" size={18} />View supplies</button></div></header>
-    <div className="pv-inventory-overview"><button className="pv-inventory-stat pv-inventory-stat-action" onClick={() => showResources('all')} aria-pressed={section === 'stock' && filter === 'all'}><span className="pv-inventory-stat-icon"><Icon name="box" size={22} /></span><div><span className="pv-inventory-stat-value">{rows.length}<small>resources to review</small></span><p>Coverage and recorded stock</p></div><Icon name="arrow" size={18} /></button><button className="pv-inventory-stat pv-inventory-stat-action" onClick={() => showResources('below')} aria-pressed={section === 'stock' && filter === 'below'}><span className="pv-inventory-stat-icon"><Icon name="clock" size={22} /></span><div><span className="pv-inventory-stat-value">{shortfalls}<small>below planning target</small></span><p>Start where coverage is shortest</p></div><Icon name="arrow" size={18} /></button><button className="pv-inventory-stat pv-inventory-stat-action" onClick={() => setSection('graph')} aria-pressed={section === 'graph'}><span className="pv-inventory-stat-icon"><Icon name="compass" size={22} /></span><div><span className="pv-inventory-stat-value">{systems.length}<small>connected systems</small></span><p>Trace the components you rely on</p></div><Icon name="arrow" size={18} /></button></div>
+    <StatusPanel title="How far your resources can go" description="Separate coverage targets and energy estimates, based on your recorded stock." note="Food and water use your dependant count and rationing settings. Fuel, heat and electricity use planning assumptions; equipment, weather and actual consumption can change the result.">
+      <StatusBreakdown title="Estimated reserve coverage" rows={summary.reserves.map(row => ({ ...row, onClick: () => { showResources('all'); setQuery(rows.find(resource => resource.id === row.id).name); } }))} note="Each bar has its own day target. Open a resource below to review its assumptions."/>
+      <StatusBar title="Daily solar model" {...summary.solar} note={`${resources.solarPanels} recorded panels × 100 W × 5 effective sun hours. Compared with an assumed 2 kWh/day load; other power sources are separate.`} onClick={() => setSection('convert')} actionLabel="See conversion assumptions"/>
+      <StatusBar title="Potential stored electricity" {...summary.storedPower} note="Assumes 5.5 kWh per gallon of gasoline with a compatible generator, plus 3 Wh per AA-equivalent cell. This is potential output, not verified usable capacity." onClick={() => setSection('tradeoff')} actionLabel="Explore the energy budget"/>
+    </StatusPanel>
     <nav className="pv-resource-sections" aria-label="Resource planning sections">{SECTIONS.map(([key, label]) => <button key={key} className={section === key ? 'is-active' : ''} onClick={() => setSection(key)} aria-current={section === key ? 'page' : undefined}>{label}</button>)}</nav>
     {section === 'stock' && <ResourceRows rows={rows} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} people={resources.people} climate={climateConfig.label} />}
     {section === 'convert' && <ConversionTable resources={resources} />}

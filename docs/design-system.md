@@ -41,3 +41,14 @@ At mobile sizes, summaries and forms stack, tables become readable record rows o
 ## Review before release
 
 Review every navigation destination and its empty state, representative populated state, primary dialog, and mobile layout. Check that warnings retain their meaning, shared controls look consistent, and no saved record is changed by a visual update. Verify inventory changes survive reload, property filters, backup round trips, Calendar, and Survival LLM context.
+
+
+## Readiness charts
+
+Use `StatusPanel`, `StatusRing`, `StatusBar` and `StatusBreakdown` from `src/StatusCharts.jsx` for compact visual summaries. Replace existing text-only stat strips rather than duplicating them. Two or three neutral cards should explain the current page; preserve space for its records and actions. Do not add ratings to the sidebar or reintroduce the removed Overview essentials tiles.
+
+Use small green, amber and red chart marks for an explicitly stated condition. Unknown or missing measurements use a gray or hatched track. Pair every color with a text label, value and basis. Stock, record completeness, checklist completion and estimated duration are distinct measures; never describe one as an overall safety score. Possible equipment matches are not verified backups.
+
+Use actual property-filtered records. Count entries or like-for-like units; do not combine litres, batteries and food packages into one quantity. Show the denominator and reference for every progress bar. Planning windows must be named and may be adjusted without changing stored inventory. A missing household size, quantity, date or runtime must not imply zero need or confirmed readiness.
+
+Charts offer direct drill-down through labelled buttons where a matching filter or editor exists. Legends remain readable with keyboard navigation and without color. Empty states show what information is needed, not an invented percentage. SVGs and CSS bars add no charting-library payload and derive their values from the same records as the tables.

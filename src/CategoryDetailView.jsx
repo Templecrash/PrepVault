@@ -1,5 +1,7 @@
 import FoodWaterInfo from "./FoodWaterInfo.jsx";
 import InventoryRecommendations from "./InventoryRecommendations.jsx";
+import { StatusPanel, StatusRing, StatusBar, StatusBreakdown } from './StatusCharts.jsx';
+import { buildInventoryVisuals, essentialCoverageVisual, inventoryMatchesStatus, recordedQuantity, scopeInventoryItems, subtypeStockRows } from './inventory-visuals.js';
 import { buildEssentialPlanning } from './essential-planning.js';
 import { Fragment, useId, useMemo, useState } from 'react';
 import { Icon } from './brand.jsx';
@@ -13,7 +15,7 @@ const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || '')
 export default function CategoryDetailView({ catKey, items = [], people, climate, onBack, onAdd, onRemove, onEdit, onQtyChange,
   categories, climates, fieldMeta = {}, refreshStatus, expiryStatus, parseVolMl, standalone = false, planningOverride, onPeople, onRationing, onScan, recommendationPeopleCount = 0, dailyCalTarget = 2000, waterGalPerPerson = 1, propertyId, alerts = [], recommendationActions }) {
   const cat = categories[catKey];
-  const ci = useMemo(() => items.filter(item => item.category === catKey), [items, catKey]);
+  const ci = useMemo(() => scopeInventoryItems(items, propertyId).filter(item => item.category === catKey), [items, propertyId, catKey]);
   const p = people || 4;
   const clim = climates[climate] || climates.temperate;
   const firewoodMod = clim.firewoodMod || 1;
@@ -302,25 +304,27 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
   const calc = planningOverride === undefined ? legacyCalc : planningOverride;
   const addLabel = standalone && catKey === 'power' ? 'Add power equipment' : standalone && ['food', 'water'].includes(catKey) ? `Add ${catKey}` : 'Add supply';
 
-  const inventory = ci.map(item => ({ item,
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayTime = today.getTime();
+  const visuals = useMemo(() => buildInventoryVisuals({ items: ci, categories, alerts, now: todayTime }), [ci, categories, alerts, todayTime]);
+  const coverage = essentialCoverageVisual(catKey, ci, recommendationPeopleCount, dailyCalTarget, waterGalPerPerson, visuals.inventory);
+  const typeRows = subtypeStockRows(visuals.inventory, cat).sort((a, b) => b.recorded - a.recorded);
+  const inventory = visuals.inventory.map(({ condition, ...item }) => ({ item, condition,
     expiry: item.fields?.expiryDate ? expiryStatus(item.fields.expiryDate) : null,
     refresh: item.fields?.lastRefreshed ? refreshStatus(item.fields.lastRefreshed) : null,
   }));
   const subtypeEntries = Object.entries(cat.subTypes);
-  const recordedTypes = new Set(ci.map(item => item.subType));
-  const quantity = ci.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const filtersActive = Boolean(query.trim()) || type !== 'all' || status !== 'all';
   const clearFilters = () => { setQuery(''); setType('all'); setStatus('all'); };
-  const visible = inventory.filter(({ item, expiry, refresh }) => {
+  const visible = inventory.filter(({ item, condition }) => {
     if (type !== 'all' && item.subType !== type) return false;
-    if (status === 'attention' && !expiry?.u && !refresh?.u) return false;
-    if (status === 'empty' && Number(item.quantity) > 0) return false;
-    if (status === 'stocked' && !(Number(item.quantity) > 0)) return false;
+    if (!inventoryMatchesStatus({ ...item, condition }, status)) return false;
     return [item.name, item.location, cat.subTypes[item.subType]?.label, item.notes, ...Object.values(item.fields || {}).filter(hasValue).map(fieldValue)].join(' ').toLowerCase().includes(query.trim().toLowerCase());
   }).sort((a, b) => {
     if (sort === 'quantity') return (a.item.quantity || 0) - (b.item.quantity || 0) || byName(a.item, b.item);
     if (sort === 'type') return String(cat.subTypes[a.item.subType]?.label || a.item.subType).localeCompare(String(cat.subTypes[b.item.subType]?.label || b.item.subType)) || byName(a.item, b.item);
-    if (sort === 'attention') return Number(Boolean(b.expiry?.u || b.refresh?.u)) - Number(Boolean(a.expiry?.u || a.refresh?.u)) || byName(a.item, b.item);
+    if (sort === 'attention') return Number(b.condition.state === 'attention') - Number(a.condition.state === 'attention') || byName(a.item, b.item);
     return byName(a.item, b.item);
   });
 
@@ -331,14 +335,14 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
       <div className="pv-inventory-actions">{onRationing && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onRationing}><Icon name="ration" size={18}/>Rationing</button>}{onScan && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onScan}><Icon name="scan" size={18}/>Scan barcode</button>}<button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={() => onAdd(catKey)}><Icon name="plus" size={18}/>{addLabel}</button></div>
     </header>
     {onPeople && <div className="pv-category-people"><span>Food and water count only dependants selected in Your People.</span><FoodWaterInfo /><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onPeople}><Icon name="users" size={16}/>Manage dependants</button></div>}
-    <div className="pv-inventory-overview">
-      <button type="button" className="pv-inventory-stat pv-inventory-stat-action" aria-pressed={!filtersActive} onClick={clearFilters}><span className="pv-inventory-stat-icon"><Icon name="box" size={22}/></span><div><span className="pv-inventory-stat-value">{ci.length}<small>recorded supplies</small></span><p>{quantity} total quantity recorded</p></div><Icon name="arrow" size={18}/></button>
-      <div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><Icon name="list" size={22}/></span><div><span className="pv-inventory-stat-value">{subtypeEntries.filter(([key]) => recordedTypes.has(key)).length}<small>of {subtypeEntries.length} types recorded</small></span><p>Explore the full category below</p></div></div>
-      <div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><Icon name={calc ? 'compass' : 'users'} size={22}/></span><div><span className="pv-inventory-stat-value">{calc ? calc.bigNum : p}<small>{calc ? calc.bigUnit : 'people in your plan'}</small></span><p>{calc ? calc.title : `${clim.label || climate || 'Temperate'} climate`}</p></div></div>
-    </div>
+    <StatusPanel title="Your stock, at a glance" description="See recorded stock, outstanding checks and the details still needed. Select a label to filter the supplies below." action={<button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={clearFilters}>All entries</button>}>
+      <StatusRing title="Stock records" segments={visuals.segments.map(segment => ({ ...segment, onClick: () => { clearFilters(); setStatus(segment.id); } }))} value={visuals.total} label="recorded entries" note="Positive stock with no recorded checks due. Counts entries, not quantities or overall readiness."/>
+      {coverage && <StatusBar {...coverage} onClick={catKey === 'food' || catKey === 'water' ? onRationing : undefined} actionLabel="Review ration settings"/>}
+      <StatusBreakdown title="Stock by type" rows={typeRows.slice(0, 5).map(row => ({ ...row, onClick: () => { clearFilters(); setType(row.id); } }))} note={`Bars show entries with a positive quantity. Colour reflects outstanding checks, not how much you need.${typeRows.length > 5 ? ' Showing the five most recorded types; explore this category below for all types.' : ''}`}/>
+    </StatusPanel>
 
     {calc && <details className="pv-category-analysis">
-      <summary><span className="pv-category-summary-icon"><Icon name="compass" size={19}/></span><span><strong>{calc.title}</strong><small>{calc.summary || <>{p} people · {climate || 'temperate'} climate · {quantity} items logged</>}</small></span><span className="pv-category-summary-action">View calculations<Icon name="chevron" size={16}/></span></summary>
+      <summary><span className="pv-category-summary-icon"><Icon name="compass" size={19}/></span><span><strong>{calc.title}</strong><small>{calc.summary || <>{ci.length} recorded entries · {climate || 'temperate'} climate</>}</small></span><span className="pv-category-summary-action">View calculations<Icon name="chevron" size={16}/></span></summary>
       <div className="pv-category-analysis-body"><table><caption className="pv-inventory-sr-only">{calc.title} calculations</caption><thead><tr><th scope="col">Measure</th><th scope="col">Basis</th><th scope="col">Result</th></tr></thead><tbody>{calc.rows.map((row, index) => <tr key={`${row.label}-${index}`} className={row.highlight ? 'is-highlighted' : undefined}><th scope="row">{row.label}</th><td>{row.note || '—'}</td><td>{row.value}</td></tr>)}</tbody></table></div>
     </details>}
 
@@ -349,13 +353,13 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
         <div className="pv-inventory-search"><Icon name="search" size={18}/><input type="search" aria-label={`Search ${cat.label.toLowerCase()} supplies`} placeholder="Search names, locations or details…" value={query} onChange={event => setQuery(event.target.value)}/></div>
         <div className="pv-inventory-filters">
           <label className="pv-inventory-select"><span className="pv-inventory-sr-only">Supply type</span><select value={type} onChange={event => setType(event.target.value)}><option value="all">All types</option>{subtypeEntries.map(([key, sub]) => <option key={key} value={key}>{sub.label}</option>)}</select></label>
-          <label className="pv-inventory-select"><span className="pv-inventory-sr-only">Supply status</span><select value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option><option value="attention">Needs review</option><option value="stocked">In stock</option><option value="empty">Out of stock</option></select></label>
+          <label className="pv-inventory-select"><span className="pv-inventory-sr-only">Supply status</span><select value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option><option value="attention">Needs review</option><option value="ready">In stock</option><option value="stocked">Any positive quantity</option><option value="unknown">Unconfirmed</option><option value="empty">Out of stock</option></select></label>
         </div>
       </div>
       <div className="pv-inventory-results-bar"><p aria-live="polite"><strong>{visible.length}</strong> {visible.length === 1 ? 'supply' : 'supplies'}{filtersActive ? ' found' : ' in this category'}{filtersActive && <button type="button" onClick={clearFilters}>Clear filters <Icon name="close" size={12}/></button>}</p><label className="pv-inventory-sort">Sort by <select aria-label="Sort category supplies" value={sort} onChange={event => setSort(event.target.value)}><option value="name">Name, A–Z</option><option value="type">Type</option><option value="quantity">Quantity, low first</option><option value="attention">Needs review first</option></select></label></div>
       {visible.length ? <table className="pv-inventory-table pv-category-table">
         <thead><tr><th scope="col">Supply</th><th scope="col">Location</th><th scope="col">Quantity</th><th scope="col">Review</th><th scope="col"><span className="pv-inventory-sr-only">Actions</span></th></tr></thead>
-        <tbody>{visible.map(({ item, expiry, refresh }) => {
+        <tbody>{visible.map(({ item, condition, expiry, refresh }) => {
           const expanded = expandedId === item.id;
           const toggle = () => setExpandedId(expanded ? null : item.id);
           const regionId = `${id}-${item.id}`;
@@ -365,8 +369,8 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
             <tr className={`pv-category-row${expanded ? ' is-expanded' : ''}`}>
               <td className="pv-category-item"><div className="pv-inventory-item"><span className="pv-inventory-item-symbol"><Icon name="box" size={19}/></span><div><button type="button" className="pv-inventory-item-name" onClick={toggle} aria-expanded={expanded} aria-controls={expanded ? regionId : undefined}>{item.name}</button><span className="pv-inventory-item-type">{sub?.label || item.subType || 'Other'}</span></div></div></td>
               <td className="pv-category-location" data-label="Location">{item.location || 'Not recorded'}</td>
-              <td className="pv-category-quantity" data-label="Quantity"><div className="pv-category-quantity-wrap"><div className="pv-inventory-quantity"><button type="button" aria-label={`Decrease ${item.name} quantity`} disabled={!onQtyChange || !(Number(item.quantity) > 0)} onClick={() => onQtyChange?.(item.id, -1)}>−</button><span>{item.quantity ?? 0}</span><button type="button" aria-label={`Increase ${item.name} quantity`} disabled={!onQtyChange} onClick={() => onQtyChange?.(item.id, 1)}><Icon name="plus" size={12}/></button></div>{sub?.unit && <small>{sub.unit}</small>}</div></td>
-              <td className="pv-category-review" data-label="Review"><div>{expiry && <span className={expiry.u ? 'needs-review' : undefined}>Expiry · {expiry.l}</span>}{refresh && <span className={refresh.u ? 'needs-review' : undefined}>Refresh · {refresh.l}</span>}{!expiry && !refresh && <span>No dates recorded</span>}</div></td>
+              <td className="pv-category-quantity" data-label="Quantity"><div className="pv-category-quantity-wrap"><div className="pv-inventory-quantity"><button type="button" aria-label={`Decrease ${item.name} quantity`} disabled={!onQtyChange || !(Number(item.quantity) > 0)} onClick={() => onQtyChange?.(item.id, -1)}>−</button><span>{recordedQuantity(item.quantity)?.toLocaleString() ?? '—'}</span><button type="button" aria-label={`Increase ${item.name} quantity`} disabled={!onQtyChange} onClick={() => onQtyChange?.(item.id, 1)}><Icon name="plus" size={12}/></button></div>{sub?.unit && <small>{sub.unit}</small>}</div></td>
+              <td className="pv-category-review" data-label="Review"><div><span className={condition.state === 'attention' ? 'needs-review' : undefined}>{condition.label}</span>{condition.state === 'unknown' && <span>{condition.detail}</span>}{expiry && <span className={expiry.u ? 'needs-review' : undefined}>Expiry · {expiry.l}</span>}{refresh && <span className={refresh.u ? 'needs-review' : undefined}>Refresh · {refresh.l}</span>}{!expiry && !refresh && condition.state !== 'unknown' && <span>{condition.detail}</span>}</div></td>
               <td className="pv-category-actions"><div><button type="button" aria-label={`Edit ${item.name}`} onClick={() => onEdit(item)}><Icon name="edit" size={16}/></button><button type="button" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.id)}><Icon name="trash" size={16}/></button><button type="button" className="pv-category-toggle" onClick={toggle} aria-label={`${expanded ? 'Hide' : 'Show'} ${item.name} details`} aria-expanded={expanded} aria-controls={expanded ? regionId : undefined}><Icon name="chevron" size={16}/></button></div></td>
             </tr>
             {expanded && <tr className="pv-category-detail-row"><td colSpan={5}><div className="pv-category-record" id={regionId} role="region" aria-label={`${item.name} details`}><div className="pv-category-record-heading"><h2>Supply details</h2><button type="button" onClick={() => onEdit(item)}>Edit details<Icon name="edit" size={13}/></button></div>{fields.length ? <dl>{fields.map(([key, value]) => <div key={key}><dt>{fieldMeta[key]?.label || key}</dt><dd>{fieldValue(value)}</dd></div>)}</dl> : <p>No additional fields recorded for this supply.</p>}{item.notes && <div className="pv-category-record-notes"><h3>Notes</h3><p>{item.notes}</p></div>}</div></td></tr>}
@@ -380,8 +384,9 @@ export default function CategoryDetailView({ catKey, items = [], people, climate
       <summary><span><strong>Explore this category</strong><small>All {subtypeEntries.length} supply types, including those you have not recorded yet</small></span><Icon name="chevron" size={17}/></summary>
       <div className="pv-category-type-list">{subtypeEntries.map(([key, sub]) => {
         const supplies = ci.filter(item => item.subType === key);
-        const total = supplies.reduce((sum, item) => sum + item.quantity, 0);
-        return <div className="pv-category-type" key={key}><span>{sub.label}</span><small>{supplies.length ? `${total} ${sub.unit || ''}` : 'None recorded'}</small><button type="button" onClick={() => { if (supplies.length) { setQuery(''); setStatus('all'); setType(key); } else onAdd(catKey, key); }}>{supplies.length ? 'View supplies' : 'Add supply'}<Icon name={supplies.length ? 'arrow' : 'plus'} size={14}/></button></div>;
+        const total = supplies.reduce((sum, item) => sum + (recordedQuantity(item.quantity) ?? 0), 0);
+        const unknownQuantity = supplies.some(item => recordedQuantity(item.quantity) === null);
+        return <div className="pv-category-type" key={key}><span>{sub.label}</span><small>{supplies.length ? `${total} ${sub.unit || ''}${unknownQuantity ? ' · some quantities unknown' : ''}` : 'None recorded'}</small><button type="button" onClick={() => { if (supplies.length) { setQuery(''); setStatus('all'); setType(key); } else onAdd(catKey, key); }}>{supplies.length ? 'View supplies' : 'Add supply'}<Icon name={supplies.length ? 'arrow' : 'plus'} size={14}/></button></div>;
       })}</div>
     </details>
   </section>;

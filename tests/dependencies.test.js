@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDependencyChecks } from '../src/dependencies.js';
+import { buildDependencyChecks, summarizeDependencies } from '../src/dependencies.js';
 
 const byId = checks => Object.fromEntries(checks.map(check => [check.id, check]));
 
@@ -47,7 +47,8 @@ test('retains communication, water and heating alternatives and their guidance',
   ]));
   assert.equal(checks.phone.backup, 'HAM Radio');
   assert.equal(checks.phone.fix, 'HAM radio is grid-independent.');
-  assert.equal(checks.waterFilter.backup, 'Gravity filter');
+  assert.equal(checks.waterFilter.backup, 'Purification tablets');
+  assert.match(checks.waterFilter.fix, /label, expiry and treatment limits/);
   assert.equal(checks.furnace.fix, 'Wood stove is grid-independent.');
   assert.equal(checks.furnace.backup, null);
   assert.equal(checks.internet.backup, null);
@@ -113,4 +114,38 @@ test('zero, missing and invalid quantities never indicate a recorded backup', ()
     const checks = buildDependencyChecks(types.map(([category, subType]) => ({ category, subType, quantity })));
     assert.ok(checks.every(check => check.backup === null), String(quantity));
   }
+});
+
+
+test('dependency summary distinguishes unmatched checks from possible backups by priority', () => {
+  const empty = summarizeDependencies(buildDependencyChecks([]));
+  assert.equal(empty.total, 13);
+  assert.equal(empty.missing, 13);
+  assert.equal(empty.criticalMissing, 4);
+  assert.equal(empty.possible, 0);
+  const checks = buildDependencyChecks([{ category: 'power', subType: 'generator', quantity: 20 }]);
+  const before = structuredClone(checks);
+  const result = summarizeDependencies(checks);
+  assert.equal(result.total, 13);
+  assert.equal(result.possible, 6);
+  assert.equal(result.missing, 7);
+  assert.equal(result.criticalMissing, 1);
+  assert.deepEqual(result.priorities[0], { id: 'critical', total: 4, missing: 1 });
+  assert.equal(result.hiddenMissing, 6);
+  assert.deepEqual(checks, before);
+  assert.equal(summarizeDependencies(buildDependencyChecks([{ category: 'power', subType: 'generator', quantity: 0 }])).possible, 0);
+});
+
+
+test('purification devices and tablets retain their actual type without promising a gravity backup', () => {
+  for (const subType of ['purificationDevice', 'filter']) {
+    const device = byId(buildDependencyChecks([{ category: 'water', subType, quantity: 1 }])).waterFilter;
+    assert.equal(device.backup, 'Purification device · check type');
+    assert.match(device.fix, /does not confirm a non-electric backup/);
+    assert.doesNotMatch(device.backup, /Gravity/);
+  }
+  const tablets = byId(buildDependencyChecks([{ category: 'water', subType: 'purificationTablets', quantity: 10 }])).waterFilter;
+  assert.equal(tablets.backup, 'Purification tablets');
+  assert.doesNotMatch(tablets.fix, /Gravity/);
+  assert.equal(byId(buildDependencyChecks([{ category: 'water', subType: 'purificationDevice', quantity: 0 }])).waterFilter.backup, null);
 });

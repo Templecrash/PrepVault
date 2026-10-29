@@ -76,6 +76,42 @@ export function vehicleTankSummary(item) {
   return { current, capacity, unit, percent };
 }
 
+// A future reminder alone cannot establish service status when a configured
+// mileage/hour reminder has no comparable current reading.
+export function vehicleServiceReadiness(item, now = new Date()) {
+  if (!isVehicleRecord(item) || !(finiteNumber(item.quantity) > 0)) return null;
+  const service = vehicleServiceStatus(item, now);
+  if (service.status === 'due' || service.status === 'soon') return service.status;
+  const fields = item.fields || {};
+  const supplied = value => value !== undefined && value !== null && value !== '';
+  const dateUnknown = supplied(fields.nextService) && dateDay(fields.nextService) === null;
+  const mileageUnknown = supplied(fields.nextServiceMileage) && (finiteNumber(fields.nextServiceMileage) === null || finiteNumber(fields.mileage) === null || !VEHICLE_DISTANCE_UNITS.includes(fields.mileageUnit));
+  const hoursUnknown = supplied(fields.nextServiceHours) && (finiteNumber(fields.nextServiceHours) === null || finiteNumber(fields.hoursOnEngine) === null);
+  return service.status === 'unrecorded' || dateUnknown || mileageUnknown || hoursUnknown ? 'unknown' : 'current';
+}
+
+export function vehicleReadinessSummary(items = [], now = new Date()) {
+  const vehicles = items.filter(isVehicleRecord);
+  const available = vehicles.filter(item => finiteNumber(item.quantity) > 0);
+  const service = { current: 0, soon: 0, due: 0, unknown: 0 };
+  const tanks = [];
+  for (const item of available) {
+    service[vehicleServiceReadiness(item, now)] += 1;
+    const fuelType = String(item.fields?.fuelType || '').trim().toLowerCase();
+    if (['electric', 'human powered', 'human-powered'].includes(fuelType) || item.subType === 'bicycle' && !fuelType) continue;
+    const tank = vehicleTankSummary(item);
+    const known = tank.percent !== null;
+    const format = value => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+    tanks.push({
+      id: item.id, label: item.name || 'Unnamed vehicle',
+      value: known ? tank.current : null, max: known ? tank.capacity : null,
+      valueLabel: known ? `${format(tank.current)} / ${format(tank.capacity)} ${tank.unit}` : 'Tank details needed',
+      tone: !known ? 'unknown' : tank.current === 0 ? 'danger' : tank.current / tank.capacity < 0.5 ? 'warning' : 'good',
+    });
+  }
+  return { availableCount: available.length, excludedCount: vehicles.length - available.length, service, tanks };
+}
+
 export function vehicleSupplyQuantity(item, categories = {}) {
   const quantity = finiteNumber(item?.quantity);
   const unit = categories[item?.category]?.subTypes?.[item?.subType]?.unit || 'items';

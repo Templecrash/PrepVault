@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import process from 'node:process';
 import {
   isVehicleRecord, linkVehicleSupply, prepareVehicleUpdate, recordVehicleService,
-  splitVehicleInventory, vehicleServiceStatus, vehicleSupplyQuantity, vehicleTankSummary,
+  splitVehicleInventory, vehicleServiceReadiness, vehicleReadinessSummary, vehicleServiceStatus, vehicleSupplyQuantity, vehicleTankSummary,
 } from '../src/vehicles.js';
 
 const now = new Date('2026-10-28T12:00:00');
@@ -155,4 +155,60 @@ test('unrelated edits preserve legacy readings without forcing a guessed unit', 
   assert.throws(() => prepareVehicleUpdate(legacy, { mileage: 69000 }, now), /kilometres or miles/);
   assert.throws(() => prepareVehicleUpdate(legacy, { tankFuel: 21 }, now), /litres/);
   assert.throws(() => prepareVehicleUpdate(vehicle, { mileageUnit: '' }, now), /kilometres or miles/);
+});
+
+
+test('service charts count stocked vehicle records, not their quantity or spare parts', () => {
+  const items = [
+    { ...vehicle, id: 'current', quantity: 3, fields: { nextService: '2027-02-01', mileage: 10, mileageUnit: 'km', nextServiceMileage: 100 } },
+    { ...vehicle, id: 'soon' },
+    { ...vehicle, id: 'due', fields: { hoursOnEngine: 200, nextServiceHours: 200 } },
+    { ...vehicle, id: 'unknown', fields: {} },
+    { ...vehicle, id: 'zero', quantity: 0 },
+    { ...vehicle, id: 'invalid', quantity: ' ' },
+    { ...vehicle, id: 'part', subType: 'spareParts' },
+  ];
+  const before = structuredClone(items);
+  const result = vehicleReadinessSummary(items, now);
+  assert.equal(result.availableCount, 4);
+  assert.equal(result.excludedCount, 2);
+  assert.deepEqual(result.service, { current: 1, soon: 1, due: 1, unknown: 1 });
+  assert.deepEqual(items, before);
+});
+
+test('future service reminders are not current when any configured meter cannot be checked', () => {
+  const record = fields => ({ ...vehicle, fields: { nextService: '2027-02-01', ...fields } });
+  for (const fields of [{ nextServiceMileage: 100 }, { nextServiceMileage: 100, mileage: 10 }, { nextServiceHours: 100 }, { nextServiceHours: 'bad', hoursOnEngine: 1 }, { nextService: '2027-02-31' }]) {
+    assert.equal(vehicleServiceReadiness(record(fields), now), 'unknown');
+  }
+  assert.equal(vehicleServiceReadiness(record({ nextServiceMileage: 100, mileage: 10, mileageUnit: 'mi' }), now), 'current');
+  assert.equal(vehicleServiceReadiness(record({ nextServiceMileage: 100, mileage: 100, mileageUnit: 'mi', nextServiceHours: 10 }), now), 'due');
+  assert.equal(vehicleServiceReadiness({ ...record({}), quantity: 0 }, now), null);
+});
+
+test('tank gauges keep units separate and distinguish empty, missing and invalid readings', () => {
+  const records = [
+    { ...vehicle, id: 'litres', fields: { tankFuel: 25, tankCapacity: 50, fuelUnit: 'L' } },
+    { ...vehicle, id: 'us', fields: { tankFuel: 1, tankCapacity: 20, fuelUnit: 'US gal' } },
+    { ...vehicle, id: 'empty', fields: { tankFuel: 0, tankCapacity: 20, fuelUnit: 'Imp gal' } },
+    { ...vehicle, id: 'missing', fields: { tankCapacity: 20, fuelUnit: 'L', empProtection: 'installed' } },
+    { ...vehicle, id: 'invalid', fields: { tankFuel: 30, tankCapacity: 20, fuelUnit: 'L' } },
+    { ...vehicle, id: 'no-unit', fields: { tankFuel: 10, tankCapacity: 20 } },
+    { ...vehicle, id: 'bike', subType: 'bicycle', fields: {} },
+    { ...vehicle, id: 'electric', fields: { fuelType: 'Electric' } },
+  ];
+  const tanks = Object.fromEntries(vehicleReadinessSummary(records, now).tanks.map(row => [row.id, row]));
+  assert.equal(tanks.litres.value, 25);
+  assert.equal(tanks.litres.max, 50);
+  assert.equal(tanks.litres.tone, 'good');
+  assert.equal(tanks.us.valueLabel, '1 / 20 US gal');
+  assert.equal(tanks.us.tone, 'warning');
+  assert.equal(tanks.empty.tone, 'danger');
+  assert.equal(tanks.empty.value, 0);
+  for (const id of ['missing', 'invalid', 'no-unit']) {
+    assert.equal(tanks[id].value, null);
+    assert.equal(tanks[id].tone, 'unknown');
+  }
+  assert.equal(tanks.bike, undefined);
+  assert.equal(tanks.electric, undefined);
 });
