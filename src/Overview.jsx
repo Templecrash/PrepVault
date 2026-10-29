@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./brand.jsx";
-import FoodWaterInfo from "./FoodWaterInfo.jsx";
 import OverviewInsights from "./OverviewInsights.jsx";
 import LocationView from "./LocationView.jsx";
 import OverviewSurveillance from "./OverviewSurveillance.jsx";
@@ -8,22 +7,7 @@ import { summarizeOverviewInventory } from "./overview-metrics.js";
 import { computeEssentialCoverage } from "./essential-coverage.js";
 import "./overview.css";
 
-const ESSENTIALS = [
-  { key: "water", icon: "water", name: "Water", tone: "blue" },
-  { key: "food", icon: "leaf", name: "Food", tone: "green" },
-  { key: "medical", icon: "plus", name: "Medical", tone: "rose" },
-  { key: "power", icon: "bolt", name: "Power", tone: "amber" },
-];
-
-function EssentialCoverage({ category, stats, coverage, icon, tone, onClick }) {
-  return <button type="button" className={`pv-essential pv-tone-${tone}`} onClick={onClick}>
-    <span className="pv-essential-top"><span className="pv-icon-tile"><Icon name={icon} size={19} /></span><span>{category?.label}</span><Icon name="arrow" size={15} /></span>
-    <span className="pv-essential-count">{coverage.days == null ? '—' : coverage.days.toLocaleString()}<span>{coverage.days === 1 ? 'full day' : 'full days'}</span></span>
-    <span className="pv-essential-basis">{coverage.basis}</span>
-    <span className="pv-essential-detail">{coverage.detail}</span>
-    <span className="pv-essential-foot">{stats.recordedEntries} {stats.recordedEntries === 1 ? 'entry' : 'entries'} · {stats.stockedTypes}/{stats.totalTypes} types in stock</span>
-  </button>;
-}
+const ESSENTIAL_CATEGORY_KEYS = new Set(["water", "food", "medical", "power"]);
 
 export default function Overview({ items = [], categories = {}, people = 0, property, alerts = [], onNavigate, onCategory, onAdd, onCrisis, onScan, members = [], rationPeople = [], dailyCalTarget = 2000, waterGalPerPerson = 1 }) {
   const [showAllPriorities, setShowAllPriorities] = useState(false);
@@ -37,8 +21,7 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
       .sort((a, b) => Number(b.ac === "#ef4444") - Number(a.ac === "#ef4444"));
     return { categoryKeys, summary, priorities: uniqueAlerts };
   }, [items, categories, alerts]);
-  const essentialsKeys = new Set(ESSENTIALS.map(essential => essential.key));
-  const otherCategories = overview.categoryKeys.filter(key => !essentialsKeys.has(key)).slice(0, 6);
+  const otherCategories = overview.categoryKeys.filter(key => !ESSENTIAL_CATEGORY_KEYS.has(key)).slice(0, 6);
   const displayedPriorities = showAllPriorities ? overview.priorities : overview.priorities.slice(0, 4);
   const reviewAlert = (alert) => categories[alert.category] ? onCategory(alert.category) : onNavigate("property");
   const propertyName = property?.name || (typeof property === "string" ? property : "Your properties");
@@ -57,12 +40,6 @@ export default function Overview({ items = [], categories = {}, people = 0, prop
       heading?.focus({ preventScroll: true });
       heading?.scrollIntoView({ block: 'start', behavior: 'instant' });
     }} />
-
-    <section className="pv-essentials-section" aria-labelledby="pv-essentials-title">
-      <div className="pv-section-heading"><div><h2 id="pv-essentials-title">Start with the essentials</h2><p>How long your recorded supplies could last.</p></div><button type="button" className="pv-text-link" onClick={() => onNavigate("inventory-search")}>All inventory <Icon name="arrow" size={15} /></button></div>
-      <div className="pv-essentials-grid">{ESSENTIALS.filter(essential => categories[essential.key]).map(essential => <EssentialCoverage key={essential.key} coverage={coverage[essential.key]} icon={essential.icon} tone={essential.tone} category={categories[essential.key]} stats={overview.summary.categories.find(row => row.key === essential.key)} onClick={() => onCategory(essential.key)} />)}</div>
-      <div className="pv-essential-people"><p className="pv-essential-note">Food and water plan for <strong>{rationPeople.length} {rationPeople.length === 1 ? "dependant" : "dependants"}</strong> selected in Your People.</p><FoodWaterInfo /><button type="button" className="pv-text-link" onClick={() => onNavigate("community")}>Manage dependants<Icon name="arrow" size={14}/></button></div>
-    </section>
 
     <OverviewSurveillance onOpen={() => onNavigate("surveillance")} />
 

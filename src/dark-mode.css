@@ -32,10 +32,6 @@
 :root[data-theme="dark"] .pv-emergency-workspace { --em-ink: var(--pv-ink); --em-muted: var(--pv-muted); --em-border: var(--pv-border); --em-paper: var(--pv-surface); }
 :root[data-theme="dark"] .pv-offline-routes { --route-ink: var(--pv-ink); --route-muted: var(--pv-muted); }
 :root[data-theme="dark"] .pv-surveillance { --surveillance-muted: var(--pv-muted); }
-:root[data-theme="dark"] .pv-essential { --ess-color: #9bc6ad; --ess-wash: #25392d; }
-:root[data-theme="dark"] .pv-tone-blue { --ess-color: #a0c5d6; --ess-wash: #24353e; }
-:root[data-theme="dark"] .pv-tone-rose { --ess-color: #dda99e; --ess-wash: #3b2d2a; }
-:root[data-theme="dark"] .pv-tone-amber { --ess-color: #dec17e; --ess-wash: #383321; }
 :root[data-theme="dark"] :is(input, select, textarea) { accent-color: var(--pv-success); }
 :root[data-theme="dark"] ::selection { color: #fff; background: #42694c; }
 
@@ -1316,10 +1312,6 @@
 :root[data-theme="dark"] .pv-overview button:focus-visible { outline: 3px solid var(--pv-focus); }
 :root[data-theme="dark"] .pv-overview-heading h1 span,
 :root[data-theme="dark"] .pv-overview-date,
-:root[data-theme="dark"] .pv-essential-top>svg:last-child,
-:root[data-theme="dark"] .pv-essential-detail,
-:root[data-theme="dark"] .pv-essential-foot,
-:root[data-theme="dark"] .pv-essential-note,
 :root[data-theme="dark"] .pv-panel-heading>svg,
 :root[data-theme="dark"] .pv-priority-copy>span,
 :root[data-theme="dark"] .pv-priority-row>svg:last-child,
@@ -1335,10 +1327,7 @@
 :root[data-theme="dark"] .pv-panel-footer-button:hover,
 :root[data-theme="dark"] .pv-category-dot,
 :root[data-theme="dark"] .pv-household-intro>.pv-icon-tile { background: var(--pv-subtle); }
-:root[data-theme="dark"] .pv-essential,
 :root[data-theme="dark"] .pv-overview-panel { background: var(--pv-surface); }
-:root[data-theme="dark"] .pv-essential:hover { border-color: var(--pv-focus); box-shadow: 0 4px 14px rgba(0, 0, 0, .32); background: var(--pv-surface); }
-:root[data-theme="dark"] .pv-essential-basis,
 :root[data-theme="dark"] .pv-priority-row:hover .pv-priority-copy>strong,
 :root[data-theme="dark"] .pv-category-overview-list>button:hover,
 :root[data-theme="dark"] .pv-category-overview-list>button>span:nth-last-child(2),

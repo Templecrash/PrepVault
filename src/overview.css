@@ -7,9 +7,6 @@
 .pv-overview-heading h1 span{color:#728174;font-weight:400}
 .pv-overview-heading p,.pv-section-heading p,.pv-panel-heading p{margin:0;color:var(--ov-muted);font-size:13px;line-height:1.6}
 .pv-overview-date{display:flex;align-items:center;gap:8px;color:#63746a;font-size:12px;white-space:nowrap}
-.pv-essential-people{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
-.pv-essential-people .pv-essential-note{margin:0;flex:1;min-width:180px}
-.pv-essential-people .pv-text-link{font-size:11px}
 
 .pv-icon-tile{width:38px;height:38px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;background:#e3eadd;color:#547147}
 
@@ -23,19 +20,7 @@
 .pv-section-heading p,.pv-panel-heading p{font-size:11px}
 .pv-text-link{display:inline-flex;align-items:center;gap:7px;background:transparent;border:0;font-size:11px;font-weight:600;color:var(--ov-green);padding:6px 0;flex-shrink:0}
 .pv-text-link:hover{text-decoration:underline;text-underline-offset:4px}
-.pv-essentials-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
-.pv-essential{display:flex;flex-direction:column;align-items:stretch;text-align:left;padding:18px 20px 17px;background:#fff;border:1px solid var(--ov-line);border-radius:12px;color:var(--ov-ink);--ess-color:#578670;--ess-wash:#eef3ed}
-.pv-essential:hover{border-color:#bccbb8;box-shadow:0 4px 14px #24442e08;background:#fcfdfb}
-.pv-tone-blue{--ess-color:#648e9f;--ess-wash:#edf3f5}.pv-tone-rose{--ess-color:#b27f73;--ess-wash:#f6eeeb}.pv-tone-amber{--ess-color:#a98a45;--ess-wash:#f6f1e6}
-.pv-essential-top{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}
-.pv-essential-top>.pv-icon-tile{width:31px;height:31px;border-radius:8px;background:var(--ess-wash);color:var(--ess-color)}
-.pv-essential-top>svg:last-child{margin-left:auto;color:#91a08e}
-.pv-essential-count{display:flex;align-items:baseline;gap:7px;font-size:30px;line-height:1.1;letter-spacing:-1px;margin:18px 0 9px;font-weight:500;font-variant-numeric:tabular-nums}
-.pv-essential-count>span{font-size:11px;font-weight:400;letter-spacing:0;color:var(--ov-muted)}
-.pv-essential-basis{font-size:11px;font-weight:600;color:#52694d;line-height:1.6}
-.pv-essential-detail{font-size:11px;color:#687561;line-height:1.7;margin:5px 0 17px;flex:1;overflow-wrap:anywhere}
-.pv-essential-foot{color:#687561;font-size:10px;margin-top:auto;padding-top:12px;border-top:1px solid var(--ov-line);line-height:1.5}
-.pv-essential-note{font-size:11px;color:#687561;line-height:1.7;margin:12px 0 0}
+
 .pv-overview-columns{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);gap:20px;align-items:start}
 .pv-overview-panel{background:#fff;border:1px solid var(--ov-line);border-radius:12px;overflow:hidden;min-width:0}
 .pv-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 22px 17px}
@@ -81,8 +66,8 @@
 .pv-quick-paths button>span>span{font-size:11px;color:#69765f;line-height:1.4}
 .pv-quick-paths>button:hover strong{text-decoration:underline;text-underline-offset:3px}
 @media(min-width:1400px){.pv-overview{gap:32px}}
-@media(max-width:1050px){.pv-overview-date{display:none}.pv-essential{padding:16px}.pv-overview-columns{grid-template-columns:minmax(0,1.45fr) minmax(250px,1fr)}.pv-priority-category{display:none}.pv-quick-paths{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px}}
-@media(max-width:760px){.pv-overview{gap:24px}.pv-overview-heading h1{font-size:28px;letter-spacing:-1px}.pv-overview-heading h1 span{display:block}.pv-overview-columns{grid-template-columns:1fr}.pv-essentials-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.pv-section-heading h2{font-size:17px}.pv-panel-heading{padding:20px}.pv-priority-list,.pv-category-overview-list{padding-left:20px;padding-right:20px}.pv-priority-category{display:inline}.pv-household-strip{flex-wrap:wrap;padding:20px;gap:16px}.pv-household-intro{flex-basis:calc(100% - 140px)}.pv-team-initials{display:none}.pv-household-strip>.pv-overview-button{margin-left:auto}.pv-quick-paths{gap:12px 20px}}
-@media(max-width:430px){.pv-overview-heading h1{font-size:26px}.pv-overview-heading p{font-size:12px}.pv-section-heading{align-items:flex-start}.pv-section-heading h2{font-size:16px}.pv-section-heading p{font-size:11px}.pv-essential{padding:14px}.pv-essential-top{gap:8px;font-size:12px}.pv-essential-top>.pv-icon-tile{width:28px;height:28px}.pv-essential-top>svg:last-child{width:12px}.pv-essential-foot{font-size:11px}.pv-priority-category{display:none}.pv-panel-heading h2{font-size:16px}.pv-household-intro{flex-basis:100%}.pv-household-strip>.pv-overview-button{margin-left:52px}.pv-quick-paths{gap:12px}.pv-quick-paths>button{gap:7px}.pv-quick-paths>button>svg:last-child{display:none}.pv-quick-paths strong{font-size:11px}.pv-quick-paths button>span>span{font-size:11px}}
+@media(max-width:1050px){.pv-overview-date{display:none}.pv-overview-columns{grid-template-columns:minmax(0,1.45fr) minmax(250px,1fr)}.pv-priority-category{display:none}.pv-quick-paths{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px}}
+@media(max-width:760px){.pv-overview{gap:24px}.pv-overview-heading h1{font-size:28px;letter-spacing:-1px}.pv-overview-heading h1 span{display:block}.pv-overview-columns{grid-template-columns:1fr}.pv-section-heading h2{font-size:17px}.pv-panel-heading{padding:20px}.pv-priority-list,.pv-category-overview-list{padding-left:20px;padding-right:20px}.pv-priority-category{display:inline}.pv-household-strip{flex-wrap:wrap;padding:20px;gap:16px}.pv-household-intro{flex-basis:calc(100% - 140px)}.pv-team-initials{display:none}.pv-household-strip>.pv-overview-button{margin-left:auto}.pv-quick-paths{gap:12px 20px}}
+@media(max-width:430px){.pv-overview-heading h1{font-size:26px}.pv-overview-heading p{font-size:12px}.pv-section-heading{align-items:flex-start}.pv-section-heading h2{font-size:16px}.pv-section-heading p{font-size:11px}.pv-priority-category{display:none}.pv-panel-heading h2{font-size:16px}.pv-household-intro{flex-basis:100%}.pv-household-strip>.pv-overview-button{margin-left:52px}.pv-quick-paths{gap:12px}.pv-quick-paths>button{gap:7px}.pv-quick-paths>button>svg:last-child{display:none}.pv-quick-paths strong{font-size:11px}.pv-quick-paths button>span>span{font-size:11px}}
 
 @media(prefers-reduced-motion:reduce){.pv-overview button{transition:none}}
