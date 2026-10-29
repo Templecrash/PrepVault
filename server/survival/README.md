@@ -15,6 +15,8 @@ Survival LLM application's read-only reference retrieval code.
 - `runtime.py`: the bundled retrieval loop with an audited replacement prompt,
   a fixed local vLLM connection, actual token-budget checks, no persistent memory
   and citations to articles actually opened. Raw reasoning is never returned.
+- `startup.py`: memory-bounded, scrubbed startup failure diagnostics and private
+  compiler caches. Log retention is permanently disabled before inference.
 - `assets.py` / `assets.lock.json`: pinned, verified model and library assets on
   the `prepvault-survival-assets` Modal Volume v2. See `assets.md` for provenance
   and content licensing.
@@ -80,6 +82,20 @@ original job. Public job IDs are opaque UUIDs; internal Modal function-call IDs
 are not returned. Jobs expire after 15 minutes. Cancellation terminates the
 private worker container to stop native inference too.
 
+Startup captures at most 8 KB per subprocess output stream in memory. If the
+model fails before becoming ready, at most 8 KB of scrubbed diagnostics is
+printed to server logs. Readiness clears the buffers and disables retention;
+background threads continue discarding output so inference cannot block on a
+full pipe. These diagnostics never include requests or model answers.
+
+Generated vLLM, PyTorch, Triton and FlashInfer compiler artifacts are stored in
+private directories under `/data/compile-cache`. A scope derived from the
+pinned model revision, runtime image, GPU and serving arguments prevents reuse
+across incompatible configurations. The volume is committed after successful
+startup and on normal worker shutdown. No disk-based prompt, media or
+conversation cache is enabled. Compiler caches must not be replaced with
+untrusted files.
+
 The 256 KB payload limit bounds parsing work. The complete accepted app context
 is retained. Before each model call, `/tokenize` counts the actual rendered
 prompt, including tools, against the 114,688-token context, reserving 8,192
@@ -98,6 +114,7 @@ not an offline or zero-retention service.
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_survival_hosted.py' -v
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_survival_assets.py' -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_survival_startup.py' -v
 ```
 
 These tests use mocked inference, small temporary fixtures and no large
@@ -109,4 +126,5 @@ Sources: [NVIDIA model and H200 recipe](https://huggingface.co/nvidia/NVIDIA-Nem
 [vLLM tokenizer protocol](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/entrypoints/serve/tokenize/protocol.py),
 [Modal request limits](https://modal.com/docs/guide/webhook-timeouts),
 [Modal data retention](https://modal.com/docs/guide/security),
+[vLLM compiler cache security](https://docs.vllm.ai/en/latest/usage/security/),
 [Survival LLM upstream](https://github.com/anonnerdfrenzy/survival-llm).

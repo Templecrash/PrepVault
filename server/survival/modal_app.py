@@ -8,12 +8,15 @@ import contextlib
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 
 import modal
 
-from .assets import PINNED_UPSTREAM_COMMIT
+from .assets import MODEL_REVISION, PINNED_UPSTREAM_COMMIT
 from .security import MODEL, SurvivalError, encoded_json, network_opener, strict_json, validate_payload
+from .startup import (StartupDiagnostics, SENSITIVE_MARKERS, compiler_cache_environment,
+                      sensitive_values, terminate_process)
 
 
 APP_NAME = "prepvault-survival"
@@ -81,28 +84,46 @@ class SurvivalWorker:
         if not asset_status("/data")["ready"]:
             raise RuntimeError("The verified survival model and library have not been provisioned.")
         self.process = None
+        self.diagnostics = StartupDiagnostics(sensitive_values(os.environ))
         # Only non-secret runtime settings reach the inference subprocess.
         env = {key: value for key, value in os.environ.items()
-               if not any(marker in key.upper() for marker in ("SECRET", "TOKEN", "PASSWORD", "API_KEY"))}
+               if not any(marker in key.upper() for marker in SENSITIVE_MARKERS)}
         env.update({"HOME": "/tmp/survival-home", "HF_HOME": "/tmp/survival-hf", "HF_HUB_OFFLINE": "1",
                     "TRANSFORMERS_OFFLINE": "1", "DO_NOT_TRACK": "1", "VLLM_NO_USAGE_STATS": "1"})
-        self.process = subprocess.Popen(model_command(), env=env, stdout=subprocess.DEVNULL,
-                                        stderr=subprocess.DEVNULL, start_new_session=True)
-        opener = network_opener()
-        deadline = time.monotonic() + 570
-        while time.monotonic() < deadline:
-            if self.process.poll() is not None:
-                raise RuntimeError("The private survival model could not start.")
-            try:
-                with opener.open("http://127.0.0.1:8000/v1/models", timeout=2) as response:
-                    data = strict_json(response.read(32768))
-                    if response.status == 200 and any(item.get("id") == MODEL for item in data.get("data", [])):
-                        return
-            except (OSError, ValueError, TypeError):
-                pass
-            time.sleep(1)
-        self.stop()
-        raise RuntimeError("The private survival model exceeded its startup deadline.")
+        command = model_command()
+        env.update(compiler_cache_environment("/data", MODEL_REVISION, VLLM_IMAGE, command))
+        try:
+            self.process = subprocess.Popen(command, env=env, stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE, start_new_session=True)
+            self.diagnostics.start(self.process)
+            opener = network_opener()
+            deadline = time.monotonic() + 570
+            while time.monotonic() < deadline:
+                if self.process.poll() is not None:
+                    raise RuntimeError("The private survival model could not start.")
+                try:
+                    with opener.open("http://127.0.0.1:8000/v1/models", timeout=2) as response:
+                        data = strict_json(response.read(32768))
+                        if response.status == 200 and any(item.get("id") == MODEL for item in data.get("data", [])):
+                            # No inference is accepted until this hook returns.
+                            # Continue draining pipes, but permanently drop all
+                            # output and clear startup text before that happens.
+                            self.diagnostics.discard()
+                            with contextlib.suppress(Exception):
+                                assets_volume.commit()
+                            return
+                except (OSError, ValueError, TypeError):
+                    pass
+                time.sleep(1)
+            raise TimeoutError("The private survival model exceeded its startup deadline.")
+        except Exception as exc:
+            with contextlib.suppress(Exception):
+                terminate_process(self.process)
+            self.diagnostics.wait()
+            tail = self.diagnostics.failure_tail()
+            print("Survival LLM startup failed (" + type(exc).__name__ + ")." +
+                  ("\n" + tail if tail else ""), file=sys.stderr, flush=True)
+            raise RuntimeError("The private survival model could not start. Check server startup diagnostics.") from None
 
     @modal.method()
     def assess(self, payload):
@@ -119,14 +140,14 @@ class SurvivalWorker:
 
     @modal.exit()
     def stop(self):
-        process = getattr(self, "process", None)
-        if process and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+        diagnostics = getattr(self, "diagnostics", None)
+        if diagnostics:
+            diagnostics.discard()
+        terminate_process(getattr(self, "process", None))
+        if diagnostics:
+            diagnostics.wait()
+        with contextlib.suppress(Exception):
+            assets_volume.commit()
 
 
 @app.function(image=base_image, volumes={"/data": assets_volume}, cpu=0.5, memory=1024,
