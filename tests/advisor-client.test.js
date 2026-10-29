@@ -179,6 +179,42 @@ test('closing a pending chat requests cancellation without resending private con
   assert.deepEqual(bodies[1], { jobId: 'fc-test12345', action: 'cancel' });
 });
 
+test('a slow cold startup can finish after ten minutes but before job expiration', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let now = 0;
+  t.mock.method(Date, 'now', () => now);
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    requests++;
+    if (requests === 2) now = 11 * 60_000;
+    return response(requests < 3 ? { status: 'pending', jobId: 'cold-start-job' } : { reply: 'Assessment ready.' });
+  });
+  const pending = askAdvisor([{ role: 'user', content: 'Assess supplies.' }], {});
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  t.mock.timers.tick(5000);
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  t.mock.timers.tick(5000);
+  assert.equal((await pending).reply, 'Assessment ready.');
+  assert.equal(requests, 3);
+});
+
+test('an overlong job is cancelled before server expiration', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let now = 0;
+  t.mock.method(Date, 'now', () => now);
+  const bodies = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    bodies.push(JSON.parse(options.body));
+    if (bodies.length === 2) now = 14 * 60_000;
+    return response({ status: 'pending', jobId: 'cold-start-job' });
+  });
+  const pending = askAdvisor([{ role: 'user', content: 'Assess supplies.' }], {});
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  t.mock.timers.tick(5000);
+  await assert.rejects(pending, /took too long/);
+  assert.deepEqual(bodies.at(-1), { jobId: 'cold-start-job', action: 'cancel' });
+});
+
 test('source links cannot contain executable URLs or credentials', () => {
   const answer = normalizeAdvisorAnswer({ reply: 'Answer', sources: [
     { url: 'javascript:alert(1)', title: 'a' }, { url: 'https://secret:token@example.org/', title: 'b' },

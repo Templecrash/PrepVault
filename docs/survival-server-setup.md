@@ -37,7 +37,7 @@ The verification origin and ticket audience are fixed in both deployments. Chang
 | `POST {jobId}` | `202 {status: "pending", jobId}` or `200 {reply, model, sources}` |
 | `POST {jobId, action: "cancel"}` | `200 {status: "cancelled", jobId}` |
 
-All calls require the verified owner session. Responses use private, no-store caching. Each proxy request has a 25-second deadline; the Vercel functions have a 30-second limit. Long inference runs as an asynchronous Modal job rather than holding a Vercel function open. The browser polls every five seconds and applies its overall wait/cancellation policy.
+All calls require the verified owner session. Responses use private, no-store caching. Each proxy request has a 25-second deadline; the Vercel functions have a 30-second limit. Long inference runs as an asynchronous Modal job rather than holding a Vercel function open. The browser polls every five seconds and allows up to fourteen minutes for a cold startup and inference, stopping before the server's fifteen-minute job expiration. Closing the panel or pressing Stop requests cancellation immediately.
 
 Additional Vercel per-process guards permit six chat starts and sixty status/poll/cancel requests per owner per minute, with bounded simultaneous requests. The public ticket verifier permits 240 requests per process per minute. These guards are not distributed account spending limits. Modal's deployment limits and account budget controls remain necessary for bounding infrastructure usage.
 

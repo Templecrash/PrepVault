@@ -1,7 +1,9 @@
 import { sanitizeAdvisorContext } from './advisor-context.js';
 
 const TIMEOUT_MS = 35_000;
-const JOB_TIMEOUT_MS = 10 * 60_000;
+// Leave room for a cold model startup (up to 570s) plus inference (240s),
+// while stopping before the server's 15-minute job expiration.
+const JOB_TIMEOUT_MS = 14 * 60_000;
 const safeText = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
 const abortError = () => new DOMException('The Survival LLM request was cancelled.', 'AbortError');
 
