@@ -1,0 +1,81 @@
+/* PrepVault interface foundations. See docs/design-system.md. */
+:root {
+  --pv-ink: #283d31;
+  --pv-muted: #667360;
+  --pv-accent: #214c39;
+  --pv-accent-hover: #173e2c;
+  --pv-surface: #ffffff;
+  --pv-canvas: #f6f7f3;
+  --pv-subtle: #f2f5ed;
+  --pv-border: #dfe5d8;
+  --pv-focus: #709879;
+  --pv-danger: #a43e34;
+  --pv-warning: #8b641b;
+  --pv-radius: 10px;
+  --pv-control-radius: 7px;
+  --pv-control-height: 42px;
+  --pv-space-1: 4px;
+  --pv-space-2: 8px;
+  --pv-space-3: 12px;
+  --pv-space-4: 16px;
+  --pv-space-5: 24px;
+  --pv-space-6: 32px;
+  --ink: var(--pv-ink);
+  --muted: var(--pv-muted);
+  --green: var(--pv-accent);
+  --paper: var(--pv-surface);
+  --canvas: var(--pv-canvas);
+  --line: var(--pv-border);
+}
+
+.pv-workspace { color: var(--pv-ink); background: var(--pv-canvas); }
+.pv-main { min-width: 0; }
+.pv-main > section, .pv-main > div { min-width: 0; }
+.pv-page-intro h1, .pv-inventory-heading h1 { font-size: clamp(27px, 2.6vw, 34px); line-height: 1.2; font-weight: 550; letter-spacing: -1px; color: var(--pv-ink); }
+.pv-page-intro p, .pv-inventory-intro { color: var(--pv-muted); font-size: 13px; line-height: 1.7; }
+.pv-eyebrow, .pv-inventory-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.4px; color: var(--pv-muted); }
+.pv-button, .pv-inventory-button { min-height: var(--pv-control-height); border-radius: var(--pv-control-radius); font-size: 12px; font-weight: 550; line-height: 1.4; }
+.pv-primary, .pv-inventory-button-primary { color: white; background: var(--pv-accent); border-color: var(--pv-accent); }
+.pv-primary:hover, .pv-inventory-button-primary:hover { background: var(--pv-accent-hover); }
+.pv-secondary, .pv-inventory-button-secondary { color: var(--pv-ink); background: var(--pv-surface); border-color: var(--pv-border); }
+.pv-secondary:hover, .pv-inventory-button-secondary:hover { background: var(--pv-subtle); }
+.pv-icon-button { min-width: 36px; min-height: 36px; }
+.pv-save-state.is-error .pv-status-dot { background: var(--pv-danger); }
+.pv-inventory-workspace, .pv-specialist-panel, .pv-dialog { border-color: var(--pv-border); background: var(--pv-surface); border-radius: var(--pv-radius); }
+.pv-inventory-table th { font-size: 10px; font-weight: 600; letter-spacing: .7px; }
+.pv-inventory-table td { font-size: 13px; line-height: 1.6; }
+.pv-inventory-item-name { overflow-wrap: anywhere; }
+.pv-dialog-heading h2 { font-size: 24px; font-weight: 550; line-height: 1.25; letter-spacing: -.6px; color: var(--pv-ink); }
+.pv-dialog-heading .pv-muted { margin-bottom: 20px; }
+.pv-field { color: var(--pv-ink); font-size: 12px; font-weight: 550; line-height: 1.5; }
+.pv-field :is(input, select, textarea) { display: block; width: 100%; min-height: var(--pv-control-height); margin-top: 6px; padding: 10px 12px; border: 1px solid var(--pv-border); border-radius: var(--pv-control-radius); background: var(--pv-surface); color: var(--pv-ink); font: inherit; font-weight: 400; }
+.pv-field textarea { resize: vertical; min-height: 90px; }
+.pv-field-help { display: block; font-size: 11px; line-height: 1.7; font-weight: 400; color: var(--pv-muted); margin: 7px 0 0; }
+.pv-item-dialog { max-width: 650px; }
+.pv-item-dialog .pv-dialog-heading { gap: 16px; }
+.pv-item-dialog .pv-dialog-heading > div { min-width: 0; }
+.pv-item-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; }
+.pv-item-details { min-width: 0; margin: 4px 0 20px; padding: 16px 16px 0; border: 1px solid var(--pv-border); border-radius: var(--pv-control-radius); }
+.pv-item-details legend { padding: 0 6px; font-size: 12px; color: var(--pv-muted); }
+.pv-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--pv-border); }
+.pv-form-error { color: var(--pv-danger); font-size: 13px; line-height: 1.6; }
+.pv-inventory-empty { color: var(--pv-muted); }
+.pv-inventory-empty h2 { font-size: 21px; font-weight: 550; color: var(--pv-ink); }
+.pv-main :is(button, a, summary):focus-visible, .pv-dialog :is(button, a):focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 3px; }
+
+@media (max-width: 760px) {
+  .pv-page-intro, .pv-inventory-heading { align-items: flex-start; gap: 16px; }
+  .pv-inventory-heading { flex-wrap: wrap; }
+  .pv-modal-backdrop { padding: 12px; }
+  .pv-dialog { max-height: calc(100dvh - 24px); padding: 22px; }
+  .pv-field :is(input, select, textarea) { font-size: 16px; }
+  .pv-main select, .pv-main textarea, .pv-main input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]) { font-size: 16px; }
+  .pv-account-field input, .pv-setup-field input, .pv-backups-field input:not([type=file]), .pv-backups-file input { font-size: 16px; }
+  .barcode-dialog input:not([type=file]), .barcode-dialog select { font-size: 16px; }
+  .pv-board .pv-board-field :is(input, select, textarea) { font-size: 16px !important; }
+  .pv-dialog-actions .pv-button { flex: 1; }
+}
+@media (max-width: 440px) {
+  .pv-item-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .pv-item-details { padding: 12px 12px 0; }
+}

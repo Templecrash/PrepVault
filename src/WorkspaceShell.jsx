@@ -12,6 +12,7 @@ const destinations = [
   { id: 'water', label: 'Water', icon: 'water' },
   { id: 'preps', label: 'Supplies', icon: 'box' },
   { id: 'dependencies', label: 'Dependencies', icon: 'bolt' },
+  { id: 'vehicles', label: 'Vehicles', icon: 'vehicle' },
   { id: 'property', label: 'Property', icon: 'home' },
   { id: 'comms', label: 'Communications', icon: 'radio' },
   { id: 'surveillance', label: 'Surveillance', icon: 'camera' },
@@ -101,7 +102,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
         <button className="pv-mobile-menu pv-icon-button" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="pv-main-navigation"><Icon name="menu"/></button>
         <div className="pv-breadcrumb"><span>{siteName}</span><Icon name="chevron" size={14}/><strong>{currentDestination?.label || 'Overview'}</strong></div>
         <form className="pv-global-search" onSubmit={e => { e.preventDefault(); onSearch(search); setSearch(''); }}><Icon name="search" size={17}/><input ref={searchRef} aria-label="Search all inventory" placeholder="Search all inventory…" value={search} onChange={e => setSearch(e.target.value)}/><kbd>⌘ K</kbd></form>
-        <span className={`pv-save-state ${syncStatus === 'error' ? 'is-error' : ''}`} title={status}><span className="pv-status-dot"/>{status}</span>
+        <span className={`pv-save-state ${syncStatus === 'error' || dbStatus === 'error' ? 'is-error' : ''}`} title={status}><span className="pv-status-dot"/>{status}</span>
         <button className="pv-icon-button pv-notifications" aria-label={`${alertCount} supply alerts`} onClick={() => onSearch('', 'attention')}><Icon name="bell"/>{alertCount > 0 && <span/>}</button>
         <div className="pv-account-wrap" ref={accountRef}><button className="pv-avatar" aria-label="Account menu" aria-expanded={accountOpen} aria-controls={accountOpen ? 'pv-account-menu' : undefined} onClick={() => setAccountOpen(!accountOpen)}>{user?.email?.[0]?.toUpperCase() || 'P'}</button>{accountOpen && <div className="pv-dropdown" id="pv-account-menu"><strong>{user?.email || 'Personal workspace'}</strong><p>{user?.authProvider === 'neon' ? 'Verified account · saved on this device' : user?.isLocal ? 'Device account' : user ? 'Connected account' : 'No account required'}</p><button onClick={() => { onSetup(); setAccountOpen(false); }}>Household setup</button><button onClick={() => { onSecurity(); setAccountOpen(false); }}>Settings & backups</button><button onClick={() => { (user ? onLogout : onAccount)(); setAccountOpen(false); }}>{user ? 'Sign out' : 'Sign in / Create account'}</button></div>}</div>
       </header>

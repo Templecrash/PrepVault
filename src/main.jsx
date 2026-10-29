@@ -4,6 +4,7 @@ import './index.css'
 import PrepVault from './PrepVault.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import LocationSharingPage from './LocationSharingPage.jsx'
+import './design-system.css'
 
 const PublicBoardPage = lazy(() => import('./PublicBoardPage.jsx'))
 const path = window.location.pathname.replace(/\/$/, '')

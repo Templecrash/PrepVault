@@ -15,6 +15,9 @@ import PlanNotice from "./PlanNotice.jsx";
 import { categoryUpgradeNotices } from "./plan-limits.js";
 import Overview from "./Overview.jsx";
 import InventoryView from "./InventoryView.jsx";
+import InventoryItemDialog from "./InventoryItemDialog.jsx";
+import VehiclesView from "./VehiclesView.jsx";
+import { isVehicleRecord, vehicleServiceStatus } from "./vehicles.js";
 import DependenciesView from "./DependenciesView.jsx";
 import ManualsView from "./ManualsView.jsx";
 import CodesView from "./CodesView.jsx";
@@ -52,7 +55,6 @@ import { buildFoodWaterRoster } from "./food-water-household.js";
 import HandbookLibrary from "./HandbookLibrary.jsx";
 import PropertyMapWorkspace from "./PropertyMapWorkspace.jsx";
 import { Icon } from "./brand.jsx";
-import { useDialogFocus } from "./useDialogFocus.js";
 import { validateSnapshot } from "./storage.js";
 import { encryptBackup as encryptData, decryptBackup as decryptData } from "./crypto-backup.js";
 
@@ -181,12 +183,20 @@ const CATEGORIES = {
   vehicles: {
     label: "Vehicles", icon: "🚗", color: "#3b82f6", desc: "Vehicles, maintenance, spare parts",
     subTypes: {
-      atv: { label: "ATV / UTV", icon: "🏎️", fields: ["vMake", "vModel", "vYear", "lastOilChange", "oilInterval", "nextService"], unit: "vehicles" },
-      dirtBike: { label: "Dirt Bike", icon: "🏍️", fields: ["vMake", "vModel", "vYear", "lastOilChange", "oilInterval", "nextService"], unit: "vehicles" },
-      tractor: { label: "Tractor", icon: "🚜", fields: ["vMake", "vModel", "vYear", "lastOilChange", "oilInterval", "nextService", "hoursOnEngine"], unit: "vehicles" },
-      truck: { label: "Truck / SUV", icon: "🛻", fields: ["vMake", "vModel", "vYear", "lastOilChange", "oilInterval", "nextService", "mileage"], unit: "vehicles" },
-      boat: { label: "Boat", icon: "🚤", fields: ["vMake", "vModel", "vYear", "lastOilChange", "oilInterval"], unit: "vehicles" },
-      snowmobile: { label: "Snowmobile", icon: "🛷", fields: ["vMake", "vModel", "vYear", "lastOilChange", "oilInterval"], unit: "vehicles" },
+      car: { label: "Car", icon: "🚗", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "nextService", "mileage", "mileageUnit"], unit: "vehicles" },
+      van: { label: "Van / Camper", icon: "🚐", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "nextService", "mileage", "mileageUnit"], unit: "vehicles" },
+      motorcycle: { label: "Motorcycle", icon: "🏍️", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "nextService", "mileage", "mileageUnit"], unit: "vehicles" },
+      bicycle: { label: "Bicycle", icon: "🚲", fields: ["vMake", "vModel", "lastServiceDate", "nextService"], unit: "bicycles" },
+      sparkPlug: { label: "Spark Plugs", icon: "🔩", fields: ["partFor", "partDesc"], unit: "plugs" },
+      engineOil: { label: "Engine Oil", icon: "🫗", fields: ["partFor", "fluidType", "gallons"], unit: "containers", consumable: true },
+      battery: { label: "Vehicle Battery", icon: "🔋", fields: ["partFor", "partDesc"], unit: "batteries" },
+      toolkit: { label: "Roadside / Repair Kit", icon: "🧰", fields: ["partFor", "partDesc"], unit: "kits" },
+      atv: { label: "ATV / UTV", icon: "🏎️", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "lastOilChange", "oilInterval", "nextService"], unit: "vehicles" },
+      dirtBike: { label: "Dirt Bike", icon: "🏍️", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "lastOilChange", "oilInterval", "nextService"], unit: "vehicles" },
+      tractor: { label: "Tractor", icon: "🚜", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "lastOilChange", "oilInterval", "nextService", "hoursOnEngine"], unit: "vehicles" },
+      truck: { label: "Truck / SUV", icon: "🛻", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "lastOilChange", "oilInterval", "nextService", "mileage", "mileageUnit"], unit: "vehicles" },
+      boat: { label: "Boat", icon: "🚤", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "lastOilChange", "oilInterval", "nextService"], unit: "vehicles" },
+      snowmobile: { label: "Snowmobile", icon: "🛷", fields: ["vMake", "vModel", "vYear", "lastServiceDate", "lastOilChange", "oilInterval", "nextService"], unit: "vehicles" },
       spareParts: { label: "Spare Parts", icon: "🔩", fields: ["partFor", "partDesc"], unit: "parts" },
       fluids: { label: "Fluids / Oils", icon: "🫗", fields: ["fluidType", "gallons"], unit: "gal", consumable: true },
       tires: { label: "Tires / Tracks", icon: "⭕", fields: ["tireSize", "tireCondition"], unit: "sets" },
@@ -687,6 +697,8 @@ const FIELD_META = {
   vMake: { label: "Make", type: "text", placeholder: "Honda" },
   vModel: { label: "Model", type: "text", placeholder: "Foreman 520" },
   vYear: { label: "Year", type: "number", placeholder: "2022" },
+  lastServiceDate: { label: "Last serviced", type: "date" },
+  mileageUnit: { label: "Odometer unit", type: "select", options: ["km", "mi"] },
   lastOilChange: { label: "Last Oil Change", type: "date" },
   oilInterval: { label: "Oil Interval", type: "select", options: ["Every 50hrs", "Every 100hrs", "Every 3mo", "Every 5000mi", "Every 6mo", "Every 10000mi", "Annually"] },
   nextService: { label: "Next Service", type: "date" },
@@ -1401,8 +1413,6 @@ function getExpiryStatus(e) {
   return { l: `${(d / 365).toFixed(1)}yr`, c: "#22c55e", u: false };
 }
 
-const inp = { width: "100%", padding: "12px 14px", background: "rgba(47,76,39,0.04)", border: "1px solid #dce3d5", borderRadius: 10, color: "#243d30", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
-const labelSt = { display: "block", fontSize: 11, color: "rgba(36,61,48,0.58)", letterSpacing: 0.2, marginBottom: 7, fontWeight: 600 };
 const btnSt = { padding: "10px 20px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, transition: "all 0.15s ease", fontFamily: "inherit" };
 const cardSt = { background: "#ffffff", backdropFilter: "blur(12px)", border: "1px solid #e0e6da", borderRadius: 14, padding: 20 };
 
@@ -1463,64 +1473,6 @@ function NewsTicker({ news, expanded, setExpanded }) {
   );
 }
 
-function AddItemModal({ onAdd, onClose, editItem, initialCategory }) {
-  const dialogRef = useDialogFocus(onClose);
-  const [cat, setCat] = useState(editItem?.category || initialCategory || "water");
-  const [sub, setSub] = useState(editItem?.subType || "");
-  const [qty, setQty] = useState(editItem?.quantity?.toString() || "1");
-  const [nm, setNm] = useState(editItem?.name || "");
-  const [loc, setLoc] = useState(editItem?.location || "");
-  const [flds, setFlds] = useState(editItem?.fields || {});
-  const [notes, setNotes] = useState(editItem?.notes || "");
-
-  const catData = CATEGORIES[cat];
-  const subTypes = catData?.subTypes || {};
-  const selSub = subTypes[sub];
-  const subFields = selSub?.fields || [];
-
-  useEffect(() => { if (!editItem) { setSub(Object.keys(subTypes)[0] || ""); setFlds({}); } }, [cat]);
-  useEffect(() => { if (selSub && !editItem) setNm(selSub.label); }, [sub]);
-
-  const save = () => {
-    if (!sub || !Number.isFinite(Number(qty)) || Number(qty) < 0) return;
-    onAdd({ ...editItem, id: editItem?.id || uid(), category: cat, subType: sub, name: nm || selSub?.label || "Item", quantity: Number(qty), location: loc, notes, fields: flds, addedDate: editItem?.addedDate || new Date().toISOString().split("T")[0] });
-    onClose();
-  };
-  const uf = (k, v) => setFlds((f) => ({ ...f, [k]: v }));
-
-  return (
-    <div ref={dialogRef} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="supply-dialog-title" onClick={(e) => e.stopPropagation()} style={{ background: "#ffffff", border: "1px solid #dce3d5", borderRadius: 16, padding: 28, width: "100%", maxWidth: 560 }}>
-        <h3 id="supply-dialog-title" style={{ margin: "0 0 18px", fontSize: 22, fontWeight: 600 }}>{editItem ? "Edit supply" : "Add a supply"}</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div><label htmlFor="supply-category" style={labelSt}>Category</label><select id="supply-category" style={inp} value={cat} onChange={e => { const next = e.target.value; setCat(next); setSub(Object.keys(CATEGORIES[next].subTypes)[0] || ""); setFlds({}); }}>{Object.entries(CATEGORIES).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select><p style={{fontSize:12,color:"#78836e",margin:"6px 0 0"}}>{catData.desc}</p></div>
-          <div><label htmlFor="supply-type" style={labelSt}>Type</label><select id="supply-type" style={inp} value={sub} onChange={(e) => { setSub(e.target.value); if (!editItem) setNm(subTypes[e.target.value]?.label || ""); }}>{Object.entries(subTypes).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
-            <div><label htmlFor="supply-name" style={labelSt}>Name</label><input id="supply-name" style={inp} value={nm} onChange={(e) => setNm(e.target.value)} /></div>
-            <div><label htmlFor="supply-qty" style={labelSt}>Quantity</label><input id="supply-qty" style={inp} type="number" min="0" value={qty} onChange={(e) => setQty(e.target.value)} /></div>
-          </div>
-          {subFields.length > 0 && (
-            <div style={{ background: "rgba(47,76,39,0.02)", borderRadius: 10, padding: 12, border: "1px solid #e5eadd" }}>
-              <div style={{ display: "grid", gridTemplateColumns: subFields.length > 2 ? "1fr 1fr" : "1fr", gap: 10 }}>
-                {subFields.map((fk) => { const meta = FIELD_META[fk]; if (!meta) return null; return meta.type === "select" ? (
-                  <div key={fk}><label htmlFor={"supply-field-" + fk} style={labelSt}>{meta.label}</label><select id={"supply-field-" + fk} style={inp} value={flds[fk] ?? ""} onChange={(e) => uf(fk, e.target.value)}><option value="">...</option>{meta.options.map((o) => <option key={o}>{o}</option>)}</select></div>
-                ) : (
-                  <div key={fk}><label htmlFor={"supply-field-" + fk} style={labelSt}>{meta.label}</label><input id={"supply-field-" + fk} style={inp} type={meta.type} value={flds[fk] ?? ""} onChange={(e) => uf(fk, e.target.value)} placeholder={meta.placeholder || ""} aria-describedby={meta.help ? "supply-help-" + fk : undefined} />{meta.help && <p id={"supply-help-" + fk} style={{ fontSize: 11, color: "#687660", lineHeight: 1.6, margin: "6px 0 0" }}>{meta.help}</p>}</div>
-                ); })}
-              </div>
-            </div>
-          )}
-          <div><label htmlFor="supply-location" style={labelSt}>Location</label><input id="supply-location" style={inp} value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="e.g. Pantry, shelf 2" /></div>
-          <div><label style={labelSt}>Notes</label><textarea aria-label="Supply notes" style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything else worth remembering" rows={2}/></div>
-          <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
-            <button onClick={onClose} style={{ ...btnSt, flex: 1, background: "rgba(47,76,39,0.06)", color: "rgba(36,61,48,0.6)" }}>Cancel</button>
-            <button onClick={save} style={{ ...btnSt, flex: 1, background: "#214c39", color: "#243d30", fontWeight: 700 }}>{editItem ? "Save" : "Add"}</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, showAlerts, setShowAlerts, crisisMode, setCrisisMode, setCrisisStart, setShowScanner, propAddress, alertsDismissed, alertsDismissedUntil, onDismissAlerts, members, codes, actionLog, setActionLog, propertyProfile, onOpenQuickStart, setActiveTab, dismissResetKey }) {
   const M = "'DM Sans',sans-serif";
@@ -2643,7 +2595,7 @@ function OpportunitiesTab({ items: allItems, people, climate, gardenBeds, dismis
 /* ═══════════════════════════════════════════ */
 /* ═══ FARMING TAB ═══                       */
 /* ═══════════════════════════════════════════ */
-const SUPPLY_CATEGORIES = Object.fromEntries(Object.entries(CATEGORIES).filter(([key]) => !["food", "water"].includes(key)));
+const SUPPLY_CATEGORIES = Object.fromEntries(Object.entries(CATEGORIES).filter(([key]) => !["food", "water", "vehicles"].includes(key)));
 
 const PV_STORAGE_KEY = "prepvault-db";
 function snapshotStatus() {
@@ -2693,7 +2645,7 @@ export default function PrepVault() {
   const [showDetailedDashboard, setShowDetailedDashboard] = useState(false);
   const [showDetailedInventory, setShowDetailedInventory] = useState(false);
   const navigate = (tab) => { setSelCat(null); setActiveTab(tab); if (["preps", "inventory-search"].includes(tab)) setInventorySearch(previous => ({ query: "", status: "all", key: previous.key + 1 })); };
-  const openCategory = (category) => { if (category === "property" || category === "codes") navigate("codes"); else if (["food", "water"].includes(category)) navigate(category); else if (Object.hasOwn(CATEGORIES, category)) { navigate("preps"); setSelCat(category); } else navigate("preps"); };
+  const openCategory = (category) => { if (category === "property" || category === "codes") navigate("codes"); else if (["food", "water", "vehicles"].includes(category)) navigate(category); else if (Object.hasOwn(CATEGORIES, category)) { navigate("preps"); setSelCat(category); } else navigate("preps"); };
   const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
   const enterWorkspace = () => { setShowLanding(false); localStorage.setItem("prepvault-workspace-open", "1"); };
   const resetToOwnPlan = () => {
@@ -2729,6 +2681,7 @@ export default function PrepVault() {
   }, [crisisMode]);
   const [showAdd, setShowAdd] = useState(false);
   const [addCat, setAddCat] = useState(null);
+  const [addSubType, setAddSubType] = useState(null);
   const [editItem, setEditItem] = useState(null);
   const [selScen, setSelScen] = useState("economic");
   const [simDuration, setSimDuration] = useState(180);
@@ -3161,8 +3114,8 @@ export default function PrepVault() {
   const propItems = activePropertyId === "all" ? items : items.filter(i => (i.propertyId || "prop1") === activePropertyId);
   const activeProp = properties.find(p => p.id === activePropertyId) || properties[0];
 
-  const openAdd = (c) => { setAddCat(c || null); setEditItem(null); setShowAdd(true); };
-  const openEdit = (i) => { setEditItem(i); setAddCat(i.category); setShowAdd(true); };
+  const openAdd = (c, subType) => { setAddCat(c || null); setAddSubType(typeof subType === "string" ? subType : null); setEditItem(null); setShowAdd(true); };
+  const openEdit = (i) => { setEditItem(i); setAddCat(i.category); setAddSubType(i.subType); setShowAdd(true); };
   const showCategoryUpgradeNotice = (nextItems) => {
     const notices = categoryUpgradeNotices(items, nextItems);
     if (notices.length) setUpgradeNotices(notices);
@@ -3176,7 +3129,7 @@ export default function PrepVault() {
       setItems((p) => [...p, { ...i, propertyId: activePropertyId === "all" ? "prop1" : activePropertyId }]);
       showToast("✅ " + i.name + " added to " + (CATEGORIES[i.category]?.label || "inventory"));
     }
-    if (["preps", "food", "water"].includes(activeTab) && (["food", "water"].includes(i.category) || ["food", "water"].includes(activeTab))) openCategory(i.category);
+    if (["preps", "food", "water", "vehicles"].includes(activeTab) && (["food", "water", "vehicles"].includes(i.category) || ["food", "water", "vehicles"].includes(activeTab))) openCategory(i.category);
   };
   const handleRemove = (id) => {
     const item = items.find(i => i.id === id);
@@ -3223,10 +3176,12 @@ export default function PrepVault() {
     items.forEach((i) => {
       if (i.fields?.lastRefreshed) { const s = getRefreshStatus(i.fields.lastRefreshed); if (s.u) alerts.push({ ...i, al: s.l, ac: s.c }); }
       if (i.fields?.expiryDate) { const s = getExpiryStatus(i.fields.expiryDate); if (s?.u) alerts.push({ ...i, al: s.l, ac: s.c }); }
-      /* Vehicle service alerts */
-      if (i.fields?.nextService) {
-        const svc = new Date(i.fields.nextService);
-        const daysUntil = Math.ceil((svc - now) / 864e5);
+      /* One service reminder includes date, mileage and engine-hour thresholds. */
+      if (isVehicleRecord(i)) {
+        const service = vehicleServiceStatus(i, now);
+        if (service.status === "due" || service.status === "soon") alerts.push({ ...i, al: service.reasons.join(" · "), ac: service.status === "due" ? "#ef4444" : "#f59e0b" });
+      } else if (i.fields?.nextService && !(i.category === "boat" && i.subType === "outboard")) {
+        const daysUntil = Math.ceil((new Date(i.fields.nextService) - now) / 864e5);
         if (daysUntil < 0) alerts.push({ ...i, al: `Service ${Math.abs(daysUntil)}d overdue`, ac: "#ef4444" });
         else if (daysUntil <= 30) alerts.push({ ...i, al: `Service in ${daysUntil}d`, ac: "#f59e0b" });
       }
@@ -3364,17 +3319,19 @@ export default function PrepVault() {
         return <LocationView items={propItems} onCategory={openCategory}/>;
       case "dependencies":
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
+      case "vehicles":
+        return <VehiclesView items={propItems} categories={CATEGORIES} onAdd={openAdd} onEdit={openEdit} onRemove={handleRemove} onOpenCategory={openCategory} onUpdate={nextItem => { setItems(previous => previous.map(item => item.id === nextItem.id ? { ...item, ...nextItem, propertyId: item.propertyId || "prop1" } : item)); showToast("Vehicle record saved"); }} />;
       case "food":
       case "water":
         return <CategoryDetailView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} alerts={visibleAlerts} onPeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={activeTab} standalone planningOverride={buildEssentialPlanning(activeTab, propItems, rationPeople.length, dailyCalTarget, crisisMode ? emergencyPlan.waterGalPerPerson : 1)} onScan={() => setShowScanner(true)} categories={CATEGORIES} climates={CLIMATES} fieldMeta={FIELD_META} refreshStatus={getRefreshStatus} expiryStatus={getExpiryStatus} parseVolMl={parseVolMl} catKey={activeTab} items={propItems} people={people} climate={climate} onAdd={openAdd} onRemove={handleRemove} onEdit={openEdit} onQtyChange={(id, delta) => setItems(previous => previous.map(item => item.id === id ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) } : item))} />;
       case "inventory-search":
       case "preps": {
         const allInventory = activeTab === "inventory-search";
-        const listedItems = allInventory ? propItems : propItems.filter(item => !["food", "water"].includes(item.category));
+        const listedItems = allInventory ? propItems : propItems.filter(item => !["food", "water", "vehicles"].includes(item.category));
         const listedCategories = allInventory ? CATEGORIES : SUPPLY_CATEGORIES;
         const listedAlerts = allInventory ? visibleAlerts : visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category));
         const addSupply = () => openAdd(allInventory ? undefined : "medical");
-        return <><InventoryView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} onManagePeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water and Supplies together across your selected property." : "Equipment and everyday essentials, beyond food and water."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
+        return <><InventoryView recommendationPeopleCount={rationPeople.length} dailyCalTarget={dailyCalTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} propertyId={activePropertyId} onManagePeople={() => navigate("community")} onRationing={() => navigate("rationing")} key={`${activeTab}-${inventorySearch.key}`} initialQuery={inventorySearch.query} initialStatus={inventorySearch.status} title={allInventory ? "All inventory" : "Your supplies"} eyebrow={allInventory ? "EVERYTHING, IN ONE SEARCH" : "KNOW WHAT YOU HAVE"} intro={allInventory ? "Search Food, Water, Vehicles and Supplies across your selected property." : "Equipment and everyday essentials, organized in one place."} alerts={listedAlerts} items={listedItems} categories={listedCategories} people={people} onCategory={openCategory} onAdd={addSupply} onEdit={openEdit} onRemove={handleRemove} onQtyChange={(id, delta) => setItems(p => p.map(i => i.id === id ? { ...i, quantity: Math.max(0, (i.quantity ?? 1) + delta) } : i))} onScan={() => setShowScanner(true)}/><details className="pv-legacy-details" onToggle={e => setShowDetailedInventory(e.currentTarget.open)}><summary><Icon name="clock"/> Expiry calendar & category analysis</summary>{showDetailedInventory && <div className="pv-legacy-content pv-quiet-legacy"><PrepsTab categories={listedCategories} items={listedItems} setSelCat={openCategory} openAdd={category => openAdd(category || (allInventory ? undefined : "medical"))} people={people} climate={climate} allAlerts={listedAlerts} showAlerts={showAlerts} setShowAlerts={setShowAlerts} setShowScanner={setShowScanner} alertsDismissed={alertsDismissed} alertsDismissedUntil={alertsDismissedUntil} onDismissAlerts={() => setAlertsDismissedUntil(Date.now() + 24 * 60 * 60 * 1000)} /></div>}</details></>;
       }
       case "community":
         return <CommunityTab onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} user={user} contacts={contacts} setContacts={setContacts} />;
@@ -3408,7 +3365,7 @@ export default function PrepVault() {
     rationing: ["Rationing", "Plan your food and water around the people you’re preparing for."],
   };
   return (
-    <WorkspaceShell onHome={() => { if (crisisMode) navigate("emergency-mode"); else setShowLanding(true); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={openEmergencyMode} crisisMode={crisisMode} emergencyBanner={crisisMode ? <EmergencyBanner plan={emergencyPlan} schedule={emergencySchedule} onOpen={() => navigateEmergency("emergency-mode")} onNavigate={navigateEmergency} propertyName={emergencyPlan.propertyId === "all" ? "All properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "Property unavailable"} now={emergencyNow}/> : null} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
+    <WorkspaceShell onHome={() => { navigate(crisisMode ? "emergency-mode" : "dashboard"); window.scrollTo({ top: 0, behavior: "instant" }); }} getPrepChatContext={getPrepChatContext} prepChatResetKey={restoreVersion} activeTab={activeTab} onNavigate={navigate} properties={properties} propertyId={activePropertyId} onProperty={id => { setActivePropertyId(id); setSelCat(null); }} onAddProperty={addProperty} onRemoveProperty={removeProperty} user={user} syncStatus={syncStatus} dbStatus={dbStatus} isOffline={isOffline} onAccount={() => setShowAuth(true)} onLogout={handleLogout} onSetup={openSetup} onSecurity={() => setShowSecurity(true)} onCrisis={openEmergencyMode} crisisMode={crisisMode} emergencyBanner={crisisMode ? <EmergencyBanner plan={emergencyPlan} schedule={emergencySchedule} onOpen={() => navigateEmergency("emergency-mode")} onNavigate={navigateEmergency} propertyName={emergencyPlan.propertyId === "all" ? "All properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "Property unavailable"} now={emergencyNow}/> : null} onSearch={(query, status = "all") => { navigate("inventory-search"); setInventorySearch(p => ({query, status, key: p.key + 1})); }} alertCount={visibleAlerts.length} inventoryAlertCounts={{vehicles: visibleAlerts.filter(alert => alert.category === "vehicles").length, food: visibleAlerts.filter(alert => alert.category === "food").length, water: visibleAlerts.filter(alert => alert.category === "water").length, preps: visibleAlerts.filter(alert => Object.hasOwn(SUPPLY_CATEGORIES, alert.category)).length}}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -3468,13 +3425,13 @@ export default function PrepVault() {
       {showStartPlan && <PlanNotice title="Start your own plan" eyebrow="A FRESH START" onClose={() => setShowStartPlan(false)} actions={<><button className="pv-button pv-secondary" onClick={() => setShowStartPlan(false)}>Keep exploring</button><button className="pv-button pv-primary" onClick={() => { resetToOwnPlan(); setShowStartPlan(false); openSetup(); }}>Start my plan</button></>}><p>Replace the sample household with a blank plan, then add your home, people and supplies.</p><p>This clears the sample records and any changes you made to them. You can export a backup from Settings & backups first.</p></PlanNotice>}
       {upgradeNotices.length > 0 && <PlanNotice title="More room for your preparation" eyebrow="PLAN UPGRADE" onClose={() => setUpgradeNotices([])} actions={<button className="pv-button pv-primary" onClick={() => setUpgradeNotices([])}>Keep planning</button>}><p>The free plan includes 20 entries in each supply category. A paid plan will be needed above that limit.</p><ul>{upgradeNotices.map(notice => <li key={notice.category}><strong>{CATEGORIES[notice.category]?.label || notice.category}</strong><span>{notice.count} entries</span></li>)}</ul><p><strong>You can keep saving for now.</strong> Upgrades aren’t enforced yet, and your entries have been added. Nothing has been charged.</p></PlanNotice>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
-      <div key={restoreVersion} className={!selCat && !["dashboard", "readiness", "emergency-mode", "food", "water", "inventory-search", "board", "bugout", "preps", "dependencies", "emergency", "rationing", "systems", "manuals", "surveillance", "codes", "property", "simulate", "farming", "comms"].includes(activeTab) ? "pv-legacy-content" : "pv-content"}>{renderContent()}</div>
+      <div key={restoreVersion} className="pv-content">{renderContent()}</div>
 
       {/* ═══ TOAST NOTIFICATION ═══ */}
       {toast && (
         <div style={{ position: "fixed", bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 70px))", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 12, background: toast.type === "success" ? "rgba(34,197,94,0.95)" : toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(33,76,57,0.95)", color: "#243d30", fontSize: 12, fontWeight: 700, fontFamily: "inherit", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 2000, animation: "slideUp 0.2s ease", whiteSpace: "nowrap", maxWidth: "90vw", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</div>
       )}
-      {showAdd && <AddItemModal onAdd={handleAdd} onClose={() => { setShowAdd(false); setEditItem(null); }} editItem={editItem} initialCategory={addCat} />}
+      {showAdd && <InventoryItemDialog categories={CATEGORIES} fieldMeta={FIELD_META} makeId={uid} initialSubType={addSubType} onAdd={handleAdd} onClose={() => { setShowAdd(false); setEditItem(null); }} editItem={editItem} initialCategory={addCat} />}
       {showScanner && <BarcodeScanner categories={CATEGORIES} items={propItems} initialCategory={["food", "water"].includes(activeTab) ? activeTab : "food"} onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
       {/* ═══ Auth Modal ═══ */}

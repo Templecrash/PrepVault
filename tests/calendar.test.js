@@ -61,6 +61,74 @@ test('recorded calendar intervals create the next maintenance date only', () => 
   assert.equal(buildCalendarEvents({ compostBins: [{ id: 'done', startDate: '2026-10-01', turningFreqDays: 7, stage: 'ready' }] }).some(event => event.field === 'turn-due'), false);
 });
 
+test('vehicle service dates retain stable review IDs and point to Vehicles', () => {
+  const items = [{ id: 'tractor', name: 'Kubota', category: 'vehicles', quantity: 1, fields: { nextService: '2026-11-03', lastServiceDate: '2026-10-01', lastService: '2026-10-01', vehicleServiceLog: [{ id: 'older', date: '2026-09-01', summary: 'Earlier work' }, { id: 'newer', date: '2026-10-01', summary: 'Oil and filters' }] } }];
+  const before = structuredClone(items);
+  const events = buildCalendarEvents({ items, setting: { events: [], reviewed: ['item:tractor:nextService:2026-11-03'] } });
+  assert.equal(events.length, 2);
+  const due = events.find(event => event.field === 'nextService');
+  assert.equal(due.id, 'item:tractor:nextService:2026-11-03');
+  assert.equal(due.done, true);
+  assert.equal(due.navigate, 'vehicles');
+  assert.equal(due.sourceLabel, 'Vehicles');
+  const completed = events.find(event => event.kind === 'record');
+  assert.equal(completed.date, '2026-10-01');
+  assert.match(completed.notes, /Oil and filters/);
+  assert.deepEqual(items, before);
+});
+
+test('an explicit service date and matching oil interval produce one due reminder', () => {
+  const vehicle = { id: 'truck', category: 'vehicles', quantity: 1, fields: { lastOilChange: '2026-01-31', oilInterval: 'Every 3mo', nextService: '2026-04-30' } };
+  const events = buildCalendarEvents({ items: [vehicle] });
+  const due = events.filter(event => event.kind === 'maintenance');
+  assert.equal(due.length, 1);
+  assert.equal(due[0].field, 'nextService');
+  assert.match(due[0].notes, /oil-change interval/);
+  const separateDates = buildCalendarEvents({ items: [{ ...vehicle, fields: { ...vehicle.fields, nextService: '2026-04-20' } }] });
+  assert.equal(separateDates.filter(event => event.kind === 'maintenance').length, 2);
+});
+
+test('oil changed during the latest service is one historical record without losing future reminders', () => {
+  const item = { id: 'atv', name: 'ATV', category: 'vehicles', quantity: 1, fields: { lastServiceDate: '2026-10-28', lastOilChange: '2026-10-28', oilInterval: 'Every 3mo', nextService: '2027-01-28', vehicleServiceLog: [{ id: 'service', date: '2026-10-28', summary: 'Filters replaced', oilChanged: true }] } };
+  const before = structuredClone(item);
+  const events = buildCalendarEvents({ items: [item] });
+  const records = events.filter(event => event.kind === 'record');
+  assert.equal(records.length, 1);
+  assert.equal(records[0].field, 'lastServiceDate');
+  assert.match(records[0].notes, /Oil changed/);
+  assert.deepEqual(events.filter(event => event.kind === 'maintenance').map(event => [event.field, event.date]), [['nextService', '2027-01-28']]);
+  assert.deepEqual(item, before);
+  for (const fields of [
+    { ...item.fields, lastOilChange: '2026-09-28' },
+    { ...item.fields, vehicleServiceLog: [{ id: 'service', date: '2026-10-28', oilChanged: false }] },
+    { ...item.fields, vehicleServiceLog: [{ id: 'service', date: '2026-10-28', oilChanged: 'true' }] },
+  ]) {
+    const distinct = buildCalendarEvents({ items: [{ ...item, fields }] });
+    assert.equal(distinct.filter(event => event.kind === 'record').length, 2);
+    assert.ok(distinct.some(event => event.field === 'lastOilChange' && event.date === fields.lastOilChange));
+    assert.ok(distinct.some(event => event.field === 'nextService' && event.date === fields.nextService));
+  }
+});
+
+test('vehicle meter thresholds and historical fuel rotation do not invent future dates', () => {
+  const events = buildCalendarEvents({ items: [
+    { id: 'atv', category: 'vehicles', quantity: 1, fields: { mileage: '7000', mileageUnit: 'km', nextServiceMileage: '6500', hoursOnEngine: '520', nextServiceHours: '500', oilInterval: 'Every 100hrs' } },
+    { id: 'fuel', category: 'fuel', quantity: 20, fields: { vehicleId: 'atv', lastRotated: '2026-09-01' } },
+    { id: 'part', category: 'vehicles', subType: 'spareParts', quantity: 2, fields: { vehicleId: 'atv', expiryDate: '2027-03-01' } },
+  ] });
+  assert.deepEqual(events.map(event => event.field), ['lastRotated', 'expiryDate']);
+  assert.equal(events[0].kind, 'record');
+  assert.equal(events[1].category, 'vehicles');
+});
+
+test('only the latest valid vehicle service-log date is shown when the summary date is absent', () => {
+  const events = buildCalendarEvents({ items: [{ id: 'vehicle', category: 'vehicles', quantity: 1, fields: { vehicleServiceLog: [null, { date: '2026-02-30' }, { date: '2026-10-02', summary: 'Latest service' }, { date: '2026-09-01', summary: 'Old service' }] } }] });
+  assert.equal(events.length, 1);
+  assert.equal(events[0].date, '2026-10-02');
+  assert.equal(events[0].kind, 'record');
+  assert.match(events[0].notes, /Latest service/);
+});
+
 test('monthly planting and harvest reminders recur without inventing an exact day', () => {
   const items = [{ id: 'seed', name: 'Roma seeds', category: 'farm', fields: { cropName: 'Tomato', plantMonth: 'Apr', harvestMonth: 'Aug' } }];
   assert.equal(buildCalendarEvents({ items }).length, 0);

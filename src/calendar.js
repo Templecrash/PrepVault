@@ -106,11 +106,27 @@ export function buildCalendarEvents({ items = [], gardenBeds = [], soilTests = [
   items.filter(isRecord).forEach((item, index) => {
     if (Number(item.quantity) === 0) return;
     const fields = isRecord(item.fields) ? item.fields : {};
+    const vehicle = item.category === 'vehicles';
+    const destination = { category: item.category, sourceLabel: vehicle ? 'Vehicles' : 'Supplies', ...(vehicle ? { navigate: 'vehicles' } : {}) };
     const linked = bugOutEntries.filter(entry => entry?.inventoryId === item.id);
     const context = [item.location && `Stored: ${item.location}`, linked.length && `Bug Out: ${linked.map(entry => `${entry.name}${entry.assignee ? ` (${entry.assignee})` : ''}`).join(', ')}`].filter(Boolean).join(' · ');
-    Object.entries(ITEM_DATES).forEach(([field, [label, kind, detail]]) => add({ source: 'item', sourceId: item.id ?? index, field, date: fields[field], title: `${label}: ${item.name || 'Unnamed supply'}`, kind, notes: [detail, context].filter(Boolean).join(' '), category: item.category, sourceLabel: 'Supplies' }));
     const months = { 'Every 3mo': 3, 'Every 6mo': 6, Annually: 12 }[fields.oilInterval];
-    if (months && parseCalendarDate(fields.lastOilChange)) add({ source: 'item', sourceId: item.id ?? index, field: 'oilDue', date: addCalendarMonths(fields.lastOilChange, months), title: `Oil change due: ${item.name || 'Vehicle'}`, kind: 'maintenance', notes: `Based on your recorded oil change and ${fields.oilInterval.toLowerCase()} interval. Update the oil-change record when complete. ${context}`.trim(), category: item.category, sourceLabel: 'Supplies' });
+    const oilDate = months ? addCalendarMonths(fields.lastOilChange, months) : null;
+    const history = vehicle && Array.isArray(fields.vehicleServiceLog) ? fields.vehicleServiceLog.filter(entry => isRecord(entry) && parseCalendarDate(entry.date)).slice().sort((a, b) => b.date.localeCompare(a.date)) : [];
+    const serviceDate = vehicle ? (parseCalendarDate(fields.lastServiceDate) ? fields.lastServiceDate : history[0]?.date) : null;
+    const serviceIncludesOil = fields.lastOilChange === serviceDate && history.some(entry => entry.date === serviceDate && entry.oilChanged === true);
+    Object.entries(ITEM_DATES).forEach(([field, [label, kind, detail]]) => {
+      // Older records used lastService; do not count the same completed service
+      // twice when the current vehicle editor also records lastServiceDate.
+      if (field === 'lastService' && fields[field] === serviceDate) return;
+      if (field === 'lastOilChange' && serviceIncludesOil) return;
+      const oilNote = field === 'nextService' && oilDate && oilDate === fields.nextService ? 'Your recorded oil-change interval also falls on this date.' : '';
+      add({ source: 'item', sourceId: item.id ?? index, field, date: fields[field], title: `${label}: ${item.name || 'Unnamed supply'}`, kind, notes: [detail, oilNote, context].filter(Boolean).join(' '), ...destination });
+    });
+    if (serviceDate) add({ source: 'item', sourceId: item.id ?? index, field: 'lastServiceDate', date: serviceDate, title: `Serviced: ${item.name || 'Vehicle'}`, kind: 'record', notes: ['Recorded vehicle service.', text(history.find(entry => entry.date === serviceDate)?.summary), serviceIncludesOil && 'Oil changed.', context].filter(Boolean).join(' '), ...destination });
+    // Mileage and engine-hour thresholds have no known calendar date. They stay
+    // in Vehicles until a date is recorded; no driving-rate assumption is made.
+    if (oilDate && oilDate !== fields.nextService) add({ source: 'item', sourceId: item.id ?? index, field: 'oilDue', date: oilDate, title: `Oil change due: ${item.name || 'Vehicle'}`, kind: 'maintenance', notes: `Based on your recorded oil change and ${fields.oilInterval.toLowerCase()} interval. Update the oil-change record when complete. ${context}`.trim(), ...destination });
   });
   gardenBeds.filter(isRecord).forEach((bed, index) => {
     const grouped = new Map();

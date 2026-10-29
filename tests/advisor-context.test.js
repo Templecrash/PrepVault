@@ -160,6 +160,56 @@ test('server sanitizer projects a crafted request onto the nested allowlist', ()
   assert.equal(clean.property.maps[0].markers[0].x, 20);
 });
 
+test('vehicle maintenance, onboard fuel and linked supplies survive both context boundaries', () => {
+  const fields = { mileage: '68000', mileageUnit: 'mi', hoursOnEngine: '620', lastServiceDate: '2026-10-01', nextService: '2027-01-01', nextServiceMileage: '75000', nextServiceHours: '700', tankFuel: '12', tankCapacity: '30', fuelType: 'Diesel', fuelUnit: 'US gal', empProtection: 'installed', empProtectionNotes: 'Stored spare controller', emergencyEquipment: ['first-aid', 'paper-map'], vehicleServiceLog: [{ id: 'service-1', date: '2026-10-01', summary: 'Oil and filters', oilChanged: true, odometer: '68000', odometerUnit: 'mi', hours: '620', nextService: '2027-01-01', nextServiceMileage: '75000', nextServiceHours: '700', createdAt: '2026-10-01T14:00:00Z' }] };
+  const input = { ...fixture(), items: [
+    { id: 'truck', name: 'Truck', category: 'vehicles', subType: 'truck', quantity: 1, fields },
+    { id: 'fuel', name: 'Stored fuel', category: 'fuel', subType: 'gasoline', quantity: 20, fields: { gallons: '20', vehicleId: 'truck' } },
+    { id: 'filter', name: 'Oil filter', category: 'equipment', subType: 'fuelFilter', quantity: 2, fields: { vehicleId: 'truck' } },
+  ] };
+  const before = structuredClone(input);
+  const context = buildAdvisorContext(input, { now });
+  const clean = sanitizeAdvisorContext(context);
+  for (const result of [context, clean]) {
+    assert.deepEqual(result.inventory.items[0].fields, fields);
+    assert.equal(result.inventory.items[1].fields.vehicleId, 'truck');
+    assert.equal(result.inventory.items[2].fields.vehicleId, 'truck');
+    assert.equal(result.derived.resourcePools.fuelGals, 20); // Tank fuel is not another inventory supply.
+    assert.ok(result.meta.limitations.some(note => /EMP protection.*not verified/.test(note)));
+  }
+  assert.deepEqual(input, before);
+});
+
+test('vehicle service history is bounded, reports omissions and redacts private extras', () => {
+  const history = Array.from({ length: 25 }, (_, index) => ({ id: `service-${index}`, date: '2026-10-01', summary: `Service ${index}. token: LOG_SECRET`, invoiceUrl: 'https://private.example/invoice?token=INVOICE_SECRET', password: 'PASSWORD_SECRET' }));
+  const input = { ...fixture(), items: [{ id: 'atv', category: 'vehicles', subType: 'atv', quantity: 1, fields: { empProtectionNotes: 'password: EMP_SECRET', emergencyEquipment: ['first-aid', { password: 'EQUIPMENT_SECRET' }], vehicleServiceLog: history } }] };
+  const context = buildAdvisorContext(input, { now });
+  assert.equal(context.inventory.items[0].fields.vehicleServiceLog.length, 20);
+  assert.equal(context.inventory.items[0].fields.vehicleServiceLog[0].id, 'service-24');
+  assert.equal(context.meta.truncated['inventory.items.0.fields.vehicleServiceLog'], 5);
+  assert.deepEqual(context.inventory.items[0].fields.emergencyEquipment, ['first-aid']);
+  const crafted = sanitizeAdvisorContext({ inventory: { items: [{ fields: { vehicleServiceLog: history, empProtectionNotes: 'password: EMP_SECRET', locationTrackingToken: 'TRACKING_SECRET' } }] } });
+  assert.equal(crafted.inventory.items[0].fields.vehicleServiceLog.length, 20);
+  assert.equal(crafted.meta.truncated['inventory.items.fields.vehicleServiceLog'], 5);
+  for (const result of [context, crafted]) {
+    const encoded = JSON.stringify(result);
+    for (const secret of ['LOG_SECRET', 'INVOICE_SECRET', 'PASSWORD_SECRET', 'EMP_SECRET', 'EQUIPMENT_SECRET', 'TRACKING_SECRET']) assert.equal(encoded.includes(secret), false, secret);
+  }
+  assert.equal(history.length, 25);
+  assert.equal(history[0].id, 'service-0');
+});
+
+test('vehicle presentation context does not migrate, duplicate or remove the rest of an inventory', () => {
+  const items = Array.from({ length: 172 }, (_, index) => ({ id: `supply-${index}`, category: index < 3 ? 'vehicles' : 'water', subType: index < 3 ? 'truck' : 'storedWater', name: `Recorded item ${index}`, propertyId: index % 2 ? 'home' : 'cabin', quantity: index + 1, fields: index < 3 ? { mileage: String(10000 + index), lastServiceDate: '2026-10-01' } : {} }));
+  const before = structuredClone(items);
+  const context = buildAdvisorContext({ ...fixture(), items }, { now });
+  const clean = sanitizeAdvisorContext(context);
+  assert.equal(context.inventory.totalEntries, 172);
+  assert.equal(clean.inventory.items.length, 172);
+  assert.deepEqual(clean.inventory.items.map(item => [item.id, item.category, item.propertyId, item.quantity]), items.map(item => [item.id, item.category, item.propertyId, item.quantity]));
+  assert.deepEqual(items, before);
+});
+
 test('large plans stay under the request budget and report omissions', () => {
   const input = { ...fixture(), items: Array.from({ length: 1200 }, (_, index) => ({ id: `item-${index}`, name: `Supply ${index}`, category: 'water', subType: 'storedWater', quantity: 1, propertyId: 'home', notes: '備'.repeat(1000), fields: { capacity: 1 } })) };
   const context = buildAdvisorContext(input, { now });

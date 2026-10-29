@@ -1,6 +1,6 @@
 .pv-radio-services-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:28px;padding:26px}
 .pv-radio-services-heading .pv-inventory-eyebrow{margin:0 0 9px;font-size:10px}
-.pv-radio-services-heading h2{margin:0 0 10px;font-size:27px;line-height:1.2;font-weight:550;letter-spacing:-.8px;color:#294d37}
+.pv-radio-services-heading h2{margin:0 0 10px;font-size:20px;line-height:1.4;font-weight:550;letter-spacing:-.4px;color:#294d37}
 .pv-radio-talk p,.pv-radio-talk li{font-size:12px;line-height:1.75;color:var(--comms-muted)}
 .pv-radio-services-heading p:last-child{margin:0;max-width:620px}
 .pv-radio-services-heading label{min-width:200px;flex-shrink:0}
@@ -38,7 +38,7 @@
 @media(max-width:1000px){.pv-radio-services-list{grid-template-columns:1fr}.pv-radio-service+.pv-radio-service{border-left:0;border-top:1px solid var(--comms-line)}}
 @media(max-width:680px){
   .pv-radio-services-heading{padding:20px;gap:19px;flex-direction:column}
-  .pv-radio-services-heading h2{font-size:24px}
+  .pv-radio-services-heading h2{font-size:19px}
   .pv-radio-services-heading label{min-width:0;width:100%}
   .pv-radio-service{padding:20px}
   .pv-radio-service-actions{flex-direction:column;align-items:stretch}

@@ -1,6 +1,7 @@
 export function Icon({ name = 'box', size = 20, ...props }) {
   const paths = {
     home: <><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></>,
+    vehicle: <><path d="m5 7 2-4h10l2 4 2 3v8H3v-8Z"/><path d="M5 7h14M3 13h18M6 18v3m12-3v3M6 10h2m8 0h2"/></>,
     box: <><path d="m3 7 9-4 9 4v10l-9 4-9-4Z"/><path d="m3 7 9 5 9-5M12 12v9M7 5l10 5"/></>,
     search: <><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
     plus: <path d="M12 4v16M4 12h16"/>,

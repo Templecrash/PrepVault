@@ -8,9 +8,12 @@ import { computeResourcePools, buildResourceRows } from './resource-planning.js'
 const MAX_CONTEXT_BYTES = 150 * 1024;
 const PIN_ASSIGNMENT_TEXT_LIMITS = { assignmentRole: 200, assignmentEquipment: 500 };
 const PROFILE_FIELDS = ['heatSource', 'powerSource', 'gridStatus', 'hasGenerator', 'generatorFuel', 'waterSource', 'freshwaterAccess', 'sewage', 'populationDensity', 'nearestTownKm', 'propertyAcres', 'geoRisks', 'specialNeeds', 'pets', 'foodStorage', 'medicalTraining', 'commsCapability', 'defensivePosture', 'completedAt'];
-const COMMON_ITEM_FIELDS = ['calories', 'servings', 'expiryDate', 'lastRefreshed', 'daysSupply', 'runtimeHours', 'gallons', 'capacity', 'cords', 'cordsPerMonth', 'nextService', 'lastOilChange', 'lastService', 'lastAudited'];
+const COMMON_ITEM_FIELDS = ['calories', 'servings', 'expiryDate', 'lastRefreshed', 'daysSupply', 'runtimeHours', 'gallons', 'capacity', 'cords', 'cordsPerMonth', 'nextService', 'lastOilChange', 'lastService', 'lastAudited', 'vehicleId'];
+const VEHICLE_ITEM_FIELDS = ['lastServiceDate', 'nextServiceMileage', 'nextServiceHours', 'mileage', 'mileageUnit', 'hoursOnEngine', 'empProtection', 'empProtectionNotes', 'tankFuel', 'tankCapacity', 'fuelType', 'fuelUnit', 'emergencyEquipment'];
+const VEHICLE_SERVICE_FIELDS = ['id', 'date', 'summary', 'odometer', 'odometerUnit', 'hours', 'oilChanged', 'nextService', 'nextServiceMileage', 'nextServiceHours', 'createdAt'];
+const MAX_VEHICLE_SERVICE_RECORDS = 20;
 const INVENTORY_FIELDS = `airFiltration alcABV alcBrand alcVolume alcWineType ammoType animalCount animalFeedLbs animalFeedType animalNotes animalStatus animalType bagOwner bagWeight bands barLength barricadeType batteryBrand batteryChemistry batteryCount batteryMah batteryVoltage boatEngineHours boatHP boatHullMat boatLength boatMotor boatType bobItemNotes bobItemQty bookAuthor bookEdition bookRegion bookScale bookSubject btuRating bullionFaceValue bullionGoldbackDenom bullionGoldbackState bullionJunkType bullionMetal bullionMint bullionPurchasePrice bullionPurity bullionWeight caliber calories capacity certLevel chainsCount chainsawBrand chargerSlots chargerType clothMaterial clothSize clothType clothingType coinCellType containerType contents cords cordsPerMonth count cropName daysSupply daysToHarvest depth deviceBrand deviceLocation deviceModel diaperSize dimensions distance docType expiryDate fertilizerType filterQty filterSize filterType firearmAction fishBaitType fishHookSize fishLineWeight fishLureType fishReelType fishRodType fishTackleContents flowRate fluidType formulaType fuelType gallons gallonsPerTab gallonsUsed gauge gearType gpm harvestMonth hasPlan hasPump heatedGreenhouse hoursOnEngine inverter irrigationType isRechargeable kidAge kidName kidSize kitLevel lastAudited lastInspection lastOilChange lastRefreshed lastReplaced lastRotated lastService lastSwept lengthFt level licensed lifespanGallons lightBattery lightBrand lightBulbType lightBurnTime lightChemColor lightFuel lightLumens magCapacity magnification mah medication mileage miscDesc nbcBrand nbcDosage nbcFilterThread nbcFilterType nbcMaterial nbcModel nbcRating nbcSize nextService oilInterval optic packCapacity partDesc partFor pestControlType petAnimal petCarrierSize petFoodType petMedName petName pfdSize pfdType planExpiry planProvider plantMonth provider pumpType range recBrand recDosage recForm recStrain recWeight rounds runtimeHours seasonalReliability seasoned seedVariety servings soilType spikeType splitterType sqft stabilized tankSize tempRating tireCondition tireSize trapType type vMake vModel vYear watts weightLbs wireLength woodSpecies`.split(' ');
-const INVENTORY_FIELD_SET = new Set(INVENTORY_FIELDS);
+const INVENTORY_FIELD_SET = new Set([...INVENTORY_FIELDS, ...VEHICLE_ITEM_FIELDS, 'vehicleId']);
 const SECRET_FIELD = /password|passphrase|token|secret|credential|api.?key|private.?key|serial|^pin$|^code$/i;
 const list = value => Array.isArray(value) ? value.filter(item => item && typeof item === 'object' && !Array.isArray(item)) : [];
 const number = value => value !== '' && value != null && typeof value !== 'boolean' && Number.isFinite(Number(value)) ? Number(value) : null;
@@ -64,15 +67,17 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
   };
   const categories = input.categories || {};
   const rawItems = list(input.items);
-  const normalizedItems = rawItems.map(item => {
+  const normalizedItems = rawItems.map((item, index) => {
     const category = categories[item.category];
     const subtype = category?.subTypes?.[item.subType];
-    const allowedFields = [...new Set([...COMMON_ITEM_FIELDS, ...(subtype?.fields || [])])].filter(key => INVENTORY_FIELD_SET.has(key));
+    const allowedFields = [...new Set([...COMMON_ITEM_FIELDS, ...(subtype?.fields || []), ...(item.category === 'vehicles' ? VEHICLE_ITEM_FIELDS : [])])].filter(key => INVENTORY_FIELD_SET.has(key));
+    const vehicleHistory = item.category === 'vehicles' && Array.isArray(item.fields?.vehicleServiceLog)
+      ? { vehicleServiceLog: rows(`inventory.items.${index}.fields.vehicleServiceLog`, list(item.fields.vehicleServiceLog).slice().reverse(), entry => pick(entry, VEHICLE_SERVICE_FIELDS), MAX_VEHICLE_SERVICE_RECORDS) } : {};
     return {
       ...pick(item, ['id', 'name', 'category', 'subType', 'location', 'notes', 'addedDate']),
       propertyId: text(item.propertyId || 'prop1', 120), quantity: number(item.quantity),
       categoryLabel: text(category?.label), typeLabel: text(subtype?.label), unit: text(subtype?.unit),
-      fields: pick(item.fields, allowedFields),
+      fields: { ...pick(item.fields, allowedFields), ...vehicleHistory },
     };
   });
   const householdSize = number(input.people);
@@ -107,6 +112,7 @@ export function buildAdvisorContext(input = {}, { now = () => new Date() } = {})
         'Dependency checks are a generic checklist with inventory matches, not verification that equipment exists, works or is compatible.',
         'Resource conversions assume equipment performance; they are not measured energy or guaranteed runtime.',
         'Manuals are reference metadata; handbook text, map images and embedded files are not provided to the adviser.',
+        'Vehicle service dates and meter thresholds are user records, not an inspection. Mileage or hours do not imply a due date. EMP protection and emergency equipment are recorded claims, not verified protection. Onboard fuel is separate from stored fuel inventory and must not be added to it without checking for overlap.',
         'Precise live locations, private chats, passwords, access-code values, code-word values, challenge responses and authentication data are excluded.',
         'Live weather/news, current radio audio, active radio monitoring and unsaved child-view simulation sliders are unavailable in this snapshot.',
         'Emergency schedule completion records actions only and does not consume inventory. Emergency coverage excludes past/invalid expiry dates, livestock and hunting equipment; ordinary inventory coverage includes all recorded stock. Emergency water is a supply allocation, not a limit on drinking.',
@@ -219,7 +225,7 @@ const CONTEXT_SCHEMA = {
   },
   inventory: {
     ...fields('totalEntries entriesWithUnknownQuantity'),
-    items: [{ ...fields('id name category subType location notes addedDate propertyId quantity categoryLabel typeLabel unit'), fields: fields(INVENTORY_FIELDS.join(' ')) }],
+    items: [{ ...fields('id name category subType location notes addedDate propertyId quantity categoryLabel typeLabel unit'), fields: { ...fields([...INVENTORY_FIELD_SET].join(' ')), vehicleServiceLog: [fields(VEHICLE_SERVICE_FIELDS.join(' '))] } }],
   },
   property: {
     ...fields('primaryAddress recordedTrapCount'),
@@ -276,7 +282,8 @@ export function sanitizeAdvisorContext(value) {
       .filter(([key, count]) => /^[A-Za-z0-9_.-]{1,160}$/.test(key) && typeof count === 'number' && Number.isFinite(count) && count >= 0).slice(0, 100));
     if (Array.isArray(shape)) {
       const source = list(item);
-      const result = source.slice(0, 1000).map(entry => project(entry, shape[0], path, depth + 1));
+      const limit = path === 'inventory.items.fields.vehicleServiceLog' ? MAX_VEHICLE_SERVICE_RECORDS : 1000;
+      const result = source.slice(0, limit).map(entry => project(entry, shape[0], path, depth + 1));
       arrays.push({ path, values: result });
       if (source.length > result.length) omitted[path] = source.length - result.length;
       return result;

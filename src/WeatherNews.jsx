@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { isLocalEdition } from './runtime-mode.js';
 import LocalServiceNotice from './LocalServiceNotice.jsx';
+import { Icon } from './brand.jsx';
+import './inventory.css';
+import './weather-news.css';
 
 export default function WeatherNews() {
   const [weather, setWeather] = useState(null);
@@ -38,11 +41,14 @@ export default function WeatherNews() {
     } finally { clearTimeout(timeout); request.current = null; setBusy(''); }
   };
   if (isLocalEdition()) return <LocalServiceNotice title="Weather & news" detail="Live feeds require an internet connection and the hosted service. This local edition does not request your location or show sample weather alerts." />;
-  return <section className="pv-card" style={{ padding: 24, marginBottom: 20 }} aria-label="Weather and news">
-    <h3>Weather & news</h3><p>Load current information when you need it. Weather uses your browser location only after you choose the button below.</p>
-    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}><button className="pv-button pv-secondary" disabled={Boolean(busy)} onClick={() => load('weather')}>{busy === 'weather' ? 'Checking weather…' : 'Use my location for weather'}</button><button className="pv-button pv-secondary" disabled={Boolean(busy)} onClick={() => load('news')}>{busy === 'news' ? 'Loading news…' : 'Load news'}</button></div>
-    {error && <p role="alert">{error}</p>}
-    {weather && <div><h4>{weather.current.city || 'Local weather'}</h4><p>{weather.current.temp}°C · {weather.current.description}</p><p>Updated {weather.fetchedAt ? new Date(weather.fetchedAt).toLocaleString() : 'on this request'}. Check official alerts before acting.</p>{(weather.alerts || []).map((alert, index) => <p key={index}>{alert.title || alert.desc}</p>)}</div>}
-    {news && <div><h4>News</h4><p>Retrieved {new Date(news.fetchedAt).toLocaleString()}</p>{news.articles.length ? <ul>{news.articles.slice(0, 6).map((article, index) => <li key={index}>{/^https:\/\//.test(article.url || '') ? <a href={article.url} target="_blank" rel="noreferrer">{article.title}</a> : article.title} <span>— {article.source}</span></li>)}</ul> : <p>No articles returned.</p>}</div>}
+  return <section className="pv-weather-news" aria-label="Weather and news">
+    <header><div><h2>Weather & news</h2><p>Check current conditions and recent reports when you need them.</p></div><Icon name="compass" size={19}/></header>
+    <div className="pv-weather-news-actions"><button type="button" className="pv-inventory-button pv-inventory-button-secondary" disabled={Boolean(busy)} onClick={() => load('weather')}><Icon name="compass" size={16}/>{busy === 'weather' ? 'Checking weather…' : 'Use my location for weather'}</button><button type="button" className="pv-inventory-button pv-inventory-button-secondary" disabled={Boolean(busy)} onClick={() => load('news')}><Icon name="refresh" size={16}/>{busy === 'news' ? 'Loading news…' : 'Load news'}</button></div>
+    <p className="pv-weather-news-note">Your browser location is requested only when you choose the weather button.</p>
+    {error && <p className="pv-weather-news-error" role="alert">{error}</p>}
+    {(weather || news) && <div className="pv-weather-news-results">
+      {weather && <section><h3>{weather.current.city || 'Local weather'}</h3><p className="pv-weather-news-temperature"><strong>{weather.current.temp}°C</strong><span>{weather.current.description}</span></p><p className="pv-weather-news-note">Updated {weather.fetchedAt ? new Date(weather.fetchedAt).toLocaleString() : 'on this request'}. Check official alerts before acting.</p>{(weather.alerts || []).map((alert, index) => <p key={index} className="pv-weather-news-alert">{alert.title || alert.desc}</p>)}</section>}
+      {news && <section><h3>Recent reports</h3><p className="pv-weather-news-note">Retrieved {new Date(news.fetchedAt).toLocaleString()}</p>{news.articles.length ? <ul>{news.articles.slice(0, 6).map((article, index) => <li key={index}>{/^https:\/\//.test(article.url || '') ? <a href={article.url} target="_blank" rel="noreferrer">{article.title}<Icon name="arrow" size={14}/></a> : article.title}<span>{article.source}</span></li>)}</ul> : <p>No articles returned.</p>}</section>}
+    </div>}
   </section>;
 }
