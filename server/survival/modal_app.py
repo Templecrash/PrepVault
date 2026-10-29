@@ -56,7 +56,7 @@ def model_command():
             "--enable-mamba-shared-prefix-checkpoint", "--mamba-cache-mode", "align",
             "--speculative-config.method", "mtp", "--speculative-config.num_speculative_tokens", "3",
             "--enable-auto-tool-choice", "--tool-call-parser", "qwen3_coder",
-            "--reasoning-parser", "nemotron_v3", "--disable-log-requests", "--disable-log-stats"]
+            "--reasoning-parser", "nemotron_v3", "--no-enable-log-requests", "--disable-log-stats"]
 
 
 @app.function(image=provision_image, volumes={"/data": assets_volume}, cpu=4, memory=8192,

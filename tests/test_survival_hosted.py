@@ -1,4 +1,5 @@
 """No network, GPU, desktop runtime or large downloads are used in these tests."""
+import argparse
 import ast
 import asyncio
 import copy
@@ -384,6 +385,25 @@ class AdapterTests(unittest.TestCase):
         self.assertNotIn("web_server", ast.unparse(worker))
         self.assertNotIn("asgi_app", ast.unparse(worker))
         self.assertNotIn("/Users/", path.read_text())
+
+    def test_startup_command_disables_request_logs_with_vllm_032_parser(self):
+        path = Path(__file__).resolve().parents[1] / "server/survival/modal_app.py"
+        tree = ast.parse(path.read_text())
+        command_function = next(node for node in tree.body
+                                if isinstance(node, ast.FunctionDef) and node.name == "model_command")
+        # Evaluate only the pure command builder, without importing Modal or
+        # resolving cloud resources. v0.32 AsyncEngineArgs uses this exact action:
+        # github.com/vllm-project/vllm/blob/v0.32.0/vllm/engine/arg_utils.py
+        namespace = {"MODEL": security.MODEL}
+        exec(compile(ast.Module(body=[command_function], type_ignores=[]), str(path), "exec"), namespace)
+        command = namespace["model_command"]()
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--enable-log-requests", action=argparse.BooleanOptionalAction, default=True)
+        parser.add_argument("--disable-log-stats", action="store_true")
+        args, remaining = parser.parse_known_args(command[3:])
+        self.assertFalse(args.enable_log_requests)
+        self.assertTrue(args.disable_log_stats)
+        self.assertNotIn("--disable-log-requests", remaining)
 
     def test_independent_provisioning_has_no_gpu_dependency(self):
         path = Path(__file__).resolve().parents[1] / "server/survival/provision.py"
