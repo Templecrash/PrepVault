@@ -7,6 +7,8 @@ import Welcome from "./Welcome.jsx";
 import AccountAuth from "./AccountAuth.jsx";
 import { getAccountSession, signOutAccount, ACCOUNT_SESSION_EVENT } from "./account-auth-client.js";
 import { switchAccountWorkspace, readWorkspaceOwner, captureWorkspaceSettings } from "./account-workspace.js";
+import { captureWorkspaceBaseline, persistWorkspaceSnapshot, workspaceBaselineStatus } from "./workspace-persistence.js";
+import { prepareInventoryImport } from "./inventory-import.js";
 import HouseholdSetup from "./HouseholdSetup.jsx";
 import BugOutPlan from "./BugOutPlan.jsx";
 import PlanNotice from "./PlanNotice.jsx";
@@ -2659,6 +2661,13 @@ function safeWorkspaceOwner() {
   try { return readWorkspaceOwner(localStorage); } catch { return INVALID_WORKSPACE_OWNER; }
 }
 
+function readInitialWorkspace() {
+  try {
+    const baseline = captureWorkspaceBaseline(localStorage);
+    return { ...readStoredPlan({ getItem: () => baseline.planRaw }), baseline };
+  } catch (error) { return { snapshot: null, baseline: null, error: error.message }; }
+}
+
 function emptyPlan() {
   return { version: 4, items: [], people: 1, dailyCalTarget: 2000, climate: "cold", pins: [], propAddress: "", mapSetups: {}, routes: [],
     properties: DEFAULT_PROPERTIES.slice(0, 1).map(property => ({ ...property })), activePropertyId: "prop1", members: [], contacts: [],
@@ -2667,7 +2676,11 @@ function emptyPlan() {
 }
 
 export default function PrepVault() {
-  const initialPlan = useRef(readStoredPlan(localStorage));
+  const initialPlan = useRef(null);
+  if (!initialPlan.current) initialPlan.current = readInitialWorkspace();
+  const persistenceBaseline = useRef(initialPlan.current.baseline);
+  const persistenceEpoch = useRef(0);
+  const [storageConflict, setStorageConflict] = useState(false);
   const saved = useRef(initialPlan.current.snapshot || (isLocalEdition() ? emptyPlan() : null));
   const [recoveryError, setRecoveryError] = useState(initialPlan.current.error);
   const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
@@ -2801,29 +2814,34 @@ export default function PrepVault() {
   const saveTimerRef = useRef(null);
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    if (!authReady || recoveryError) return;
+    if (!authReady || recoveryError || storageConflict) return;
     setDbStatus("unsaved");
     const persistenceOwner = workspaceOwnerRef.current;
+    const epoch = persistenceEpoch.current;
     const persist = () => {
-      if (safeWorkspaceOwner() !== persistenceOwner) return;
+      if (safeWorkspaceOwner() !== persistenceOwner || persistenceEpoch.current !== epoch) return;
       try {
-        localStorage.setItem(PV_STORAGE_KEY, JSON.stringify({
+        persistenceBaseline.current = persistWorkspaceSnapshot(localStorage, persistenceBaseline.current, {
+          version: 4,
+          timestamp: new Date().toISOString(),
           items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId,
           members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog,
           soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
           propertyProfile, emergencyPlan, demoData,
+          localSettings: captureWorkspaceSettings(localStorage),
+          meta: { categories: Object.keys(CATEGORIES).length, scenarios: Object.keys(SCENARIOS).length, properties: properties.length },
           savedAt: new Date().toISOString()
-        }));
+        });
         setDbStatus("saved");
         setLastSaved(new Date().toISOString());
         // Queue cloud sync if authenticated
         if (syncEngineRef.current) syncEngineRef.current.queueSync();
-      } catch { setDbStatus("error"); setToast({ msg: "Changes could not be saved. Export a backup before closing.", type: "error" }); }
+      } catch (error) { setDbStatus("error"); if (error.code === "WORKSPACE_CONFLICT") setStorageConflict(true); else setToast({ msg: "Changes could not be saved. Export a backup before closing.", type: "error" }); }
     };
     saveTimerRef.current = setTimeout(persist, 350);
     window.addEventListener("pagehide", persist);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); window.removeEventListener("pagehide", persist); };
-  }, [authReady, recoveryError, user?.id, items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, emergencyPlan, demoData]);
+  }, [authReady, recoveryError, storageConflict, user?.id, items, people, dailyCalTarget, climate, pins, propAddress, mapSetups, routes, properties, activePropertyId, members, contacts, callSigns, codeWords, rallyPoints, codes, gardenBeds, actionLog, soilTests, compostBins, livestock, slaughterLog, bugOutEntries, propertyProfile, emergencyPlan, demoData]);
 
   /* ── Toast auto-dismiss ── */
   useEffect(() => {
@@ -2880,7 +2898,22 @@ export default function PrepVault() {
       }
     };
     const otherWorkspace = event => {
-      if (event.key === "prepvault-workspace-owner") window.location.reload();
+      if (event.key === "prepvault-workspace-owner") { persistenceEpoch.current += 1; window.location.reload(); }
+      else if (event.key === PV_STORAGE_KEY && persistenceBaseline.current) {
+        try {
+          const status = workspaceBaselineStatus(localStorage, persistenceBaseline.current);
+          if (status === "same") return;
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+          persistenceEpoch.current += 1;
+          if (status === "owner-changed") window.location.reload();
+          else setStorageConflict(true);
+        } catch (error) {
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+          persistenceEpoch.current += 1;
+          setDbStatus("error");
+          setRecoveryError(error.message || "The saved plan could not be read. Saving has been paused to preserve your data.");
+        }
+      }
     };
     refresh();
     window.addEventListener(ACCOUNT_SESSION_EVENT, refresh);
@@ -2902,6 +2935,7 @@ export default function PrepVault() {
   }, [user]);
 
   const applyAccount = nextUser => {
+    requireCurrentPlan();
     const nextId = nextUser?.id || null;
     const previousId = readWorkspaceOwner(localStorage);
     const result = switchAccountWorkspace(localStorage, {
@@ -2910,13 +2944,14 @@ export default function PrepVault() {
     workspaceOwnerRef.current = readWorkspaceOwner(localStorage);
     if (result.changed && !result.claimedUnbound) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      restoreSnapshot(result.snapshot, true, false);
+      restoreSnapshot(result.snapshot, true, false, true);
       setShowQuickStart(false); setShowStartPlan(false); setUpgradeNotices([]); setShowAdd(false);
       setShowScanner(false); setShowSecurity(false);
       setRevealedCodes({}); setDbPassphrase(""); setExportPw(""); setImportPw("");
       backupOperation.current += 1; backupRunning.current = false; setBackupBusy(false); setPendingRestore(null); setSavedSnapshotStatus(snapshotStatus());
       setEncryptedDb(false); setSecMsg(""); setToast(null); navigate("dashboard");
     }
+    if (result.changed) { persistenceEpoch.current += 1; persistenceBaseline.current = captureWorkspaceBaseline(localStorage); }
     verifiedIdentityRef.current = nextId;
     setUser(nextUser); setSyncStatus("local"); setAuthReady(true); setSessionError("");
     if (previousId && nextId !== previousId) setShowLanding(true);
@@ -2962,7 +2997,16 @@ export default function PrepVault() {
     if (data.activePropertyId !== "all" && !data.properties.some(property => property.id === data.activePropertyId)) data.activePropertyId = data.properties[0].id;
     return data;
   };
-  const restoreSnapshot = (raw, includeSettings = true, notifyLimit = true) => {
+  const requireCurrentPlan = () => {
+    const status = workspaceBaselineStatus(localStorage, persistenceBaseline.current);
+    if (status === "plan-changed") { setStorageConflict(true); throw Object.assign(new Error("A newer plan was saved in another tab. Reload it before saving here."), { code: "WORKSPACE_CONFLICT" }); }
+    if (status === "owner-changed") { persistenceEpoch.current += 1; window.location.reload(); throw new Error("The active account changed. Reloading its saved plan."); }
+  };
+  const restoreSnapshot = (raw, includeSettings = true, notifyLimit = true, accountSwitch = false) => {
+    if (!accountSwitch && !recoveryError) requireCurrentPlan();
+    // Recovery may replace a damaged plan, but must still verify its owner
+    // before any data or settings are written.
+    if (readWorkspaceOwner(localStorage) !== workspaceOwnerRef.current) throw Object.assign(new Error("The active account changed. Reload its saved plan before restoring a backup."), { code: "WORKSPACE_OWNER_CHANGED" });
     const prepared = prepareRestoredSnapshot(raw, includeSettings);
     const data = persistRestoredSnapshot(localStorage, prepared, { includeSettings });
     // Durable storage succeeds before any visible state changes.
@@ -2980,17 +3024,20 @@ export default function PrepVault() {
     }
     if (notifyLimit) { const notices = categoryUpgradeNotices(items, data.items); if (notices.length) setUpgradeNotices(notices); }
     saved.current = data; currentSnapshotRef.current = data;
+    persistenceEpoch.current += 1; persistenceBaseline.current = captureWorkspaceBaseline(localStorage);
     setSelCat(null); setLastSaved(data.savedAt); setDbStatus("saved"); setRecoveryError("");
   };
   // Save emergency actions synchronously: an active indicator must represent a
   // durable plan, and account switches must never write into another workspace.
   const commitEmergencyPlan = next => {
     try {
+      requireCurrentPlan();
       if (!authReady || recoveryError || safeWorkspaceOwner() !== workspaceOwnerRef.current) throw new Error("Reconnect to your workspace before changing emergency mode.");
       const plan = validateEmergencyPlan(next);
       if (plan?.active && plan.propertyId !== "all" && !properties.some(property => property.id === plan.propertyId)) throw new Error("Choose an existing property for the emergency plan.");
       const snapshot = { ...getDbSnapshot(), emergencyPlan: plan, dailyCalTarget: plan?.active ? plan.dailyCalTarget : dailyCalTarget };
       const persisted = persistRestoredSnapshot(localStorage, snapshot, { includeSettings: false });
+      persistenceEpoch.current += 1; persistenceBaseline.current = captureWorkspaceBaseline(localStorage);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       currentSnapshotRef.current = persisted;
       saved.current = persisted;
@@ -3041,8 +3088,12 @@ export default function PrepVault() {
   });
   const stageRestore = (data, label, owner) => {
     const prepared = prepareRestoredSnapshot(data);
-    setPendingRestore({ data: prepared, label, owner, id: Date.now() });
-    setSecMsg("Backup verified. Review its contents and confirm before replacing this plan.");
+    const target = properties.find(property => property.id === activePropertyId) || properties[0];
+    let supplyImport;
+    try { const result = prepareInventoryImport(items, prepared.items, properties, target?.id); supplyImport = { ...result, items: undefined, targetPropertyId: target?.id, targetPropertyName: target?.name }; }
+    catch (error) { supplyImport = { error: error.message }; }
+    setPendingRestore({ data: prepared, label, owner, supplyImport, id: Date.now() });
+    setSecMsg("Backup verified. Add its supplies to your plan, or choose a complete restore below.");
   };
   const handleEncryptedImport = file => runBackupOperation("import", async (current, owner) => {
     if (file.size > MAX_BACKUP_FILE_BYTES) throw new Error("Choose a PrepVault backup smaller than 64 MB.");
@@ -3054,6 +3105,15 @@ export default function PrepVault() {
     if (!pendingRestore || owner !== pendingRestore.owner || !current()) throw new Error("Your workspace changed. Review the backup again.");
     restoreSnapshot(pendingRestore.data);
     setSecMsg(`Restored ${pendingRestore.data.items.length} inventory entries and the saved plan settings.`);
+    setPendingRestore(null); setImportPw(""); setDbPassphrase("");
+  });
+  const confirmSuppliesImport = () => runBackupOperation("inventory-import", async (current, owner) => {
+    if (!pendingRestore || owner !== pendingRestore.owner || !current() || pendingRestore.supplyImport?.error) throw new Error("Your workspace changed. Review the supplies again.");
+    requireCurrentPlan();
+    const merged = prepareInventoryImport(items, pendingRestore.data.items, properties, pendingRestore.supplyImport.targetPropertyId);
+    const previous = getBackupSnapshot();
+    restoreSnapshot({ ...previous, items: merged.items, demoData: false });
+    setSecMsg(`Added ${merged.addedCount} supplies. ${merged.duplicateCount} duplicates and ${merged.conflictCount} conflicting records were kept unchanged. Your other plan records and settings are preserved.`);
     setPendingRestore(null); setImportPw(""); setDbPassphrase("");
   });
   const handleLocalSave = () => runBackupOperation("snapshot-save", async current => {
@@ -3095,7 +3155,7 @@ export default function PrepVault() {
     setOfflineStatus({ ...status, savedCount: ids.length, totalCount: HANDBOOKS.length });
     setSecMsg("App files saved in this browser. Save guides in Emergency, or download the local edition for a copy independent of this website.");
   });
-  const settingsPanel = <SettingsBackups onClose={closeSettings} itemCount={items.length} dbStatus={dbStatus} lastSaved={lastSaved} isOffline={isOffline} user={user} syncEnabled={Boolean(user && !user.isLocal && user.authProvider !== "neon" && supabaseConfigured)} message={secMsg} busy={backupBusy} exportPw={exportPw} setExportPw={setExportPw} onExport={handleEncryptedExport} importPw={importPw} setImportPw={setImportPw} onImport={handleEncryptedImport} restorePreview={pendingRestore ? { id: pendingRestore.id, label: pendingRestore.label, itemCount: pendingRestore.data.items.length, propertyCount: pendingRestore.data.properties.length, peopleCount: pendingRestore.data.contacts.length, settingCount: Object.keys(pendingRestore.data.localSettings || {}).length } : null} onConfirmRestore={confirmRestore} onCancelRestore={() => setPendingRestore(null)} encryptedDb={encryptedDb} setEncryptedDb={setEncryptedDb} dbPassphrase={dbPassphrase} setDbPassphrase={setDbPassphrase} onSaveSnapshot={handleLocalSave} onLoadSnapshot={handleLocalLoad} onRemoveSnapshot={handleDbWipe} snapshotStatus={savedSnapshotStatus} offlineStatus={offlineStatus} onPrepareOffline={handlePrepareOffline} onOpenEmergency={() => { closeSettings(); navigate("emergency"); }} isLocalEdition={isLocalEdition()} localAppUrl={isLocalEdition() ? null : "/local/prepvault-local.zip"} />;
+  const settingsPanel = <SettingsBackups onClose={closeSettings} itemCount={items.length} dbStatus={dbStatus} lastSaved={lastSaved} isOffline={isOffline} user={user} syncEnabled={Boolean(user && !user.isLocal && user.authProvider !== "neon" && supabaseConfigured)} message={secMsg} busy={backupBusy} exportPw={exportPw} setExportPw={setExportPw} onExport={handleEncryptedExport} importPw={importPw} setImportPw={setImportPw} onImport={handleEncryptedImport} restorePreview={pendingRestore ? { id: pendingRestore.id, label: pendingRestore.label, itemCount: pendingRestore.data.items.length, propertyCount: pendingRestore.data.properties.length, peopleCount: pendingRestore.data.contacts.length, settingCount: Object.keys(pendingRestore.data.localSettings || {}).length, supplyImport: pendingRestore.supplyImport } : null} onConfirmRestore={confirmRestore} onImportSupplies={confirmSuppliesImport} onCancelRestore={() => setPendingRestore(null)} encryptedDb={encryptedDb} setEncryptedDb={setEncryptedDb} dbPassphrase={dbPassphrase} setDbPassphrase={setDbPassphrase} onSaveSnapshot={handleLocalSave} onLoadSnapshot={handleLocalLoad} onRemoveSnapshot={handleDbWipe} snapshotStatus={savedSnapshotStatus} offlineStatus={offlineStatus} onPrepareOffline={handlePrepareOffline} onOpenEmergency={() => { closeSettings(); navigate("emergency"); }} isLocalEdition={isLocalEdition()} localAppUrl={isLocalEdition() ? null : "/local/prepvault-local.zip"} />;
 
   /* ── Property-filtered items ── */
   const propItems = activePropertyId === "all" ? items : items.filter(i => (i.propertyId || "prop1") === activePropertyId);
@@ -3338,6 +3398,7 @@ export default function PrepVault() {
   const renderAuthModal = () => <AccountAuth initialMode={authMode} onClose={() => setShowAuth(false)} onSignedIn={handleSignedIn} />;
 
   if (recoveryError) return <div className="pv-workspace"><main className="pv-main"><section className="pv-card" style={{ maxWidth: 680, margin: "60px auto", padding: 28 }}><h1>Recover your saved plan</h1><p role="alert">{recoveryError}</p><p>Your current file has been preserved. Review a backup below to restore your plan.</p><button className="pv-button pv-secondary" onClick={() => { try { downloadFile(localStorage.getItem(PV_STORAGE_KEY) || "", "prepvault-recovery.json"); } catch { setSecMsg("Browser storage could not be read."); } }}>Download saved data for recovery</button><label className="pv-field">Backup passphrase<input type="password" value={importPw} onChange={event => setImportPw(event.target.value)} autoComplete="off" /></label><label className="pv-field">Choose backup<input type="file" accept=".json" disabled={Boolean(backupBusy)} onChange={event => { if (event.target.files[0]) handleEncryptedImport(event.target.files[0]); event.target.value = ""; }} /></label>{secMsg && <p role="status">{secMsg}</p>}{pendingRestore && <div><p>{pendingRestore.data.items.length} inventory entries verified. Restoring replaces the unreadable working file.</p><button className="pv-button pv-primary" disabled={Boolean(backupBusy)} onClick={confirmRestore}>Restore verified backup</button><button className="pv-button pv-secondary" disabled={Boolean(backupBusy)} onClick={() => setPendingRestore(null)}>Cancel</button></div>}</section></main></div>;
+  if (storageConflict) return <div className="pv-workspace"><main className="pv-main"><section className="pv-card" style={{ maxWidth: 680, margin: "60px auto", padding: 28 }}><h1>A newer plan is saved.</h1><p role="alert">Another tab updated this workspace. Saving from this older view is paused to protect the newer copy.</p><p>Reload to use the latest plan. If you made changes here, download this tab’s copy first.</p><div className="pv-backups-actions"><button className="pv-button pv-primary" onClick={() => window.location.reload()}>Reload latest plan</button><button className="pv-button pv-secondary" onClick={() => downloadFile(JSON.stringify(getBackupSnapshot(), null, 2), "prepvault-unsaved-recovery.json")}>Download this tab’s copy</button></div><p className="pv-backups-help">The recovery JSON is unencrypted. Keep it private.</p></section></main></div>;
   if (!authReady) return <div className="pv-account-gate"><Icon name="shield" size={30}/><h1>{sessionError ? "Reconnect to your plan" : "Opening your workspace…"}</h1><p role="status">{sessionError || "Checking your secure sign-in."}</p>{sessionError && <><button className="pv-button pv-primary" onClick={() => { setSessionError(""); setSessionAttempt(value => value + 1); }}>Try again</button><button className="pv-button pv-secondary" onClick={() => { try { ++sessionGeneration.current; applyAccount(null); } catch (error) { setSessionError(error.message); } }}>Use a separate guest plan</button></>}</div>;
 
   if (showLanding) return <Welcome hasPlan={!demoData} user={user} onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { if (user) enterWorkspace(); else { setShowAuth(true); setAuthMode("login"); } }}>{showAuth && renderAuthModal()}</Welcome>;

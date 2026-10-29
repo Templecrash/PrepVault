@@ -16,7 +16,7 @@ function displayDate(value) {
   return value && Number.isFinite(date.getTime()) ? date.toLocaleString() : 'Not recorded';
 }
 
-function RestoreReview({ preview, busy, onConfirm, onCancel }) {
+function RestoreReview({ preview, busy, onConfirm, onCancel, onImportSupplies }) {
   const [confirmed, setConfirmed] = useState(false);
   const counts = [
     ['Inventory entries', preview.itemCount],
@@ -28,9 +28,15 @@ function RestoreReview({ preview, busy, onConfirm, onCancel }) {
     <span className="pv-backups-kicker">READY TO RESTORE</span>
     <h4>{preview.label || 'Your backup'}</h4>
     {counts.length > 0 && <dl className="pv-backups-counts">{counts.map(([label, count]) => <div key={label}><dt>{label}</dt><dd>{count}</dd></div>)}</dl>}
-    <p>This replaces the plan and saved settings in this workspace. Download your current plan first if you want to keep both versions.</p>
+    {onImportSupplies && preview.supplyImport && <div className="pv-backups-card">
+      <h4>Add supplies to this plan</h4><p>Bring in missing inventory while keeping your existing supplies, people, maps and settings.</p>
+      {preview.supplyImport.error ? <p role="alert">{preview.supplyImport.error}</p> : <><p>{preview.supplyImport.addedCount} supplies to add · {preview.supplyImport.duplicateCount} already present · {preview.supplyImport.conflictCount} conflicting records kept unchanged.</p>{preview.supplyImport.remappedCount > 0 && <p>{preview.supplyImport.remappedCount} supplies from unavailable properties will be assigned to {preview.supplyImport.targetPropertyName}.</p>}</>}
+      <button type="button" className="pv-button pv-primary" disabled={busy || Boolean(preview.supplyImport.error) || !preview.supplyImport.addedCount} onClick={onImportSupplies}>{busy === 'inventory-import' ? 'Adding supplies…' : 'Add supplies only'}</button>
+    </div>}
+    <details className="pv-backups-details"><summary>Replace the complete plan instead</summary><div><p>This replaces the plan and saved settings in this workspace. Download your current plan first if you want to keep both versions.</p>
     <label className="pv-backups-check"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy}/><span>Replace my current plan with this backup.</span></label>
-    <div className="pv-backups-actions"><button type="button" className="pv-button pv-primary" disabled={busy || !confirmed} onClick={onConfirm}>{busy === 'restore' ? 'Restoring…' : 'Restore this backup'}</button><button type="button" className="pv-button pv-secondary" disabled={busy} onClick={onCancel}>Cancel restore</button></div>
+    <button type="button" className="pv-button pv-secondary" disabled={busy || !confirmed} onClick={onConfirm}>{busy === 'restore' ? 'Restoring…' : 'Restore this backup'}</button></div></details>
+    <button type="button" className="pv-button pv-secondary" disabled={busy} onClick={onCancel}>Cancel restore</button>
   </section>;
 }
 
@@ -43,7 +49,7 @@ export default function SettingsBackups({
   onClose, itemCount = 0, dbStatus, lastSaved, isOffline = false, user, syncEnabled = false,
   message = '', busy = false,
   exportPw = '', setExportPw, onExport, importPw = '', setImportPw, onImport,
-  restorePreview, onConfirmRestore, onCancelRestore,
+  restorePreview, onConfirmRestore, onCancelRestore, onImportSupplies,
   encryptedDb = false, setEncryptedDb, dbPassphrase = '', setDbPassphrase,
   onSaveSnapshot, onLoadSnapshot, onRemoveSnapshot, snapshotStatus = {},
   offlineStatus = {}, onPrepareOffline, onOpenEmergency, serviceRows,
@@ -94,7 +100,7 @@ export default function SettingsBackups({
 
           {section === 'backups' && <>
             <div className="pv-backups-heading"><span className="pv-backups-kicker">A COPY YOU CONTROL</span><h3>Save your complete plan.</h3><p>Download your recorded collections and local settings in one encrypted file. Restore it here, on another device, or in your local copy of PrepVault.</p></div>
-            {restorePreview ? <RestoreReview key={restorePreview.id || restorePreview.label || 'restore'} preview={restorePreview} busy={busy} onConfirm={onConfirmRestore} onCancel={onCancelRestore}/> : <div className="pv-backups-form-grid">
+            {restorePreview ? <RestoreReview key={restorePreview.id || restorePreview.label || 'restore'} preview={restorePreview} busy={busy} onConfirm={onConfirmRestore} onCancel={onCancelRestore} onImportSupplies={onImportSupplies}/> : <div className="pv-backups-form-grid">
               <form className="pv-backups-card" onSubmit={async event => { event.preventDefault(); if (busy || exportPw.length < 12 || confirmation !== exportPw) return; try { await onExport(); } finally { setConfirmation(''); } }}>
                 <div className="pv-backups-card-title"><Icon name="download" size={19}/><h4>Download a backup</h4></div>
                 <p>Choose a long, unique passphrase. You’ll need it to open this backup.</p>
