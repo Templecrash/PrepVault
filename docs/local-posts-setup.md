@@ -1,6 +1,6 @@
 # Optional local posts from X
 
-The Location page can load recent public X posts after the workspace owner signs in. This is optional; public police/city updates and source links do not require this connection. A normal X login or ChatGPT subscription does not supply API access.
+Paid X setup is paused. Location currently uses the credential-free reports described in `public-community.md`. This optional owner-only backend is retained for a future paid integration, but is not used by the current Location view. A normal X login or ChatGPT subscription does not supply API access.
 
 ## Setup and cost
 
@@ -12,7 +12,7 @@ The Location page can load recent public X posts after the workspace owner signs
 
 ## Behavior and privacy
 
-- The browser checks configuration without contacting X. A deliberate **Load posts** action requests up to ten results; there is no automatic paid polling, pagination, or retry.
+- A future client can check configuration without contacting X, then explicitly request up to ten results. The retained `LocalPosts` component implements that pattern but is not mounted by Location. There is no automatic paid polling, pagination, or retry.
 - A server request uses [recent search](https://docs.x.com/x-api/posts/search/introduction) over the last 48 hours, newest first. It searches a quoted city plus a region/country disambiguator and selected warning, disruption and police terms; reposts and replies are excluded. This is keyword matching, not a verified geofence or a complete incident feed. Requiring the place disambiguator can omit posts that mention only the city.
 - Only the selected coarse city, region and country go to X. No GPS coordinates, inventory, private plans or user credentials are sent. The bearer token travels only in the server Authorization header to the fixed official `api.x.com` endpoint, with redirects disabled.
 - Results contain plain text, author name/handle, timestamp and a constructed X permalink. Render the text as text, never HTML. Posts can be unverified or outdated; they must not automatically become official alerts or establish that an area is safe/unsafe.

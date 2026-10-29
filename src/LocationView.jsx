@@ -205,8 +205,8 @@ export default function LocationView({ compact = false, onOpen, onCategory, onSi
     {!compact && <section className="pv-location-watchlist" aria-label="Watched cities"><div className="pv-location-subheading"><h2>Your places</h2><span>{places.locations.length} / {MAX_WATCHED_LOCATIONS}</span></div>{targets.length > 0 ? <div className="pv-location-city-grid">{targets.map(value => { const key = locationWatchKey(value); return <CityCard key={key} location={value} row={rows[key]} selected={key === activeKey} primary={key === primaryKey} now={now} local={local} onSelect={() => { setSelectedKey(key); setDetailsOpen(false); }}/>; })}</div> : <p className="pv-location-empty">Add a city to follow local updates and official notices.</p>}</section>}
     {compact && localDetail && <CompactConditions location={location} row={rows[activeKey]} now={now}/>}
     {!compact && !local && location && <SelectedConditions location={location} row={rows[activeKey]} now={now} onDetails={openWeather}/>}
-    {!compact && <LocalUpdates activeLocation={location} onSignIn={onSignIn}/>}
     {!compact && <LocationBriefing activeLocation={location} locations={targets}/>}
+    {!compact && <LocalUpdates activeLocation={location}/>}
     {!compact && localDetail && <details ref={weatherRef} className="pv-location-detail-disclosure" open={detailsOpen} onToggle={event => setDetailsOpen(event.currentTarget.open)}><summary><span>Weather &amp; city settings · {location.name}</span><Icon name="chevron" size={16}/></summary>{localDetail}</details>}
     {!compact && <details className="pv-location-travel-disclosure"><summary><span><Icon name="map" size={17}/>Destination &amp; travel planning</span><Icon name="chevron" size={16}/></summary><LocationTravel home={places.primary} locations={targets} onAddLocation={places.error ? undefined : () => { setAddingDestination(true); setEditing(true); }} onSignIn={onSignIn} onOpenMaps={onOpenMaps}/></details>}
 

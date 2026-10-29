@@ -29,3 +29,18 @@
 .pv-local-posts .pv-local-updates-list li > a { font-size: 11px; margin-top: 12px; justify-content: flex-start; color: var(--pv-link, var(--pv-accent)); }
 .pv-local-updates :is(a,button,summary):focus-visible { outline: 2px solid var(--pv-focus); outline-offset: 3px; }
 @media (max-width: 600px) { .pv-local-updates > header, .pv-local-posts > header { padding: 18px; gap: 12px; flex-wrap: wrap; }.pv-local-updates-list { padding: 0 18px; }.pv-local-updates h2 { font-size: 20px; }.pv-local-updates-message { padding: 0 18px 18px; }.pv-local-updates-channels { margin: 0 18px; }.pv-local-updates-sources, .pv-local-posts-note, .pv-local-posts-actions { padding-inline: 18px; }.pv-local-updates-list li > a { font-size: 13px; }.pv-local-posts > header { padding-bottom: 10px; } }
+
+/* Public discussion shares the quiet local-report list, without alert colours. */
+.pv-public-community { color: var(--pv-ink); }
+.pv-public-community > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 24px 10px; }
+.pv-public-community > header > .pv-text-link { flex: none; font-size: 11px; }
+.pv-public-community-searches { display: flex; flex-wrap: wrap; gap: 12px 22px; padding: 0 24px 16px; }
+.pv-public-community-searches a { display: inline-flex; align-items: center; gap: 6px; color: var(--pv-ink); font-size: 11px; text-decoration: none; }
+.pv-public-community-searches a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pv-public-community .pv-local-updates-list li > a { justify-content: space-between; margin-top: 0; color: var(--pv-ink); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.pv-public-community-check { padding-bottom: 12px; }
+.pv-public-community-more > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 24px; color: var(--pv-muted); cursor: pointer; font-size: 11px; list-style: none; }
+.pv-public-community-more > summary::-webkit-details-marker { display: none; }.pv-public-community-more[open] > summary > svg { transform: rotate(90deg); }
+.pv-public-community-coverage { padding-top: 12px; }.pv-public-community-coverage a { color: var(--pv-ink); text-underline-offset: 3px; }
+.pv-public-community :is(button,a,summary):focus-visible { outline: 2px solid var(--pv-focus); outline-offset: 3px; }
+@media(max-width:600px) { .pv-public-community > header { padding: 18px 18px 10px; gap: 12px; flex-wrap: wrap; }.pv-public-community-searches { padding-inline: 18px; }.pv-public-community-more > summary { padding-inline: 18px; } }

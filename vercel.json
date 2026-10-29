@@ -3,6 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/community-updates.js": {"maxDuration": 25},
     "api/local-updates.js": {
       "maxDuration": 20
     },

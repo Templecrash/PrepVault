@@ -3,10 +3,10 @@ import { Icon } from './brand.jsx';
 import { isLocalEdition } from './runtime-mode.js';
 import { briefingLocationKey, normalizeBriefingLocation } from './briefing-relevance.js';
 import { getLocalUpdates, localUpdateDate } from './local-updates.js';
-import LocalPosts from './LocalPosts.jsx';
+import PublicCommunity from './PublicCommunity.jsx';
 import './local-updates.css';
 
-export default function LocalUpdates({ activeLocation, onSignIn }) {
+export default function LocalUpdates({ activeLocation }) {
   const [state, setState] = useState({ key: '', data: null, error: '', busy: false });
   const [refresh, setRefresh] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -53,11 +53,11 @@ export default function LocalUpdates({ activeLocation, onSignIn }) {
     {busy && !data && <p className="pv-local-updates-message" role="status">Checking local sources…</p>}
     {data && <>
       {updates.some(row => row.timestampBasis === 'reported') && <p className="pv-local-updates-message">Recent reported police calls · incidents may already be resolved.</p>}
-      {updates.length ? <ol className="pv-local-updates-list">{updates.slice(0, expanded ? 30 : 4).map(row => <li key={row.id}><div><span>{row.source || (row.kind === 'police' ? 'Police update' : 'City update')}</span><time dateTime={row.publishedAt}>{row.timestampBasis === 'reported' ? 'Reported ' : ''}{localUpdateDate(row)}</time></div><a href={row.url} target="_blank" rel="noreferrer">{row.title}<Icon name="arrow" size={14}/></a>{row.summary && <p>{row.summary}</p>}</li>)}</ol> : <p className="pv-local-updates-message">{unsupported ? `Direct police and city feeds are not connected for ${location.city} yet. Local news and recent-post searches are below.` : failed ? 'Local sources could not be fully checked. Use the official links below.' : 'No matching recent updates were returned. This does not confirm that the area is clear.'}</p>}
+      {updates.length ? <ol className="pv-local-updates-list">{updates.slice(0, expanded ? 30 : 4).map(row => <li key={row.id}><div><span>{row.source || (row.kind === 'police' ? 'Police update' : 'City update')}</span><time dateTime={row.publishedAt}>{row.timestampBasis === 'reported' ? 'Reported ' : ''}{localUpdateDate(row)}</time></div><a href={row.url} target="_blank" rel="noreferrer">{row.title}<Icon name="arrow" size={14}/></a>{row.summary && <p>{row.summary}</p>}</li>)}</ol> : <p className="pv-local-updates-message">{unsupported ? `Direct police and city feeds are not connected for ${location.city} yet. Local news and public-post searches remain available.` : failed ? 'Local sources could not be fully checked. Use the official links below.' : 'No matching recent updates were returned. This does not confirm that the area is clear.'}</p>}
       {updates.length > 4 && <button type="button" className="pv-text-link pv-local-updates-more" onClick={() => setExpanded(value => !value)}>{expanded ? 'Show fewer updates' : `More updates (${Math.min(updates.length, 30)})`}</button>}
       {data.channels.length > 0 && <nav className="pv-local-updates-channels" aria-label="Official local channels">{data.channels.map(channel => <a key={channel.url} href={channel.url} target="_blank" rel="noreferrer">{channel.name}<Icon name="arrow" size={12}/></a>)}</nav>}
       <details className="pv-local-updates-sources"><summary>Coverage{failed ? ' · some sources unavailable' : ''}</summary><p>Police calls are reported incidents, not confirmation of an ongoing threat. Some calls are omitted or delayed. Check the source for current instructions.</p>{data.sources.map((source, index) => <p key={index}><strong>{source.name}</strong> · {source.status === 'ready' ? 'Checked' : source.status === 'empty' ? 'No matching updates' : source.status === 'unsupported' ? 'Not connected for this city' : 'Unavailable'}{source.error && ` — ${source.error}`}{source.note && ` · ${source.note}`}</p>)}</details>
     </>}
-    <LocalPosts key={locationKey} location={location} onSignIn={onSignIn}/>
+    <PublicCommunity key={locationKey} location={location}/>
   </section>;
 }
