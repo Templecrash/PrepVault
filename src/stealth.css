@@ -1,0 +1,36 @@
+/* Quiet graphite surfaces. Semantic status colours remain separate from the brand accent. */
+:root { --pv-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; }
+:root[data-theme] .pv-brand { color: var(--pv-ink); letter-spacing: -.8px; }
+:root[data-theme] .pv-brand .pv-mark { color: var(--pv-accent); }
+:root[data-theme] .pv-workspace { background: var(--pv-canvas); }
+:root[data-theme="dark"] .pv-workspace { background: radial-gradient(ellipse at 90% 0%, #25272d55 0, transparent 50%), linear-gradient(145deg, #141519 0%, #0a0b0d 55%, #101114 100%); }
+:root[data-theme="dark"] .pv-sidebar { background: linear-gradient(175deg, #1d1e22 0%, #111215 48%, #0d0e10 100%); border-color: #303239; }
+:root[data-theme="dark"] .pv-topbar { background: linear-gradient(110deg, #17181be8, #101114ed); border-color: #2b2d32; }
+:root[data-theme="dark"] .pv-property-switch { background: linear-gradient(135deg, #24262b, #1a1b1f); border-color: #36383e; }
+:root[data-theme] .pv-navigation-toggle { font-family: var(--pv-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+:root[data-theme] .pv-sidebar .pv-nav-item { border: 1px solid transparent; border-radius: 6px; }
+:root[data-theme] .pv-sidebar .pv-nav-item.is-active { color: var(--pv-ink); background: var(--pv-subtle); border-color: var(--pv-border); box-shadow: inset 2px 0 var(--pv-accent); }
+:root[data-theme] .pv-sidebar .pv-nav-item.is-active svg { color: var(--pv-accent); }
+:root[data-theme] .pv-sidebar .pv-nav-item.is-active .pv-nav-count { background: var(--pv-surface); color: var(--pv-ink); }
+:root[data-theme="dark"] .pv-sidebar .pv-nav-item.is-active { background: linear-gradient(100deg, #2d2f35, #212329); }
+:root[data-theme] :is(.pv-page-intro h1, .pv-inventory-heading h1, .pv-overview-heading h1) { font-weight: 650; letter-spacing: -1px; }
+:root[data-theme] :is(.pv-inventory-eyebrow, .pv-eyebrow, .pv-breadcrumb, .pv-overview-heading time) { font-family: var(--pv-mono); }
+:root[data-theme] .pv-status-summary-title { font-family: var(--pv-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .9px; }
+:root[data-theme] :is(.pv-text-link, .pv-status-action, .pv-recommendation-action) { color: var(--pv-link, var(--pv-accent)); }
+:root[data-theme="dark"] :is(.pv-inventory-workspace, .pv-overview-panel, .pv-status-card, .pv-readiness-compact, .pv-readiness-start, .pv-local-brief, .pv-overview-security-grid, .pv-inventory-recommendations.is-compact) { background: linear-gradient(140deg, #202126 0%, #18191d 55%, #141519 100%); border-color: #33353c; box-shadow: 0 1px 0 #ffffff03 inset; }
+:root[data-theme="dark"] :is(.pv-dialog, .pv-account-dialog, .pv-setup-dialog, .pv-item-dialog) { background: linear-gradient(145deg, #24262b, #17181c 70%); }
+:root[data-theme] :is(.pv-primary, .pv-inventory-button-primary, .pv-overview-button:not(.pv-button-outline), .pv-account-submit) { border-color: var(--pv-accent); color: var(--pv-on-accent); background: var(--pv-accent); box-shadow: 0 3px 10px #0002; font-weight: 650; }
+:root[data-theme="dark"] :is(.pv-primary, .pv-inventory-button-primary, .pv-overview-button:not(.pv-button-outline), .pv-account-submit) { background: linear-gradient(150deg, #ffad75, #f48947 68%); border-color: #ffb482; }
+:root[data-theme] :is(.pv-primary, .pv-inventory-button-primary, .pv-overview-button:not(.pv-button-outline), .pv-account-submit):hover:not(:disabled) { background: var(--pv-accent-hover); color: var(--pv-on-accent); }
+:root[data-theme] .pv-prep-chat-launcher:not(.is-open) { color: var(--pv-ink); background: var(--pv-surface); border: 1px solid var(--pv-border); box-shadow: 0 6px 22px #0004; }
+:root[data-theme] .pv-prep-chat-launcher:not(.is-open)>svg { color: var(--pv-accent); }
+:root[data-theme] .pv-prep-chat-launcher:not(.is-open):hover { border-color: var(--pv-accent); background: var(--pv-subtle); }
+:root[data-theme="dark"] .pv-mobile-nav { background: #111215f5; border-color: var(--pv-border); }
+:root[data-theme] .pv-mobile-nav button.is-active { color: var(--pv-accent); }
+:root[data-theme] .pv-mobile-nav button.is-active>svg { background: var(--pv-subtle); box-shadow: 0 0 0 5px var(--pv-subtle); }
+:root[data-theme] .pv-sidebar-calendar-day { color: var(--pv-ink); background: var(--pv-surface); border-color: var(--pv-border); border-top-color: var(--pv-accent); }
+:root[data-theme] :is(input, select, textarea) { accent-color: var(--pv-accent); }
+:root[data-theme] :is(input, select, textarea):focus-visible { outline-color: var(--pv-focus); }
+:root[data-theme] ::selection { color: var(--pv-on-accent); background: var(--pv-accent); }
+:root[data-theme] { scrollbar-color: var(--pv-border) var(--pv-canvas); }
+@media print { :root[data-theme] .pv-workspace { background: #fff; } }

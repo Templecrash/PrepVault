@@ -6,6 +6,7 @@ import ErrorBoundary from './ErrorBoundary.jsx'
 import LocationSharingPage from './LocationSharingPage.jsx'
 import './design-system.css'
 import './dark-mode.css'
+import './stealth.css'
 import { applyTheme, preferredTheme } from './theme.js'
 import { isLocalEdition } from './runtime-mode.js'
 

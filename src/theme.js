@@ -10,20 +10,19 @@ function savedTheme() {
 }
 
 export function preferredTheme() {
-  return savedTheme() || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  return savedTheme() || 'dark';
 }
 
 export function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111a16' : '#214c39');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0a0b0d' : '#f2f3f5');
 }
 
 export function useTheme() {
   const [theme, setTheme] = useState(preferredTheme);
   useEffect(() => { applyTheme(theme); }, [theme]);
   useEffect(() => {
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
     const update = () => {
       const next = preferredTheme();
       applyTheme(next);
@@ -32,10 +31,8 @@ export function useTheme() {
     const onStorage = event => {
       if (event.key === THEME_KEY || event.key === null) update();
     };
-    media.addEventListener('change', update);
     window.addEventListener('storage', onStorage);
     return () => {
-      media.removeEventListener('change', update);
       window.removeEventListener('storage', onStorage);
     };
   }, []);

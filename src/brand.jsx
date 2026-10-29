@@ -45,5 +45,5 @@ export function Icon({ name = 'box', size = 20, ...props }) {
 }
 
 export function Brand({ compact = false }) {
-  return <span className="pv-brand"><svg className="pv-mark" width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="10" fill="currentColor"/><path d="M10 25V12l8-4 8 4v13M14 25V15l4-2 4 2v10M18 18v7" stroke="var(--paper, #fff)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>{!compact && <span>PrepVault</span>}</span>;
+  return <span className="pv-brand"><svg className="pv-mark" width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="8" fill="currentColor"/><path d="M10 25V12l8-4 8 4v13M14 25V15l4-2 4 2v10M18 18v7" stroke="var(--pv-on-accent, #171310)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>{!compact && <span>PrepVault</span>}</span>;
 }

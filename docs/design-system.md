@@ -1,26 +1,42 @@
 # PrepVault interface style guide
 
-PrepVault uses the Manuals and Dependencies workspaces as its visual reference. The interface should make records easy to scan and actions easy to find, including during an emergency.
+PrepVault uses a graphite and black interface with a restrained orange accent. The Manuals and Dependencies workspaces remain the reference for clear records and simple actions. The interface should feel calm and dependable, including during an emergency.
 
 ## Foundations
 
-The shared tokens live in `src/design-system.css`. Use `--pv-ink`, `--pv-muted`, `--pv-surface`, `--pv-canvas`, `--pv-border`, and `--pv-accent` instead of introducing another page palette. White surfaces sit on a warm neutral canvas. Forest green identifies primary actions and the current navigation item. Red and amber describe real errors or due dates in small labeled indicators; they do not decorate category cards. Never communicate status by color alone.
+The shared light tokens live in `src/design-system.css`; dark values live in `src/dark-mode.css`. Use these tokens instead of introducing page palettes. `src/stealth.css` adds the final workspace surfaces and controls.
 
-Use DM Sans throughout, with a system fallback. Page titles are 27–34px, weight 550; section titles are 17–21px; body and table text are 13px or larger; secondary labels are 11–12px. Uppercase is limited to short section labels. Use normal sentence case for controls, headings, and status text.
+| Role | Token | Default dark | Light fallback |
+| --- | --- | --- | --- |
+| Canvas | `--pv-canvas` | `#0a0b0d` | `#f5f5f6` |
+| Surface | `--pv-surface` | `#18191c` | `#ffffff` |
+| Subtle surface | `--pv-subtle` | `#212328` | `#eeeef0` |
+| Border | `--pv-border` | `#33363d` | `#d8d9dd` |
+| Primary text | `--pv-ink` | `#f1f1f0` | `#24262a` |
+| Secondary text | `--pv-muted` | `#a1a3a6` | `#65686f` |
+| Brand/action | `--pv-accent` | `#f48947` | `#ad4618` |
+| Action hover | `--pv-accent-hover` | `#ffa465` | `#92390f` |
+| Text on action | `--pv-on-accent` | `#171310` | `#ffffff` |
+| Focus | `--pv-focus` | `#ff9a58` | `#b64d1c` |
+| Text link | `--pv-link` | `#ffae75` | `#a54114` |
 
-Use the 4/8/12/16/24/32px spacing scale. Surface corners are 10px and control corners are 7px. Reserve shadows for dialogs and floating controls. Avoid colored card fills, gradient headers, decorative progress percentages, and emoji in navigation or form controls.
+Orange identifies primary actions, the brand mark, active navigation edges and focus. Selected navigation remains charcoal with an orange edge/icon; it is not a large orange block. Keep green, amber and red for actual success, warning and danger states, using `--pv-success`, `--pv-warning` and `--pv-danger`. Do not recolor meaningful status marks orange or decorate categories with status colors. Never communicate status by color alone.
+
+Use DM Sans for reading and controls, with a system fallback. Page titles are 27–34px, weight 650; section titles are 17–21px; body and table text are 13px or larger; secondary labels are 11–12px. The `--pv-mono` stack is reserved for compact navigation group labels, breadcrumbs, dates and insight labels. Uppercase is limited to those short utility labels. Use normal sentence case for actions, page headings and status text.
+
+Use the 4/8/12/16/24/32px spacing scale. Surface corners are 10px and control corners are 7px. Subtle graphite gradients can separate the canvas, sidebar and raised panels; a restrained orange gradient can identify a primary button. Keep these within the shared surface treatment in `stealth.css`. Avoid vivid gradient headers, large colored fills, heavy glow, decorative progress percentages and emoji in navigation or form controls. Use stronger shadows only for dialogs and floating controls.
 
 ## Light and dark themes
 
-The theme is applied to `document.documentElement.dataset.theme` as `light` or `dark`. `src/theme.js` persists an explicit choice in `prepvault-theme`; without one, follow the device preference. The top-bar theme control is available throughout the workspace. Keep the setting separate from account and inventory data.
+The theme is applied to `document.documentElement.dataset.theme` as `light` or `dark`. `src/theme.js` persists an explicit choice in `prepvault-theme`; without one, use dark mode, independently of the device preference. Preserve an existing saved light choice. Apply the preference during initial page boot to avoid a light flash. The top-bar theme control is available throughout the workspace. Keep the setting separate from account and inventory data.
 
-Load `src/dark-mode.css` after `src/design-system.css`. Dark mode uses a deep neutral canvas, slightly raised surfaces, light primary text, and muted secondary text. Use `--pv-link` for text links in dark mode; `--pv-accent` is the darker background of a filled action and requires a white label. Preserve distinct success, warning, and danger states with `--pv-success`, `--pv-warning`, and `--pv-danger`. Do not flatten status colors or rely on color alone.
+Load styles in this order: `src/design-system.css`, `src/dark-mode.css`, then `src/stealth.css`. The light fallback uses neutral gray and white, with no green cast. Use `--pv-link` for text links and `--pv-on-accent` for text and icons on filled orange controls. Do not assume white text works on bright orange: dark mode requires the dark on-accent value. This also applies to date badges, setup steps, scanner save actions and location actions. Preserve distinct success, warning and danger colors in both themes.
 
-The dark stylesheet includes scoped paint overrides for existing components with hardcoded light colors. These change colors and shadows without changing layout or interaction. New components should use the shared semantic tokens directly, reducing the need for this compatibility layer. Retained analytics have a bounded inline-style bridge; `!important` is limited to existing forced rules and those inline values. Match complete CSS property boundaries when working with inline styles.
+The compatibility stylesheet includes scoped paint overrides for existing components with hardcoded colors. These activate for either explicit theme and use its tokens, changing paint without changing layout or interaction. The public landing page has its own scoped dark presentation; avoid shared overrides that wash out its surfaces or sample dashboard. New components should use the shared semantic tokens directly, reducing the need for this compatibility layer. Retained analytics have a bounded inline-style bridge; `!important` is limited to existing forced rules and those inline values. Match complete CSS property boundaries when working with inline styles.
 
 Never invert photos, barcode video, map tiles, geographical annotations, source PDF pages, or instructional diagrams. Darken their surrounding controls and panels while preserving the content. Readiness segment colors remain consistent between themes, with a darker track. Printed routes and references use light surfaces. Embedded third-party services may retain their own theme.
 
-Review both themes on every destination, including selected states, empty states, forms, expanded records, sign-in, settings, and mobile layouts. Verify focus visibility and primary-button contrast, theme persistence after reload, and unchanged source imagery. Parse the complete stylesheet before browser QA; a malformed compatibility rule can prevent later component rules from applying.
+Review both themes on every destination, including selected states, empty states, forms, expanded records, sign-in, settings, and mobile layouts. Verify focus visibility and a minimum 4.5:1 contrast for normal text, including primary-button labels and active badges. Check saved theme persistence after reload, dark first-visit behavior, and unchanged source imagery. Parse the complete stylesheet before browser QA; a malformed compatibility rule can prevent later component rules from applying.
 
 ## Page structure
 

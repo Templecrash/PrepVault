@@ -69,7 +69,7 @@ export default function DemoExperience() {
   const [serviceSummary, setServiceSummary] = useState('Inspected tyres, lights and fluid levels');
   const [serviceLog, setServiceLog] = useState([]);
   const [vehicleEquipment, setVehicleEquipment] = useState(['First aid kit', 'Paper map']);
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   const [message, setMessage] = useState('');
   const foodDays = Math.floor(items.filter(item => item.category === 'food').reduce((sum, item) => sum + item.quantity * item.daysPerUnit, 0));
   const waterLitres = items.filter(item => item.category === 'water').reduce((sum, item) => sum + item.quantity * item.litres, 0);

@@ -1,14 +1,22 @@
 /* PrepVault interface foundations. See docs/design-system.md. */
 :root {
-  --pv-ink: #283d31;
-  --pv-muted: #667360;
-  --pv-accent: #214c39;
-  --pv-accent-hover: #173e2c;
+  --pv-ink: #24262a;
+  --pv-muted: #65686f;
+  --pv-accent: #ad4618;
+  --pv-accent-hover: #92390f;
   --pv-surface: #ffffff;
-  --pv-canvas: #f6f7f3;
-  --pv-subtle: #f2f5ed;
-  --pv-border: #dfe5d8;
-  --pv-focus: #709879;
+  --pv-canvas: #f5f5f6;
+  --pv-subtle: #eeeef0;
+  --pv-border: #d8d9dd;
+  --pv-focus: #b64d1c;
+  --pv-on-accent: #ffffff;
+  --pv-link: #a54114;
+  --pv-success: #3c6949;
+  --pv-info: #315c73;
+  --pv-danger-surface: #fcf0ec;
+  --pv-danger-action: #a43e34;
+  --pv-warning-surface: #faf5e9;
+  --green-soft: var(--pv-subtle);
   --pv-danger: #a43e34;
   --pv-warning: #8b641b;
   --pv-radius: 10px;
@@ -35,7 +43,7 @@
 .pv-page-intro p, .pv-inventory-intro { color: var(--pv-muted); font-size: 13px; line-height: 1.7; }
 .pv-eyebrow, .pv-inventory-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.4px; color: var(--pv-muted); }
 .pv-button, .pv-inventory-button { min-height: var(--pv-control-height); border-radius: var(--pv-control-radius); font-size: 12px; font-weight: 550; line-height: 1.4; }
-.pv-primary, .pv-inventory-button-primary { color: white; background: var(--pv-accent); border-color: var(--pv-accent); }
+.pv-primary, .pv-inventory-button-primary { color: var(--pv-on-accent); background: var(--pv-accent); border-color: var(--pv-accent); }
 .pv-primary:hover, .pv-inventory-button-primary:hover { background: var(--pv-accent-hover); }
 .pv-secondary, .pv-inventory-button-secondary { color: var(--pv-ink); background: var(--pv-surface); border-color: var(--pv-border); }
 .pv-secondary:hover, .pv-inventory-button-secondary:hover { background: var(--pv-subtle); }
