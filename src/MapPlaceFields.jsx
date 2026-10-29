@@ -8,10 +8,16 @@ export default function MapPlaceFields({ value, onChange, label, local, disabled
   const [error, setError] = useState('');
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const request = useRef(null);
+  const searchCoordinateReset = useRef(false);
   useEffect(() => () => request.current?.abort(), []);
   // A pin drag/placement is an external selection. An older search must not
   // replace it or leave stale results open after coordinates have changed.
   useEffect(() => {
+    if (searchCoordinateReset.current && value.latitude === '' && value.longitude === '') {
+      searchCoordinateReset.current = false;
+      return;
+    }
+    searchCoordinateReset.current = false;
     request.current?.abort(); request.current = null;
     const timer = setTimeout(() => { setBusy(false); setResults([]); setError(''); setNeedsSignIn(false); }, 0);
     return () => clearTimeout(timer);
@@ -20,6 +26,12 @@ export default function MapPlaceFields({ value, onChange, label, local, disabled
   const search = async () => {
     if (local || disabled || busy) return;
     request.current?.abort();
+    // Searching is an explicit request for a new location, unlike renaming a
+    // pin. Do not leave the old coordinates attached to the new address text.
+    if (selected) {
+      searchCoordinateReset.current = true;
+      onChange({ ...value, latitude: '', longitude: '', selectionSource: 'search', matchType: undefined, matchLabel: undefined });
+    }
     const controller = new AbortController();
     request.current = controller;
     setBusy(true); setError(''); setNeedsSignIn(false); setResults([]);
