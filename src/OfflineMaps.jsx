@@ -119,7 +119,7 @@ export default function OfflineMaps({ onOpenPropertyMap, onSignIn }) {
     try { query = { points: points.map(asPoint), mode, walkingSpeed: Number(travel.walkingSpeed), cyclingSpeed: Number(travel.cyclingSpeed), avoidAreas: avoidAreas.map((area, index) => ({ ...asPoint(area, index), radiusKm: Number(area.radiusKm) })) }; }
     catch (problem) { setError(problem.message); return; }
     setBusy(true); controller.current = new AbortController();
-    try { const result = await calculateRoute(query, { signal: controller.current.signal }); setRoute(result); setPlanId(null); setShowInstructions(false); if (!name.trim()) setName(`${placeTitle(query.points[0].name)} to ${placeTitle(query.points.at(-1).name)}`.slice(0, 150)); resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    try { const result = await calculateRoute(query, { signal: controller.current.signal }); setRoute(result); setPinStatus(''); setPickingId(null); setPlanId(null); setShowInstructions(false); if (!name.trim()) setName(`${placeTitle(query.points[0].name)} to ${placeTitle(query.points.at(-1).name)}`.slice(0, 150)); resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     catch (problem) { if (problem.name !== 'AbortError') { setError(problem.message || 'The route could not be calculated.'); setNeedsSignIn(problem.status === 401 || /sign.?in|authenticat|unauthori/i.test(problem.message)); } }
     finally { setBusy(false); }
   };
