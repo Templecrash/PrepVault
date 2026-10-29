@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/nest.js": {
+      "maxDuration": 60
+    },
     "api/location-briefing.js": {
       "maxDuration": 20
     },

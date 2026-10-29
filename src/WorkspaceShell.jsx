@@ -8,6 +8,7 @@ import { useTheme } from './theme.js';
 const destinations = [
   { id: 'dashboard', label: 'Overview', icon: 'grid', group: 'YOUR EVERYDAY' },
   { id: 'location', label: 'Location', icon: 'compass' },
+  { id: 'surveillance', label: 'Security', icon: 'shield' },
   { id: 'calendar', label: 'Calendar', icon: 'calendar' },
   { id: 'offline-maps', label: 'Maps', icon: 'map' },
   { id: 'food', label: 'Food', icon: 'leaf' },
@@ -17,7 +18,6 @@ const destinations = [
   { id: 'vehicles', label: 'Vehicles', icon: 'vehicle' },
   { id: 'property', label: 'Property', icon: 'home' },
   { id: 'comms', label: 'Communications', icon: 'radio' },
-  { id: 'surveillance', label: 'Surveillance', icon: 'camera' },
   { id: 'community', label: 'Your people', icon: 'users' },
   { id: 'rationing', label: 'Rationing', icon: 'ration' },
   { id: 'board', label: 'Community board', icon: 'advisor' },
@@ -35,7 +35,7 @@ const destinations = [
 
 const navigationGroups = [
   { id: 'inventory', label: 'Inventory', ids: ['food', 'water', 'power', 'preps', 'vehicles'] },
-  { id: 'people-property', label: 'People & property', ids: ['property', 'comms', 'surveillance', 'community', 'rationing', 'board'] },
+  { id: 'people-property', label: 'People & property', ids: ['property', 'comms', 'community', 'rationing', 'board'] },
   { id: 'planning', label: 'Plan ahead', ids: ['bugout', 'farming', 'simulate', 'systems', 'dependencies'] },
   { id: 'reference', label: 'Reference library', ids: ['skills', 'farm-guides', 'codes', 'manuals', 'emergency'] },
 ];
@@ -113,7 +113,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
         <label><span>YOUR SPACE</span><select aria-label="Active property" value={propertyId} onChange={e => onProperty(e.target.value)}><option value="all">All properties</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <button className="pv-icon-button" aria-label="Manage properties" onClick={() => setPropertyOpen(true)}><Icon name="settings" size={16}/></button>
       </div>
-      <nav aria-label="Workspace pages"><div className="pv-navigation-primary">{destinations.filter(d => ['dashboard', 'location', 'calendar', 'offline-maps'].includes(d.id)).map(navItem)}</div>{navigationGroups.map(group => <NavigationGroup key={group.id} group={group} activeTab={activeTab}>{group.ids.map(id => destinations.find(d => d.id === id)).map(navItem)}</NavigationGroup>)}</nav>
+      <nav aria-label="Workspace pages"><div className="pv-navigation-primary">{destinations.filter(d => ['dashboard', 'location', 'surveillance', 'calendar', 'offline-maps'].includes(d.id)).map(navItem)}</div>{navigationGroups.map(group => <NavigationGroup key={group.id} group={group} activeTab={activeTab}>{group.ids.map(id => destinations.find(d => d.id === id)).map(navItem)}</NavigationGroup>)}</nav>
       <div className="pv-sidebar-bottom">
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={() => { setMenuOpen(false); setAccountOpen(false); onCrisis(); }} aria-current={activeTab === 'emergency-mode' ? 'page' : undefined}><Icon name="shield" size={18}/>{crisisMode ? 'Emergency plan · active' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
         <button className="pv-settings" onClick={() => { setMenuOpen(false); setAccountOpen(false); onSecurity(); }}><Icon name="settings" size={18}/> Settings & backups</button>

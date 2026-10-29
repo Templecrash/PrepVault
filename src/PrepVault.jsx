@@ -2388,7 +2388,7 @@ export default function PrepVault() {
   const [people, setPeople] = useState(() => saved.current.people);
   const [dailyCalTarget, setDailyCalTarget] = useState(() => saved.current?.emergencyPlan?.active ? saved.current.emergencyPlan.dailyCalTarget : saved.current?.dailyCalTarget ?? 2000);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
-  const [activeTab, setActiveTab] = useState(() => saved.current?.emergencyPlan?.active ? "emergency-mode" : "dashboard");
+  const [activeTab, setActiveTab] = useState(() => ["nest-connected", "nest-error"].includes(new URLSearchParams(window.location.search).get("security")) ? "surveillance" : saved.current?.emergencyPlan?.active ? "emergency-mode" : "dashboard");
   const [inventorySearch, setInventorySearch] = useState({ query: "", status: "all", key: 0 });
   const [demoData, setDemoData] = useState(() => saved.current.demoData);
   const [showDetailedDashboard, setShowDetailedDashboard] = useState(false);
