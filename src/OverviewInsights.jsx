@@ -9,7 +9,6 @@ const STATES = [
   { key: 'bad', label: 'Low / urgent' },
   { key: 'unknown', label: 'Unconfirmed' },
 ];
-const GROUP_ICONS = { essentials: 'leaf', home: 'home', resilience: 'compass' };
 const categoryCount = count => `${count} ${count === 1 ? 'category' : 'categories'}`;
 const dayLabel = row => row.days === null ? row.statusLabel : `${row.days.toLocaleString()} ${row.days === 1 ? 'day' : 'days'}`;
 
@@ -52,17 +51,15 @@ export default function OverviewInsights({ summary, priorities, coverage, proper
     detailHeading.current?.focus({ preventScroll: true });
     detailHeading.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
   }, [activeGroup, attentionOnly]);
+  if (!summary.totalEntries) return <section className="pv-readiness-start"><Icon name="box" size={23}/><div><h2>Start with what you have</h2><p>Add supplies to see coverage and gaps for {propertyName}.</p></div></section>;
   return <section className="pv-overview-insights" aria-labelledby={`${id}-title`}>
-    <div className="pv-section-heading"><div><h2 id={`${id}-title`}>Readiness at a glance</h2><p>{propertyName} · {attention.length ? `${categoryCount(attention.length)} to review` : 'Your recorded categories look good'}</p></div><div className="pv-readiness-actions"><button className="pv-text-link" type="button" aria-expanded={attentionOnly} aria-controls={`${id}-details`} onClick={toggleGaps}>{attentionOnly ? 'Close gaps' : 'Focus on gaps'}<Icon name="arrow" size={14}/></button>{priorities.length > 0 && <button type="button" className="pv-text-link" onClick={onReview}>{priorities.length} reminders<Icon name="arrow" size={14}/></button>}</div></div>
+    <div className="pv-section-heading"><div><h2 id={`${id}-title`}>Readiness</h2></div><div className="pv-readiness-actions"><button className="pv-text-link" type="button" aria-expanded={attentionOnly} aria-controls={`${id}-details`} onClick={toggleGaps}>{attentionOnly ? 'Close gaps' : `${attention.length} categories to review`}<Icon name="arrow" size={14}/></button>{priorities.length > 0 && <button type="button" className="pv-text-link" onClick={onReview}>{priorities.length} reminders<Icon name="arrow" size={14}/></button>}</div></div>
     <div className="pv-readiness-charts">
-      {groups.map(group => <article className="pv-readiness-chart" key={group.key}>
-        <header><span className="pv-rollup-icon"><Icon name={GROUP_ICONS[group.key]} size={17}/></span><div><h3>{group.label}</h3><p>{group.description}</p></div></header>
-        <div className="pv-readiness-chart-body"><ReadinessRing group={group}/><dl className="pv-readiness-counts">{STATES.map(state => <div key={state.key}><dt><i className={`is-${state.key}`} aria-hidden="true"/>{state.label}</dt><dd>{group.counts[state.key]}</dd></div>)}</dl></div>
-        <div className="pv-readiness-next"><span className="pv-rollup-eyebrow">{group.attentionCount ? 'Start here' : 'At a glance'}</span>{group.rows.length ? group.rows.slice(0, 3).map(row => <CategoryLink key={row.key} row={row} onCategory={onCategory}/>) : <p>No categories in this group yet.</p>}</div>
-        <button type="button" className="pv-readiness-explore" aria-expanded={activeGroup === group.key && !attentionOnly} aria-controls={`${id}-details`} onClick={event => openGroup(group.key, event)}>{activeGroup === group.key && !attentionOnly ? 'Close breakdown' : `View all ${group.total} categories`}<Icon name={activeGroup === group.key && !attentionOnly ? 'minus' : 'arrow'} size={14}/></button>
-      </article>)}
+      {groups.map(group => <button type="button" className="pv-readiness-compact" key={group.key} aria-expanded={activeGroup === group.key && !attentionOnly} aria-controls={`${id}-details`} onClick={event => openGroup(group.key, event)}>
+        <ReadinessRing group={group}/><span className="pv-readiness-compact-copy"><strong>{group.label}</strong><span>{group.attentionCount ? `${group.attentionCount} to review` : 'No gaps flagged'}</span></span><Icon name="chevron" size={15}/>
+      </button>)}
     </div>
-    <p className="pv-readiness-chart-note">Each segment is one category, based on recorded stock, days of cover and reminders. Open a group to see what needs attention.</p>
+    <div className="pv-readiness-key">{STATES.map(state => <span key={state.key}><i className={`is-${state.key}`} aria-hidden="true"/>{state.label}</span>)}<span>Based on recorded supplies</span></div>
     <div id={`${id}-details`} hidden={!activeGroup} className="pv-readiness-breakdown" role="region" aria-labelledby={`${id}-detail-title`}>
       <div className="pv-readiness-breakdown-heading"><div><h3 ref={detailHeading} tabIndex={-1} id={`${id}-detail-title`}>{attentionOnly ? 'Where to focus next' : selected?.label || 'All categories'}</h3><p>{categoryCount(selectedRows.length)}{attentionOnly ? ' need a closer look.' : ' · Select a category to review your supplies.'}</p></div><button type="button" className="pv-text-link" onClick={closeBreakdown}>Close<Icon name="minus" size={14}/></button></div>
       <div className="pv-readiness-breakdown-list">{selectedRows.map(row => <CategoryLink key={row.key} row={row} onCategory={onCategory} detailed/>)}</div>

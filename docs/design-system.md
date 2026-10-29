@@ -24,7 +24,7 @@ Review both themes on every destination, including selected states, empty states
 
 ## Page structure
 
-Each destination starts with one clear title, a brief explanation, and its primary action. Place useful facts in a compact summary strip. Put search and filters immediately above the records they control. Prefer aligned rows and tables for comparable records; expand a row or open a focused dialog for details. Do not duplicate the same inventory into page-specific collections.
+Each destination starts with one clear title, a brief explanation, and its primary action. Lead with one short status summary and the next useful action. Keep records within the first screen where possible. Secondary explanations and charts are available on demand. Put search and filters immediately above the records they control. Prefer aligned rows and tables for comparable records; expand a row or open a focused dialog for details. Do not duplicate the same inventory into page-specific collections.
 
 Reuse `pv-inventory-heading`, `pv-inventory-workspace`, `pv-inventory-toolbar`, `pv-inventory-table`, `pv-specialist-panel`, and the shared button classes. Pages with unusual content, such as maps and radios, retain their specialist controls while following the same typography, borders, and spacing.
 
@@ -45,10 +45,19 @@ Review every navigation destination and its empty state, representative populate
 
 ## Readiness charts
 
-Use `StatusPanel`, `StatusRing`, `StatusBar` and `StatusBreakdown` from `src/StatusCharts.jsx` for compact visual summaries. Replace existing text-only stat strips rather than duplicating them. Two or three neutral cards should explain the current page; preserve space for its records and actions. Do not add ratings to the sidebar or reintroduce the removed Overview essentials tiles.
+Use `StatusPanel`, `StatusRing`, `StatusBar` and `StatusBreakdown` from `src/StatusCharts.jsx` for compact visual summaries. Replace existing text-only stat strips rather than duplicating them. StatusPanel starts collapsed: supply a concise summary prop with the most useful fact and any material gaps. Its “View insights” disclosure contains detailed charts and assumptions. Do not display a bank of charts above every table. The Overview is the exception: three compact readiness visuals provide its primary orientation. Do not add ratings to the sidebar or reintroduce the removed Overview essentials tiles.
 
 Use small green, amber and red chart marks for an explicitly stated condition. Unknown or missing measurements use a gray or hatched track. Pair every color with a text label, value and basis. Stock, record completeness, checklist completion and estimated duration are distinct measures; never describe one as an overall safety score. Possible equipment matches are not verified backups.
 
 Use actual property-filtered records. Count entries or like-for-like units; do not combine litres, batteries and food packages into one quantity. Show the denominator and reference for every progress bar. Planning windows must be named and may be adjusted without changing stored inventory. A missing household size, quantity, date or runtime must not imply zero need or confirmed readiness.
 
 Charts offer direct drill-down through labelled buttons where a matching filter or editor exists. Legends remain readable with keyboard navigation and without color. Empty states show what information is needed, not an invented percentage. SVGs and CSS bars add no charting-library payload and derive their values from the same records as the tables.
+
+
+## Calm interaction hierarchy
+
+The default screen is for doing, not studying. Show a plain page title, one primary action, a short status line and the records or checklist. Avoid marketing eyebrows, repeated instructions, footer slogans and multiple cards that say the same thing. Recommendations lead with one next step; additional reasoning stays in a labelled disclosure. Never hide urgent warnings or current alarm states merely to shorten the page.
+
+Keep Overview, Location, Calendar and Maps visible in navigation. Inventory, People & property, Plan ahead and Reference library expand to show their individual destinations. Opening a destination from a chart also reveals its navigation group. Emergency mode, Settings & backups and Profile remain separate. Navigation groups are organizational controls, not readiness ratings.
+
+Overview shows compact readiness, actionable reminders, camera/alarm status and a brief weather summary. Do not duplicate inventory category lists, team panels or quick-action banks there. Empty inventories show one clear starting point instead of a grid of red or empty charts. The full weather page retains detailed forecasts, official warnings and sources.

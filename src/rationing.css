@@ -58,3 +58,14 @@
 @media(max-width:430px){.pv-rationing-summary>div{padding:15px 10px}.pv-rationing-summary strong{font-size:25px}.pv-rationing-summary small{display:block;margin-top:3px}.pv-rationing-card,.pv-rationing-breakdown{padding-left:15px;padding-right:15px}.pv-rationing-breakdown>summary>span{display:block;margin:6px 0 0 16px}.pv-rationing-portions>div{align-items:flex-start;flex-direction:column;gap:8px}.pv-rationing-controls{gap:12px}.pv-rationing-heading h2{font-size:19px}}
 
 .pv-rationing :is(button,input,summary):focus-visible{outline:2px solid #78936b;outline-offset:3px}.pv-rationing-breakdown>summary{list-style:none;display:flex;align-items:center;flex-wrap:wrap;gap:6px 13px}.pv-rationing-breakdown>summary::-webkit-details-marker{display:none}.pv-rationing-breakdown>summary::after{content:"+";margin-left:auto;font-size:18px;line-height:1;color:#7b8d6c}.pv-rationing-breakdown[open]>summary::after{content:"−"}.pv-rationing-breakdown>summary>span{margin-left:0}@media(max-width:430px){.pv-rationing-breakdown>summary>span{margin:0}.pv-rationing-breakdown>summary::after{align-self:flex-start}}
+
+
+/* Keep the two essential estimates visible; detailed comparisons are optional. */
+.pv-rationing-heading{margin-bottom:14px}.pv-rationing-heading h2{margin:0}
+.pv-rationing-at-glance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0 0 14px;border-top:1px solid var(--pv-border);border-bottom:1px solid var(--pv-border)}
+.pv-rationing-at-glance>div{min-width:0;padding:18px 20px 18px 0}.pv-rationing-at-glance>div+div{border-left:1px solid var(--pv-border);padding-left:24px}
+.pv-rationing-at-glance dt{font-size:12px;color:var(--pv-muted);margin-bottom:6px}.pv-rationing-at-glance dd{margin:0;color:var(--pv-ink);font-size:26px;line-height:1.25;letter-spacing:-.6px;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pv-rationing-at-glance small{display:block;font-size:11px;font-weight:400;letter-spacing:0;color:var(--pv-muted);line-height:1.6;margin-top:5px}
+.pv-rationing-notice{background:transparent;border:0;border-left:2px solid var(--pv-border);border-radius:0;color:var(--pv-muted);padding:3px 0 3px 12px;margin-bottom:16px}
+.pv-rationing-controls{gap:14px}.pv-rationing-card-title{margin-bottom:14px}.pv-rationing-roster-note{margin-bottom:12px}
+@media(max-width:430px){.pv-rationing-at-glance>div{padding:15px 12px 15px 0}.pv-rationing-at-glance>div+div{padding-left:16px}.pv-rationing-at-glance dd{font-size:22px}}

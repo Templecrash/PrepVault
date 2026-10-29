@@ -4,7 +4,11 @@
 .pv-bugout h1{font-size:36px;line-height:1.15;letter-spacing:-1.2px;font-weight:500;margin:11px 0}
 .pv-bugout h1>span{color:#879b73}
 .pv-bugout-heading p{font-size:13px;line-height:1.7;color:#79856f;margin:0}
-.pv-bugout-actions{display:flex;gap:9px;flex-wrap:wrap;flex-shrink:0;padding-top:17px}
+.pv-bugout-actions{display:flex;gap:9px;flex-wrap:wrap;flex-shrink:0;padding-top:9px}
+.pv-bugout-stock-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px;padding:0 2px;color:var(--pv-ink);font-size:12px;line-height:1.6}
+.pv-bugout-stock-notice p{margin:0}
+.pv-bugout-stock-notice strong{font-weight:600}
+.pv-bugout-item>.pv-bugout-stock-warning{color:var(--pv-warning,#846536);font-weight:600}
 .pv-bugout .pv-button:disabled{opacity:.5;cursor:default}
 .pv-bugout-progress{display:flex;align-items:center;gap:24px;background:#fff;border:1px solid #dfe6d8;border-radius:11px;padding:22px 24px;margin-bottom:20px}
 .pv-bugout-progress>div:first-child{display:grid;gap:5px;min-width:85px}
@@ -89,3 +93,4 @@
 @media(max-width:600px){.pv-bugout h1{font-size:30px}.pv-bugout-heading{margin-bottom:22px}.pv-bugout-progress{padding:18px;gap:17px;flex-wrap:wrap}.pv-bugout-progress>div:first-child{min-width:55px}.pv-bugout-progress>div:first-child>strong{font-size:28px}.pv-bugout-progress>.pv-bugout-text{margin-left:72px;padding:0}.pv-bugout-progress-main>small{font-size:10px}.pv-bugout-toolbar{gap:10px;padding:15px}.pv-bugout-search{flex-basis:100%}.pv-bugout-list>li{grid-template-columns:36px minmax(0,1fr);padding:18px 14px;gap:11px}.pv-bugout-item-title{display:block;margin-bottom:12px}.pv-bugout-item-title>span{display:block;max-width:none;text-align:left;margin-top:4px}.pv-bugout-item dl{grid-template-columns:1fr;gap:10px}.pv-bugout-item-actions{grid-column:2;display:flex;justify-content:flex-end;padding:0}.pv-bugout-icon{width:36px;height:36px}.pv-bugout.is-grab-mode .pv-bugout-list>li{grid-template-columns:48px minmax(0,1fr);padding:22px 14px;gap:14px}.pv-bugout.is-grab-mode .pv-bugout-check>span{width:42px;height:42px}.pv-bugout.is-grab-mode .pv-bugout-item-title h2{font-size:18px}.pv-bugout.is-grab-mode .pv-bugout-item dd,.pv-bugout.is-grab-mode .pv-bugout-item>p{font-size:14px}.pv-bugout-feedback{align-items:flex-start;gap:7px;padding:10px}.pv-bugout-backdrop{padding:12px}.pv-bugout-dialog{padding:22px 18px;max-height:calc(100dvh - 24px)}.pv-bugout-form-grid{grid-template-columns:1fr}.pv-bugout-workspace>footer{padding:14px 18px}.pv-bugout-empty{padding:35px 20px}}
 
 @media(max-width:600px){.pv-bugout-progress{display:grid;grid-template-columns:55px minmax(0,1fr);gap:14px 17px}.pv-bugout-progress>.pv-bugout-text{grid-column:2;justify-self:start;margin-left:0}.pv-bugout-progress-main{width:100%}}
+@media(max-width:600px){.pv-bugout-stock-notice{align-items:flex-start;flex-direction:column;gap:3px}}

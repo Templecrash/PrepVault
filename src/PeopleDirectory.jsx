@@ -39,7 +39,7 @@ function PersonDialog({ person, groups, onSave, onClose }) {
   return <div className="pv-people-backdrop" onClick={onClose}>
     <section ref={ref} className="pv-people-dialog" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} onClick={event => event.stopPropagation()}>
       <header className="pv-people-dialog-heading">
-        <div><span className="pv-people-eyebrow">YOUR DIRECTORY</span><h2 id={`${id}-title`}>{person ? 'Edit person' : 'Add a person'}</h2><p>Keep the details you need, together.</p></div>
+        <div><h2 id={`${id}-title`}>{person ? 'Edit person' : 'Add a person'}</h2></div>
         <button className="pv-people-icon-button" aria-label="Close person form" onClick={onClose}><Icon name="close" size={19}/></button>
       </header>
       <form onSubmit={save}>
@@ -136,25 +136,25 @@ export default function PeopleDirectory({ contacts, setContacts }) {
     setMessage(`${person.name} restored.`);
   };
   return <section className="pv-people-directory" aria-label="People directory">
-    <StatusPanel title="Your people, connected" description="See which contact details and responsibilities still need recording." note="These charts describe your directory. They do not confirm anyone’s location, safety or check-in status.">
+    <StatusPanel title="Directory summary" summary={status.total ? `${status.total} ${status.total === 1 ? 'person' : 'people'} · ${status.dependants} ${status.dependants === 1 ? 'dependant' : 'dependants'}${status.missingContact ? ` · ${status.missingContact} missing a contact method` : ' · Contact methods recorded for everyone'}` : 'No people added yet'} note="These are recorded details, not live check-ins.">
       <StatusRing title="Contact methods" value={`${status.contact}/${status.total}`} label="recorded" emptyLabel="No people yet" segments={[
         { id: 'contact', label: 'Contact recorded', value: status.contact, tone: 'good', onClick: () => showRecords('contact') },
         { id: 'missing', label: 'Needs a contact', value: status.missingContact, tone: 'unknown', onClick: () => showRecords('no-contact') },
-      ]} note="A phone number or another contact method, as entered in the directory."/>
-      <StatusBar title="Roles recorded" value={status.role} max={status.total} valueLabel={status.total ? `${status.role} of ${status.total}` : 'No people yet'} targetLabel="people with a role" tone={status.total ? status.missingRole ? 'warning' : 'good' : 'unknown'} note="A recorded responsibility helps everyone know their part. This does not rate skills or experience." onClick={status.missingRole ? () => showRecords('no-role') : undefined} actionLabel={`Review ${status.missingRole} missing ${status.missingRole === 1 ? 'role' : 'roles'}`}/>
+      ]}/>
+      <StatusBar title="Roles recorded" value={status.role} max={status.total} valueLabel={status.total ? `${status.role} of ${status.total}` : 'No people yet'} targetLabel="people with a role" tone={status.total ? status.missingRole ? 'warning' : 'good' : 'unknown'} onClick={status.missingRole ? () => showRecords('no-role') : undefined} actionLabel={`Review ${status.missingRole} missing ${status.missingRole === 1 ? 'role' : 'roles'}`}/>
       <StatusBreakdown title="Food & water planning" rows={[
         { id: 'dependants', label: 'Marked dependants', value: status.dependants, max: status.total, tone: 'neutral', onClick: () => showRecords('dependants') },
         { id: 'others', label: 'Other contacts', value: status.others, max: status.total, tone: 'unknown', onClick: () => showRecords('other') },
-      ]} note="Only marked dependants count toward food and water needs. Mark yourself too if you use these supplies."/>
+      ]} note="Mark yourself as a dependant too if you use these supplies."/>
     </StatusPanel>
-    <div className="pv-people-plan-note"><p id={`${id}-planning-note`}>Use the Dependant button beside each person to include them in food and water planning.</p><FoodWaterInfo /></div>
+    <div className="pv-people-plan-note"><p id={`${id}-planning-note`}>Only marked dependants count toward food and water needs.</p><FoodWaterInfo /></div>
     <div className="pv-people-toolbar">
       <label className="pv-people-search"><Icon name="search" size={18}/><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Find someone…" aria-label="Search people"/>{search && <button aria-label="Clear people search" onClick={() => setSearch('')}><Icon name="close" size={15}/></button>}</label>
       <select className="pv-people-group-filter" value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)} aria-label="Filter people by group"><option value="">All groups</option>{groups.map(group => <option key={group}>{group}</option>)}{selectedGroup && !groups.includes(selectedGroup) && <option>{selectedGroup}</option>}</select>
-      <select className="pv-people-group-filter" value={recordFilter} onChange={event => setRecordFilter(event.target.value)} aria-label="Filter people by recorded details"><option value="all">All records</option><option value="contact">Contact recorded</option><option value="no-contact">Needs a contact</option><option value="no-role">Needs a role</option><option value="dependants">Marked dependants</option><option value="other">Other contacts</option></select>
+      {recordFilter !== 'all' && <select className="pv-people-group-filter" value={recordFilter} onChange={event => setRecordFilter(event.target.value)} aria-label="Filter people by recorded details"><option value="all">All records</option><option value="contact">Contact recorded</option><option value="no-contact">Needs a contact</option><option value="no-role">Needs a role</option><option value="dependants">Marked dependants</option><option value="other">Other contacts</option></select>}
       <button className="pv-button pv-primary" onClick={() => setEditor({ person: null })}><Icon name="plus" size={17}/>Add person</button>
     </div>
-    <div className="pv-people-directory-meta"><span>{filtered.length} {filtered.length === 1 ? 'person' : 'people'}{search || selectedGroup || recordFilter !== 'all' ? ` of ${contacts.length}` : ' in your directory'}</span><span>Select a person to view details</span></div>
+    <div className="pv-people-directory-meta"><span>{filtered.length} {filtered.length === 1 ? 'person' : 'people'}{search || selectedGroup || recordFilter !== 'all' ? ` of ${contacts.length}` : ' in your directory'}</span></div>
     <div role="status" className={removed || message ? 'pv-people-feedback' : 'pv-people-feedback is-empty'}>{removed ? <><span>{removed.person.name} removed.</span><button className="pv-people-text-button" onClick={undo}>Undo</button><button className="pv-people-icon-button" aria-label="Dismiss removal notice" onClick={() => setRemoved(null)}><Icon name="close" size={15}/></button></> : message}</div>
     {visibleGroups.map(group => <section key={group} className="pv-people-group" aria-label={group}>
       <header><h2>{group}</h2><span>{filtered.filter(person => groupName(person) === group).length}</span></header>

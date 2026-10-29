@@ -6,13 +6,16 @@ const number = value => typeof value === 'number' && Number.isFinite(value) && v
 const display = value => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 const toneName = value => ['good', 'warning', 'danger', 'unknown', 'neutral'].includes(value) ? value : 'unknown';
 
-export function StatusPanel({ title, description, eyebrow = 'AT A GLANCE', note, children, action }) {
+export function StatusPanel({ title, summary, description, note, children, action }) {
   const id = useId();
-  return <section className="pv-status-panel" aria-labelledby={`${id}-title`}>
-    <header><div>{eyebrow && <p className="pv-inventory-eyebrow">{eyebrow}</p>}<h2 id={`${id}-title`}>{title}</h2>{description && <p>{description}</p>}</div>{action}</header>
-    <div className="pv-status-panel-grid">{children}</div>
-    {note && <p className="pv-status-panel-note">{note}</p>}
-  </section>;
+  return <details className="pv-status-panel">
+    <summary className="pv-status-summary"><span><span className="pv-status-summary-title" id={`${id}-title`}>{title}</span>{summary && <span className="pv-status-summary-value">{summary}</span>}</span><span className="pv-status-disclosure-label"><span className="when-closed">View insights</span><span className="when-open">Hide insights</span><Icon name="chevron" size={15}/></span></summary>
+    <div className="pv-status-details" role="region" aria-labelledby={`${id}-title`}>
+      {(description || action) && <header>{description && <p>{description}</p>}{action}</header>}
+      <div className="pv-status-panel-grid">{children}</div>
+      {note && <p className="pv-status-panel-note">{note}</p>}
+    </div>
+  </details>;
 }
 
 export function StatusRing({ title, segments = [], value, label, note, emptyLabel = 'No records yet' }) {

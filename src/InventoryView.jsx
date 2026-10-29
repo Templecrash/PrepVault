@@ -66,6 +66,11 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
 
   const visuals = useMemo(() => buildInventoryVisuals({ items, categories, alerts, propertyId, now: todayTime }), [items, categories, alerts, propertyId, todayTime]);
   const { inventory } = visuals;
+  const stockSummary = [
+    visuals.counts.attention && `${visuals.counts.attention} ${visuals.counts.attention === 1 ? 'needs' : 'need'} review`,
+    visuals.counts.empty && `${visuals.counts.empty} out of stock`,
+    visuals.counts.unknown && `${visuals.counts.unknown} unconfirmed`,
+  ].filter(Boolean).join(' · ') || (visuals.total ? 'No recorded checks due' : 'Add supplies to see stock status');
   const categoryEntries = Object.entries(categories);
   const coverageRows = ['food', 'water', 'medical', 'power'].filter(key => categories[key]).map(key => ({ id: key, label: categories[key].label, ...essentialCoverageVisual(key, visuals.items, recommendationPeopleCount, dailyCalTarget, waterGalPerPerson, inventory) }));
   const narrowed = useMemo(() => {
@@ -110,7 +115,7 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
       </div>
     </header>
 
-    <StatusPanel title="See what needs a look" description="A snapshot of the inventory at your selected property. Select a chart label to see the matching supplies." eyebrow="YOUR STOCK AT A GLANCE" action={<button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => { clearFilters(); setView('list'); }}>All entries</button>}>
+    <StatusPanel title="Stock status" summary={stockSummary} description="Select a chart label to filter supplies at this property.">
       <StatusRing title="Stock records" segments={visuals.segments.map(segment => ({ ...segment, onClick: () => showStatus(segment.id) }))} value={visuals.total} label="recorded entries" note="Positive stock with no recorded checks due. Counts entries, not quantities or overall readiness."/>
       <StatusBreakdown title="Stock variety" rows={visuals.categoryRows.slice(0, 5).map(row => ({ ...row, onClick: () => showCategory(row.id) }))} note={`Positive stock by supply type, not total quantity. Not every catalogue type is required.${categoryEntries.length > 5 ? ' Showing the five categories with the most entries; use the category filter for all.' : ''}`}/>
       {coverageRows.length > 1 && <StatusBreakdown title="Recorded duration" rows={coverageRows.map(row => ({ ...row, valueLabel: row.value === null ? 'Unknown' : `${row.value}d / ${row.max}d reference`, onClick: () => onCategory?.(row.id) }))} note="Planning references: food and prescriptions 30 days, stored water 14 days, backup power 3 days. Food and water use your selected dependants and ration settings. Open a category for assumptions and missing details."/>}
@@ -143,7 +148,7 @@ export default function InventoryView({ items = [], categories = {}, onCategory,
         const covered = visuals.categoryRows.find(row => row.id === key)?.value || 0;
         return <button type="button" className="pv-inventory-category-card" key={key} onClick={() => onCategory?.(key)} aria-label={`View ${info.label}: ${categoryItems.length} supplies`}><div className="pv-inventory-category-card-top"><span aria-hidden="true">{info.icon || <InventoryIcon name="box" size={24}/>}</span><InventoryIcon name="arrow"/></div><h2>{info.label}</h2><p>{info.desc || "Keep track of your supplies."}</p><div className="pv-inventory-category-meter" aria-label={`${covered} of ${types} supply types stocked`}><span style={{ width: `${Math.min(100, types ? covered / types * 100 : 0)}%` }}/></div><footer><span><strong>{filtersActive ? visibleItems.length : categoryItems.length}</strong> {filtersActive ? "matching" : "supplies"}</span><span className={categoryAttention ? "pv-inventory-category-attention" : ""}>{categoryAttention ? `${categoryAttention} to check` : `${covered}/${types} types`}</span></footer></button>;
       })}{filteredCategories.length === 0 && <div className="pv-inventory-empty"><h2>No categories match</h2><p>Clear your filters to see every category.</p><button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={clearFilters}>Clear filters</button></div>}</div>}
-      <div className="pv-inventory-pagination">{view === "list" && totalPages > 1 && <><span>Page {currentPage} of {totalPages} · {narrowed.length} supplies</span><button disabled={currentPage === 1} onClick={() => setPageState({key: pageKey, number: currentPage - 1})}>Previous</button><button disabled={currentPage === totalPages} onClick={() => setPageState({key: pageKey, number: currentPage + 1})}>Next</button></>}</div><div className="pv-inventory-footer"><InventoryIcon name="check" size={14}/><span>Small steps today. More confidence tomorrow.</span></div>
+      <div className="pv-inventory-pagination">{view === "list" && totalPages > 1 && <><span>Page {currentPage} of {totalPages} · {narrowed.length} supplies</span><button disabled={currentPage === 1} onClick={() => setPageState({key: pageKey, number: currentPage - 1})}>Previous</button><button disabled={currentPage === totalPages} onClick={() => setPageState({key: pageKey, number: currentPage + 1})}>Next</button></>}</div>
     </div>
 
     {pendingDelete && <RemoveSupplyDialog item={pendingDelete} onCancel={() => setPendingDelete(null)} onConfirm={() => { onRemove?.(pendingDelete.id); setPendingDelete(null); }} fallbackFocusRef={searchInputRef}/>}

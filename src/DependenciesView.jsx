@@ -50,24 +50,24 @@ export default function DependenciesView({ items = [], onSupplies, onSetup }) {
 
   return <section className="pv-inventory pv-dependencies" aria-labelledby="dependencies-title">
     <header className="pv-inventory-heading">
-      <div><p className="pv-inventory-eyebrow">KNOW WHAT YOU RELY ON</p><h1 id="dependencies-title">Your dependencies<span>.</span></h1><p className="pv-inventory-intro">See what keeps your household running, and where a backup could help.</p></div>
+      <div><h1 id="dependencies-title">Your dependencies<span>.</span></h1><p className="pv-inventory-intro">Review the systems you rely on and their backups.</p></div>
       <div className="pv-inventory-actions">
         {onSetup && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onSetup}><Icon name="settings" size={18}/>Household setup</button>}
         {onSupplies && <button type="button" className="pv-inventory-button pv-inventory-button-primary" onClick={onSupplies}><Icon name="box" size={18}/>View supplies</button>}
       </div>
     </header>
 
-    <StatusPanel title="Where your backup plan needs attention" description={`${summary.criticalMissing} critical ${summary.criticalMissing === 1 ? 'check has' : 'checks have'} no matching backup in your supplies.`} note="This checklist covers common household systems. A possible inventory match still needs a capacity, compatibility and working-equipment check." action={<button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => quickFilter('status', 'hidden')}>Hidden dependencies</button>}>
+    <StatusPanel title="Backup status" eyebrow="" summary={`${summary.criticalMissing} critical checks without a match · ${summary.possible} possible backups to verify`} note="Inventory matches need capacity, compatibility and equipment checks." action={<button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => quickFilter('status', 'hidden')}>Hidden dependencies</button>}>
       <StatusRing title="Backup matches" value={summary.missing} label="without a match" segments={[
         { id: 'missing', label: 'No backup found', value: summary.missing, tone: 'danger', onClick: () => quickFilter('status', 'missing') },
         { id: 'possible', label: 'Possible · needs checking', value: summary.possible, tone: 'warning', onClick: () => quickFilter('status', 'backup') },
-      ]} note="Matching a supply does not verify that the system will work during an outage."/>
+      ]}/>
       <StatusBreakdown title="Unmatched checks by priority" rows={summary.priorities.map(row => ({ id: row.id, label: row.id[0].toUpperCase() + row.id.slice(1), value: row.missing, max: row.total, valueLabel: `${row.missing} of ${row.total} without a match`, tone: row.missing ? ['critical', 'high'].includes(row.id) ? 'danger' : 'warning' : 'neutral', onClick: () => { clearFilters(); setPriority(row.id); setStatus('missing'); } }))} note={`${summary.hiddenMissing} unmatched ${summary.hiddenMissing === 1 ? 'check is' : 'checks are'} easy-to-overlook dependencies.`}/>
     </StatusPanel>
 
     <div className="pv-inventory-workspace">
       <div className="pv-inventory-toolbar">
-        <div className="pv-inventory-search"><Icon name="search" size={18}/><input type="search" aria-label="Search dependencies" placeholder="Search systems, backups or guidance…" value={query} onChange={event => setQuery(event.target.value)}/></div>
+        <div className="pv-inventory-search"><Icon name="search" size={18}/><input type="search" aria-label="Search dependencies" placeholder="Search dependencies…" value={query} onChange={event => setQuery(event.target.value)}/></div>
         <div className="pv-inventory-filters">
           <label className="pv-inventory-select"><span className="pv-inventory-sr-only">Filter by priority</span><select value={priority} onChange={event => setPriority(event.target.value)}><option value="all">All priorities</option>{PRIORITIES.map(value => <option key={value} value={value}>{value[0].toUpperCase() + value.slice(1)}</option>)}</select></label>
           <label className="pv-inventory-select"><span className="pv-inventory-sr-only">Filter dependency status</span><select value={status} onChange={event => setStatus(event.target.value)}><option value="all">All checks</option><option value="missing">No backup found</option><option value="backup">Possible backup</option><option value="hidden">Hidden dependencies</option></select></label>

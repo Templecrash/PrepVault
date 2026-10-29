@@ -33,6 +33,21 @@ const destinations = [
   { id: 'emergency', label: 'Emergency', icon: 'shield' },
 ];
 
+const navigationGroups = [
+  { id: 'inventory', label: 'Inventory', ids: ['food', 'water', 'power', 'preps', 'vehicles'] },
+  { id: 'people-property', label: 'People & property', ids: ['property', 'comms', 'surveillance', 'community', 'rationing', 'board'] },
+  { id: 'planning', label: 'Plan ahead', ids: ['bugout', 'farming', 'simulate', 'systems', 'dependencies'] },
+  { id: 'reference', label: 'Reference library', ids: ['skills', 'farm-guides', 'codes', 'manuals', 'emergency'] },
+];
+
+function NavigationGroup({ group, activeTab, children }) {
+  const [choice, setChoice] = useState(() => ({ tab: activeTab, open: group.ids.includes(activeTab) }));
+  const open = choice.tab === activeTab ? choice.open : group.ids.includes(activeTab) || choice.open;
+  // A new destination reveals its group, including when entered from a chart.
+  if (choice.tab !== activeTab) setChoice({ tab: activeTab, open });
+  return <div className="pv-navigation-group"><button type="button" className="pv-navigation-toggle" aria-expanded={open} aria-controls={`nav-${group.id}`} onClick={() => setChoice({ tab: activeTab, open: !open })}><span>{group.label}</span><Icon name="chevron" size={14}/></button><div id={`nav-${group.id}`} hidden={!open}>{children}</div></div>;
+}
+
 function PropertyDialog({ onClose, children }) {
   const ref = useDialogFocus(onClose);
   return <div className="pv-modal-backdrop" onClick={onClose}><section ref={ref} className="pv-dialog" role="dialog" aria-modal="true" aria-labelledby="property-title" onClick={e => e.stopPropagation()}>{children}</section></div>;
@@ -85,6 +100,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
   const quickDestinations = crisisMode ? [{ id: 'emergency-mode', label: 'Emergency', icon: 'shield' }, ...['rationing', 'bugout', 'community'].map(id => destinations.find(destination => destination.id === id))] : destinations.filter(d => ['dashboard', 'preps', 'property', 'community'].includes(d.id));
   const siteName = activeTab === 'board' ? 'Public community' : propertyId === 'all' ? 'All properties' : properties.find(p => p.id === propertyId)?.name || 'My property';
   const status = dbStatus === 'error' ? 'Local save failed' : dbStatus === 'unsaved' ? 'Saving on this device…' : isOffline ? 'Offline · on this device' : syncStatus === 'syncing' ? 'Syncing changes…' : syncStatus === 'synced' ? 'Core data synced' : syncStatus === 'error' ? 'Sync needs attention' : 'Saved on this device';
+  const navItem = d => <button key={d.id} type="button" className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} onClick={() => navigate(d.id)}><Icon name={d.icon} size={18}/><span>{d.label}</span>{d.id === 'calendar' && <span className="pv-sidebar-calendar-day" aria-label={`Today is day ${calendarDay}`}>{calendarDay}</span>}{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button>;
   return <div className={`pv-workspace${crisisMode ? " is-emergency-mode" : ""}`}>
     <a className="pv-skip" href="#main-content">Skip to content</a>
     {menuOpen && <button className="pv-nav-scrim" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
@@ -95,7 +111,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
         <label><span>YOUR SPACE</span><select aria-label="Active property" value={propertyId} onChange={e => onProperty(e.target.value)}><option value="all">All properties</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <button className="pv-icon-button" aria-label="Manage properties" onClick={() => setPropertyOpen(true)}><Icon name="settings" size={16}/></button>
       </div>
-      <nav>{destinations.map(d => <div key={d.id}>{d.group && <div className="pv-nav-group">{d.group}</div>}<button className={`pv-nav-item ${activeTab === d.id ? 'is-active' : ''}`} aria-current={activeTab === d.id ? 'page' : undefined} aria-label={d.label} onClick={() => navigate(d.id)}><Icon name={d.icon} size={19}/><span>{d.label}</span>{d.id === "calendar" && <span className="pv-sidebar-calendar-day" aria-label={`Today is day ${calendarDay}`}>{calendarDay}</span>}{inventoryAlertCounts[d.id] > 0 && <span className="pv-nav-count">{inventoryAlertCounts[d.id]}</span>}</button></div>)}</nav>
+      <nav aria-label="Workspace pages"><div className="pv-navigation-primary">{destinations.filter(d => ['dashboard', 'location', 'calendar', 'offline-maps'].includes(d.id)).map(navItem)}</div>{navigationGroups.map(group => <NavigationGroup key={group.id} group={group} activeTab={activeTab}>{group.ids.map(id => destinations.find(d => d.id === id)).map(navItem)}</NavigationGroup>)}</nav>
       <div className="pv-sidebar-bottom">
         <button className={`pv-emergency ${crisisMode ? 'is-active' : ''}`} onClick={() => { setMenuOpen(false); setAccountOpen(false); onCrisis(); }} aria-current={activeTab === 'emergency-mode' ? 'page' : undefined}><Icon name="shield" size={18}/>{crisisMode ? 'Emergency plan · active' : 'Emergency mode'}<Icon name="arrow" size={16}/></button>
         <button className="pv-settings" onClick={() => { setMenuOpen(false); setAccountOpen(false); onSecurity(); }}><Icon name="settings" size={18}/> Settings & backups</button>
@@ -104,7 +120,6 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
           {accountOpen && <div className="pv-profile-panel" id="pv-account-menu"><strong>{user?.email || 'Personal workspace'}</strong><p>{user?.authProvider === 'neon' ? 'Verified account · saved on this device' : user?.isLocal ? 'Device account' : user ? 'Connected account' : 'No account required'}</p><button onClick={() => { setMenuOpen(false); setAccountOpen(false); onSetup(); }}>Household setup</button><button onClick={() => { setMenuOpen(false); setAccountOpen(false); (user ? onLogout : onAccount)(); }}>{user ? 'Sign out' : 'Sign in / Create account'}</button></div>}
         </div>
         <div className="pv-site-links"><a href={isLocalEdition() ? "/home" : "/"}>Home page</a><a href="/demo">View demo</a></div>
-        <div className="pv-sidebar-foot"><span className="pv-status-dot"/>PREPVAULT 2.0<span>Made for real life</span></div>
       </div>
     </aside>
     <div className="pv-main-shell">
@@ -118,7 +133,6 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
       </header>
       {emergencyBanner}
       <main id="main-content" tabIndex={-1} className="pv-main">{children}</main>
-      <footer className="pv-app-footer"><span>PrepVault<span className="pv-foot-sep">/</span>Prepared for whatever comes.</span><button onClick={onSecurity}><Icon name="shield" size={14}/> Your data, your control</button></footer>
     </div>
     <nav className="pv-mobile-nav" aria-label="Quick navigation">{quickDestinations.map(d => <button key={d.id} className={quickActiveTab === d.id ? 'is-active' : ''} aria-current={quickActiveTab === d.id ? 'page' : undefined} onClick={() => navigate(d.id)}><Icon name={d.icon} size={20}/>{d.label}</button>)}<button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="pv-main-navigation"><Icon name="menu" size={20}/>More</button></nav>
     {getPrepChatContext && <PrepChat key={`${user?.id || 'device'}:${prepChatResetKey}`} getContext={getPrepChatContext} />}
