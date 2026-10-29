@@ -1,3 +1,4 @@
+import { isLocalEdition } from './runtime-mode.js';
 import { useEffect, useRef, useState } from 'react';
 import { useDialogFocus } from './useDialogFocus.js';
 import { Brand, Icon } from './brand.jsx';
@@ -101,6 +102,7 @@ export default function WorkspaceShell({ activeTab, onNavigate, onHome, properti
           <button className="pv-settings pv-profile-trigger" aria-expanded={accountOpen} aria-controls={accountOpen ? 'pv-account-menu' : undefined} onClick={() => setAccountOpen(!accountOpen)}><Icon name="users" size={18}/><span>Profile</span><Icon name="chevron" size={14}/></button>
           {accountOpen && <div className="pv-profile-panel" id="pv-account-menu"><strong>{user?.email || 'Personal workspace'}</strong><p>{user?.authProvider === 'neon' ? 'Verified account · saved on this device' : user?.isLocal ? 'Device account' : user ? 'Connected account' : 'No account required'}</p><button onClick={() => { setMenuOpen(false); setAccountOpen(false); onSetup(); }}>Household setup</button><button onClick={() => { setMenuOpen(false); setAccountOpen(false); (user ? onLogout : onAccount)(); }}>{user ? 'Sign out' : 'Sign in / Create account'}</button></div>}
         </div>
+        <div className="pv-site-links"><a href={isLocalEdition() ? "/home" : "/"}>Home page</a><a href="/demo">View demo</a></div>
         <div className="pv-sidebar-foot"><span className="pv-status-dot"/>PREPVAULT 2.0<span>Made for real life</span></div>
       </div>
     </aside>

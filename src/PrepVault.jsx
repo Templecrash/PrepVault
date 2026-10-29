@@ -3,12 +3,12 @@ import { supabase, supabaseConfigured } from "./supabase.js";
 import { SyncEngine } from "./sync-engine.js";
 import "leaflet/dist/leaflet.css";
 import WorkspaceShell from "./WorkspaceShell.jsx";
-import Welcome from "./Welcome.jsx";
 import AccountAuth from "./AccountAuth.jsx";
 import { getAccountSession, signOutAccount, ACCOUNT_SESSION_EVENT } from "./account-auth-client.js";
 import { switchAccountWorkspace, readWorkspaceOwner, captureWorkspaceSettings } from "./account-workspace.js";
 import { captureWorkspaceBaseline, persistWorkspaceSnapshot, workspaceBaselineStatus } from "./workspace-persistence.js";
 import { prepareInventoryImport } from "./inventory-import.js";
+import { resetActivePlan, restorePreviousPlan, readPlanResetRecovery } from "./plan-reset.js";
 import HouseholdSetup from "./HouseholdSetup.jsx";
 import BugOutPlan from "./BugOutPlan.jsx";
 import PlanNotice from "./PlanNotice.jsx";
@@ -878,39 +878,7 @@ const MAP_PIN_TYPES = {
   defense: [{ v: "observation", l: "Observation", i: "🔭" }, { v: "fighting_pos", l: "Fighting Pos", i: "🎯" }, { v: "sniper", l: "Overwatch", i: "🔫" }, { v: "fallback", l: "Fallback", i: "🔙" }, { v: "rally", l: "Rally Pt", i: "🚩" }, { v: "obstacle", l: "Obstacle", i: "🪨" }, { v: "alarm_trip", l: "Tripwire", i: "🔔" }, { v: "safe_room", l: "Safe Room", i: "🔒" }],
 };
 
-const SAMPLE_MAP_PINS = [
-  { id: "mp1", layer: "buildings", type: "house", x: 48, y: 42, label: "Main House", notes: "2-story, basement" },
-  { id: "mp2", layer: "buildings", type: "barn", x: 62, y: 35, label: "Barn", notes: "Livestock, hay" },
-  { id: "mp3", layer: "buildings", type: "shed", x: 38, y: 50, label: "Tool Shed", notes: "Workshop, fuel" },
-  { id: "mp4", layer: "buildings", type: "garage", x: 45, y: 48, label: "Garage", notes: "Vehicles, generator" },
-  { id: "mp5", layer: "buildings", type: "greenhouse", x: 55, y: 55, label: "Greenhouse", notes: "Year-round" },
-  { id: "mp6", layer: "flora", type: "fruit_tree", x: 65, y: 50, label: "Apple Trees (6)", notes: "Harvest Sept-Oct" },
-  { id: "mp7", layer: "flora", type: "berry_bush", x: 72, y: 42, label: "Blueberry Patch", notes: "July" },
-  { id: "mp8", layer: "flora", type: "garden", x: 52, y: 58, label: "Raised Beds", notes: "Tomatoes, beans" },
-  { id: "mp9", layer: "flora", type: "nut_tree", x: 30, y: 30, label: "Walnut Trees", notes: "Oct-Nov" },
-  { id: "mp10", layer: "flora", type: "mushroom", x: 20, y: 60, label: "Morel Area", notes: "Spring" },
-  { id: "mp11", layer: "water", type: "well", x: 42, y: 45, label: "Main Well", notes: "85ft, hand pump backup" },
-  { id: "mp12", layer: "water", type: "creek", x: 15, y: 50, label: "East Creek", notes: "Year-round, 0.3mi" },
-  { id: "mp13", layer: "water", type: "rain_barrel", x: 50, y: 40, label: "Rain Barrels (4)", notes: "200gal total" },
-  { id: "mp14", layer: "water", type: "pond", x: 25, y: 70, label: "Stock Pond", notes: "Creek-fed, fish" },
-  { id: "mp15", layer: "wildlife", type: "deer", x: 18, y: 35, label: "Deer Trail", notes: "Dawn/dusk, 3-5 daily" },
-  { id: "mp16", layer: "wildlife", type: "turkey", x: 75, y: 25, label: "Turkey Roost", notes: "Flock ~12" },
-  { id: "mp17", layer: "wildlife", type: "bear", x: 10, y: 20, label: "Bear Sign ⚠", notes: "Spring 2025" },
-  { id: "mp18", layer: "wildlife", type: "fish", x: 22, y: 68, label: "Fishing Spot", notes: "Bass, trout" },
-  { id: "mp19", layer: "trails", type: "main_road", x: 50, y: 15, label: "County Road 22", notes: "Paved, main access" },
-  { id: "mp20", layer: "trails", type: "dirt_road", x: 80, y: 50, label: "Back Access Rd", notes: "4WD" },
-  { id: "mp21", layer: "trails", type: "trail", x: 15, y: 40, label: "Creek Trail", notes: "East property line" },
-  { id: "mp22", layer: "trails", type: "fence_gate", x: 50, y: 10, label: "Front Gate", notes: "Code: ****" },
-  { id: "mp23", layer: "caches", type: "supply_cache", x: 12, y: 55, label: "Cache Alpha", notes: "Filter, MREs, fire kit" },
-  { id: "mp24", layer: "caches", type: "buried", x: 70, y: 65, label: "Cache Bravo", notes: "Ammo, cash, radio" },
-  { id: "mp25", layer: "caches", type: "trap", x: 28, y: 58, label: "Snare Line", notes: "Rabbit run" },
-  { id: "mp26", layer: "defense", type: "observation", x: 85, y: 15, label: "OP North", notes: "360° view", assignee: "Dave" },
-  { id: "mp27", layer: "defense", type: "fighting_pos", x: 45, y: 20, label: "FP Gate", notes: "Covers road", assignee: "Mike" },
-  { id: "mp28", layer: "defense", type: "sniper", x: 60, y: 28, label: "Overwatch Loft", notes: "Covers south", assignee: "You" },
-  { id: "mp29", layer: "defense", type: "fallback", x: 48, y: 55, label: "Fallback", notes: "If perimeter breached" },
-  { id: "mp30", layer: "defense", type: "rally", x: 35, y: 70, label: "Emergency Rally", notes: "Head to creek" },
-  { id: "mp31", layer: "defense", type: "alarm_trip", x: 40, y: 15, label: "Tripwire N", notes: "Fishing line + cans" },
-];
+
 
 const DEFENSE_ROLES = [
   { id: "d1", name: "You", role: "Overwatch / Sniper", position: "Barn Loft", weapon: "Rifle .308", avatar: "👤" },
@@ -920,14 +888,7 @@ const DEFENSE_ROLES = [
   { id: "d5", name: "Lisa", role: "Rear Security", position: "Creek Trail", weapon: "Handgun .45", avatar: "👩‍🦰" },
 ];
 
-const SAMPLE_MEMBERS = [
-  { id: "p1", name: "You", avatar: "👤", role: "Lead", status: "home", lat: 45.421, lng: -75.690, lastPing: "Now", battery: 87, sharing: true, color: "#22c55e" },
-  { id: "p2", name: "Sarah", avatar: "👩", role: "Medical (RN)", status: "nearby", lat: 45.418, lng: -75.685, lastPing: "2m", battery: 64, sharing: true, color: "#0ea5e9" },
-  { id: "p3", name: "Dave", avatar: "👨", role: "Security", status: "away", lat: 45.390, lng: -75.710, lastPing: "8m", battery: 42, sharing: true, color: "#f59e0b" },
-  { id: "p4", name: "Mike", avatar: "🧑", role: "Engineer", status: "home", lat: 45.423, lng: -75.688, lastPing: "1m", battery: 91, sharing: true, color: "#10b981" },
-  { id: "p5", name: "Lisa", avatar: "👩‍🦰", role: "Agriculture", status: "away", lat: 45.450, lng: -75.650, lastPing: "15m", battery: 33, sharing: true, color: "#ec4899" },
-  { id: "p6", name: "Tom", avatar: "🧔", role: "HAM Operator", status: "offline", lat: null, lng: null, lastPing: "2h", battery: 0, sharing: false, color: "#6b7280" },
-];
+
 
 const SAMPLE_CHAT = [
   { id: "c1", from: "p3", text: "Perimeter check done. North fence needs repair — wire sagging at post 14.", ts: "2:41 PM" },
@@ -942,17 +903,7 @@ const SAMPLE_CHAT = [
   { id: "c10", from: "p2", text: "Reminder: rotate the first aid kits this month. I'll check expiry dates tonight.", ts: "9:15 AM" },
 ];
 
-const SAMPLE_CONTACTS = [
-  { id: "ct1", name: "Sarah Mitchell", group: "Your Group", role: "Medical (RN)", phone: "613-555-0142", address: "Lot 4, Rideau Lake Rd", age: 38, bloodType: "O+", medical: "None", allergies: "Penicillin", skills: "Trauma care, IV, suturing", notes: "24/7 medical contact. Has portable med kit." },
-  { id: "ct2", name: "Dave Kowalski", group: "Your Group", role: "Security", phone: "613-555-0198", address: "12 Cedar Lane", age: 45, bloodType: "A+", medical: "Knee replacement (L)", allergies: "None", skills: "Military vet, firearms, tactics", notes: "Former infantry. Handles perimeter security." },
-  { id: "ct3", name: "Mike Chen", group: "Your Group", role: "Engineer", phone: "613-555-0267", address: "8 Pine Crescent", age: 34, bloodType: "B+", medical: "Asthma (mild)", allergies: "None", skills: "Electrical, solar, welding, engines", notes: "Go-to for generator and solar issues. Has welding rig." },
-  { id: "ct4", name: "Lisa Tremblay", group: "Your Group", role: "Agriculture", phone: "613-555-0311", address: "22 Farm View Rd", age: 41, bloodType: "AB-", medical: "None", allergies: "Bee stings (EpiPen)", skills: "Farming, seed saving, canning, herbalism", notes: "Manages greenhouse. Carries EpiPen at all times." },
-  { id: "ct5", name: "Tom Baker", group: "Your Group", role: "HAM Operator", phone: "613-555-0455", address: "19 Old Mill Rd", age: 62, bloodType: "O-", medical: "Type 2 diabetes, high BP", allergies: "Sulfa drugs", skills: "HAM radio, electronics repair", notes: "Call sign VE3TBK. Needs insulin — 90 day supply on hand." },
-  { id: "ct6", name: "Jean-Pierre Gagnon", group: "Rideau Creek Co-op", role: "Leader", phone: "613-555-0533", address: "Rideau Creek Rd, km 4.2", age: 52, bloodType: "A-", medical: "None", allergies: "None", skills: "Farming, leadership, French/English", notes: "Primary trade contact. HAM 146.520 or runner." },
-  { id: "ct7", name: "Karen Whitfield", group: "Cedar Hill Homestead", role: "Leader", phone: "N/A — HAM only", address: "Cedar Hill, km 7.8 NW", age: 47, bloodType: "Unknown", medical: "Hypothyroid (Synthroid)", allergies: "None", skills: "Forestry, chainsaw, livestock", notes: "HAM 146.520. Needs Synthroid resupply quarterly." },
-  { id: "ct8", name: "Rob Fournier", group: "Lakeside Compound", role: "Contact", phone: "N/A — runner only", address: "Lakeside, km 12.1 E", age: 39, bloodType: "Unknown", medical: "Unknown", allergies: "Unknown", skills: "Fishing, boat repair, diving", notes: "Neutral — meet at crossroads only. Do not approach compound." },
-  { id: "ct9", name: "Dr. Amara Singh", group: "Rideau Creek Co-op", role: "Doctor (retired)", phone: "613-555-0601", address: "Rideau Creek Rd", age: 67, bloodType: "B+", medical: "Arthritis", allergies: "None", skills: "General practice, surgery (field)", notes: "Retired GP. Available for emergencies. Has surgical kit." },
-];
+
 
 /* ── Comms Plan ── */
 const COMMS_PLAN = {
@@ -1130,223 +1081,16 @@ const DEFAULT_PROPERTY_PROFILE = {
   completedAt: null,
 };
 
-const SAMPLE_ITEMS = [
-  { id: "w1", category: "water", subType: "well", name: "Back well", quantity: 1, location: "Backyard", fields: { depth: "85ft", gpm: "6", hasPump: "Electric", pumpType: "Manual" }, addedDate: "2025-01-15" },
-  { id: "w2", category: "water", subType: "storedWater", name: "55gal drums (4)", quantity: 220, location: "Garage", fields: { capacity: "55", lastRefreshed: "2025-09-01", containerType: "Barrel" }, addedDate: "2025-02-01" },
-  { id: "w3", category: "water", subType: "purificationDevice", name: "Berkey Filter", quantity: 1, location: "Kitchen", fields: { filterType: "Berkey", lifespanGallons: "3000", gallonsUsed: "450" }, addedDate: "2025-01-10" },
-  { id: "w4", category: "water", subType: "freshwater", name: "Creek 0.3mi", quantity: 1, location: "East", fields: { distance: "0.3mi", flowRate: "Year-round" }, addedDate: "2025-01-01" },
-  { id: "f1", category: "food", subType: "cannedGoods", name: "Canned goods", quantity: 120, location: "Pantry", fields: { calories: "250", servings: "2", expiryDate: "2027-06-15" }, addedDate: "2025-02-01" },
-  { id: "f2", category: "food", subType: "freezeDried", name: "Mountain House", quantity: 96, location: "Basement", fields: { calories: "280", servings: "2.5", expiryDate: "2050-01-01" }, addedDate: "2025-01-20" },
-  { id: "f3", category: "food", subType: "dryGoods", name: "Beans & pasta", quantity: 40, location: "Pantry", fields: { weightLbs: "40", calories: "1650", servings: "1", expiryDate: "2028-01-01" }, addedDate: "2025-03-15" },
-  { id: "m1i", category: "medical", subType: "firstAidKit", name: "FA Kit", quantity: 2, location: "Hall", fields: { kitLevel: "Intermediate", expiryDate: "2027-08-01" }, addedDate: "2025-01-20" },
-  { id: "fi1", category: "firewood", subType: "cordwood", name: "Split oak", quantity: 4, location: "Wood shed", fields: { cords: "4", seasoned: "Well seasoned", woodSpecies: "Oak" }, addedDate: "2025-01-01" },
-  { id: "fi2", category: "firewood", subType: "fireplace", name: "Living room stove", quantity: 1, location: "Living room", fields: { btuRating: "55000", cordsPerMonth: "0.8", lastInspection: "2025-09-15" }, addedDate: "2025-01-01" },
-  { id: "fi3", category: "firewood", subType: "chainsaw", name: "Stihl MS 261", quantity: 1, location: "Garage", fields: { chainsawBrand: "Stihl", lastService: "2025-10-01", barLength: "20\"", chainsCount: "3" }, addedDate: "2025-03-01" },
-  { id: "fu1", category: "fuel", subType: "gasoline", name: "Stabilized gas", quantity: 25, location: "Shed", fields: { gallons: "25", stabilized: "Yes", lastRotated: "2025-08-15" }, addedDate: "2025-03-01" },
-  { id: "fu2", category: "fuel", subType: "propane", name: "Propane tanks", quantity: 3, location: "Shed", fields: { tankSize: "20lb" }, addedDate: "2025-02-01" },
-  { id: "fa1", category: "firearms", subType: "rifle", name: "AR-15", quantity: 1, location: "Safe", fields: { caliber: "5.56", firearmAction: "Semi-auto", optic: "LPVO 1-6x" }, addedDate: "2025-01-15" },
-  { id: "fa2", category: "firearms", subType: "shotgun", name: "Mossberg 590", quantity: 1, location: "Safe", fields: { gauge: "12ga", firearmAction: "Pump" }, addedDate: "2025-01-15" },
-  { id: "fa3", category: "firearms", subType: "ammunition", name: "5.56 FMJ", quantity: 1000, location: "Safe", fields: { caliber: "5.56", rounds: "1000", ammoType: "FMJ" }, addedDate: "2025-02-01" },
-  { id: "fa4", category: "firearms", subType: "ammunition", name: "12ga buckshot", quantity: 200, location: "Safe", fields: { caliber: "12ga", rounds: "200", ammoType: "Buckshot" }, addedDate: "2025-02-01" },
-  { id: "v1", category: "vehicles", subType: "atv", name: "Honda Foreman 520", quantity: 1, location: "Barn", fields: { vMake: "Honda", vModel: "Foreman 520", vYear: "2021", lastOilChange: "2025-09-01", oilInterval: "Every 100hrs", nextService: "2026-03-01" }, addedDate: "2025-01-01" },
-  { id: "v2", category: "vehicles", subType: "tractor", name: "Kubota B2601", quantity: 1, location: "Barn", fields: { vMake: "Kubota", vModel: "B2601", vYear: "2019", lastOilChange: "2025-07-15", oilInterval: "Every 100hrs", nextService: "2026-01-15", hoursOnEngine: "620" }, addedDate: "2025-01-01" },
-  { id: "v3", category: "vehicles", subType: "truck", name: "F-250 Diesel", quantity: 1, location: "Driveway", fields: { vMake: "Ford", vModel: "F-250", vYear: "2020", lastOilChange: "2025-11-01", oilInterval: "Every 10000mi", nextService: "2026-05-01", mileage: "68000" }, addedDate: "2025-01-01" },
-  { id: "v4", category: "vehicles", subType: "fluids", name: "Motor oil 15W-40", quantity: 10, location: "Garage", fields: { fluidType: "Motor oil", gallons: "10" }, addedDate: "2025-03-01" },
-  { id: "d1", category: "defense", subType: "tripWire", name: "Perimeter alarm kit", quantity: 2, location: "Garage", fields: { wireLength: "200" }, addedDate: "2025-02-20" },
-  { id: "d2", category: "defense", subType: "bodyArmor", name: "Level III plates", quantity: 2, location: "Closet", fields: { level: "III" }, addedDate: "2025-01-15" },
-  { id: "eq1", category: "equipment", subType: "tarp", name: "Heavy duty tarps", quantity: 4, location: "Barn", fields: { dimensions: "10x12 ft" }, addedDate: "2025-02-01" },
-  { id: "eq2", category: "equipment", subType: "packs", name: "Bug-out bags", quantity: 2, location: "Hall closet", fields: { packCapacity: "72" }, addedDate: "2025-01-15" },
-  { id: "eq3", category: "equipment", subType: "documents", name: "Emergency docs", quantity: 1, location: "Safe", fields: { docType: "Insurance" }, addedDate: "2025-01-01" },
-  { id: "eq4", category: "equipment", subType: "airFilter", name: "MERV-13 furnace filters", quantity: 6, location: "Garage", fields: { filterSize: "20x25x1", filterQty: "6" }, addedDate: "2025-02-01" },
-  { id: "eq5", category: "equipment", subType: "waterFilter", name: "Berkey replacement", quantity: 2, location: "Kitchen", fields: { filterType: "Ceramic", lifespanGallons: "3000", gallonsUsed: "800" }, addedDate: "2025-01-15" },
-  { id: "eq6", category: "equipment", subType: "fuelFilter", name: "Honda oil filters", quantity: 4, location: "Garage", fields: { partFor: "Honda EU2200i", filterQty: "4" }, addedDate: "2025-03-01" },
-  { id: "fm1", category: "farm", subType: "seedPacket", name: "Tomato — Roma", quantity: 3, location: "Greenhouse", fields: { cropName: "Tomato", seedVariety: "Roma", plantMonth: "Apr", harvestMonth: "Aug", daysToHarvest: "75", expiryDate: "2027-12-01" }, addedDate: "2025-02-01" },
-  { id: "fm2", category: "farm", subType: "seedPacket", name: "Lettuce — Butterhead", quantity: 5, location: "Greenhouse", fields: { cropName: "Lettuce", seedVariety: "Butterhead", plantMonth: "Mar", harvestMonth: "Jun", daysToHarvest: "55" }, addedDate: "2025-02-01" },
-  { id: "fm3", category: "farm", subType: "seedPacket", name: "Potato — Yukon Gold", quantity: 4, location: "Garage", fields: { cropName: "Potato", seedVariety: "Yukon Gold", plantMonth: "May", harvestMonth: "Sep", daysToHarvest: "90" }, addedDate: "2025-02-01" },
-  { id: "fm4", category: "farm", subType: "seedPacket", name: "Beans — Pole", quantity: 6, location: "Greenhouse", fields: { cropName: "Beans", seedVariety: "Kentucky Wonder", plantMonth: "May", harvestMonth: "Aug", daysToHarvest: "65" }, addedDate: "2025-02-01" },
-  { id: "fm5", category: "farm", subType: "raisedBed", name: "Raised beds — veggie", quantity: 3, location: "Backyard", fields: { sqft: "180", soilType: "Raised bed mix", cropName: "Mixed vegetables" }, addedDate: "2025-03-15" },
-  { id: "fm6", category: "farm", subType: "greenhouse", name: "Greenhouse 12x16", quantity: 1, location: "Backyard", fields: { sqft: "192", heatedGreenhouse: "Passive solar" }, addedDate: "2025-01-01" },
-  { id: "fm7", category: "farm", subType: "soil", name: "Pro-Mix potting soil", quantity: 8, location: "Greenhouse", fields: { soilType: "Potting mix", weightLbs: "30" }, addedDate: "2025-03-01" },
-  { id: "fm8", category: "farm", subType: "fertilizer", name: "Worm castings", quantity: 4, location: "Barn", fields: { fertilizerType: "Worm castings", weightLbs: "25" }, addedDate: "2025-03-01" },
-  { id: "fm9", category: "farm", subType: "irrigation", name: "Drip system — beds", quantity: 1, location: "Backyard", fields: { irrigationType: "Drip" }, addedDate: "2025-04-01" },
-  { id: "fm10", category: "farm", subType: "seedPacket", name: "Carrot — Nantes", quantity: 4, location: "Greenhouse", fields: { cropName: "Carrot", seedVariety: "Nantes", plantMonth: "Apr", harvestMonth: "Aug", daysToHarvest: "75" }, addedDate: "2025-02-01" },
-  { id: "fm11", category: "farm", subType: "seedPacket", name: "Basil — Genovese", quantity: 3, location: "Greenhouse", fields: { cropName: "Basil", seedVariety: "Genovese", plantMonth: "May", harvestMonth: "Sep", daysToHarvest: "28" }, addedDate: "2025-02-01" },
-  { id: "fm12", category: "farm", subType: "seedPacket", name: "Pepper — Jalapeño", quantity: 2, location: "Greenhouse", fields: { cropName: "Pepper", seedVariety: "Jalapeño", plantMonth: "May", harvestMonth: "Aug", daysToHarvest: "75" }, addedDate: "2025-02-15" },
-  { id: "fm13", category: "farm", subType: "seedPacket", name: "Cucumber — Marketmore", quantity: 3, location: "Greenhouse", fields: { cropName: "Cucumber", seedVariety: "Marketmore", plantMonth: "May", harvestMonth: "Aug", daysToHarvest: "55" }, addedDate: "2025-02-15" },
-  { id: "fm14", category: "farm", subType: "seedPacket", name: "Zucchini — Black Beauty", quantity: 2, location: "Greenhouse", fields: { cropName: "Zucchini", seedVariety: "Black Beauty", plantMonth: "May", harvestMonth: "Aug", daysToHarvest: "50" }, addedDate: "2025-02-15" },
-  { id: "fm15", category: "farm", subType: "seedPacket", name: "Kale — Lacinato", quantity: 4, location: "Greenhouse", fields: { cropName: "Kale", seedVariety: "Lacinato", plantMonth: "Apr", harvestMonth: "Nov", daysToHarvest: "55" }, addedDate: "2025-02-01" },
-  { id: "fm16", category: "farm", subType: "seedPacket", name: "Radish — Cherry Belle", quantity: 5, location: "Greenhouse", fields: { cropName: "Radish", seedVariety: "Cherry Belle", plantMonth: "Apr", harvestMonth: "May", daysToHarvest: "28" }, addedDate: "2025-02-01" },
-  { id: "fm17", category: "farm", subType: "seedPacket", name: "Spinach — Bloomsdale", quantity: 3, location: "Greenhouse", fields: { cropName: "Spinach", seedVariety: "Bloomsdale", plantMonth: "Mar", harvestMonth: "Jun", daysToHarvest: "42" }, addedDate: "2025-02-01" },
-  { id: "c1i", category: "comms", subType: "hamRadio", name: "Baofeng x2", quantity: 2, location: "Office", fields: { licensed: "Tech", bands: "2m,70cm" }, addedDate: "2025-02-20" },
-  { id: "p1i", category: "power", subType: "solarPanel", name: "200W panels", quantity: 2, location: "Garage", fields: { watts: "200", inverter: "Separate" }, addedDate: "2025-02-20" },
-  { id: "p2i", category: "power", subType: "generator", name: "Honda EU2200i", quantity: 1, location: "Garage", fields: { watts: "2200", fuelType: "Gas" }, addedDate: "2025-01-15" },
-  { id: "bt1", category: "batteries", subType: "aa", name: "Eneloop AA (rechargeable)", quantity: 24, location: "Garage", fields: { batteryBrand: "Eneloop", batteryCount: "24", isRechargeable: "Yes", batteryChemistry: "NiMH" }, addedDate: "2025-02-01" },
-  { id: "bt2", category: "batteries", subType: "aa", name: "Duracell AA (disposable)", quantity: 48, location: "Garage", fields: { batteryBrand: "Duracell", batteryCount: "48", isRechargeable: "No", batteryChemistry: "Alkaline" }, addedDate: "2025-02-01" },
-  { id: "bt3", category: "batteries", subType: "aaa", name: "Eneloop AAA", quantity: 16, location: "Garage", fields: { batteryBrand: "Eneloop", batteryCount: "16", isRechargeable: "Yes", batteryChemistry: "NiMH" }, addedDate: "2025-02-01" },
-  { id: "bt4", category: "batteries", subType: "cr123a", name: "SureFire CR123A", quantity: 12, location: "Safe", fields: { batteryBrand: "SureFire", batteryCount: "12", isRechargeable: "No", batteryChemistry: "Lithium" }, addedDate: "2025-02-01" },
-  { id: "bt5", category: "batteries", subType: "eighteen650", name: "Samsung 30Q 18650", quantity: 8, location: "Office", fields: { batteryBrand: "Samsung", batteryCount: "8", isRechargeable: "Yes", batteryMah: "3000" }, addedDate: "2025-02-01" },
-  { id: "bt6", category: "batteries", subType: "dCell", name: "D-Cell alkaline", quantity: 12, location: "Garage", fields: { batteryBrand: "Energizer", batteryCount: "12", isRechargeable: "No", batteryChemistry: "Alkaline" }, addedDate: "2025-02-01" },
-  { id: "bt7", category: "batteries", subType: "battCharger", name: "Nitecore D4 charger", quantity: 1, location: "Office", fields: { chargerType: "Universal", chargerSlots: "4" }, addedDate: "2025-02-01" },
-  { id: "bt8", category: "batteries", subType: "solarCharger", name: "BigBlue 28W solar panel", quantity: 1, location: "BOB", fields: { watts: "28", chargerType: "Solar to USB" }, addedDate: "2025-02-01" },
-  { id: "el1", category: "electronics", subType: "satPhone", name: "Garmin inReach Mini 2", quantity: 1, location: "Office", fields: { deviceBrand: "Garmin", deviceModel: "inReach Mini 2", isRechargeable: "Yes", hasPlan: "Yes — active", planExpiry: "2026-09-15", planProvider: "Garmin", deviceLocation: "Office" }, addedDate: "2025-01-01" },
-  { id: "el2", category: "electronics", subType: "gps", name: "Garmin GPSMAP 67i", quantity: 1, location: "BOB", fields: { deviceBrand: "Garmin", deviceModel: "GPSMAP 67i", isRechargeable: "Yes", hasPlan: "Yes — active", planExpiry: "2026-09-15", planProvider: "Garmin", deviceLocation: "Dad's BOB" }, addedDate: "2025-01-01" },
-  { id: "el3", category: "electronics", subType: "radio", name: "Baofeng UV-5R (x3)", quantity: 3, location: "Office", fields: { deviceBrand: "Baofeng", deviceModel: "UV-5R", isRechargeable: "Yes", licensed: "Tech", deviceLocation: "Office shelf" }, addedDate: "2025-01-15" },
-  { id: "el4", category: "electronics", subType: "weatherRadio", name: "Midland ER310", quantity: 1, location: "Kitchen", fields: { deviceBrand: "Midland", isRechargeable: "Yes", deviceLocation: "Kitchen counter" }, addedDate: "2025-01-15" },
-  { id: "el5", category: "electronics", subType: "laptop", name: "MacBook Pro", quantity: 1, location: "Office", fields: { deviceBrand: "Apple", deviceModel: "MacBook Pro 14\"", isRechargeable: "Yes", deviceLocation: "Office" }, addedDate: "2025-01-01" },
-  { id: "el6", category: "electronics", subType: "trailCamElec", name: "Tactacam Reveal X Pro (x6)", quantity: 6, location: "Field", fields: { deviceBrand: "Tactacam", deviceModel: "Reveal X Pro", hasPlan: "Yes — active", planExpiry: "2026-06-01", planProvider: "Tactacam", deviceLocation: "Perimeter cameras" }, addedDate: "2025-01-01" },
-  { id: "el7", category: "electronics", subType: "drone", name: "DJI Mini 3 Pro", quantity: 1, location: "Office", fields: { deviceBrand: "DJI", deviceModel: "Mini 3 Pro", isRechargeable: "Yes", deviceLocation: "Office" }, addedDate: "2025-03-01" },
-  { id: "el8", category: "electronics", subType: "faradayStored", name: "Backup radio + charger", quantity: 1, location: "Faraday cage", fields: { deviceBrand: "Baofeng", deviceModel: "UV-5R + solar charger", deviceLocation: "Basement Faraday cage", bobItemNotes: "Sealed in EMP bag inside steel ammo can" }, addedDate: "2025-01-01" },
-  { id: "bo1", category: "bugout", subType: "bag", name: "Dad's BOB", quantity: 1, location: "Hall closet", fields: { bagOwner: "Dad", bagWeight: "38", packCapacity: "72", lastAudited: "2025-11-01" }, addedDate: "2025-01-01" },
-  { id: "bo2", category: "bugout", subType: "bag", name: "Mom's BOB", quantity: 1, location: "Hall closet", fields: { bagOwner: "Mom", bagWeight: "28", packCapacity: "55", lastAudited: "2025-11-01" }, addedDate: "2025-01-01" },
-  { id: "bo3", category: "bugout", subType: "bobWater", name: "Sawyer Mini + 2L bladders", quantity: 2, location: "Dad's BOB", fields: { bobItemQty: "2", bobItemNotes: "Sawyer Squeeze + backup tabs" }, addedDate: "2025-01-01" },
-  { id: "bo4", category: "bugout", subType: "bobFood", name: "72hr rations", quantity: 4, location: "Dad's BOB", fields: { bobItemQty: "4", bobItemNotes: "Datrex 3600cal bars", expiryDate: "2030-01-01" }, addedDate: "2025-01-01" },
-  { id: "bo5", category: "bugout", subType: "bobFirstAid", name: "IFAK", quantity: 2, location: "Both BOBs", fields: { bobItemQty: "2", bobItemNotes: "Tourniquet, QuikClot, Israeli bandage" }, addedDate: "2025-01-01" },
-  { id: "bo6", category: "bugout", subType: "bobShelter", name: "Bivvy + tarp", quantity: 2, location: "Both BOBs", fields: { bobItemQty: "2", bobItemNotes: "SOL emergency bivvy + 8x10 tarp" }, addedDate: "2025-01-01" },
-  { id: "bo7", category: "bugout", subType: "bobFireKit", name: "Fire kit", quantity: 2, location: "Both BOBs", fields: { bobItemQty: "2", bobItemNotes: "Ferro rod, lighter, tinder" }, addedDate: "2025-01-01" },
-  { id: "bo8", category: "bugout", subType: "bobTools", name: "Morakniv + multitool", quantity: 2, location: "Both BOBs", fields: { bobItemQty: "2", bobItemNotes: "Mora Companion + Leatherman Wave" }, addedDate: "2025-01-01" },
-  { id: "bo9", category: "bugout", subType: "bobNav", name: "Topo maps + compass", quantity: 1, location: "Dad's BOB", fields: { bobItemQty: "1", bobItemNotes: "Local 1:50k topos, Silva compass" }, addedDate: "2025-01-01" },
-  { id: "bo10", category: "bugout", subType: "bobDocs", name: "Doc packet + cash", quantity: 2, location: "Both BOBs", fields: { bobItemQty: "2", bobItemNotes: "$500 small bills, ID copies, insurance" }, addedDate: "2025-01-01" },
-  { id: "bo11", category: "bugout", subType: "bobComms", name: "Baofeng UV-5R", quantity: 1, location: "Dad's BOB", fields: { bobItemQty: "1", bobItemNotes: "Programmed local repeaters + FRS" }, addedDate: "2025-01-01" },
-  { id: "k1", category: "kids", subType: "diapers", name: "Huggies Size 4", quantity: 6, location: "Nursery", fields: { kidName: "Baby", kidAge: "18mo", diaperSize: "Size 4", bobItemQty: "6" }, addedDate: "2025-02-01" },
-  { id: "k2", category: "kids", subType: "wipes", name: "Water Wipes", quantity: 8, location: "Nursery", fields: { bobItemQty: "8" }, addedDate: "2025-02-01" },
-  { id: "k3", category: "kids", subType: "formula", name: "Enfamil powder", quantity: 4, location: "Pantry", fields: { kidName: "Baby", formulaType: "Powder", bobItemQty: "4", expiryDate: "2026-08-01" }, addedDate: "2025-02-01" },
-  { id: "k4", category: "kids", subType: "kidMeds", name: "Infant Tylenol", quantity: 3, location: "Medicine cabinet", fields: { kidName: "Baby", medication: "Acetaminophen", daysSupply: "30", expiryDate: "2027-06-01" }, addedDate: "2025-02-01" },
-  { id: "k5", category: "kids", subType: "kidMeds", name: "Children's Benadryl", quantity: 2, location: "Medicine cabinet", fields: { kidName: "All kids", medication: "Diphenhydramine", daysSupply: "20", expiryDate: "2027-03-01" }, addedDate: "2025-02-01" },
-  { id: "k6", category: "kids", subType: "kidClothing", name: "Winter snowsuit", quantity: 2, location: "Closet", fields: { kidName: "Baby", kidAge: "18mo", clothingType: "Winter", kidSize: "18-24mo" }, addedDate: "2025-01-15" },
-  { id: "k7", category: "kids", subType: "blankets", name: "Fleece sleep sacks", quantity: 3, location: "Nursery", fields: { kidName: "Baby", bobItemNotes: "TOG 2.5 for cold weather" }, addedDate: "2025-01-15" },
-  { id: "k8", category: "kids", subType: "carSeat", name: "Graco 4Ever DLX", quantity: 1, location: "F-250", fields: { kidName: "Baby", kidAge: "18mo", bobItemNotes: "Rear-facing, expires 2035" }, addedDate: "2025-01-01" },
-  { id: "k9", category: "kids", subType: "sipCup", name: "Bottles + nipples", quantity: 6, location: "Kitchen", fields: { bobItemQty: "6" }, addedDate: "2025-02-01" },
-  { id: "k10", category: "kids", subType: "babyFood", name: "Pouches — mixed fruit/veg", quantity: 24, location: "Pantry", fields: { kidName: "Baby", bobItemQty: "24", expiryDate: "2026-12-01" }, addedDate: "2025-02-01" },
-  { id: "k11", category: "kids", subType: "toys", name: "Comfort bear + books", quantity: 3, location: "BOB", fields: { kidName: "Baby", bobItemNotes: "Favourite stuffed bear, 2 board books" }, addedDate: "2025-01-01" },
-  { id: "k12", category: "kids", subType: "kidDocs", name: "Medical records + ID", quantity: 1, location: "Safe", fields: { kidName: "Baby", bobItemNotes: "Health card, birth cert copy, vaccination record" }, addedDate: "2025-01-01" },
-  /* Boat */
-  { id: "bo1b", category: "boat", subType: "vessel", name: "16ft Lund aluminum", quantity: 1, location: "Boat shed", fields: { boatType: "Aluminum fishing", boatLength: "16", boatMotor: "Mercury 25hp", boatHullMat: "Aluminum", boatReg: "ON 4821 AB", deviceLocation: "Boat shed" }, addedDate: "2025-01-01" },
-  { id: "bo2b", category: "boat", subType: "outboard", name: "Mercury 25hp 4-stroke", quantity: 1, location: "Boat shed", fields: { vMake: "Mercury", vModel: "25hp EFI", boatHP: "25", boatEngineHours: "142", lastOilChange: "2025-09-15", oilInterval: "100", nextService: "2026-04-01", fuelType: "Gas" }, addedDate: "2025-01-01" },
-  { id: "bo3b", category: "boat", subType: "lifeJacket", name: "Adult PFDs (Type III)", quantity: 4, location: "Boat shed", fields: { pfdType: "Type III — Flotation", pfdSize: "Adult L/XL", bobItemQty: "4" }, addedDate: "2025-01-01" },
-  { id: "bo4b", category: "boat", subType: "lifeJacket", name: "Child PFDs", quantity: 2, location: "Boat shed", fields: { pfdType: "Type III — Flotation", pfdSize: "Child (30-50lb)", bobItemQty: "2" }, addedDate: "2025-01-01" },
-  { id: "bo5b", category: "boat", subType: "throwBag", name: "Throwable cushion", quantity: 1, location: "Boat", fields: { bobItemQty: "1" }, addedDate: "2025-01-01" },
-  { id: "bo6b", category: "boat", subType: "boatFuel", name: "Marine gas (stabilized)", quantity: 20, location: "Boat shed", fields: { gallons: "20", fuelType: "Gas", stabilized: "Yes — Sta-Bil" }, addedDate: "2025-02-01" },
-  { id: "bo7b", category: "boat", subType: "boatOil", name: "Mercury 4-stroke oil", quantity: 4, location: "Garage", fields: { fluidType: "Mercury 25W-40 marine", bobItemQty: "4" }, addedDate: "2025-02-01" },
-  { id: "bo8b", category: "boat", subType: "boatSafety", name: "Safety kit — flares, horn, whistle", quantity: 1, location: "Boat", fields: { expiryDate: "2027-06-01", bobItemNotes: "3 flares, air horn, pealess whistle, mirror" }, addedDate: "2025-01-01" },
-  { id: "bo9b", category: "boat", subType: "anchor", name: "8lb fluke anchor + 100ft line", quantity: 1, location: "Boat", fields: { bobItemNotes: "Fluke anchor w/ chain leader", lengthFt: "100" }, addedDate: "2025-01-01" },
-  { id: "bo10b", category: "boat", subType: "boatTrailer", name: "EZ Loader trailer", quantity: 1, location: "Driveway", fields: { vMake: "EZ Loader", vModel: "16-18ft roller", boatReg: "ON T-8821", bobItemNotes: "Bearings repacked 2025-06" }, addedDate: "2025-01-01" },
-  { id: "bo11b", category: "boat", subType: "paddle", name: "Emergency oars", quantity: 2, location: "Boat", fields: { bobItemQty: "2", bobItemNotes: "48\" aluminum" }, addedDate: "2025-01-01" },
-  /* Fishing */
-  { id: "fi1", category: "fishing", subType: "rod", name: "Spinning combo — medium", quantity: 2, location: "Garage", fields: { fishRodType: "Spinning", fishLineWeight: "10lb mono", fishReelType: "Spinning", deviceLocation: "Garage rod rack" }, addedDate: "2025-01-01" },
-  { id: "fi2", category: "fishing", subType: "rod", name: "Baitcaster — heavy", quantity: 1, location: "Garage", fields: { fishRodType: "Baitcasting", fishLineWeight: "20lb braid", fishReelType: "Baitcast", deviceLocation: "Garage rod rack" }, addedDate: "2025-01-01" },
-  { id: "fi3", category: "fishing", subType: "rod", name: "Ice rod combo", quantity: 2, location: "Garage", fields: { fishRodType: "Ice", fishLineWeight: "6lb mono", fishReelType: "Spinning", deviceLocation: "Garage shelf" }, addedDate: "2025-01-01" },
-  { id: "fi4", category: "fishing", subType: "tackle", name: "Main tackle box", quantity: 1, location: "Garage", fields: { fishTackleContents: "Hooks, sinkers, swivels, bobbers, leaders, pliers", deviceLocation: "Garage shelf" }, addedDate: "2025-01-01" },
-  { id: "fi5", category: "fishing", subType: "hooks", name: "Assorted hooks (#6 to 3/0)", quantity: 200, location: "Tackle box", fields: { fishHookSize: "#6, #4, #2, 1/0, 3/0", bobItemQty: "200" }, addedDate: "2025-02-01" },
-  { id: "fi6", category: "fishing", subType: "lures", name: "Crankbaits + jigs (mixed)", quantity: 30, location: "Tackle box", fields: { fishLureType: "Mixed", bobItemQty: "30" }, addedDate: "2025-01-01" },
-  { id: "fi7", category: "fishing", subType: "line", name: "10lb mono (1000yd spool)", quantity: 2, location: "Garage", fields: { fishLineWeight: "10lb mono", lengthFt: "3000" }, addedDate: "2025-02-01" },
-  { id: "fi8", category: "fishing", subType: "net", name: "Landing net — rubber mesh", quantity: 1, location: "Boat", fields: { bobItemNotes: "Rubber-coated, telescoping handle" }, addedDate: "2025-01-01" },
-  { id: "fi9", category: "fishing", subType: "iceFishing", name: "Auger + ice shelter", quantity: 1, location: "Garage", fields: { bobItemNotes: "Strikemaster Lite-Flite auger + Otter flip-over", deviceLocation: "Garage" }, addedDate: "2025-01-01" },
-  { id: "fi10", category: "fishing", subType: "filletKnife", name: "Rapala fillet knife set", quantity: 1, location: "Kitchen", fields: { bobItemNotes: "6\" and 8\" flexible + cutting board" }, addedDate: "2025-01-01" },
-  { id: "fi11", category: "fishing", subType: "trap", name: "Minnow traps (x3)", quantity: 3, location: "Boat shed", fields: { bobItemNotes: "Galvanized steel, spring-loaded" }, addedDate: "2025-01-01" },
-  { id: "fi12", category: "fishing", subType: "fishLicense", name: "Ontario outdoors card + sport license", quantity: 1, location: "Wallet", fields: { planExpiry: "2026-12-31", bobItemNotes: "Sport fishing + conservation" }, addedDate: "2025-01-01" },
-  /* Alcohol */
-  { id: "al1", category: "alcohol", subType: "whiskey", name: "Jack Daniel's", quantity: 3, location: "Basement", fields: { alcBrand: "Jack Daniel's", alcVolume: "750ml", alcABV: "40", bobItemQty: "3", deviceLocation: "Basement bar" }, addedDate: "2025-01-01" },
-  { id: "al2", category: "alcohol", subType: "whiskey", name: "Crown Royal", quantity: 2, location: "Basement", fields: { alcBrand: "Crown Royal", alcVolume: "750ml", alcABV: "40", bobItemQty: "2", deviceLocation: "Basement bar" }, addedDate: "2025-01-01" },
-  { id: "al3", category: "alcohol", subType: "vodka", name: "Smirnoff", quantity: 2, location: "Basement", fields: { alcBrand: "Smirnoff", alcVolume: "1.75L", alcABV: "40", bobItemQty: "2", deviceLocation: "Basement bar" }, addedDate: "2025-01-01" },
-  { id: "al4", category: "alcohol", subType: "rum", name: "Captain Morgan", quantity: 1, location: "Basement", fields: { alcBrand: "Captain Morgan", alcVolume: "750ml", alcABV: "35", bobItemQty: "1", deviceLocation: "Basement bar" }, addedDate: "2025-01-01" },
-  { id: "al5", category: "alcohol", subType: "wine", name: "Red wine (assorted)", quantity: 6, location: "Basement", fields: { alcBrand: "Mixed", alcVolume: "750ml", alcWineType: "Red", bobItemQty: "6", deviceLocation: "Wine rack" }, addedDate: "2025-01-01" },
-  { id: "al6", category: "alcohol", subType: "beer", name: "Budweiser case", quantity: 2, location: "Garage fridge", fields: { alcBrand: "Budweiser", alcVolume: "Case (24)", bobItemQty: "2", deviceLocation: "Garage fridge" }, addedDate: "2025-02-01" },
-  { id: "al7", category: "alcohol", subType: "moonshine", name: "Everclear 190 proof", quantity: 2, location: "Basement", fields: { alcBrand: "Everclear", alcVolume: "750ml", alcABV: "95", bobItemQty: "2", deviceLocation: "Locked cabinet" }, addedDate: "2025-01-01" },
-  { id: "al8", category: "alcohol", subType: "medAlcohol", name: "Isopropyl 99%", quantity: 4, location: "Medical shelf", fields: { alcVolume: "1L", bobItemQty: "4", deviceLocation: "Medical shelf" }, addedDate: "2025-02-01" },
-  /* Recreational */
-  { id: "rc1", category: "recreational", subType: "cigarettes", name: "Marlboro Red (carton)", quantity: 2, location: "Basement", fields: { recBrand: "Marlboro Red", bobItemQty: "2", deviceLocation: "Locked cabinet" }, addedDate: "2025-02-01" },
-  { id: "rc2", category: "recreational", subType: "cigars", name: "Padron 1964 (box)", quantity: 10, location: "Basement", fields: { recBrand: "Padron 1964 Anniversary", bobItemQty: "10", deviceLocation: "Humidor" }, addedDate: "2025-01-01" },
-  { id: "rc3", category: "recreational", subType: "cannabis", name: "Indica flower", quantity: 2, location: "Basement", fields: { recStrain: "Pink Kush", recForm: "Flower", recWeight: "28g", bobItemQty: "2", deviceLocation: "Locked cabinet" }, addedDate: "2025-02-01" },
-  { id: "rc4", category: "recreational", subType: "edibles", name: "THC gummies", quantity: 3, location: "Basement", fields: { recBrand: "Wana", recDosage: "10mg", bobItemQty: "3", expiryDate: "2027-03-01", deviceLocation: "Locked cabinet" }, addedDate: "2025-02-01" },
-  { id: "rc5", category: "recreational", subType: "lighter", name: "Bic lighters (bulk)", quantity: 20, location: "Various", fields: { bobItemQty: "20", deviceLocation: "Drawer, BOBs, garage" }, addedDate: "2025-02-01" },
-  { id: "rc6", category: "recreational", subType: "caffeine", name: "Folgers ground coffee", quantity: 4, location: "Pantry", fields: { recBrand: "Folgers", bobItemQty: "4", expiryDate: "2027-06-01", deviceLocation: "Pantry" }, addedDate: "2025-02-01" },
-  { id: "rc7", category: "recreational", subType: "caffeine", name: "Caffeine pills (200mg)", quantity: 2, location: "Medical shelf", fields: { recBrand: "No-Doz", bobItemQty: "2", expiryDate: "2027-12-01", deviceLocation: "Medical shelf" }, addedDate: "2025-02-01" },
-  /* Books */
-  { id: "bk1", category: "books", subType: "medical", name: "Where There Is No Doctor", quantity: 1, location: "Office", fields: { bookAuthor: "Hesperian", bookEdition: "2022", deviceLocation: "Office shelf" }, addedDate: "2025-01-01" },
-  { id: "bk2", category: "books", subType: "medical", name: "Emergency War Surgery (NATO)", quantity: 1, location: "Office", fields: { bookAuthor: "US DoD", bookEdition: "5th", deviceLocation: "Office shelf" }, addedDate: "2025-01-01" },
-  { id: "bk3", category: "books", subType: "ediblePlants", name: "Peterson Field Guide — Edible Wild Plants", quantity: 1, location: "BOB", fields: { bookAuthor: "Peterson, Lee Allen", bookRegion: "Eastern/Central NA", deviceLocation: "Dad's BOB" }, addedDate: "2025-01-01" },
-  { id: "bk4", category: "books", subType: "ediblePlants", name: "Foraging Ontario", quantity: 1, location: "Kitchen", fields: { bookAuthor: "Various", bookRegion: "Ontario", deviceLocation: "Kitchen shelf" }, addedDate: "2025-01-01" },
-  { id: "bk5", category: "books", subType: "survival", name: "SAS Survival Handbook", quantity: 1, location: "BOB", fields: { bookAuthor: "Wiseman, John", deviceLocation: "Dad's BOB" }, addedDate: "2025-01-01" },
-  { id: "bk6", category: "books", subType: "farming", name: "The Vegetable Gardener's Bible", quantity: 1, location: "Office", fields: { bookAuthor: "Smith, Edward C.", deviceLocation: "Office shelf" }, addedDate: "2025-01-01" },
-  { id: "bk7", category: "books", subType: "repair", name: "Kubota B2601 Service Manual", quantity: 1, location: "Garage", fields: { bookAuthor: "Kubota", bookSubject: "Tractor repair", deviceLocation: "Garage workbench" }, addedDate: "2025-01-01" },
-  { id: "bk8", category: "books", subType: "maps", name: "NTS Topo Maps — local area", quantity: 4, location: "Office", fields: { bookRegion: "Eastern Ontario", bookScale: "1:50,000", deviceLocation: "Office drawer" }, addedDate: "2025-01-01" },
-  { id: "bk9", category: "books", subType: "cooking", name: "Ball Complete Book of Home Preserving", quantity: 1, location: "Kitchen", fields: { bookAuthor: "Kingry, Devine", deviceLocation: "Kitchen shelf" }, addedDate: "2025-01-01" },
-  { id: "bk10", category: "books", subType: "nuclear", name: "Nuclear War Survival Skills", quantity: 1, location: "Basement", fields: { bookAuthor: "Kearny, Cresson", deviceLocation: "Basement shelf" }, addedDate: "2025-01-01" },
-  { id: "bk11", category: "books", subType: "radio", name: "ARRL Ham Radio License Manual", quantity: 1, location: "Office", fields: { bookAuthor: "ARRL", deviceLocation: "Office shelf" }, addedDate: "2025-01-01" },
-  { id: "bk12", category: "books", subType: "firearms", name: "The ABCs of Reloading", quantity: 1, location: "Office", fields: { bookAuthor: "Matunas, Philip", deviceLocation: "Office shelf" }, addedDate: "2025-01-01" },
-  /* CBRN / Nuclear */
-  { id: "nb1", category: "nbc", subType: "respirator", name: "MIRA CM-6M gas mask", quantity: 2, location: "Basement", fields: { nbcBrand: "MIRA Safety", nbcModel: "CM-6M", nbcSize: "M", nbcFilterThread: "40mm NATO (STANAG)", bobItemQty: "2", deviceLocation: "Basement shelf" }, addedDate: "2025-01-01" },
-  { id: "nb2", category: "nbc", subType: "filters", name: "NBC-77 SOF filters", quantity: 6, location: "Basement", fields: { nbcFilterType: "NBC-77 SOF", nbcFilterThread: "40mm NATO (STANAG)", expiryDate: "2040-01-01", bobItemQty: "6", deviceLocation: "Sealed — basement" }, addedDate: "2025-01-01" },
-  { id: "nb3", category: "nbc", subType: "hazmatSuit", name: "Tyvek suits (disposable)", quantity: 6, location: "Basement", fields: { nbcSize: "L", nbcRating: "Tyvek (disposable)", bobItemQty: "6", deviceLocation: "Basement shelf" }, addedDate: "2025-01-01" },
-  { id: "nb4", category: "nbc", subType: "gloves", name: "Butyl rubber gloves", quantity: 4, location: "Basement", fields: { nbcSize: "L", nbcMaterial: "Butyl rubber", bobItemQty: "4", deviceLocation: "Basement shelf" }, addedDate: "2025-01-01" },
-  { id: "nb5", category: "nbc", subType: "kiTablets", name: "Potassium Iodide 130mg", quantity: 60, location: "Medical shelf", fields: { nbcDosage: "130mg", bobItemQty: "60", expiryDate: "2030-06-01", deviceLocation: "Medical shelf" }, addedDate: "2025-01-01" },
-  { id: "nb6", category: "nbc", subType: "dosimeter", name: "GQ GMC-500+ Geiger counter", quantity: 1, location: "Office", fields: { nbcBrand: "GQ Electronics", nbcModel: "GMC-500+", isRechargeable: "Yes", deviceLocation: "Office" }, addedDate: "2025-01-01" },
-  { id: "nb7", category: "nbc", subType: "plasticSheeting", name: "6mil poly sheeting", quantity: 3, location: "Basement", fields: { dimensions: "10x25ft rolls", bobItemQty: "3", deviceLocation: "Basement" }, addedDate: "2025-01-01" },
-  { id: "nb8", category: "nbc", subType: "sealantTape", name: "Gorilla duct tape", quantity: 6, location: "Basement", fields: { bobItemQty: "6", deviceLocation: "Basement + BOBs" }, addedDate: "2025-01-01" },
-  { id: "nb9", category: "nbc", subType: "deconKit", name: "RSDL decon kits", quantity: 3, location: "Basement", fields: { bobItemNotes: "Reactive Skin Decon Lotion — single use per kit", bobItemQty: "3", deviceLocation: "Basement + Dad's BOB" }, addedDate: "2025-01-01" },
-  { id: "nb10", category: "nbc", subType: "shelterSupply", name: "Shelter-in-place kit", quantity: 1, location: "Basement", fields: { bobItemNotes: "Pre-cut sheeting for all windows/doors, tape, towels for gaps, battery radio, 72hr water", deviceLocation: "Basement entry" }, addedDate: "2025-01-01" },
-  /* Bullion */
-  { id: "bu1", category: "bullion", subType: "goldCoin", name: "American Gold Eagle 1oz", quantity: 3, location: "Safe", fields: { bullionMetal: "Gold", bullionWeight: "1 oz", bullionPurity: ".9167 (22k)", bullionMint: "US Mint", bullionPurchasePrice: "1950", deviceLocation: "Fireproof safe" }, addedDate: "2025-01-15" },
-  { id: "bu2", category: "bullion", subType: "silverCoin", name: "Canadian Maple Leaf 1oz", quantity: 40, location: "Safe", fields: { bullionMetal: "Silver", bullionWeight: "1 oz", bullionPurity: ".9999 Fine", bullionMint: "RCM", bullionPurchasePrice: "28", deviceLocation: "Fireproof safe" }, addedDate: "2025-02-01" },
-  { id: "bu3", category: "bullion", subType: "goldBar", name: "PAMP Suisse 1oz Bar", quantity: 1, location: "Safe", fields: { bullionMetal: "Gold", bullionWeight: "1 oz", bullionPurity: ".9999 Fine", bullionMint: "PAMP Suisse", bullionPurchasePrice: "2050", deviceLocation: "Fireproof safe" }, addedDate: "2025-03-01" },
-  { id: "bu4", category: "bullion", subType: "goldback", name: "Nevada Goldback 1s", quantity: 50, location: "BOB", fields: { bullionGoldbackState: "Nevada", bullionGoldbackDenom: "1 Goldback", bullionPurchasePrice: "5", deviceLocation: "Bug-out bag" }, addedDate: "2025-02-15" },
-  { id: "bu5", category: "bullion", subType: "junkSilver", name: "Pre-65 Washington Quarters", quantity: 40, location: "Safe", fields: { bullionJunkType: "Washington Quarter", bullionFaceValue: "0.25", bullionPurchasePrice: "7", deviceLocation: "Fireproof safe" }, addedDate: "2025-01-20" },
-  { id: "bu6", category: "bullion", subType: "silverBar", name: "Sunshine Mint 10oz Bar", quantity: 5, location: "Safe", fields: { bullionMetal: "Silver", bullionWeight: "10 oz", bullionPurity: ".999 Fine", bullionMint: "Sunshine Mint", bullionPurchasePrice: "280", deviceLocation: "Fireproof safe" }, addedDate: "2025-03-10" },
-  /* Clothing */
-  { id: "cl1", category: "clothing", subType: "underwear", name: "Cotton Boxer Briefs", quantity: 12, location: "Closet", fields: { clothSize: "L", deviceLocation: "Master closet" }, addedDate: "2025-01-10" },
-  { id: "cl2", category: "clothing", subType: "socks", name: "Merino Wool Hiking Socks", quantity: 8, location: "Closet", fields: { clothSize: "L", clothMaterial: "Merino wool", deviceLocation: "Master closet" }, addedDate: "2025-01-10" },
-  { id: "cl3", category: "clothing", subType: "thermalBase", name: "Thermal Base Layer Set", quantity: 2, location: "Closet", fields: { clothSize: "L", clothMaterial: "Polypro", deviceLocation: "Master closet" }, addedDate: "2025-02-01" },
-  { id: "cl4", category: "clothing", subType: "coldWeather", name: "Insulated Parka", quantity: 1, location: "Closet", fields: { clothType: "Parka", clothSize: "L", tempRating: "-20°F", deviceLocation: "Hall closet" }, addedDate: "2025-01-15" },
-  { id: "cl5", category: "clothing", subType: "boots", name: "Waterproof Hiking Boots", quantity: 2, location: "Garage", fields: { clothType: "Hiking boots", clothSize: "11", deviceLocation: "Garage shelf" }, addedDate: "2025-02-10" },
-  { id: "cl6", category: "clothing", subType: "rainGear", name: "Rain Jacket & Pants", quantity: 2, location: "Closet", fields: { clothType: "Rain suit", clothSize: "L", deviceLocation: "Hall closet" }, addedDate: "2025-03-01" },
-  /* Pets */
-  { id: "pe1", category: "pets", subType: "petFood", name: "Dry Dog Kibble 30lb", quantity: 2, location: "Garage", fields: { petAnimal: "Dog", petFoodType: "Dry kibble", weightLbs: "30", expiryDate: "2026-06-01", deviceLocation: "Garage shelf" }, addedDate: "2025-01-20" },
-  { id: "pe2", category: "pets", subType: "petMeds", name: "Heartgard Plus", quantity: 6, location: "Kitchen", fields: { petAnimal: "Dog", petMedName: "Heartgard Plus", daysSupply: "30", expiryDate: "2026-03-01", deviceLocation: "Kitchen cabinet" }, addedDate: "2025-02-01" },
-  { id: "pe3", category: "pets", subType: "petFirstAid", name: "Pet First Aid Kit", quantity: 1, location: "Garage", fields: { petAnimal: "Dog", bobItemNotes: "Bandages, antiseptic, tweezers, muzzle", deviceLocation: "Garage shelf" }, addedDate: "2025-01-15" },
-  { id: "pe4", category: "pets", subType: "petCarrier", name: "Large Dog Crate", quantity: 1, location: "Garage", fields: { petAnimal: "Dog", petCarrierSize: "Large (30-70lb)", deviceLocation: "Garage corner" }, addedDate: "2025-01-10" },
-  { id: "pe5", category: "pets", subType: "petLeash", name: "Heavy Duty Leash & Harness", quantity: 2, location: "Mudroom", fields: { petAnimal: "Dog", bobItemNotes: "6ft leash + no-pull harness", deviceLocation: "Front entry hooks" }, addedDate: "2025-01-10" },
-  { id: "pe6", category: "pets", subType: "petDocs", name: "Vet Records — Max", quantity: 1, location: "Safe", fields: { petAnimal: "Dog", petName: "Max", bobItemNotes: "Vaccination records, microchip info, vet contact", deviceLocation: "Filing cabinet" }, addedDate: "2025-02-15" },
-  /* Lighting */
-  { id: "li1", category: "lighting", subType: "flashlight", name: "Fenix PD36R Pro", quantity: 2, location: "Kitchen", fields: { lightBrand: "Fenix", lightLumens: "2800", lightBattery: "18650", deviceLocation: "Junk drawer" }, addedDate: "2025-01-10" },
-  { id: "li2", category: "lighting", subType: "headlamp", name: "Petzl Actik Core", quantity: 3, location: "Garage", fields: { lightBrand: "Petzl", lightLumens: "600", lightBattery: "Built-in USB", deviceLocation: "Garage shelf" }, addedDate: "2025-01-15" },
-  { id: "li3", category: "lighting", subType: "lantern", name: "Coleman Propane Lantern", quantity: 2, location: "Garage", fields: { lightBrand: "Coleman", lightFuel: "Propane", lightBurnTime: "14", deviceLocation: "Garage shelf" }, addedDate: "2025-02-01" },
-  { id: "li4", category: "lighting", subType: "candle", name: "Emergency Candles 115hr", quantity: 24, location: "Pantry", fields: { lightBurnTime: "115", bobItemQty: "24", deviceLocation: "Pantry shelf" }, addedDate: "2025-01-20" },
-  { id: "li5", category: "lighting", subType: "chemlights", name: "Green Chemlights 12hr", quantity: 20, location: "BOB", fields: { lightChemColor: "Green", bobItemQty: "20", expiryDate: "2028-01-01", deviceLocation: "Bug-out bag" }, addedDate: "2025-02-10" },
-  { id: "li6", category: "lighting", subType: "lampFuel", name: "Lamp Oil 32oz", quantity: 4, location: "Garage", fields: { lightFuel: "Lamp oil", alcVolume: "32 oz", deviceLocation: "Garage shelf" }, addedDate: "2025-03-01" },
-];
 
-const SAMPLE_CODES = [
-  { id: "c1", type: "gate", label: "Front Gate", code: "4782#", location: "Main entrance", notes: "Press # after", access: ["You", "Sarah", "Dave"], lastChanged: "2025-12-15" },
-  { id: "c2", type: "safe", label: "Gun Safe", code: "24-8-16-32", location: "Master closet", notes: "Dial left first", access: ["You", "Sarah"], lastChanged: "2026-01-20" },
-  { id: "c3", type: "alarm", label: "Alarm", code: "7391", location: "Garage panel", notes: "Duress: 9173", access: ["You", "Sarah", "Dave", "Mike"], lastChanged: "2026-02-01" },
-  { id: "c4", type: "wifi", label: "WiFi", code: "PrepNet/S3cur3!", location: "Office", notes: "", access: ["You", "Sarah", "Dave", "Mike", "Lisa", "Tom"], lastChanged: "2025-11-10" },
-];
-const SAMPLE_MANUALS = [
-  { id: "sm1", cat: "plumbing", title: "Water Heater Reset", desc: "Restart after power loss, flush tank.", file: "water-heater.pdf", priority: "high" },
-  { id: "sm2", cat: "seasonal", title: "Winterization", desc: "Blow out lines, drain faucets, insulate, prep generator.", file: "winterize.pdf", priority: "high" },
-  { id: "sm3", cat: "hvac", title: "Barn Boiler Ops", desc: "Ignite pilot, set temp, bleed lines.", file: "barn-boiler.pdf", priority: "medium" },
-  { id: "sm4", cat: "electrical", title: "Generator Start", desc: "Honda EU2200i: fuel, choke, start, load management.", file: "generator.pdf", priority: "high" },
-  { id: "sm5", cat: "vehicle", title: "Rmax 1000 — Service Manual", desc: "Yamaha RMAX 1000: oil change (10W-40, 3.2qt), belt inspection, CVT service, air filter, coolant flush.", file: "rmax1000-service.pdf", priority: "high" },
-  { id: "sm6", cat: "vehicle", title: "Rmax 1000 — Owner's Manual", desc: "Yamaha RMAX 1000: break-in procedure, controls, towing capacity (2000lb), daily pre-ride checks.", file: "rmax1000-owner.pdf", priority: "medium" },
-  { id: "sm7", cat: "vehicle", title: "1991 Land Rover Defender — Workshop Manual", desc: "200TDi engine: timing belt, head gasket, injector service, axle rebuild, transfer case, wiring diagrams.", file: "defender-workshop.pdf", priority: "high" },
-  { id: "sm8", cat: "vehicle", title: "1991 Land Rover Defender — Parts Catalogue", desc: "Exploded diagrams, part numbers for all assemblies. Chassis, body, engine, drivetrain, electrics.", file: "defender-parts.pdf", priority: "medium" },
-  { id: "sm9", cat: "vehicle", title: "Yamaha FZ — Service Manual", desc: "Yamaha FZ: valve clearance, chain tension, oil change (Yamalube 10W-40), carb sync, brake bleed.", file: "fz-service.pdf", priority: "high" },
-  { id: "sm10", cat: "vehicle", title: "Yamaha Grizzly ATV — Service Manual", desc: "Yamaha Grizzly: oil change, air filter, CVT belt, differential fluid, winch maintenance, electrical.", file: "grizzly-service.pdf", priority: "high" },
-  { id: "sm11", cat: "vehicle", title: "Yamaha Grizzly ATV — Owner's Manual", desc: "Yamaha Grizzly: break-in, controls, towing, snow plow attachment, seasonal storage procedure.", file: "grizzly-owner.pdf", priority: "medium" },
-  { id: "sm12", cat: "vehicle", title: "Mercury 25hp Outboard — Service Manual", desc: "Mercury 25hp 4-stroke: oil change (25W-40), gear lube, impeller, thermostat, spark plugs, winterization.", file: "mercury25-service.pdf", priority: "high" },
-];
+
+
+
 const SAMPLE_ROUTES = [
   { id: "r1", priority: "primary", name: "Route Alpha — Hwy 7", dest: "Cabin", dist: "48mi", eta: "55min/2hr", desc: "Paved, fuel stops.", waypoints: "Gas at Junction 7", risks: "Congestion", supplies: "Bug-out bags" },
   { id: "r2", priority: "secondary", name: "Route Bravo — Back Rds", dest: "Cabin", dist: "62mi", eta: "1h20/3hr", desc: "4WD after mile 20.", waypoints: "Creek ford (18mi)", risks: "Mud, no cell", supplies: "4WD, chains" },
   { id: "r3", priority: "emergency", name: "Plan B — Frank's Farm", dest: "Eastville", dist: "22mi", eta: "30min/1hr", desc: "Root cellar, well, 40ac.", waypoints: "Route 9 then Elm", risks: "Through town", supplies: "Medical, food" },
 ];
-const SAMPLE_AMENITIES = [
-  { id: "a1", type: "gas", name: "Shell — Jct 7", dist: "6.2mi", dir: "N", notes: "Diesel, propane, 24hr", crisis: "high" },
-  { id: "a2", type: "hospital", name: "St. Mary's", dist: "14mi", dir: "E", notes: "Full ER, trauma", crisis: "high" },
-  { id: "a3", type: "hardware", name: "Tractor Supply", dist: "8.5mi", dir: "S", notes: "Lumber, feed, generators", crisis: "high" },
-  { id: "a4", type: "water", name: "Town Well", dist: "5.1mi", dir: "SE", notes: "Hand pump, free", crisis: "high" },
-  { id: "a5", type: "ally", name: "Dave & Sarah", dist: "0.4mi", dir: "W", notes: "Ex-mil, RN, HAM", crisis: "high" },
-];
+
 
 const WEATHER_ADVISORIES = [
   { id: "wa1", type: "grid", severity: "warning", title: "Grid Strain Alert", desc: "Ontario IESO forecasts peak demand 24,500 MW tomorrow. Rolling brownouts possible in rural areas.", issued: "2h ago", expires: "Tomorrow 8PM", icon: "⚡", color: "#f59e0b" },
@@ -2633,35 +2377,22 @@ export default function PrepVault() {
   const persistenceBaseline = useRef(initialPlan.current.baseline);
   const persistenceEpoch = useRef(0);
   const [storageConflict, setStorageConflict] = useState(false);
-  const saved = useRef(initialPlan.current.snapshot || (isLocalEdition() ? emptyPlan() : null));
+  const saved = useRef({ ...emptyPlan(), ...initialPlan.current.snapshot });
   const [recoveryError, setRecoveryError] = useState(initialPlan.current.error);
-  const [items, setItems] = useState(() => saved.current?.items || validateSnapshot({items: SAMPLE_ITEMS.map(i => ({ ...i, propertyId: "prop1" }))}).items);
-  const [people, setPeople] = useState(() => saved.current?.people ?? 4);
+  const [items, setItems] = useState(() => saved.current.items);
+  const [people, setPeople] = useState(() => saved.current.people);
   const [dailyCalTarget, setDailyCalTarget] = useState(() => saved.current?.emergencyPlan?.active ? saved.current.emergencyPlan.dailyCalTarget : saved.current?.dailyCalTarget ?? 2000);
   const [climate, setClimate] = useState(() => saved.current?.climate || "cold");
   const [activeTab, setActiveTab] = useState(() => saved.current?.emergencyPlan?.active ? "emergency-mode" : "dashboard");
   const [inventorySearch, setInventorySearch] = useState({ query: "", status: "all", key: 0 });
-  const [demoData, setDemoData] = useState(() => saved.current?.demoData ?? !saved.current);
+  const [demoData, setDemoData] = useState(() => saved.current.demoData);
   const [showDetailedDashboard, setShowDetailedDashboard] = useState(false);
   const [showDetailedInventory, setShowDetailedInventory] = useState(false);
   const navigate = (tab) => { setSelCat(null); setActiveTab(tab); if (["preps", "inventory-search"].includes(tab)) setInventorySearch(previous => ({ query: "", status: "all", key: previous.key + 1 })); };
   const openCategory = (category) => { if (category === "property" || category === "codes") navigate("codes"); else if (["food", "water", "vehicles"].includes(category)) navigate(category); else if (Object.hasOwn(CATEGORIES, category)) { navigate("preps"); setSelCat(category); } else navigate("preps"); };
   const openSetup = () => { setShowQuickStart(true); setQsStep(0); };
-  const enterWorkspace = () => { setShowLanding(false); localStorage.setItem("prepvault-workspace-open", "1"); };
-  const resetToOwnPlan = () => {
-    setItems([]); setPins([]); setMapSetups({}); setRoutes([]); setMembers([]); setContacts([]);
-    setCodes([]); setCallSigns([]); setCodeWords([]); setRallyPoints([]); setGardenBeds([]);
-    setSoilTests([]); setCompostBins([]); setLivestock([]); setSlaughterLog([]); setActionLog([]);
-    setBugOutEntries([]); setDemoData(false); setDailyCalTarget(2000); setEmergencyPlan(null);
-    setPeople(1); setPropAddress(""); setPropertyProfile({ ...DEFAULT_PROPERTY_PROFILE });
-    setProperties(DEFAULT_PROPERTIES.slice(0, 1)); setActivePropertyId("prop1"); navigate("dashboard");
-  };
-  const startPlan = () => {
-    enterWorkspace();
-    if (demoData) setShowStartPlan(true); else openSetup();
-  };
   const [selCat, setSelCat] = useState(null);
-  const [properties, setProperties] = useState(() => saved.current?.properties || DEFAULT_PROPERTIES);
+  const [properties, setProperties] = useState(() => saved.current.properties);
   const [activePropertyId, setActivePropertyId] = useState(() => saved.current?.activePropertyId || "prop1");
   const [showAddProp, setShowAddProp] = useState(false);
   const [newPropName, setNewPropName] = useState("");
@@ -2687,15 +2418,15 @@ export default function PrepVault() {
   const [simDuration, setSimDuration] = useState(180);
   const [propSub, setPropSub] = useState("map");
   const [propAddress, setPropAddress] = useState(() => saved.current?.propAddress || "");
-  const [pins, setPins] = useState(() => saved.current?.pins || SAMPLE_MAP_PINS);
+  const [pins, setPins] = useState(() => saved.current.pins);
   const [mapSetups, setMapSetups] = useState(() => saved.current?.mapSetups || {});
-  const [members, setMembers] = useState(() => saved.current?.members || SAMPLE_MEMBERS);
-  const [contacts, setContacts] = useState(() => saved.current?.contacts || SAMPLE_CONTACTS);
+  const [members, setMembers] = useState(() => saved.current.members);
+  const [contacts, setContacts] = useState(() => saved.current.contacts);
   const rationPeople = useMemo(() => buildFoodWaterRoster(contacts), [contacts]);
-  const [callSigns, setCallSigns] = useState(() => saved.current?.callSigns || COMMS_PLAN.callSigns);
-  const [codeWords, setCodeWords] = useState(() => saved.current?.codeWords || COMMS_PLAN.codeWords);
-  const [rallyPoints, setRallyPoints] = useState(() => saved.current?.rallyPoints || COMMS_PLAN.rallyPoints);
-  const [codes, setCodes] = useState(() => saved.current?.codes || SAMPLE_CODES);
+  const [callSigns, setCallSigns] = useState(() => saved.current.callSigns);
+  const [codeWords, setCodeWords] = useState(() => saved.current.codeWords);
+  const [rallyPoints, setRallyPoints] = useState(() => saved.current.rallyPoints);
+  const [codes, setCodes] = useState(() => saved.current.codes);
   const [gardenBeds, setGardenBeds] = useState(() => saved.current?.gardenBeds || []);
   const [soilTests, setSoilTests] = useState(() => saved.current?.soilTests || []);
   const [compostBins, setCompostBins] = useState(() => saved.current?.compostBins || []);
@@ -2705,9 +2436,9 @@ export default function PrepVault() {
   const [upgradeNotices, setUpgradeNotices] = useState([]);
   const [showStartPlan, setShowStartPlan] = useState(false);
   const [actionLog, setActionLog] = useState(() => saved.current?.actionLog || []);
-  const [manuals] = useState(SAMPLE_MANUALS);
+  const manuals = [];
   const [routes, setRoutes] = useState(() => saved.current?.routes || []);
-  const [amenities] = useState(SAMPLE_AMENITIES);
+  const amenities = [];
   const [revealedCodes, setRevealedCodes] = useState({});
   const [showScanner, setShowScanner] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
@@ -2716,7 +2447,6 @@ export default function PrepVault() {
     try { const s = localStorage.getItem("prepvault-alerts-dismissed-until"); if (s && parseInt(s, 10) > Date.now()) return parseInt(s, 10); } catch {} return null;
   });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [showLanding, setShowLanding] = useState(() => { try { return !localStorage.getItem("prepvault-active-session") && !localStorage.getItem("prepvault-workspace-open"); } catch { return false; } });
   const [dbStatus, setDbStatus] = useState(() => saved.current ? "saved" : "unsaved");
   const [exportPw, setExportPw] = useState("");
   const [importPw, setImportPw] = useState("");
@@ -2729,13 +2459,14 @@ export default function PrepVault() {
   const backupRunning = useRef(false);
   const [pendingRestore, setPendingRestore] = useState(null);
   const [savedSnapshotStatus, setSavedSnapshotStatus] = useState(snapshotStatus);
+  const [canUndoReset, setCanUndoReset] = useState(() => { try { return Boolean(readPlanResetRecovery(localStorage, { expectedOwner: readWorkspaceOwner(localStorage) })); } catch { return false; } });
   const [offlineStatus, setOfflineStatus] = useState({ supported: true, ready: false, savedCount: 0, totalCount: HANDBOOKS.length });
   const [toast, setToast] = useState(null);
 
 
   /* ── Auth + Sync State ── */
   const [user, setUser] = useState(null);
-  const [showAuth, setShowAuth] = useState(false);
+  const [showAuth, setShowAuth] = useState(() => new URLSearchParams(window.location.search).has('signin'));
   const [authMode, setAuthMode] = useState("login"); // 'login' | 'signup'
   const [authReady, setAuthReady] = useState(false);
   const [sessionError, setSessionError] = useState("");
@@ -2760,6 +2491,7 @@ export default function PrepVault() {
   });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [dismissResetKey, setDismissResetKey] = useState(0);
+  const setupRequested = useRef(new URLSearchParams(window.location.search).has('setup'));
   const [showQuickStart, setShowQuickStart] = useState(false);
   const [qsStep, setQsStep] = useState(0);
 
@@ -2841,7 +2573,6 @@ export default function PrepVault() {
         const nextUser = await getAccountSession();
         if (active && generation === sessionGeneration.current) {
           sessionHandlerRef.current?.(nextUser);
-          if (changedSession && nextUser) { setShowLanding(false); localStorage.setItem("prepvault-workspace-open", "1"); }
         }
       } catch (error) {
         if (!active || generation !== sessionGeneration.current) return;
@@ -2890,11 +2621,11 @@ export default function PrepVault() {
   const applyAccount = nextUser => {
     requireCurrentPlan();
     const nextId = nextUser?.id || null;
-    const previousId = readWorkspaceOwner(localStorage);
     const result = switchAccountWorkspace(localStorage, {
       accountId: nextId, currentSnapshot: currentSnapshotRef.current || getDbSnapshot(), emptySnapshot: emptyPlan(),
     });
     workspaceOwnerRef.current = readWorkspaceOwner(localStorage);
+    try { setCanUndoReset(Boolean(readPlanResetRecovery(localStorage, { expectedOwner: workspaceOwnerRef.current }))); } catch { setCanUndoReset(false); }
     if (result.changed && !result.claimedUnbound) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       restoreSnapshot(result.snapshot, true, false, true);
@@ -2907,7 +2638,7 @@ export default function PrepVault() {
     if (result.changed) { persistenceEpoch.current += 1; persistenceBaseline.current = captureWorkspaceBaseline(localStorage); }
     verifiedIdentityRef.current = nextId;
     setUser(nextUser); setSyncStatus("local"); setAuthReady(true); setSessionError("");
-    if (previousId && nextId !== previousId) setShowLanding(true);
+    if (setupRequested.current) { setupRequested.current = false; setShowQuickStart(true); }
     localStorage.removeItem("prepvault-active-session");
   };
   useLayoutEffect(() => { sessionHandlerRef.current = applyAccount; });
@@ -2915,14 +2646,14 @@ export default function PrepVault() {
   const handleSignedIn = nextUser => {
     ++sessionGeneration.current;
     applyAccount(nextUser);
-    setShowAuth(false); enterWorkspace();
+    setShowAuth(false);
     showToast("Signed in securely. Your plan is saved on this device.");
   };
   const handleLogout = async () => {
     try {
       await signOutAccount();
       ++sessionGeneration.current;
-      applyAccount(null); setShowLanding(true);
+      applyAccount(null); window.location.assign('/');
     } catch (error) { showToast(error.message || "Sign-out failed. Please try again.", "error"); }
   };
 
@@ -2962,6 +2693,9 @@ export default function PrepVault() {
     if (readWorkspaceOwner(localStorage) !== workspaceOwnerRef.current) throw Object.assign(new Error("The active account changed. Reload its saved plan before restoring a backup."), { code: "WORKSPACE_OWNER_CHANGED" });
     const prepared = prepareRestoredSnapshot(raw, includeSettings);
     const data = persistRestoredSnapshot(localStorage, prepared, { includeSettings });
+    adoptSnapshot(data, includeSettings, notifyLimit);
+  };
+  const adoptSnapshot = (data, includeSettings = true, notifyLimit = true) => {
     // Durable storage succeeds before any visible state changes.
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     const arrays = { items: setItems, pins: setPins, properties: setProperties, members: setMembers, contacts: setContacts, callSigns: setCallSigns, codeWords: setCodeWords, rallyPoints: setRallyPoints, codes: setCodes, gardenBeds: setGardenBeds, actionLog: setActionLog, soilTests: setSoilTests, compostBins: setCompostBins, livestock: setLivestock, slaughterLog: setSlaughterLog, bugOutEntries: setBugOutEntries };
@@ -3025,13 +2759,27 @@ export default function PrepVault() {
     const current = () => operation === backupOperation.current && owner === safeWorkspaceOwner() && owner === workspaceOwnerRef.current;
     setBackupBusy(name); setSecMsg("");
     try { await action(current, owner); }
-    catch (error) { if (current()) setSecMsg(error.message || "The operation failed. Your current plan has not been changed."); }
+    catch (error) { if (current()) { const message = error.message || "The operation failed. Your current plan has not been changed."; setSecMsg(message); if (name === 'plan-reset' || name === 'plan-undo') setToast({ msg: message, type: 'error' }); } }
     finally { if (operation === backupOperation.current) { backupRunning.current = false; setBackupBusy(false); } }
   };
   const closeSettings = () => {
     if (backupRunning.current) return;
     backupOperation.current += 1; setShowSecurity(false); setExportPw(""); setImportPw(""); setDbPassphrase(""); setPendingRestore(null); setSecMsg("");
   };
+  const changePlanWithRecovery = (operation, action) => runBackupOperation(operation, async (current, owner) => {
+    requireCurrentPlan();
+    if (!authReady || recoveryError || !current()) throw new Error("Open your current workspace before resetting the plan.");
+    if (syncEngineRef.current) throw new Error("This reset supports device plans. Disconnect legacy cloud sync before clearing this plan.");
+    const result = action({ expectedOwner: owner, baseline: persistenceBaseline.current });
+    adoptSnapshot(result.snapshot, true, false);
+    setCanUndoReset(Boolean(readPlanResetRecovery(localStorage, { expectedOwner: owner })));
+    setSavedSnapshotStatus(snapshotStatus()); setPendingRestore(null); setRevealedCodes({}); setUpgradeNotices([]);
+    setShowQuickStart(false); setShowStartPlan(false); setShowAdd(false); setShowScanner(false);
+    navigate("dashboard");
+    setSecMsg(operation === 'plan-reset' ? "Your plan is clear. Sign-in and connected services are unchanged. You can undo this reset below." : "Your previous plan has been restored.");
+  });
+  const handlePlanReset = () => changePlanWithRecovery('plan-reset', options => resetActivePlan(localStorage, { ...options, emptySnapshot: emptyPlan(), currentSnapshot: getBackupSnapshot() }));
+  const handleUndoReset = () => changePlanWithRecovery('plan-undo', options => restorePreviousPlan(localStorage, options));
   const handleEncryptedExport = () => runBackupOperation("export", async current => {
     if (exportPw.length < 12) throw new Error("Use a passphrase of at least 12 characters for a new backup.");
     const encrypted = await encryptData(getBackupSnapshot(), exportPw);
@@ -3108,7 +2856,7 @@ export default function PrepVault() {
     setOfflineStatus({ ...status, savedCount: ids.length, totalCount: HANDBOOKS.length });
     setSecMsg("App files saved in this browser. Save guides in Emergency, or download the local edition for a copy independent of this website.");
   });
-  const settingsPanel = <SettingsBackups onClose={closeSettings} itemCount={items.length} dbStatus={dbStatus} lastSaved={lastSaved} isOffline={isOffline} user={user} syncEnabled={Boolean(user && !user.isLocal && user.authProvider !== "neon" && supabaseConfigured)} message={secMsg} busy={backupBusy} exportPw={exportPw} setExportPw={setExportPw} onExport={handleEncryptedExport} importPw={importPw} setImportPw={setImportPw} onImport={handleEncryptedImport} restorePreview={pendingRestore ? { id: pendingRestore.id, label: pendingRestore.label, itemCount: pendingRestore.data.items.length, propertyCount: pendingRestore.data.properties.length, peopleCount: pendingRestore.data.contacts.length, settingCount: Object.keys(pendingRestore.data.localSettings || {}).length, supplyImport: pendingRestore.supplyImport } : null} onConfirmRestore={confirmRestore} onImportSupplies={confirmSuppliesImport} onCancelRestore={() => setPendingRestore(null)} encryptedDb={encryptedDb} setEncryptedDb={setEncryptedDb} dbPassphrase={dbPassphrase} setDbPassphrase={setDbPassphrase} onSaveSnapshot={handleLocalSave} onLoadSnapshot={handleLocalLoad} onRemoveSnapshot={handleDbWipe} snapshotStatus={savedSnapshotStatus} offlineStatus={offlineStatus} onPrepareOffline={handlePrepareOffline} onOpenEmergency={() => { closeSettings(); navigate("emergency"); }} isLocalEdition={isLocalEdition()} localAppUrl={isLocalEdition() ? null : "/local/prepvault-local.zip"} />;
+  const settingsPanel = <SettingsBackups onResetPlan={handlePlanReset} onUndoReset={handleUndoReset} canUndoReset={canUndoReset} onClose={closeSettings} itemCount={items.length} dbStatus={dbStatus} lastSaved={lastSaved} isOffline={isOffline} user={user} syncEnabled={Boolean(user && !user.isLocal && user.authProvider !== "neon" && supabaseConfigured)} message={secMsg} busy={backupBusy} exportPw={exportPw} setExportPw={setExportPw} onExport={handleEncryptedExport} importPw={importPw} setImportPw={setImportPw} onImport={handleEncryptedImport} restorePreview={pendingRestore ? { id: pendingRestore.id, label: pendingRestore.label, itemCount: pendingRestore.data.items.length, propertyCount: pendingRestore.data.properties.length, peopleCount: pendingRestore.data.contacts.length, settingCount: Object.keys(pendingRestore.data.localSettings || {}).length, supplyImport: pendingRestore.supplyImport } : null} onConfirmRestore={confirmRestore} onImportSupplies={confirmSuppliesImport} onCancelRestore={() => setPendingRestore(null)} encryptedDb={encryptedDb} setEncryptedDb={setEncryptedDb} dbPassphrase={dbPassphrase} setDbPassphrase={setDbPassphrase} onSaveSnapshot={handleLocalSave} onLoadSnapshot={handleLocalLoad} onRemoveSnapshot={handleDbWipe} snapshotStatus={savedSnapshotStatus} offlineStatus={offlineStatus} onPrepareOffline={handlePrepareOffline} onOpenEmergency={() => { closeSettings(); navigate("emergency"); }} isLocalEdition={isLocalEdition()} localAppUrl={isLocalEdition() ? null : "/local/prepvault-local.zip"} />;
 
   /* ── Property-filtered items ── */
   const propItems = activePropertyId === "all" ? items : items.filter(i => (i.propertyId || "prop1") === activePropertyId);
@@ -3268,7 +3016,7 @@ export default function PrepVault() {
           items, categories: CATEGORIES, people, climate, climateConfig: CLIMATES[climate],
           activePropertyId, properties, propAddress, propertyProfile, mapSetups, pins, routes,
           contacts, members, dailyCalTarget, callSigns, codeWords, rallyPoints, codes,
-          commsPlan: COMMS_PLAN, gardenBeds, soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
+          commsPlan: demoData ? COMMS_PLAN : {}, gardenBeds, soilTests, compostBins, livestock, slaughterLog, bugOutEntries,
           actionLog, selScen, scenario: SCENARIOS[selScen], simDuration, crisisMode, crisisType,
           crisisStart, emergencyPlan, dismissedOpps, allAlerts, manuals, handbooks: HANDBOOKS, demoData,
           device: readAdvisorDeviceContext(localStorage),
@@ -3340,7 +3088,7 @@ export default function PrepVault() {
       case "rationing":
         return <>{crisisMode && <EmergencySchedule plan={emergencyPlan} items={items} rationPeople={rationPeople} onChange={commitEmergencyPlan} onNavigate={navigateEmergency} now={emergencyNow}/>}{crisisMode && <p className="pv-rationing-notice">Emergency estimates below use eligible stock at {emergencyPlan.propertyId === "all" ? "all properties" : properties.find(property => property.id === emergencyPlan.propertyId)?.name || "the selected property"}. Past or invalid expiry dates, livestock and hunting equipment are excluded. Check condition and preparation needs before use.</p>}<RationingPlanner items={emergencySummary ? [...emergencySummary.foodItems, ...emergencySummary.waterItems] : propItems} rationPeople={rationPeople} dailyCalTarget={dailyCalTarget} setDailyCalTarget={updateCalorieTarget} waterGalPerPerson={crisisMode ? emergencyPlan.waterGalPerPerson : 1} onManagePeople={() => navigate("community")} /></>;
       case "comms":
-        return <CommunicationsView plan={COMMS_PLAN} frequencies={EMERGENCY_FREQUENCIES} prowords={PROWORDS} phonetic={NATO_PHONETIC} equipmentTypes={CATEGORIES.comms.subTypes} sampleChat={demoData ? SAMPLE_CHAT : []} onSupplies={() => openCategory("comms")} items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
+        return <CommunicationsView plan={demoData ? COMMS_PLAN : {}} frequencies={EMERGENCY_FREQUENCIES} prowords={PROWORDS} phonetic={NATO_PHONETIC} equipmentTypes={CATEGORIES.comms.subTypes} sampleChat={demoData ? SAMPLE_CHAT : []} onSupplies={() => openCategory("comms")} items={propItems} people={people} climate={climate} callSigns={callSigns} setCallSigns={setCallSigns} codeWords={codeWords} setCodeWords={setCodeWords} rallyPoints={rallyPoints} setRallyPoints={setRallyPoints} members={members} user={user} />;
       case "farming":
         return <FarmingView onOpenGuides={() => navigate("farm-guides")} cropDatabase={CROP_DATABASE} growingZones={GROWING_ZONES} climates={CLIMATES} caloriesPerLb={CALORIES_PER_LB} onSupplies={() => openCategory("farm")} items={propItems} people={people} climate={climate} gardenBeds={gardenBeds} setGardenBeds={setGardenBeds} soilTests={soilTests} setSoilTests={setSoilTests} compostBins={compostBins} setCompostBins={setCompostBins} livestock={livestock} setLivestock={setLivestock} slaughterLog={slaughterLog} setSlaughterLog={setSlaughterLog} />;
       case "systems":
@@ -3358,7 +3106,6 @@ export default function PrepVault() {
   if (storageConflict) return <div className="pv-workspace"><main className="pv-main"><section className="pv-card" style={{ maxWidth: 680, margin: "60px auto", padding: 28 }}><h1>A newer plan is saved.</h1><p role="alert">Another tab updated this workspace. Saving from this older view is paused to protect the newer copy.</p><p>Reload to use the latest plan. If you made changes here, download this tab’s copy first.</p><div className="pv-backups-actions"><button className="pv-button pv-primary" onClick={() => window.location.reload()}>Reload latest plan</button><button className="pv-button pv-secondary" onClick={() => downloadFile(JSON.stringify(getBackupSnapshot(), null, 2), "prepvault-unsaved-recovery.json")}>Download this tab’s copy</button></div><p className="pv-backups-help">The recovery JSON is unencrypted. Keep it private.</p></section></main></div>;
   if (!authReady) return <div className="pv-account-gate"><Icon name="shield" size={30}/><h1>{sessionError ? "Reconnect to your plan" : "Opening your workspace…"}</h1><p role="status">{sessionError || "Checking your secure sign-in."}</p>{sessionError && <><button className="pv-button pv-primary" onClick={() => { setSessionError(""); setSessionAttempt(value => value + 1); }}>Try again</button><button className="pv-button pv-secondary" onClick={() => { try { ++sessionGeneration.current; applyAccount(null); } catch (error) { setSessionError(error.message); } }}>Use a separate guest plan</button></>}</div>;
 
-  if (showLanding) return <Welcome hasPlan={!demoData} user={user} onEnter={enterWorkspace} onSetup={startPlan} onSignIn={() => { if (user) enterWorkspace(); else { setShowAuth(true); setAuthMode("login"); } }}>{showAuth && renderAuthModal()}</Welcome>;
 
   const pageMeta = {
     community: ["Your people", "Stay connected to the people you count on."],
@@ -3422,7 +3169,7 @@ export default function PrepVault() {
 
       {demoData && !["surveillance", "board"].includes(activeTab) && <div className="pv-sample-banner"><Icon name="compass" size={16}/><span>You’re exploring a sample household. Your changes are saved on this device.</span><button onClick={() => setShowStartPlan(true)}>Start my own plan →</button></div>}
 
-      {showStartPlan && <PlanNotice title="Start your own plan" eyebrow="A FRESH START" onClose={() => setShowStartPlan(false)} actions={<><button className="pv-button pv-secondary" onClick={() => setShowStartPlan(false)}>Keep exploring</button><button className="pv-button pv-primary" onClick={() => { resetToOwnPlan(); setShowStartPlan(false); openSetup(); }}>Start my plan</button></>}><p>Replace the sample household with a blank plan, then add your home, people and supplies.</p><p>This clears the sample records and any changes you made to them. You can export a backup from Settings & backups first.</p></PlanNotice>}
+      {showStartPlan && <PlanNotice title="Start your own plan" eyebrow="A FRESH START" onClose={() => setShowStartPlan(false)} actions={<><button className="pv-button pv-secondary" onClick={() => setShowStartPlan(false)}>Keep exploring</button><button className="pv-button pv-primary" onClick={() => { handlePlanReset(); setShowStartPlan(false); }}>Start my plan</button></>}><p>Replace the sample household with a blank plan, then add your home, people and supplies.</p><p>This clears the sample records and any changes you made to them. You can export a backup from Settings & backups first.</p></PlanNotice>}
       {upgradeNotices.length > 0 && <PlanNotice title="More room for your preparation" eyebrow="PLAN UPGRADE" onClose={() => setUpgradeNotices([])} actions={<button className="pv-button pv-primary" onClick={() => setUpgradeNotices([])}>Keep planning</button>}><p>The free plan includes 20 entries in each supply category. A paid plan will be needed above that limit.</p><ul>{upgradeNotices.map(notice => <li key={notice.category}><strong>{CATEGORIES[notice.category]?.label || notice.category}</strong><span>{notice.count} entries</span></li>)}</ul><p><strong>You can keep saving for now.</strong> Upgrades aren’t enforced yet, and your entries have been added. Nothing has been charged.</p></PlanNotice>}
       {pageMeta[activeTab] && !selCat && <header className="pv-page-intro"><div><span className="pv-eyebrow">PREPARED FOR REAL LIFE</span><h1>{pageMeta[activeTab][0]}</h1><p>{pageMeta[activeTab][1]}</p></div><button className="pv-button pv-secondary" onClick={openSetup}><Icon name="settings" size={16}/> Household setup</button></header>}
       <div key={restoreVersion} className="pv-content">{renderContent()}</div>

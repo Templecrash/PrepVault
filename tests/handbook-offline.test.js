@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import { createHandbookWorker } from '../build/handbook-worker.js';
@@ -139,6 +140,31 @@ test('worker saves an exact-build app shell and serves cold navigation without n
   const pdf = await worker.request(new Request(`${origin}/handbooks/missing.pdf`));
   assert.equal(pdf.status, 503);
   assert.match(await pdf.text(), /not saved/);
+});
+
+test('offline navigation opens the plan, setup, demo and landing entry points from the same saved shell', async () => {
+  const worker = workerHarness();
+  await worker.event('install');
+  worker.offline();
+  for (const path of ['/index.html', '/app', '/app/', '/app?setup=1', '/app/?signin=1', '/demo', '/demo/', '/home', '/home/']) {
+    const response = await worker.request({ method: 'GET', url: `${origin}${path}`, mode: 'navigate', headers: new Headers() });
+    assert.equal(response?.status, 200, path);
+    assert.equal(response.headers.get('Content-Type'), 'text/html; charset=utf-8', path);
+    assert.equal(await response.text(), '<html>offline-shell</html>', path);
+  }
+  const shell = await worker.caches.open('prepvault-shell-test');
+  assert.deepEqual((await shell.keys()).map(request => new URL(request.url).pathname).sort(), ['/', '/assets/app-123.css', '/assets/app-123.js']);
+});
+
+test('shell fallback excludes private, nested and unknown navigation paths', async () => {
+  const worker = workerHarness();
+  await worker.event('install');
+  worker.offline();
+  for (const path of ['/api/account', '/auth/callback', '/share-location?token=secret', '/app/private', '/app.js', '/demo/private', '/unknown']) {
+    assert.equal(await worker.request({ method: 'GET', url: `${origin}${path}`, mode: 'navigate', headers: new Headers() }), undefined, path);
+  }
+  assert.equal(await worker.request({ method: 'GET', url: `${origin}/app`, mode: 'navigate', headers: new Headers({ Authorization: 'Bearer private' }) }), undefined);
+  assert.equal(await worker.request(new Request(`${origin}/app`)), undefined);
 });
 
 test('worker serves full, open-ended and suffix PDF ranges and rejects invalid ranges', async () => {

@@ -5,6 +5,7 @@ import pathlib
 import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent / "app"
+SHELL_PATHS = {"/", "/index.html", "/app", "/demo", "/home"}
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -32,6 +33,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if pathname.startswith("/api/"):
             self.send_error(503, "Connected services require the live PrepVault website")
             return None
+        # Only known public entry points fall back to the application shell.
+        shell_path = pathname[:-1] if pathname != "/" and pathname.endswith("/") else pathname
+        if shell_path in SHELL_PATHS:
+            pathname = "/index.html"
+            self.path = pathname
         target = (ROOT / pathname.lstrip("/")).resolve()
         if target != ROOT and ROOT not in target.parents:
             self.send_error(403)

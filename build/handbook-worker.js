@@ -4,6 +4,8 @@ export function handbookWorkerRuntime(config) {
   const shellName = `prepvault-shell-${version}`;
   const handbookName = 'prepvault-handbooks-v1';
   const assetPaths = new Set(assets);
+  // Only public shell entry points; never turn an API or auth URL into app HTML.
+  const shellPaths = new Set(['/', '/index.html', '/app', '/demo', '/home']);
 
   async function cacheShell() {
       try {
@@ -105,7 +107,7 @@ export function handbookWorkerRuntime(config) {
     if (request.method !== 'GET' || url.origin !== self.location.origin || request.headers.has('Authorization')) return;
     if (/^\/handbooks\/[a-z0-9][a-z0-9._-]*\.pdf$/.test(url.pathname)) {
       event.respondWith(servePdf(request));
-    } else if (request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/index.html')) {
+    } else if (request.mode === 'navigate' && shellPaths.has(url.pathname === '/' ? '/' : url.pathname.replace(/\/$/, ''))) {
       event.respondWith(serveNavigation(request));
     } else if (assetPaths.has(url.pathname) && !url.search) {
       event.respondWith((async () => (await (await caches.open(shellName)).match(url.pathname)) || fetch(request))());

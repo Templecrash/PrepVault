@@ -9,6 +9,7 @@ const SECTIONS = [
   { id: 'backups', label: 'Backups', icon: 'download' },
   { id: 'offline', label: 'Offline & local', icon: 'box' },
   { id: 'privacy', label: 'Privacy & services', icon: 'shield' },
+  { id: 'reset', label: 'Plan reset', icon: 'refresh' },
 ];
 
 function displayDate(value) {
@@ -54,6 +55,7 @@ export default function SettingsBackups({
   onSaveSnapshot, onLoadSnapshot, onRemoveSnapshot, snapshotStatus = {},
   offlineStatus = {}, onPrepareOffline, onOpenEmergency, serviceRows,
   localAppUrl = '/local/prepvault-local.zip', isLocalEdition = false,
+  onResetPlan, onUndoReset, canUndoReset = false,
 }) {
   const id = useId();
   const [section, setSection] = useState('backups');
@@ -61,6 +63,8 @@ export default function SettingsBackups({
   const [backupFile, setBackupFile] = useState(null);
   const [removeSnapshot, setRemoveSnapshot] = useState(false);
   const [showPassphrases, setShowPassphrases] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmUndo, setConfirmUndo] = useState(false);
   const content = useRef(null);
   const dismiss = () => { if (!busy) onClose(); };
   const dialog = useDialogFocus(dismiss);
@@ -147,6 +151,11 @@ export default function SettingsBackups({
             <div className="pv-backups-heading"><span className="pv-backups-kicker">KNOW WHAT IS PROTECTED</span><h3>Your plan. Clear boundaries.</h3><p>Backup encryption protects the backup file. The active plan in browser storage is not encrypted.</p></div>
             <div className="pv-backups-service-list">{services.map(entry => <section key={entry.name}><div><h4>{entry.name}</h4><span className="pv-backups-tag">{entry.status}</span></div><p>{entry.detail}</p></section>)}</div>
             <details className="pv-backups-details"><summary>Backup encryption details</summary><div><dl className="pv-backups-specs">{[['Encryption', 'AES-256-GCM'], ['Key derivation', 'PBKDF2-SHA256'], ['Iterations', '310,000'], ['Salt', '128-bit random per backup'], ['IV', '96-bit random per backup']].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><p>Encryption runs in your browser. A wrong passphrase or altered encrypted content prevents the backup from opening. Store the passphrase separately from the file.</p></div></details>
+          </>}
+          {section === 'reset' && <>
+            <div className="pv-backups-heading"><span className="pv-backups-kicker">A FRESH START</span><h3>Start with a clear plan.</h3><p>Clear planning records in this browser while keeping your sign-in and connected services.</p></div>
+            <section className="pv-backups-card pv-backups-wide-card"><h4>Clear my plan</h4><p>This removes supplies, people, property details, saved maps, routes, codes, growing records, calendar tasks and planning preferences from your active plan. The reference library stays available.</p><p>Your account, camera and alarm connections, live tracking and online services stay connected. Downloaded backups and other accounts are unchanged.</p><label className="pv-backups-check"><input type="checkbox" checked={confirmReset} onChange={event => setConfirmReset(event.target.checked)} disabled={Boolean(busy)}/><span>Clear my current planning records.</span></label><div className="pv-backups-actions"><button className="pv-button pv-secondary" disabled={Boolean(busy) || !confirmReset || !onResetPlan} onClick={async () => { await onResetPlan(); setConfirmReset(false); }}>{busy === 'plan-reset' ? 'Clearing plan…' : 'Clear my plan'}</button></div><p className="pv-backups-help">An undo copy of this plan is kept on this device, separate from the active plan. It is not encrypted. Use Undo reset below if needed.</p></section>
+            {canUndoReset && <section className="pv-backups-card pv-backups-wide-card"><h4>Undo the last reset</h4><p>Restore the planning records saved just before your last reset. This replaces any new planning changes made since then.</p><label className="pv-backups-check"><input type="checkbox" checked={confirmUndo} onChange={event => setConfirmUndo(event.target.checked)} disabled={Boolean(busy)}/><span>Replace my current plan with the pre-reset copy.</span></label><div className="pv-backups-actions"><button className="pv-button pv-secondary" disabled={Boolean(busy) || !confirmUndo || !onUndoReset} onClick={async () => { await onUndoReset(); setConfirmUndo(false); }}>{busy === 'plan-undo' ? 'Restoring plan…' : 'Undo reset'}</button></div></section>}
           </>}
         </div>
       </div>

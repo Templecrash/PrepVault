@@ -5,6 +5,8 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
+// The portable app has the same public entry points as the hosted client.
+const SHELL_PATHS = new Set(['/', '/index.html', '/app', '/demo', '/home']);
 export function createLocalServer(root) {
   const baseReady = realpath(resolve(root));
   const server = createServer(async (req, res) => {
@@ -20,7 +22,7 @@ export function createLocalServer(root) {
     try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); } catch { return reply(400, 'Invalid path.'); }
     if (pathname.includes('\\') || pathname.includes('\0') || pathname.split('/').some(part => part.startsWith('.'))) return reply(403, 'This file is not available.');
     if (pathname.startsWith('/api/')) return reply(503, 'This connected service requires the live PrepVault website. Local plans and downloaded handbooks work here.');
-    if (pathname === '/') pathname = '/index.html';
+    if (SHELL_PATHS.has(pathname === '/' ? '/' : pathname.replace(/\/$/, ''))) pathname = '/index.html';
     try {
       const base = await baseReady;
       const path = resolve(base, `.${pathname}`);

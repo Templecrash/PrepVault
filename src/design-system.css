@@ -93,6 +93,9 @@
 .pv-profile-panel p { margin: 7px 0 12px; color: var(--pv-muted); font-size: 11px; line-height: 1.6; }
 .pv-profile-panel > button { width: 100%; min-height: 38px; padding: 9px 6px; text-align: left; font-size: 12px; color: var(--pv-ink); background: transparent; border: 0; border-radius: 5px; }
 .pv-profile-panel > button:hover { background: var(--pv-subtle); }
+.pv-site-links { display: flex; gap: 18px; padding: 0 11px 18px; color: var(--pv-muted); font-size: 11px; }
+.pv-site-links a { text-underline-offset: 4px; }
+.pv-site-links a:hover { color: var(--pv-ink); }
 .pv-sidebar :is(button, select):focus-visible, .pv-topbar :is(button, input):focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
 @media (max-width: 440px) {
   .pv-topbar { gap: 9px; padding-inline: 12px; }

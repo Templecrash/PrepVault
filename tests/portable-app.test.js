@@ -99,6 +99,24 @@ async function fixtureServer(t) {
   return { send: requester(port), port };
 }
 
+async function assertShellEntryRoutes(send) {
+  const root = await send();
+  for (const path of ['/index.html', '/app', '/app/', '/app?setup=1', '/app/?signin=1', '/demo', '/demo/', '/home', '/home/']) {
+    const response = await send({ path });
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers['content-type'], /^text\/html\b/, path);
+    assert.deepEqual(response.body, root.body, path);
+    const head = await send({ path, method: 'HEAD' });
+    assert.equal(head.status, 200, path);
+    assert.equal(head.body.length, 0, path);
+    assert.equal(Number(head.headers['content-length']), root.body.length, path);
+  }
+  for (const path of ['/auth/callback', '/share-location?token=secret', '/app/private', '/app.js', '/demo/private', '/unknown', '/home//']) {
+    assert.equal((await send({ path })).status, 404, path);
+  }
+  assert.equal((await send({ path: '/api/account?setup=1' })).status, 503);
+}
+
 test('portable ZIP roundtrips binary files, independent headers, checksums and launcher permissions', () => {
   assert.equal(crc32(Buffer.from('123456789')), 0xcbf43926);
   const binary = Buffer.from(Array.from({ length: 512 }, (_, index) => index % 256));
@@ -216,6 +234,11 @@ test('local server returns exact static files, correct types, HEAD metadata and 
   assert.equal((await send({ path: '/missing.html' })).status, 404);
 });
 
+test('local server opens plan, setup, demo and landing routes without masking missing or private paths', async t => {
+  const { send } = await fixtureServer(t);
+  await assertShellEntryRoutes(send);
+});
+
 test('local server rejects nonlocal hosts, APIs, writes, traversal, hidden files and symlink escapes', async t => {
   const { send, port } = await fixtureServer(t);
   for (const host of ['evil.test', `evil.test:${port}`, `localhost:${port}`, `127.0.0.1.evil.test:${port}`, `127.0.0.1:${port + 1}`, '[::1]:4173']) {
@@ -292,7 +315,7 @@ test('Node CLI starts from a symlinked package path and serves its canonical app
   assert.equal((await send({ headers: { Host: `localhost:${port}` } })).status, 403);
 });
 
-test('Python launcher serves the same local app and denies host, API and file-system escapes', async t => {
+test('Python launcher serves the same local app and shell routes and denies host, API and file-system escapes', async t => {
   const root = await fixtureRoot(t);
   const modulePath = fileURLToPath(new URL('../build/local-server.py', import.meta.url));
   const script = `import importlib.util, pathlib, sys, http.server
@@ -328,6 +351,7 @@ server.serve_forever()
   });
   if (!port) return;
   const send = requester(port);
+  await assertShellEntryRoutes(send);
   const app = await send();
   assert.equal(app.status, 200);
   assert.match(app.body.toString(), /PrepVault — Local edition/);
