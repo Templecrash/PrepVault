@@ -5,9 +5,9 @@ import { getTrackingOwner, OWNER_SIGN_OUT_EVENT } from './tracking-auth.js';
 import { ACCOUNT_SESSION_EVENT } from './account-auth-client.js';
 import { fetchSurveillancePhoto, getSurveillance } from './surveillance-client.js';
 import { createOverviewSurveillanceLoader, latestCameraPhotos, surveillanceIsStale } from './overview-surveillance.js';
+import { ALARM_LABELS, alarmSecurityStatus } from './security-status.js';
 import './overview-surveillance.css';
 
-const ALARM_LABELS = { armed_away: 'Armed · Away', armed_stay: 'Armed · Stay', disarmed: 'Disarmed', ready: 'Ready', not_ready: 'Not ready', entry_delay: 'Entry delay', exit_delay: 'Exit delay', mixed: 'Mixed states', alarm: 'Alarm reported', unknown: 'Unknown' };
 const dateLabel = value => value ? new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not reported';
 const photoLabel = photo => photo?.capturedAt ? `Camera time · ${dateLabel(photo.capturedAt)}` : photo?.receivedAt ? `Uploaded · ${dateLabel(photo.receivedAt)}` : 'Image time not reported';
 
@@ -63,7 +63,7 @@ function CameraSummary({ reveal, onOpen, onUnauthorized, stale }) {
 
 function AlarmSummary({ eyezon, onOpen, stale }) {
   if (!eyezon?.connected) return <div className="pv-overview-security-empty"><Icon name="shield" size={25}/><h3>EyezOn alarm</h3><p>{eyezon?.configured === false ? 'The alarm connection is not configured yet.' : 'Connect EyezOn to see the status reported by your alarm system.'}</p><button type="button" className="pv-text-link" onClick={onOpen}>Connect alarm<Icon name="arrow" size={14}/></button></div>;
-  return <div className="pv-overview-alarm"><header><div><h3>EyezOn alarm</h3><p>{stale ? 'Last reported states · not current' : 'Status reported by EyezOn'}</p></div><Icon name="shield" size={20}/></header>
+  return <div className={`pv-overview-alarm${!stale && alarmSecurityStatus(eyezon).armed ? ' is-armed' : ''}`}><header><div><h3>EyezOn alarm</h3><p>{stale ? 'Last reported states · not current' : 'Status reported by EyezOn'}</p></div><Icon name="shield" size={20}/></header>
     {eyezon.error && <p className="pv-overview-security-note" role="status">{eyezon.error}</p>}
     {eyezon.systems?.length ? <div className="pv-overview-alarm-list">{eyezon.systems.map(system => <article key={system.id}><div><h4>{system.name}</h4><strong className={system.status === 'alarm' ? 'is-alarm' : undefined}>{ALARM_LABELS[system.status] || 'Unknown'}</strong></div>{system.connection && <p>{system.connection}</p>}{system.partitions?.length > 1 && <p>{system.partitions.map(partition => `${partition.label}: ${ALARM_LABELS[partition.status] || 'Unknown'}`).join(' · ')}</p>}{system.reportedAt && <p>Provider update: {system.reportedAt}</p>}</article>)}</div> : <p className="pv-overview-security-note">{eyezon.error ? 'Alarm status is unavailable.' : 'No alarm systems were returned.'}</p>}
     <p className="pv-overview-security-timestamp">Checked {dateLabel(eyezon.checkedAt)}{stale ? ' · Refresh before relying on this status' : ''}</p>

@@ -33,4 +33,7 @@
 :root[data-theme] :is(input, select, textarea):focus-visible { outline-color: var(--pv-focus); }
 :root[data-theme] ::selection { color: var(--pv-on-accent); background: var(--pv-accent); }
 :root[data-theme] { scrollbar-color: var(--pv-border) var(--pv-canvas); }
+/* A quiet red wash marks a currently armed alarm without replacing its status text. */
+:root[data-theme] :is(.pv-overview-alarm, .pv-security-summary > button, .pv-surveillance-system).is-armed { background: linear-gradient(135deg, #f8e9e8 0%, #fbf3f1 48%, var(--pv-surface) 100%); border-color: #d9b7b5; }
+:root[data-theme="dark"] :is(.pv-overview-alarm, .pv-security-summary > button, .pv-surveillance-system).is-armed { background: linear-gradient(135deg, #382329 0%, #251c21 48%, #18191d 100%); border-color: #5c3c43; }
 @media print { :root[data-theme] .pv-workspace { background: #fff; } }

@@ -2,6 +2,11 @@ import { surveillanceIsStale } from './overview-surveillance.js';
 
 export const ALARM_LABELS = { armed_away: 'Armed · Away', armed_stay: 'Armed · Stay', disarmed: 'Disarmed', ready: 'Ready', not_ready: 'Not ready', entry_delay: 'Entry delay', exit_delay: 'Exit delay', mixed: 'Mixed states', alarm: 'Alarm reported', unknown: 'Unknown' };
 
+export function alarmSystemIsArmed(system) {
+  const armed = status => status === 'armed_away' || status === 'armed_stay';
+  return armed(system?.status) || (system?.status === 'mixed' && Boolean(system.partitions?.some(partition => armed(partition.status))));
+}
+
 export function cameraSecurityStatus(reveal, nest, now = Date.now()) {
   const services = [reveal && { ...reveal, devices: reveal.cameras }, nest].filter(service => service?.connected);
   if (!services.length) return { label: 'Not connected', detail: 'Connect a camera account to begin.', attention: false };
@@ -23,5 +28,5 @@ export function alarmSecurityStatus(eyezon, now = Date.now()) {
   const states = new Set(systems.map(system => system.status));
   const hasAlarm = systems.some(system => system.status === 'alarm' || system.partitions?.some(partition => partition.status === 'alarm'));
   const state = hasAlarm ? 'alarm' : states.size === 1 ? systems[0].status : 'mixed';
-  return { label: ALARM_LABELS[state] || 'Unknown', detail: `${systems.length} ${systems.length === 1 ? 'system' : 'systems'} · Reported by EyezOn`, attention: hasAlarm };
+  return { label: ALARM_LABELS[state] || 'Unknown', detail: `${systems.length} ${systems.length === 1 ? 'system' : 'systems'} · Reported by EyezOn`, attention: hasAlarm, armed: systems.some(alarmSystemIsArmed) };
 }
