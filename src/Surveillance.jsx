@@ -3,7 +3,8 @@ import LocalServiceNotice from './LocalServiceNotice.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './brand.jsx';
 import TrackingOwnerSignIn from './TrackingOwnerSignIn.jsx';
-import { getTrackingOwner, signOutTrackingOwner } from './tracking-auth.js';
+import { getTrackingOwner, signOutTrackingOwner, OWNER_SIGN_OUT_EVENT } from './tracking-auth.js';
+import { ACCOUNT_SESSION_EVENT } from './account-auth-client.js';
 import { connectEyezon, connectReveal, disconnectEyezon, disconnectReveal, fetchSurveillancePhoto, getSurveillance } from './surveillance-client.js';
 import { useDialogFocus } from './useDialogFocus.js';
 import NestConnection from './NestConnection.jsx';
@@ -258,6 +259,18 @@ function SurveillanceOnline() {
     }
   }, [expire]);
   useEffect(() => { const timer = setTimeout(() => { void checkSession(); }, 0); return () => { clearTimeout(timer); pending.current?.abort(); revision.current += 1; }; }, [checkSession]);
+  useEffect(() => {
+    const accountChanged = () => {
+      setAuth({ phase: 'checking', owner: null, message: '' });
+      void checkSession();
+    };
+    window.addEventListener(OWNER_SIGN_OUT_EVENT, expire);
+    window.addEventListener(ACCOUNT_SESSION_EVENT, accountChanged);
+    return () => {
+      window.removeEventListener(OWNER_SIGN_OUT_EVENT, expire);
+      window.removeEventListener(ACCOUNT_SESSION_EVENT, accountChanged);
+    };
+  }, [checkSession, expire]);
   useEffect(() => {
     const revalidate = () => { if (auth.phase === 'signed-in' && document.visibilityState === 'visible') { setAuth({ phase: 'checking', owner: null, message: '' }); void checkSession(); } };
     window.addEventListener('focus', revalidate);
