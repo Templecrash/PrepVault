@@ -11,6 +11,7 @@ export function Icon({ name = 'box', size = 20, ...props }) {
     refresh: <><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></>,
     expand: <path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/>,
     advisor: <><path d="M21 11a9 9 0 0 1-9 9H4l-3 2 1.5-6A9 9 0 1 1 21 11Z"/><path d="M7 9h8M7 13h5"/></>,
+    messages: <><path d="M17 10a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/><path d="M17 7h2a2 2 0 0 1 2 2v12l-4-4h-6a2 2 0 0 1-2-2v-3"/></>,
     arrow: <path d="M4 12h15m-6-6 6 6-6 6"/>,
     chevron: <path d="m8 5 7 7-7 7"/>,
     filter: <><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></>,

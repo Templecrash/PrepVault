@@ -20,7 +20,7 @@ const destinations = [
   { id: 'comms', label: 'Communications', icon: 'radio' },
   { id: 'community', label: 'Your people', icon: 'users' },
   { id: 'rationing', label: 'Rationing', icon: 'ration' },
-  { id: 'board', label: 'Community board', icon: 'advisor' },
+  { id: 'board', label: 'Community board', icon: 'messages' },
   { id: 'bugout', label: 'Bug Out', icon: 'box', group: 'PLAN AHEAD' },
   { id: 'farming', label: 'Farm', icon: 'leaf' },
   { id: 'simulate', label: 'Scenario lab', icon: 'compass' },
