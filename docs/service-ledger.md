@@ -47,7 +47,7 @@ The account cache and active browser storage are not encrypted and are not a sec
 
 ## Existing connected services
 
-The README retains the detailed boundaries for Neon owner authentication and opt-in live tracking, the anonymous community board, OpenAI Survival LLM, read-only REVEAL/EyezOn integrations, legacy Supabase community/core sync, and the retired Google Nest flow. These features retain their own configured services and credentials. The new keyless public-data integrations do not make the whole app free of hosting, account-service or existing AI-provider costs.
+The README retains the detailed boundaries for Neon owner authentication and opt-in live tracking, the anonymous community board, private Survival LLM on Modal, read-only REVEAL/EyezOn integrations, legacy Supabase community/core sync, and the retired Google Nest flow. Survival LLM runs the NVIDIA Nemotron checkpoint with read-only server-library retrieval; owner-bound jobs use the configured Modal gateway with no OpenAI fallback. See [backend setup](survival-server-setup.md) for authentication, polling, cancellation and retention boundaries. Current inventory recommendation cards are calculated locally; the legacy optional OpenAI service remains separate. The keyless public-data integrations do not remove hosting, account-service or private model compute/storage costs.
 
 ## Reference pictures
 

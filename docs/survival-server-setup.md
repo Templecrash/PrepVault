@@ -1,6 +1,6 @@
 # Private Survival LLM server connection
 
-The floating Survival LLM conversation uses the dedicated Modal server. Its model and reference library run remotely. The existing OpenAI service remains available to separate recommendation features; it is never a fallback for this conversation.
+The floating Survival LLM conversation uses the dedicated Modal server. Its model and reference library run remotely. The legacy OpenAI service remains separate and is never a fallback for this conversation. Current inventory recommendation cards are calculated locally from recorded inventory.
 
 ## Vercel configuration
 
