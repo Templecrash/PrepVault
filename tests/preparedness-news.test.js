@@ -190,3 +190,9 @@ test('incidental energy context cannot turn housing news into a power warning', 
   const actual = parseGnews({ articles: [{ title: 'Residents told to stay indoors', description: 'A power outage has disrupted the regional water treatment plant.', url: 'https://example.com/emergency', publishedAt: '2026-10-28T12:00:00Z' }] }, NOW);
   assert.equal(actual.length, 1); assert.ok(actual[0].topics.includes('infrastructure'));
 });
+
+
+test('local public-safety notices are included without treating routine police coverage as an alert', () => {
+  for (const headline of ['Police warn Toronto residents after armed threat', 'Toronto issues shelter-in-place notice', 'Road closure following a hazardous spill']) assert.ok(classifyNews(headline).topics.includes('public-safety'), headline);
+  assert.ok(!classifyNews('Toronto police charity event celebrates volunteers').topics.includes('public-safety'));
+});

@@ -6,7 +6,7 @@ import { briefingCountryName, readBriefingLocation } from './briefing-location.j
 const MAX_BYTES = 1_500_000;
 const MAX_AGE = 14 * 86400_000;
 const NEWS_QUERY = '("oil prices" OR "shipping disruption" OR "supply chain" OR "food shortage" OR "nuclear threat" OR "military escalation" OR "global outage" OR "pandemic warning")';
-const AREA_TOPICS = '(emergency OR outage OR evacuation OR flood OR wildfire OR storm OR "boil water" OR shortage OR outbreak OR preparedness)';
+const AREA_TOPICS = '(emergency OR outage OR evacuation OR flood OR wildfire OR storm OR "boil water" OR outbreak OR lockdown OR "police warning" OR "road closure")';
 const NATIONAL_TOPICS = '(preparedness OR emergency OR blackout OR shortage OR outbreak OR "civil defence" OR "supply chain")';
 const COUNTRY_TERMS = {
   CA: /\b(canada|canadian|ottawa|toronto|montreal|vancouver)\b/i,
@@ -41,6 +41,7 @@ const COUNTRY_TERMS = {
   MX: /\b(mexico|mexican)\b/i,
 };
 const TOPIC_TERMS = {
+  'public-safety': /\b(public.safety|police)\b.{0,60}\b(warn\w*|alert|shooting|stabbing|lockdown|armed|threat|advisory)\b|\b(lockdown|shelter.in.place|road.closure|roads?.closed)\b/i,
   preparedness: /\b(preparedness|emergency (?:kit|supplies|plan|planning)|civil defen[cs]e|stockpil\w*|evacuat\w*|shelter in place)\b|\bprepar\w*\b.{0,60}\b(emergency|disaster|flood\w*|war|crisis|blackout)\b/i,
   conflict: /\b(war|conflict|missile|airstrike|air strike|invasion|ceasefire|hostilities|sanctions|embargo)\b|\b(armed|military|nuclear)\b.{0,40}\b(attack|threat|weapon|strike|offensive|inspection|escalation)\b/i,
   infrastructure: /\b(blackout|outage|cyberattack|cyber attack|ransomware|port closure|fuel shortage|energy crisis)\b|\b(power grid|electricity|energy|fuel|pipeline|infrastructure|supply chain)\b.{0,70}\b(disrupt\w*|shortage|failure|attack|warning|damage|shutdown|ration\w*)\b|\b(disrupt\w*|shortage|failure|attack|warning|damage|shutdown|ration\w*)\b.{0,70}\b(power grid|electricity|energy|fuel|pipeline|infrastructure|supply chain)\b/i,

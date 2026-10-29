@@ -20,7 +20,8 @@ const COUNTRY_WORDS = {
   JP: ['Japan', 'Japanese'], AU: ['Australia', 'Australian'], NZ: ['New Zealand'],
 };
 const scopeOrder = { local: 0, regional: 1, national: 2, macro: 3 };
-const geographicImpact = topics => topics.includes('food-water') ? 'Check whether this changes your water use, food availability or stored supplies.'
+const geographicImpact = topics => topics.includes('public-safety') ? 'Check the police or city notice for the affected streets and current instructions.'
+  : topics.includes('food-water') ? 'Check whether this changes your water use, food availability or stored supplies.'
   : topics.includes('infrastructure') ? 'Check your backup power, communications and transport plans against the reported disruption.'
     : topics.includes('disasters') ? 'Check official local instructions and whether your routes or property are affected.'
       : topics.includes('health') ? 'Check the applicable public-health notice and your household’s essential supplies.'

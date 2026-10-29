@@ -1,0 +1,31 @@
+.pv-local-updates { margin: 22px 0; background: var(--pv-surface); border: 1px solid var(--pv-border); border-radius: 12px; overflow: hidden; color: var(--pv-ink); }
+.pv-local-updates > header, .pv-local-posts > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 24px 16px; }
+.pv-local-updates-eyebrow { font: 9px var(--pv-mono, monospace); letter-spacing: 1.1px; color: var(--pv-muted); }
+.pv-local-updates h2 { font-size: 21px; letter-spacing: -.5px; font-weight: 600; margin: 8px 0; }
+.pv-local-updates header p { font-size: 12px; line-height: 1.65; margin: 5px 0 0; color: var(--pv-muted); }
+.pv-local-updates header > .pv-text-link { flex-shrink: 0; font-size: 11px; }
+.pv-local-updates-list { padding: 0 24px; margin: 0; list-style: none; }
+.pv-local-updates-list li { padding: 16px 0; border-top: 1px solid var(--pv-border); }
+.pv-local-updates-list li > div { display: flex; gap: 8px 16px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; color: var(--pv-muted); font-size: 10px; line-height: 1.6; margin-bottom: 7px; }
+.pv-local-updates-list li > a { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; line-height: 1.6; font-weight: 500; color: var(--pv-ink); text-decoration: none; }
+.pv-local-updates-list li > a > svg { flex-shrink: 0; }
+.pv-local-updates-list li p { margin: 8px 0 0; font-size: 12px; line-height: 1.7; color: var(--pv-muted); }
+.pv-local-updates-list a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pv-local-updates-message { color: var(--pv-muted); font-size: 12px; line-height: 1.7; margin: 0; padding: 0 24px 20px; }
+.pv-local-updates-more { margin: 0 24px 18px; font-size: 12px; }
+.pv-local-updates-channels { display: flex; flex-wrap: wrap; gap: 10px 20px; border-top: 1px solid var(--pv-border); margin: 0 24px; padding: 16px 0; }
+.pv-local-updates-channels a { display: inline-flex; gap: 6px; align-items: center; color: var(--pv-ink); font-size: 11px; text-underline-offset: 3px; }
+.pv-local-updates-sources { color: var(--pv-muted); padding: 0 24px 18px; font-size: 11px; line-height: 1.7; }
+.pv-local-updates-sources summary { cursor: pointer; }
+.pv-local-updates-sources p { font-size: 11px; line-height: 1.7; }
+.pv-local-posts { border-top: 1px solid var(--pv-border); background: var(--pv-canvas); }
+.pv-local-posts > header { padding-bottom: 8px; }
+.pv-local-posts h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.pv-local-posts header p { font-size: 11px; max-width: 65ch; }
+.pv-local-posts-note, .pv-local-posts-actions { margin: 0; padding: 0 24px 18px; font-size: 10px; line-height: 1.7; color: var(--pv-muted); }
+.pv-local-posts-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }.pv-local-posts-actions button { font-size: 12px; }
+.pv-local-posts .pv-local-updates-list li > div a { color: var(--pv-ink); font-size: 11px; }
+.pv-local-posts .pv-local-updates-list .pv-local-post-text { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--pv-ink); font-size: 13px; }
+.pv-local-posts .pv-local-updates-list li > a { font-size: 11px; margin-top: 12px; justify-content: flex-start; color: var(--pv-link, var(--pv-accent)); }
+.pv-local-updates :is(a,button,summary):focus-visible { outline: 2px solid var(--pv-focus); outline-offset: 3px; }
+@media (max-width: 600px) { .pv-local-updates > header, .pv-local-posts > header { padding: 18px; gap: 12px; flex-wrap: wrap; }.pv-local-updates-list { padding: 0 18px; }.pv-local-updates h2 { font-size: 20px; }.pv-local-updates-message { padding: 0 18px 18px; }.pv-local-updates-channels { margin: 0 18px; }.pv-local-updates-sources, .pv-local-posts-note, .pv-local-posts-actions { padding-inline: 18px; }.pv-local-updates-list li > a { font-size: 13px; }.pv-local-posts > header { padding-bottom: 10px; } }

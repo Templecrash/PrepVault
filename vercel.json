@@ -3,6 +3,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/local-updates.js": {
+      "maxDuration": 20
+    },
+    "api/local-posts.js": {
+      "maxDuration": 30
+    },
     "api/nest.js": {
       "maxDuration": 60
     },

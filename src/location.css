@@ -10,3 +10,44 @@
 .pv-local-brief{border:1px solid var(--pv-border);border-radius:10px;background:var(--pv-surface);padding:20px;color:var(--pv-ink)}
 .pv-local-brief-weather{display:flex;align-items:center;gap:30px;flex-wrap:wrap}.pv-local-brief-weather>strong{font-size:30px;font-weight:500;letter-spacing:-1px}.pv-local-brief-weather>span{font-size:12px;color:var(--pv-muted);line-height:1.6}.pv-local-brief-weather>span:first-of-type{margin-right:auto;color:var(--pv-ink)}.pv-local-brief-weather small{display:block;font-size:12px}.pv-local-brief-source{font-size:11px;color:var(--pv-muted);margin:12px 0 0;line-height:1.6}.pv-local-brief-source a{color:var(--pv-link,var(--pv-ink))}.pv-local-brief .pv-location-warnings{margin-top:16px}.pv-local-brief>p[role=status]{font-size:12px;line-height:1.6}
 @media(max-width:500px){.pv-local-brief-weather{gap:16px}.pv-local-brief-weather>span:first-of-type{min-width:50%}}
+
+/* Keep local reporting prominent. Weather uses one compact line until opened. */
+:root .pv-location.pv-location .pv-location-watchlist { margin-bottom: 14px; }
+:root .pv-location.pv-location .pv-location-watchlist > .pv-location-subheading { margin-bottom: 10px; }
+:root .pv-location.pv-location .pv-location-watchlist h2 { font-size: 13px; color: var(--pv-muted); letter-spacing: 0; }
+:root .pv-location.pv-location .pv-location-city-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px; }
+:root .pv-location.pv-location .pv-location-city { position: relative; padding: 12px 44px 12px 14px; gap: 3px; min-height: 88px; background: var(--pv-surface); border: 1px solid var(--pv-border); color: var(--pv-ink); border-radius: 8px; }
+:root .pv-location.pv-location .pv-location-city[aria-pressed=true] { border-color: var(--pv-accent); box-shadow: inset 0 -2px 0 var(--pv-accent); }
+:root .pv-location.pv-location .pv-location-city:hover { background: var(--pv-subtle); }
+:root .pv-location.pv-location .pv-location-city-top { justify-content: flex-start; gap: 8px; }
+:root .pv-location.pv-location .pv-location-city-top > strong { font-size: 13px; line-height: 1.4; color: var(--pv-ink); }
+:root .pv-location.pv-location .pv-location-city-top > span { font-size: 8px; color: var(--pv-muted); }
+:root .pv-location.pv-location .pv-location-city-region { font-size: 10px; color: var(--pv-muted); }
+:root .pv-location.pv-location .pv-location-city-alerts { margin-top: 5px; padding: 0; border: 0; color: var(--pv-muted); font-size: 10px; line-height: 1.4; align-items: flex-start; }
+:root .pv-location.pv-location .pv-location-city-alerts svg { margin-top: 1px; }
+:root .pv-location.pv-location .pv-location-city-temp { position: absolute; top: 13px; right: 12px; font-size: 13px; color: var(--pv-muted); font-variant-numeric: tabular-nums; }
+:root .pv-location.pv-location .pv-location-city.is-danger .pv-location-city-alerts { color: var(--pv-danger); }
+.pv-location-current { margin: 0 0 22px; border: 1px solid var(--pv-border); border-radius: 9px; background: var(--pv-surface); overflow: hidden; }
+.pv-location-current-line { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 22px; padding: 13px 16px; color: var(--pv-muted); font-size: 11px; }
+.pv-location-current-place { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pv-location-current-place strong { font-size: 12px; color: var(--pv-ink); font-weight: 550; }.pv-location-current-place span { color: var(--pv-muted); font-variant-numeric: tabular-nums; }
+.pv-location-current-range { font-variant-numeric: tabular-nums; }.pv-location-current-status { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }.pv-location-current-line .pv-text-link { font-size: 11px; }
+:root .pv-location.pv-location .pv-location-current-line.is-danger { border-left: 3px solid var(--pv-danger); background: var(--pv-danger-surface); padding-left: 13px; }.pv-location-current-line.is-danger .pv-location-current-status { color: var(--pv-danger); }
+.pv-location-weather-hazard { margin: 0 16px 13px; font-size: 11px; line-height: 1.6; color: var(--pv-danger); }.pv-location-source-note { margin: 0 16px 13px; color: var(--pv-muted); font-size: 11px; line-height: 1.6; }
+:root .pv-location.pv-location .pv-location-warnings { border: 0; padding-bottom: 0; color: var(--pv-muted); }:root .pv-location.pv-location .pv-location-current > .pv-location-warnings { margin: 0 16px 16px; padding-top: 13px; border-top: 1px solid var(--pv-border); }
+:root .pv-location.pv-location .pv-location-warnings h3 { color: var(--pv-ink); font-size: 12px; margin: 0; }
+:root .pv-location.pv-location .pv-location-warnings details { border: 1px solid var(--pv-border); background: var(--pv-surface); border-radius: 7px; }
+:root .pv-location.pv-location .pv-location-warnings summary { background: var(--pv-subtle); padding: 11px 13px; }
+:root .pv-location.pv-location .pv-location-warnings summary strong { color: var(--pv-ink); font-size: 12px; }
+:root .pv-location.pv-location .pv-location-warnings small { color: var(--pv-muted); }
+:root .pv-location.pv-location .pv-location-warnings details.is-danger { border-color: var(--pv-danger); border-left-width: 3px; }
+:root .pv-location.pv-location .pv-location-warnings details.is-danger summary { background: var(--pv-danger-surface); }
+:root .pv-location.pv-location .pv-location-warnings details.is-danger summary strong { color: var(--pv-danger); }
+:root .pv-location.pv-location .pv-location-error { color: var(--pv-ink); background: var(--pv-subtle); border: 1px solid var(--pv-border); }
+:root .pv-location.pv-location .pv-location-detail-disclosure { margin-top: 22px; margin-bottom: 12px; }
+.pv-location-travel-disclosure { border: 1px solid var(--pv-border); border-radius: 10px; margin: 12px 0 24px; background: var(--pv-surface); overflow: hidden; }
+.pv-location-travel-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 20px; list-style: none; cursor: pointer; font-size: 12px; color: var(--pv-ink); }
+.pv-location-travel-disclosure > summary > span { display: flex; gap: 10px; align-items: center; }.pv-location-travel-disclosure > summary::-webkit-details-marker { display: none; }.pv-location-travel-disclosure[open] > summary { border-bottom: 1px solid var(--pv-border); }.pv-location-travel-disclosure[open] > summary > svg { transform: rotate(90deg); }.pv-location-travel-disclosure > .pv-location-travel { border: 0; border-radius: 0; margin: 0; }
+:root .pv-location.pv-location .pv-local-brief { padding: 16px; }:root .pv-location.pv-location .pv-local-brief.is-danger { border-left: 3px solid var(--pv-danger); }:root .pv-location.pv-location .pv-local-brief-weather > strong { font-size: 24px; }.pv-local-brief .pv-location-weather-hazard { margin: 10px 0 0; }
+@media(max-width:700px) { :root .pv-location.pv-location .pv-location-city-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.pv-location-current-line { gap: 10px 16px; }.pv-location-current-status { margin-left: 0; }.pv-location-current-line .pv-text-link { margin-left: auto; }.pv-location-current-range { display: none; } }
+@media(max-width:420px) { :root .pv-location.pv-location .pv-location-city { padding: 11px; }:root .pv-location.pv-location .pv-location-city-temp { display: none; }.pv-location-current-place { gap: 8px; }.pv-location-current-line .pv-text-link { margin-left: 0; } }

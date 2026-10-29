@@ -2,7 +2,7 @@ import { normalizeBriefingLocation, briefingLocationKey } from './briefing-relev
 export { briefingLocationKey, selectRelevantBriefing, articleRelevance } from './briefing-relevance.js';
 
 export const BRIEFING_TOPICS = {
-  preparedness: 'Preparedness', conflict: 'Conflict & security', disasters: 'Disasters',
+  'public-safety': 'Public safety', preparedness: 'Preparedness', conflict: 'Conflict & security', disasters: 'Disasters',
   infrastructure: 'Power & infrastructure', 'food-water': 'Food & water', health: 'Health',
 };
 
