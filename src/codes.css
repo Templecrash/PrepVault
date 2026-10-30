@@ -1,0 +1,60 @@
+.pv-codes{--iv-border:#e5e7e4;--iv-muted:#6d736b}
+.pv-codes .pv-inventory-stat-action{background:#fff}
+.pv-codes .pv-inventory-stat-action[aria-pressed=true]{background:#fff;box-shadow:inset 0 -2px #777e73}
+.pv-codes .pv-inventory-stat-action:hover{background:#fafaf9}
+.pv-codes .pv-inventory-stat-icon,.pv-codes .pv-inventory-item-symbol{background:#f5f5f3;border-color:#e8e8e5;color:#73796e}
+.pv-codes .pv-inventory-search{background:#f7f7f5;border-color:var(--iv-border)}
+.pv-codes .pv-inventory-button-secondary{border-color:var(--iv-border)}
+.pv-codes .pv-inventory-button-secondary:hover{background:#f5f5f3}
+.pv-codes .pv-inventory-toolbar,.pv-codes .pv-inventory-table td{border-color:#eceeeb}
+.pv-codes .pv-inventory-table th{background:#fafaf9;border-color:#eceeeb}
+.pv-codes .pv-inventory-table tbody tr:hover{background:#fafaf9}
+.pv-codes .pv-inventory-footer{background:#fff;border-color:#eceeeb}
+.pv-codes .pv-inventory-empty>span{background:#f5f5f3;color:#73796e}
+.pv-codes .pv-inventory-button:disabled{opacity:.45;cursor:default;box-shadow:none}
+.pv-codes-table{min-width:0;table-layout:fixed}
+.pv-codes-table th:first-child{width:28%}
+.pv-codes-table th:nth-child(2){width:25%}
+.pv-codes-table th:nth-child(3){width:15%}
+.pv-codes-table th:nth-child(4){width:26%}
+.pv-codes-table th:last-child{width:6%}
+.pv-codes-table .pv-inventory-item{min-width:0}
+.pv-codes-table .pv-inventory-item-name{max-width:none}
+.pv-codes-table td{overflow-wrap:anywhere;line-height:1.5}
+.pv-codes-value-group{display:flex;align-items:center;gap:10px;min-width:0}
+.pv-codes-value{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:15px;letter-spacing:1px;min-width:61px;color:#75816e;user-select:none}
+.pv-codes-value.is-revealed{font-size:12px;letter-spacing:.3px;color:#334b3b;user-select:text;overflow-wrap:anywhere}
+.pv-codes-text-button,.pv-codes-holder-summary{border:0;background:transparent;padding:6px 0;color:#547451;font-size:11px!important;text-align:left;line-height:1.4;text-underline-offset:3px}
+.pv-codes-text-button{flex-shrink:0}
+.pv-codes-text-button:hover,.pv-codes-holder-summary:hover{text-decoration:underline;color:#294f38}
+.pv-codes-rotation{color:#687660;font-size:11px!important}
+.pv-codes-rotation>small{display:block;font-size:10px;color:#7b8970;margin-top:4px}
+.pv-codes-rotation-due{font-weight:650;color:#4b5d43}
+.pv-codes-table .pv-codes-toggle{padding-left:0;padding-right:17px}
+.pv-codes-toggle button{border:0;background:transparent;color:#819075;display:grid;place-items:center;width:34px;height:34px;border-radius:6px;margin-left:auto}
+.pv-codes-toggle button:hover{background:#f1f2ef;color:#444b40}
+.pv-codes-toggle svg{transition:transform .16s}
+.pv-codes-row.is-expanded .pv-codes-toggle svg{transform:rotate(90deg)}
+.pv-codes-row.is-expanded{background:#fafaf9}
+.pv-codes-table .pv-codes-detail-row>td{padding:0 24px 23px;background:#fafaf9}
+.pv-codes-detail{padding:21px 0 0;border-top:1px solid #e5e7e4;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px}
+.pv-codes-detail h2{font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin:0 0 8px;color:#607552}
+.pv-codes-detail p{font-size:12px;line-height:1.8;color:#627354;margin:0}
+.pv-codes-record{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.pv-codes-record small{font-size:10px;color:#7b8970;display:block;margin-top:4px}
+.pv-codes-notes{grid-column:1/-1}
+.pv-codes-notes p{white-space:pre-wrap}
+.pv-codes-access{border-left:1px solid #e5e7e4;padding-left:28px;min-width:0}
+.pv-codes-access-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.pv-codes-access-heading>span{font-size:10px;color:#7b8970}
+.pv-codes-holder-list{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0 13px}
+.pv-codes-holder{display:inline-flex;align-items:center;gap:7px;padding:5px 6px 5px 10px;border:1px solid #e5e7e4;border-radius:6px;background:#fff;font-size:11px;color:#596052;max-width:100%;overflow-wrap:anywhere}
+.pv-codes-holder button{border:0;background:transparent;color:#7d8b70;border-radius:4px;display:grid;place-items:center;width:24px;height:24px;flex-shrink:0}
+.pv-codes-holder button:hover{background:#f1f2ef;color:#444b40}
+.pv-codes-add-holder select{width:100%;max-width:280px;min-height:39px;padding:9px 12px;font-size:11px;color:#596052;background:#fff;border:1px solid #e5e7e4;border-radius:7px}
+.pv-codes-add-holder select:disabled{background:#f5f5f3;color:#7b8175}
+.pv-codes-detail .pv-codes-access-note{font-size:10px;color:#7b8970;line-height:1.7;margin-top:12px;max-width:360px}
+.pv-codes .pv-inventory-footer{align-items:flex-start;line-height:1.7}
+.pv-codes .pv-inventory-footer>svg{flex-shrink:0;margin-top:2px}
+@media(max-width:1000px){.pv-codes-table th,.pv-codes-table td{padding-left:10px;padding-right:10px}.pv-codes-table .pv-inventory-item{gap:8px}.pv-codes-table .pv-inventory-item-symbol{width:30px;height:34px}.pv-codes-value-group{gap:7px;flex-wrap:wrap}.pv-codes-detail{gap:20px}.pv-codes-access{padding-left:20px}}
+@media(max-width:720px){.pv-codes-table,.pv-codes-table tbody{display:block;width:100%}.pv-codes-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}.pv-codes-table .pv-codes-row{display:grid;grid-template-columns:minmax(0,1fr) 34px;padding:17px 16px;gap:12px 4px;border-top:1px solid #eceeeb}.pv-codes-table .pv-codes-row>td{padding:0;border:0;min-width:0}.pv-codes-name{grid-column:1;grid-row:1}.pv-codes-table .pv-inventory-item-symbol{width:38px;height:38px}.pv-codes-table .pv-inventory-item-name{font-size:13px!important}.pv-codes-toggle{grid-column:2;grid-row:1}.pv-codes-value-cell,.pv-codes-holders-cell,.pv-codes-rotation{grid-column:1/-1;display:grid;grid-template-columns:90px minmax(0,1fr);gap:0 10px;align-items:center}.pv-codes-value-cell::before,.pv-codes-holders-cell::before,.pv-codes-rotation::before{content:attr(data-label);color:#7b8970;font-size:11px}.pv-codes-rotation>small{grid-column:2;margin-top:3px}.pv-codes-value-group{flex-wrap:nowrap;justify-content:space-between}.pv-codes-text-button{min-height:36px;padding:8px 0 8px 9px}.pv-codes-holder-summary{min-height:34px}.pv-codes-table .pv-codes-detail-row{display:block}.pv-codes-table .pv-codes-detail-row>td{display:block;padding:0 16px 20px}.pv-codes-detail{grid-template-columns:1fr;padding-top:18px;gap:22px}.pv-codes-access{border-left:0;border-top:1px solid #e5e7e4;padding:20px 0 0}.pv-codes-holder button{width:30px;height:30px}.pv-codes-add-holder select{max-width:none;min-height:44px;font-size:13px}.pv-codes-detail .pv-codes-access-note{max-width:none}}

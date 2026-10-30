@@ -1,5 +1,6 @@
+import process from 'node:process';
 import { getCached, setCache } from '../_lib/cache.js';
-import { handleCors } from '../_lib/auth-middleware.js';
+import { handlePublicFeedRequest, readFeedCoordinates } from '../_lib/public-feed.js';
 
 // Classify news articles into PrepVault-relevant tags
 function classifyTag(title) {
@@ -40,7 +41,7 @@ async function reverseGeocode(lat, lng) {
   try {
     const owmKey = process.env.OPENWEATHERMAP_API_KEY;
     if (!owmKey) return null;
-    const res = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${owmKey}`);
+    const res = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${owmKey}`, { signal: AbortSignal.timeout(2500) });
     if (!res.ok) return null;
     const data = await res.json();
     if (data && data.length > 0) {
@@ -67,20 +68,25 @@ function guessCountry(lat, lng) {
 }
 
 export default async function handler(req, res) {
-  if (handleCors(req, res)) return;
+  if (handlePublicFeedRequest(req, res)) return;
 
   const apiKey = process.env.GNEWS_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'News API key not configured' });
+    return res.status(503).json({ error: 'Live news is not configured for this installation.', code: 'not_configured' });
   }
 
-  const { q, lat, lng, country: countryParam } = req.query;
+  const { q, country: countryParam } = req.query || {};
+  let coordinates;
+  try { coordinates = readFeedCoordinates(req.query || {}); }
+  catch { return res.status(400).json({ error: 'Provide a valid latitude and longitude.', code: 'invalid_location' }); }
+  if ((q !== undefined && (typeof q !== 'string' || q.length > 200)) || (countryParam !== undefined && (typeof countryParam !== 'string' || !/^[a-z]{2}$/i.test(countryParam)))) return res.status(400).json({ error: 'Use a search of up to 200 characters and a two-letter country code.', code: 'invalid_request' });
+  const { lat, lng } = coordinates || {};
 
   // Determine location context
   let locationQuery = '';
-  let country = countryParam || 'us';
+  let country = countryParam?.toLowerCase() || 'us';
 
-  if (lat && lng) {
+  if (coordinates) {
     const geo = await reverseGeocode(parseFloat(lat), parseFloat(lng));
     if (geo) {
       locationQuery = geo.city;
@@ -94,7 +100,7 @@ export default async function handler(req, res) {
   const baseTopics = 'weather OR emergency OR power OR infrastructure OR safety';
   const query = q || (locationQuery ? `(${locationQuery}) AND (${baseTopics})` : baseTopics);
 
-  const cacheKey = `news_${country}_${query.slice(0, 50)}`;
+  const cacheKey = `news_${country}_${query}`;
   const cached = getCached(cacheKey, 30 * 60 * 1000);
   if (cached) {
     res.setHeader('X-Cache', 'HIT');
@@ -106,7 +112,7 @@ export default async function handler(req, res) {
     let articles = [];
 
     const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&country=${country}&max=8&sortby=publishedAt&apikey=${apiKey}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(2500) });
 
     if (response.ok) {
       const data = await response.json();
@@ -117,7 +123,7 @@ export default async function handler(req, res) {
     if (articles.length < 4 && locationQuery) {
       try {
         const fallbackUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(baseTopics)}&lang=en&country=${country}&max=6&sortby=publishedAt&apikey=${apiKey}`;
-        const fallbackRes = await fetch(fallbackUrl);
+        const fallbackRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(2500) });
         if (fallbackRes.ok) {
           const fallbackData = await fallbackRes.json();
           const existingUrls = new Set(articles.map(a => a.url));
@@ -147,11 +153,9 @@ export default async function handler(req, res) {
     };
 
     setCache(cacheKey, result);
-    res.setHeader('Cache-Control', 's-maxage=1800');
     res.setHeader('X-Cache', 'MISS');
     return res.status(200).json(result);
-  } catch (err) {
-    console.error('News API error:', err);
-    return res.status(502).json({ error: 'Failed to fetch news', detail: err.message });
+  } catch {
+    return res.status(502).json({ error: 'Live news could not be checked. Try again later.', code: 'provider_unavailable' });
   }
 }

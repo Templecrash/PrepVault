@@ -1,0 +1,17 @@
+/* The retained analytical tools share the same quiet palette as the table
+   workspaces. Numbers, alerts, charts and controls keep their original data. */
+.pv-quiet-legacy{color:#3d5338;font-family:inherit;line-height:1.6;min-width:0}
+.pv-quiet-legacy h2,.pv-quiet-legacy h3{color:#3a5434!important;font-weight:550!important;letter-spacing:-.3px!important;text-transform:none!important;font-size:17px!important}
+.pv-quiet-legacy [style*="border-left"]{border-left:0!important}
+.pv-quiet-legacy :not(button)[style*="linear-gradient"]{background:#f2f5ed!important;box-shadow:none!important}
+.pv-quiet-legacy [style*="border-radius: 14px"],.pv-quiet-legacy [style*="border-radius: 12px"]{border-color:#e1e7da!important;box-shadow:none!important}
+.pv-quiet-legacy [style*="color: rgb(34, 197, 94)"],.pv-quiet-legacy [style*="color: rgb(245, 158, 11)"],.pv-quiet-legacy [style*="color: rgb(239, 68, 68)"],.pv-quiet-legacy [style*="color: rgb(59, 130, 246)"],.pv-quiet-legacy [style*="color: rgb(6, 182, 212)"],.pv-quiet-legacy [style*="color: rgb(139, 92, 246)"],.pv-quiet-legacy [style*="color: rgb(249, 115, 22)"],.pv-quiet-legacy [style*="color: rgb(14, 165, 233)"]{color:#536d48!important}
+.pv-quiet-legacy [style*="background: rgba(34, 197, 94"],.pv-quiet-legacy [style*="background: rgba(245, 158, 11"],.pv-quiet-legacy [style*="background: rgba(239, 68, 68"],.pv-quiet-legacy [style*="background: rgba(59, 130, 246"],.pv-quiet-legacy [style*="background: rgba(6, 182, 212"],.pv-quiet-legacy [style*="background: rgba(139, 92, 246"],.pv-quiet-legacy [style*="background: rgba(249, 115, 22"]{background:#f0f4ea!important;border-color:#dee6d5!important}
+.pv-quiet-legacy [style*="font-size: 8px"],.pv-quiet-legacy [style*="font-size: 9px"],.pv-quiet-legacy [style*="font-size: 10px"]{font-size:11px!important}
+.pv-quiet-legacy [style*="text-transform: uppercase"]{letter-spacing:.5px!important;font-weight:600!important}
+.pv-quiet-legacy button{font:inherit;min-height:34px;cursor:pointer;border-radius:7px!important}
+.pv-quiet-legacy input,.pv-quiet-legacy select,.pv-quiet-legacy textarea{font:inherit;min-height:40px;border-radius:7px!important;border-color:#dce4d3!important;background:#fff!important;color:#435a39!important}
+.pv-quiet-legacy input[type=range]{min-height:22px;accent-color:#68845a}
+.pv-quiet-legacy table{border-collapse:collapse;width:100%}.pv-quiet-legacy th{font-size:10px!important;letter-spacing:.7px!important;font-weight:600!important;color:#7a8970!important;background:#fafcf7!important}.pv-quiet-legacy td{font-size:12px!important;line-height:1.8!important;border-color:#e7ecdf!important}
+.pv-quiet-legacy [style*="box-shadow"]{box-shadow:none!important}.pv-quiet-legacy [style*="animation: pulse"]{animation:none!important}
+@media(max-width:720px){.pv-quiet-legacy [style*="grid-template-columns: 1fr 1fr 1fr"],.pv-quiet-legacy [style*="grid-template-columns: repeat(4"],.pv-quiet-legacy [style*="grid-template-columns: repeat(5"],.pv-quiet-legacy [style*="grid-template-columns: repeat(6"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}.pv-quiet-legacy table{display:block;overflow-x:auto}.pv-quiet-legacy [style*="min-width: 300px"]{min-width:0!important}}

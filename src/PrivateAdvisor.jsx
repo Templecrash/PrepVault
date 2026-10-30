@@ -1,0 +1,205 @@
+import { isLocalEdition } from './runtime-mode.js';
+import LocalServiceNotice from './LocalServiceNotice.jsx';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Icon } from './brand.jsx';
+import TrackingOwnerSignIn from './TrackingOwnerSignIn.jsx';
+import { getTrackingOwner, signOutTrackingOwner } from './tracking-auth.js';
+import { askAdvisor, getAdvisorStatus } from './advisor-client.js';
+import './inventory.css';
+import './private-advisor.css';
+
+const STARTERS = [
+  { label: 'Assess supplies', icon: 'box', detail: 'Find gaps and useful next steps', prompt: 'Assess my current supplies against my household needs and preparation targets. Prioritize the most important gaps, use the recorded quantities, and distinguish missing information from confirmed shortages.' },
+  { label: 'Review plans', icon: 'map', detail: 'Check assumptions and dependencies', prompt: 'Review my preparation plans, property systems, routes, and dependencies. Identify practical weaknesses, explain what supports each conclusion, and suggest the next three improvements.' },
+  { label: 'Explore a scenario', icon: 'compass', detail: 'Think through what could happen', prompt: 'Help me explore a preparedness scenario using my current household, supplies, and plans. Suggest three relevant scenarios and ask which one I want to work through before making a detailed plan.' },
+];
+
+function ContextDetails({ context }) {
+  const meta = context?.meta || {};
+  const sections = Array.isArray(meta.sections) ? meta.sections : [];
+  const limitations = Array.isArray(meta.limitations) ? meta.limitations : [];
+  const captured = Date.parse(meta.generatedAt);
+  return <details className="pv-advisor-context">
+    <summary><span><Icon name="book" size={16} />What Survival LLM knows</span><span>Current app context<Icon name="chevron" size={14} /></span></summary>
+    <div className="pv-advisor-context-body">
+      <p>Your current app data is included each time you ask a question.{Number.isFinite(captured) && ` This snapshot was prepared at ${new Date(captured).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`}</p>
+      {sections.length > 0 && <ul className="pv-advisor-sections">{sections.map((section, index) => <li key={section.key || index}><span>{section.label}</span>{Number.isFinite(section.count) && <strong>{section.count}</strong>}</li>)}</ul>}
+      {limitations.length > 0 && <ul className="pv-advisor-limitations">{limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul>}
+      <p>Your questions and current app context are sent through PrepVault to your private Survival LLM server on Modal. The server uses the model and reference library to answer. This chat clears when you close it, reload or sign out; it is not added to a personal memory or used to update the model. Modal may retain function inputs and outputs for up to seven days under its <a href="https://modal.com/docs/guide/security" target="_blank" rel="noreferrer">data retention policy</a>.</p>
+    </div>
+  </details>;
+}
+
+function PrivateAdvisorOnline({ getContext }) {
+  const [auth, setAuth] = useState({ phase: 'checking', owner: null, message: '' });
+  const [configured, setConfigured] = useState(false);
+  const [connection, setConnection] = useState(null);
+  const [progress, setProgress] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [canRetry, setCanRetry] = useState(false);
+  const ownerRef = useRef(null);
+  const authRequest = useRef(null);
+  const chatRequest = useRef(null);
+  const authRevision = useRef(0);
+  const chatRevision = useRef(0);
+  const composer = useRef(null);
+  const bottom = useRef(null);
+  const questionId = useId();
+  const context = useMemo(() => auth.phase === 'signed-in' ? getContext() : null, [auth.phase, getContext]);
+
+  const cancelChat = useCallback(() => {
+    chatRevision.current += 1;
+    chatRequest.current?.abort();
+    chatRequest.current = null;
+    setBusy(false); setProgress('');
+  }, []);
+
+  const clearConversation = useCallback(() => {
+    cancelChat();
+    setMessages([]); setDraft(''); setError(''); setCanRetry(false);
+  }, [cancelChat]);
+
+  const expireSession = useCallback(() => {
+    authRequest.current?.abort(); authRevision.current += 1;
+    ownerRef.current = null;
+    clearConversation(); setConfigured(false);
+    setAuth({ phase: 'signed-out', owner: null, message: 'Your private session ended. Sign in again to continue.' });
+  }, [clearConversation]);
+
+  const checkSession = useCallback(async () => {
+    authRequest.current?.abort();
+    if (chatRequest.current) {
+      setError('Your request was paused while your private session was checked. You can retry it below.');
+      setCanRetry(true);
+    }
+    cancelChat();
+    const controller = new AbortController();
+    authRequest.current = controller;
+    const revision = ++authRevision.current;
+    setAuth({ phase: 'checking', owner: null, message: '' });
+    try {
+      const owner = await getTrackingOwner({ signal: controller.signal });
+      if (controller.signal.aborted || revision !== authRevision.current) return;
+      if (!owner) {
+        const hadOwner = Boolean(ownerRef.current);
+        ownerRef.current = null;
+        clearConversation(); setConfigured(false);
+        setAuth({ phase: 'signed-out', owner: null, message: hadOwner ? 'Your private session ended. Sign in again to continue.' : '' });
+        return;
+      }
+      if (ownerRef.current?.id !== owner.id) clearConversation();
+      ownerRef.current = owner;
+      try {
+        const status = await getAdvisorStatus({ signal: controller.signal });
+        if (controller.signal.aborted || revision !== authRevision.current) return;
+        setConfigured(status.configured); setConnection(status);
+      } catch (problem) {
+        if (controller.signal.aborted || revision !== authRevision.current) return;
+        if ([401, 403].includes(problem.status)) throw problem;
+        setConfigured(false); setConnection({ error: problem.message });
+      }
+      setAuth({ phase: 'signed-in', owner, message: '' });
+    } catch (err) {
+      if (controller.signal.aborted || revision !== authRevision.current) return;
+      if (err.status === 401 || err.status === 403) { expireSession(); return; }
+      setAuth({ phase: 'unavailable', owner: null, message: err.message });
+    }
+  }, [cancelChat, clearConversation, expireSession]);
+
+  useEffect(() => {
+    void checkSession();
+    return () => {
+      authRequest.current?.abort(); chatRequest.current?.abort();
+      authRevision.current += 1; chatRevision.current += 1;
+    };
+  }, [checkSession]);
+
+  useEffect(() => {
+    const onFocus = () => { if (auth.phase === 'signed-in') void checkSession(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [auth.phase, checkSession]);
+
+  useEffect(() => { bottom.current?.scrollIntoView({ block: 'nearest' }); }, [messages.length, busy]);
+
+  const signOut = async () => {
+    authRequest.current?.abort();
+    const controller = new AbortController();
+    authRequest.current = controller;
+    const revision = ++authRevision.current;
+    ownerRef.current = null;
+    clearConversation(); setConfigured(false);
+    setAuth({ phase: 'signing-out', owner: null, message: '' });
+    try {
+      await signOutTrackingOwner({ signal: controller.signal });
+      if (!controller.signal.aborted && revision === authRevision.current) setAuth({ phase: 'signed-out', owner: null, message: 'You are signed out of your private workspace.' });
+    } catch (err) {
+      if (!controller.signal.aborted && revision === authRevision.current) setAuth({ phase: 'signout-failed', owner: null, message: err.message });
+    }
+  };
+
+  const requestReply = async nextMessages => {
+    if (auth.phase !== 'signed-in' || !configured || chatRequest.current || !ownerRef.current) return;
+    const ownerId = ownerRef.current.id;
+    const controller = new AbortController();
+    chatRequest.current = controller;
+    const revision = ++chatRevision.current;
+    setMessages(nextMessages); setBusy(true); setError(''); setCanRetry(false); setProgress('Connecting to your private Survival LLM server…');
+    try {
+      const answer = await askAdvisor(nextMessages, getContext(), { signal: controller.signal, onProgress: message => {
+        if (!controller.signal.aborted && revision === chatRevision.current) setProgress(message);
+      } });
+      if (controller.signal.aborted || revision !== chatRevision.current || ownerRef.current?.id !== ownerId) return;
+      const currentOwner = await getTrackingOwner({ signal: controller.signal });
+      if (controller.signal.aborted || revision !== chatRevision.current) return;
+      if (!currentOwner || currentOwner.id !== ownerId) { expireSession(); return; }
+      setMessages([...nextMessages, { role: 'assistant', content: answer.reply, sources: answer.sources, model: answer.model }]);
+    } catch (err) {
+      if (controller.signal.aborted || revision !== chatRevision.current) return;
+      if (err.status === 401 || err.status === 403) { expireSession(); return; }
+      setError(err.message); setCanRetry(true);
+    } finally {
+      if (revision === chatRevision.current) { chatRequest.current = null; setBusy(false); }
+    }
+  };
+
+  const send = (text = draft) => {
+    const content = text.trim();
+    if (!content || content.length > 6000 || auth.phase !== 'signed-in' || !configured || chatRequest.current) return;
+    setDraft('');
+    void requestReply([...messages, { role: 'user', content }]);
+  };
+
+  return <section className="pv-inventory pv-advisor pv-advisor-floating" aria-label="Survival LLM conversation">
+    <div className="pv-advisor-scroll">
+      {auth.phase !== 'signed-in' ? <>
+        {['checking', 'signing-out'].includes(auth.phase) ? <div className="pv-advisor-status" role="status"><Icon name="shield" size={22} />{auth.phase === 'checking' ? 'Checking your private session…' : 'Signing out…'}</div>
+          : ['unavailable', 'signout-failed'].includes(auth.phase) ? <div className="pv-advisor-status pv-advisor-status-error" role="alert"><Icon name="shield" size={22} /><div><strong>{auth.phase === 'signout-failed' ? 'Sign-out has not completed' : 'Your private connection is unavailable'}</strong><p>{auth.message}</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={auth.phase === 'signout-failed' ? signOut : checkSession}>Try again</button></div>
+            : <TrackingOwnerSignIn onSignedIn={checkSession} notice={auth.message} description="Sign in to Survival LLM to assess your supplies and plans." detail="Only your owner account can open this conversation or send your app context to Survival LLM." buttonLabel="Open Survival LLM" />}
+      </> : <>
+        <div className="pv-advisor-account"><span><Icon name="shield" size={15} />Only you · {auth.owner.email}</span><button type="button" className="pv-advisor-text-button" onClick={signOut}>Sign out</button></div>
+        <div className="pv-advisor-engine"><Icon name="survival" size={17}/><div><strong>{configured ? 'Private server connected' : 'Private Survival LLM'}</strong>{connection?.model && <span>{/nemotron/i.test(connection.model) ? 'NVIDIA Nemotron 3.5 Super' : connection.model}</span>}{connection?.libraryArticles > 0 && <span>{connection.libraryArticles.toLocaleString()} reference articles available</span>}</div></div>
+        <ContextDetails context={context} />
+        {context?.meta?.isSample && <p className="pv-advisor-sample"><Icon name="book" size={15} />Sample workspace · Survival LLM will identify example data.</p>}
+        {!configured && <div className="pv-advisor-setup" role="status"><Icon name="compass" size={22} /><div><strong>Private server setup needed.</strong><p>{connection?.error || 'The private model and reference library are not ready yet. Complete the server setup to start chatting.'}</p></div><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={checkSession}>Check connection</button></div>}
+        <div className="pv-advisor-workspace">
+          <div className="pv-advisor-conversation-heading"><span><Icon name="survival" size={16} />Your conversation</span><button type="button" className="pv-advisor-text-button" onClick={clearConversation} disabled={!messages.length && !draft && !busy}><Icon name="plus" size={14} />New conversation</button></div>
+          {!messages.length ? <div className="pv-advisor-welcome"><h2>How can I help you prepare?</h2><div className="pv-advisor-starters">{STARTERS.map(starter => <button type="button" key={starter.label} disabled={!configured || busy} onClick={() => send(starter.prompt)}><Icon name={starter.icon} size={20} /><strong>{starter.label}</strong><span>{starter.detail}</span><Icon name="arrow" size={15} /></button>)}</div></div>
+            : <div className="pv-advisor-messages" role="log" aria-label="Conversation with Survival LLM" aria-live="polite" aria-relevant="additions text">{messages.map((message, index) => <article key={index} className={`pv-advisor-message is-${message.role}`}><h2>{message.role === 'user' ? 'You' : 'Survival LLM'}</h2><div>{message.content}</div>{message.sources?.length > 0 && <div className="pv-advisor-sources">{message.sources.map((source, sourceIndex) => <details key={sourceIndex}><summary>{source.title || source.source || 'Reference'}</summary><p>{source.source}</p>{source.excerpt && <blockquote>{source.excerpt}</blockquote>}{source.url && <a href={source.url} target="_blank" rel="noreferrer">Original source ↗</a>}{source.license && <small>{source.license}</small>}</details>)}</div>}</article>)}{busy && <p className="pv-advisor-thinking" role="status"><span />{progress || 'Waiting for your private server…'}<button type="button" className="pv-advisor-text-button" onClick={cancelChat}>Stop</button></p>}<div ref={bottom} /></div>}
+          {error && <div className="pv-advisor-error" role="alert"><p>{error}</p>{canRetry && !busy && <button type="button" className="pv-advisor-text-button" onClick={() => requestReply(messages)}>Try again<Icon name="arrow" size={14} /></button>}</div>}
+        </div>
+      </>}
+    </div>
+    {auth.phase === 'signed-in' && <div className="pv-advisor-compose-area">
+      <form className="pv-advisor-composer" onSubmit={event => { event.preventDefault(); send(); }}><label htmlFor={questionId}>Ask Survival LLM</label><textarea id={questionId} ref={composer} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} disabled={!configured || busy} maxLength={6000} rows={2} placeholder="Ask about your supplies, plans or an idea…" /><div><span>{busy ? 'Your conversation stays in this chat.' : 'Ctrl / ⌘ + Enter to send'}{draft.length > 5500 && ` · ${6000 - draft.length} characters left`}</span><button type="submit" className="pv-inventory-button pv-inventory-button-primary" disabled={!configured || busy || !draft.trim()}>{busy ? 'Thinking…' : 'Send'}<Icon name="arrow" size={16} /></button></div></form>
+      <p className="pv-advisor-footnote">Private server · Internet required. Check the sources. The first answer after idle can take longer while the model starts.</p>
+    </div>}
+  </section>;
+}
+
+export default function PrivateAdvisor(props) {
+  return isLocalEdition() ? <LocalServiceNotice title="Survival LLM needs the live site." path="/">Your private model runs on a server. Open the live site and sign in to use Survival LLM with your plan.</LocalServiceNotice> : <PrivateAdvisorOnline {...props} />;
+}

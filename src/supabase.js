@@ -1,3 +1,4 @@
+import { isLocalEdition } from './runtime-mode.js';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -5,7 +6,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Graceful fallback: if Supabase isn't configured, create a dummy client
 // that won't crash the app. Auth features will show "not configured" state.
-export const supabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+export const supabaseConfigured = !isLocalEdition() && Boolean(supabaseUrl && supabaseAnonKey);
 
 export const supabase = supabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)

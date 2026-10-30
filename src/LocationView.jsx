@@ -1,0 +1,211 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from './brand.jsx';
+import LocationTravel from './LocationTravel.jsx';
+import { LOCATION_EVENT, readLocation, saveLocation, searchLocations, getLocalConditions, weatherLabel, locationConsiderations, readLocationWatchlist, saveLocationWatchlist, locationWatchKey, MAX_WATCHED_LOCATIONS, saveLocationDestination } from './location.js';
+import { isLocalEdition } from './runtime-mode.js';
+import { activeOfficialAlerts, locationConditionStatus, officialAlertNeedsAttention, staleLocationConditions } from './location-severity.js';
+import './location.css';
+
+const number = (value, suffix = '') => Number.isFinite(value) ? `${Math.round(value)}${suffix}` : '—';
+const clock = value => typeof value === 'string' && value.includes('T') ? value.split('T')[1].slice(0, 5) : '—';
+const checked = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString() : 'Not checked';
+const locationName = value => [value?.name, value?.region && value.region !== value.name ? value.region : value?.country].filter(Boolean).join(', ');
+const isStale = staleLocationConditions;
+const readPlaces = () => {
+  const primary = readLocation(localStorage);
+  try { return { primary, locations: readLocationWatchlist(localStorage), error: '' }; }
+  catch (error) { return { primary, locations: [], error: `${error.message} Your saved watchlist has not been overwritten. Restore a valid backup in Settings & backups.` }; }
+};
+
+function LocationPicker({ onChoose, onCancel }) {
+  const [query, setQuery] = useState(''); const [results, setResults] = useState([]); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [searched, setSearched] = useState(false);
+  const pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
+  const changeQuery = value => { pending.current?.abort(); setQuery(value); setResults([]); setSearched(false); setError(''); setBusy(false); };
+  const search = async event => {
+    event.preventDefault(); pending.current?.abort(); const controller = new AbortController(); pending.current = controller;
+    setBusy(true); setError(''); setResults([]); setSearched(false);
+    try { const rows = await searchLocations(query, { signal: controller.signal }); if (!controller.signal.aborted) { setResults(rows); setSearched(true); } }
+    catch (error) { if (!controller.signal.aborted) setError(error.message); }
+    finally { if (!controller.signal.aborted) setBusy(false); }
+  };
+  return <div className="pv-location-picker"><form onSubmit={search}><label>City or town<input type="search" value={query} onChange={event => changeQuery(event.target.value)} placeholder="e.g. Ottawa, London or Tokyo" minLength={2} maxLength={100} required/></label><button className="pv-inventory-button pv-inventory-button-primary" disabled={busy || query.trim().length < 2}>{busy ? 'Searching…' : 'Find city'}</button>{onCancel && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onCancel}>Cancel</button>}</form><p>Search uses Open-Meteo / GeoNames. An exact address is not needed. Adding a city sends its coordinates to the forecast and official alert services.</p>{error && <p role="alert">{error}</p>}{searched && !results.length && <p role="status">No locations found. Try a nearby city or another spelling.</p>}<div className="pv-location-results">{results.map(value => <button type="button" key={value.id} onClick={() => onChoose(value)}><span><strong>{value.name}</strong><small>{[value.region, value.country].filter(Boolean).join(', ')}</small></span><Icon name="plus" size={16}/></button>)}</div></div>;
+}
+
+function WeatherTimeline({ weather }) {
+  const hours = weather.hourly.filter(hour => hour.time?.startsWith(weather.today.date) && Number.isFinite(hour.temperature));
+  const samples = hours.filter((_, index) => index % 3 === 0);
+  if (!samples.length) return <p>Hourly forecast is unavailable.</p>;
+  const low = Math.min(...samples.map(hour => hour.temperature)); const high = Math.max(...samples.map(hour => hour.temperature));
+  const points = samples.map((hour, index) => `${30 + index * (640 / Math.max(1, samples.length - 1))},${30 + (1 - (hour.temperature - low) / Math.max(4, high - low)) * 50}`).join(' ');
+  return <div className="pv-weather-timeline"><div className="pv-location-subheading"><h3>Through the day</h3><span>{weather.today.date} · {weather.timezone}</span></div><svg viewBox="0 0 700 100" role="img" aria-label="Temperature forecast through the day; exact values are listed below"><path d="M25 90H675" fill="none" stroke="var(--pv-border)"/>{samples.map((hour, index) => <rect key={hour.time} x={20 + index * (640 / Math.max(1, samples.length - 1))} y={90 - (hour.precipitationProbability || 0) * .65} width="20" height={(hour.precipitationProbability || 0) * .65} rx="3" fill="var(--pv-subtle)"/>)}<polyline points={points} fill="none" stroke="var(--pv-accent)" strokeWidth="2.5" strokeLinejoin="round"/>{samples.map((hour, index) => <circle key={hour.time} cx={30 + index * (640 / Math.max(1, samples.length - 1))} cy={30 + (1 - (hour.temperature - low) / Math.max(4, high - low)) * 50} r="3" fill="var(--pv-accent)"/>)}</svg><div className="pv-weather-hours">{samples.map(hour => <div key={hour.time}><time>{clock(hour.time)}</time><strong>{number(hour.temperature, '°')}</strong><span>{weatherLabel(hour.weatherCode)}</span><small>{number(hour.precipitationProbability, '%')} precip.</small></div>)}</div><p className="pv-location-footnote">Line: temperature · bars: precipitation chance. Forecast timing is an estimate, not live storm tracking.</p></div>;
+}
+
+function OfficialWarnings({ alerts, stale, now, activeOnly = false }) {
+  const entries = activeOfficialAlerts(alerts, now);
+  if (activeOnly && !entries.length) return null;
+  return <div className="pv-location-warnings"><div className="pv-location-subheading"><h3>Official weather alerts</h3><a href={alerts.sourceUrl} target="_blank" rel="noreferrer">Official source ↗</a></div>{stale && <p role="status">Previous check — verify these notices with the official source.</p>}{alerts.status !== 'ready' ? <p role="status">{alerts.error}</p> : entries.length ? <div>{entries.map(alert => <details key={alert.id} className={!stale && officialAlertNeedsAttention(alert) ? 'is-danger' : ''}><summary><span><strong>{alert.headline}</strong><small>{[alert.severity, alert.area].filter(Boolean).join(' · ')}</small></span><Icon name="chevron" size={16}/></summary><div><p className="pv-warning-text">{alert.description}</p>{alert.instruction && <p className="pv-warning-text"><strong>Instructions</strong><br/>{alert.instruction}</p>}<small>Begins {checked(alert.onset)} · Expires {checked(alert.expires)}</small><a href={alert.url} target="_blank" rel="noreferrer">Read the official notice ↗</a></div></details>)}</div> : <p>No active weather alerts were returned for this point at the last check.</p>}<p className="pv-location-footnote">{alerts.source} · Checked {checked(alerts.checkedAt)}. Check local notices for other emergencies.</p></div>;
+}
+
+function SelectedConditions({ location, row, now, onDetails }) {
+  const status = locationConditionStatus(row, now);
+  const weather = row?.data?.weather;
+  const ready = weather?.status === 'ready';
+  return <section className="pv-location-current" aria-label={`Conditions for ${location.name}`}>
+    <div className={`pv-location-current-line${status.tone === 'danger' ? ' is-danger' : ''}`}>
+      <div className="pv-location-current-place"><strong>{location.name}</strong><span>{ready ? `${number(weather.current.temperature, '°C')} · ${weatherLabel(weather.current.weatherCode)}` : row?.busy ? 'Checking weather…' : 'Weather unavailable'}</span></div>
+      {ready && <span className="pv-location-current-range">{number(weather.today.low, '°')} / {number(weather.today.high, '°')} today</span>}
+      <span className="pv-location-current-status"><Icon name={status.tone === 'danger' ? 'bell' : 'clock'} size={14}/>{status.summary}</span>
+      <button type="button" className="pv-text-link" onClick={onDetails}>Weather details<Icon name="chevron" size={14}/></button>
+    </div>
+    {status.hazards.length > 0 && <p className="pv-location-weather-hazard">{status.hazards.map(value => `${value.timing}: ${value.label.toLowerCase()}`).join(' · ')}. Check the forecast before travel or outdoor activity.</p>}
+    {row?.error && <p className="pv-location-source-note" role="status">{row.error}{row.data ? ' Previous conditions are shown.' : ''}</p>}
+    {row?.data?.alerts && status.entries.length > 0 && <OfficialWarnings alerts={row.data.alerts} stale={!status.alertsFresh} now={now} activeOnly/>}
+  </section>;
+}
+
+function Conditions({ location, row, now, items, onCategory }) {
+  const data = row?.data;
+  const weather = data?.weather;
+  const stale = isStale(row, now);
+  const considerations = locationConsiderations(data, items);
+  return <>
+    {row?.error && <p role="alert" className="pv-location-error">{row.error}{data ? ' Previous information is shown below.' : ''}</p>}
+    {!data && !row?.error && <p className="pv-location-empty" role="status">Checking weather and official warnings for {location.name}…</p>}
+    {data && <>{activeOfficialAlerts(data.alerts, now).length === 0 && <OfficialWarnings alerts={data.alerts} stale={stale || (data.alerts.status === 'ready' && !locationConditionStatus(row, now).alertsFresh)} now={now}/>}{weather.status === 'ready' ? <><div className="pv-location-weather"><div className="pv-location-temperature"><strong>{number(weather.current.temperature, '°C')}</strong><div><h3>{weatherLabel(weather.current.weatherCode)}</h3><p>Feels like {number(weather.current.feelsLike, '°C')} · {clock(weather.current.time)}</p></div></div><dl><div><dt>Low / high</dt><dd>{number(weather.today.low, '°')} / {number(weather.today.high, '°')}</dd></div><div><dt>Wind / gusts</dt><dd>{number(weather.current.windSpeed)} / {number(weather.current.windGusts)} km/h</dd></div><div><dt>Rain chance</dt><dd>{number(weather.today.precipitationProbability, '%')}</dd></div><div><dt>Sunset</dt><dd>{clock(weather.today.sunset)}</dd></div></dl></div><details className="pv-location-forecast"><summary>Hourly forecast & weather details<Icon name="chevron" size={15}/></summary><WeatherTimeline weather={weather}/><dl className="pv-location-extra"><div><dt>Rain today</dt><dd>{weather.today.rain ?? '—'} mm</dd></div><div><dt>Snow today</dt><dd>{weather.today.snow ?? '—'} cm</dd></div><div><dt>Maximum UV</dt><dd>{number(weather.today.uvIndex)}</dd></div><div><dt>Sunrise</dt><dd>{clock(weather.today.sunrise)}</dd></div></dl></details></> : <p role="status">{weather.error}</p>}
+      {considerations.length > 0 && <details className="pv-location-considerations"><summary>Consider for your plan<Icon name="chevron" size={15}/></summary><div>{considerations.map(value => <article key={value.title}><strong>{value.title}</strong><p>{value.detail}</p>{value.category && onCategory && <button type="button" className="pv-text-link" onClick={() => onCategory(value.category)}>Review supplies<Icon name="arrow" size={14}/></button>}</article>)}</div><p className="pv-location-footnote">Based on the displayed forecast and recorded inventory. These planning prompts are not official warnings.</p></details>}
+      <div className="pv-location-links"><a href={location.countryCode === 'CA' ? 'https://weather.gc.ca/radar/index_e.html' : location.countryCode === 'US' ? 'https://radar.weather.gov/' : 'https://severeweather.wmo.int/'} target="_blank" rel="noreferrer">Radar & storm movement ↗</a><a href={data.alerts.sourceUrl} target="_blank" rel="noreferrer">Weather authority ↗</a></div><p className="pv-location-footnote">Weather: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Search: GeoNames · Retrieved {checked(data.fetchedAt)}. Updates every five minutes while this page is visible.</p>
+    </>}
+  </>;
+}
+
+function CompactConditions({ location, row, now }) {
+  const data = row?.data;
+  const weather = data?.weather;
+  const alerts = data?.alerts;
+  const status = locationConditionStatus(row, now);
+  const stale = status.stale;
+  return <div className={`pv-local-brief${status.tone === 'danger' ? ' is-danger' : ''}`}>
+    {row?.error && <p role="status">{row.error}{data ? ' Showing the previous check.' : ''}</p>}
+    {!data && !row?.error && <p role="status">Checking conditions for {location.name}…</p>}
+    {weather?.status === 'ready' && <div className="pv-local-brief-weather"><strong>{number(weather.current.temperature, '°C')}</strong><span>{weatherLabel(weather.current.weatherCode)}<small>{number(weather.today.low, '°')} / {number(weather.today.high, '°')} today</small></span><span>Rain<small>{number(weather.today.precipitationProbability, '%')}</small></span><span>Gusts<small>{number(weather.current.windGusts, ' km/h')}</small></span></div>}
+    {status.hazards.length > 0 && <p className="pv-location-weather-hazard">{status.hazards.map(value => `${value.timing}: ${value.label.toLowerCase()}`).join(' · ')}</p>}
+    {weather && weather.status !== 'ready' && <p role="status">{weather.error || 'Weather unavailable.'}</p>}
+    {alerts && (alerts.status !== 'ready' || alerts.entries.length > 0 ? <OfficialWarnings alerts={alerts} stale={stale || (alerts.status === 'ready' && !status.alertsFresh)} now={now}/> : <p className="pv-local-brief-source">No weather alerts returned at {checked(alerts.checkedAt)}. <a href={alerts.sourceUrl} target="_blank" rel="noreferrer">Official source ↗</a></p>)}
+    {stale && <p role="status">Previous check — conditions may have changed.</p>}
+    {weather?.status === 'ready' && <p className="pv-local-brief-source">Weather: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a></p>}
+  </div>;
+}
+
+function CityCard({ location, row, selected, primary, now, local, onSelect }) {
+  const status = locationConditionStatus(row, now);
+  const weather = row?.data?.weather;
+  const warningText = local ? 'Live conditions need internet' : status.summary;
+  return <button type="button" className={`pv-location-city${!local && status.tone === 'danger' ? ' is-danger' : ''}`} aria-pressed={selected} onClick={onSelect} aria-label={`View ${locationName(location)}`} aria-description={`${primary ? 'Planning area. ' : ''}${warningText}`}><span className="pv-location-city-top"><strong>{location.name}</strong>{primary && <span>Home</span>}</span><span className="pv-location-city-region">{[location.region, location.country].filter(Boolean).join(', ')}</span><span className="pv-location-city-alerts"><Icon name={status.tone === 'danger' ? 'bell' : 'compass'} size={13}/>{warningText}</span>{weather?.status === 'ready' && <span className="pv-location-city-temp">{number(weather.current.temperature, '°')}</span>}</button>;
+}
+
+export default function LocationView({ compact = false, onOpen, onCategory, onSignIn, onOpenMaps, items = [] }) {
+  const [places, setPlaces] = useState(readPlaces);
+  const [selectedKey, setSelectedKey] = useState('');
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [addingDestination, setAddingDestination] = useState(false);
+  const pickerRef = useRef(null);
+  const weatherRef = useRef(null);
+  const openWeather = () => {
+    setDetailsOpen(true);
+    setTimeout(() => {
+      weatherRef.current?.querySelector('summary')?.focus({ preventScroll: true });
+      weatherRef.current?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }, 0);
+  };
+  const [rows, setRows] = useState({});
+  const [error, setError] = useState('');
+  const [removed, setRemoved] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const local = isLocalEdition();
+  useEffect(() => {
+    if (!editing || !addingDestination) return;
+    const timer = setTimeout(() => pickerRef.current?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 0);
+    return () => clearTimeout(timer);
+  }, [editing, addingDestination]);
+  const primaryKey = places.primary ? locationWatchKey(places.primary) : '';
+  const targets = useMemo(() => compact ? places.primary ? [places.primary] : [] : places.locations, [compact, places]);
+  const location = compact ? places.primary : targets.find(value => locationWatchKey(value) === selectedKey) || targets.find(value => locationWatchKey(value) === primaryKey) || targets[0];
+  const activeKey = location ? locationWatchKey(location) : '';
+  const busy = targets.some(value => rows[locationWatchKey(value)]?.busy);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(timer); }, []);
+  useEffect(() => {
+    const changed = () => setPlaces(readPlaces());
+    window.addEventListener(LOCATION_EVENT, changed);
+    return () => window.removeEventListener(LOCATION_EVENT, changed);
+  }, []);
+  useEffect(() => {
+    if (!targets.length || local) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setRows(previous => Object.fromEntries(targets.map(value => { const key = locationWatchKey(value); return [key, { ...previous[key], busy: true, error: '' }]; })));
+      for (const value of targets) {
+        const key = locationWatchKey(value);
+        getLocalConditions(value, { signal: controller.signal }).then(data => { if (!controller.signal.aborted) setRows(previous => ({ ...previous, [key]: { data, busy: false, error: '' } })); }).catch(problem => { if (!controller.signal.aborted) setRows(previous => ({ ...previous, [key]: { ...previous[key], busy: false, error: problem.message } })); });
+      }
+    }, 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [targets, local, refresh]);
+  useEffect(() => {
+    if (local || !targets.length) return;
+    const update = () => { if (document.visibilityState === 'visible' && navigator.onLine !== false) setRefresh(value => value + 1); };
+    const interval = setInterval(update, 300_000);
+    document.addEventListener('visibilitychange', update); window.addEventListener('online', update);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', update); window.removeEventListener('online', update); };
+  }, [targets.length, local]);
+  const choose = value => {
+    try {
+      if (compact) saveLocation(localStorage, value);
+      else {
+        const key = locationWatchKey(value);
+        if (addingDestination && places.primary && key === locationWatchKey(places.primary)) throw new Error('Choose a destination different from your home city.');
+        if (!places.locations.some(entry => locationWatchKey(entry) === key)) saveLocationWatchlist(localStorage, [...places.locations, value]);
+        if (!places.primary) saveLocation(localStorage, value);
+        if (addingDestination && places.primary) {
+          saveLocationDestination(localStorage, value);
+          setNotice(`${value.name} is now your destination. Your planning area and news selection are unchanged.`);
+        } else {
+          setSelectedKey(key);
+          setDetailsOpen(false);
+          setNotice(`${value.name} is on your watchlist.`);
+        }
+      }
+      setEditing(false); setAddingDestination(false); setError(''); setRemoved(null);
+    } catch (problem) { setError(problem.message || 'The city could not be saved on this device.'); }
+  };
+  const makePrimary = () => {
+    try { saveLocation(localStorage, location); setNotice(`${location.name} is now the planning area for Overview and Calendar.`); setError(''); }
+    catch { setError('The planning area could not be saved. Free browser storage and try again.'); }
+  };
+  const remove = () => {
+    try { const next = places.locations.filter(value => locationWatchKey(value) !== activeKey); saveLocationWatchlist(localStorage, next); setRemoved(location); setSelectedKey(''); setNotice(`${location.name} removed from your watchlist.${activeKey === primaryKey ? ' It remains your planning area for Overview and Calendar.' : ''}`); setError(''); }
+    catch (problem) { setError(problem.message || 'This city could not be removed.'); }
+  };
+  const undo = () => {
+    try { if (!places.locations.some(value => locationWatchKey(value) === locationWatchKey(removed))) saveLocationWatchlist(localStorage, [...places.locations, removed]); setSelectedKey(locationWatchKey(removed)); setNotice(`${removed.name} restored to your watchlist.`); setRemoved(null); setError(''); }
+    catch (problem) { setError(problem.message || 'The city could not be restored.'); }
+  };
+  const localDetail = !local && location && <section className="pv-location-surface pv-location-detail" aria-label={`Local details for ${locationName(location)}`}><div className="pv-location-detail-heading"><div><p className="pv-inventory-eyebrow">WEATHER DETAILS</p><h2>{locationName(location)}</h2></div>{!compact && <div className="pv-location-actions">{activeKey === primaryKey ? <span className="pv-location-planning-label">Planning area</span> : <button type="button" className="pv-text-link" onClick={makePrimary}>Make planning area</button>}<button type="button" className="pv-text-link" onClick={remove}>Remove city</button></div>}</div><Conditions location={location} row={rows[activeKey]} now={now} items={items} onCategory={onCategory}/></section>;
+  return <section className={`pv-location ${compact ? 'is-compact' : 'pv-inventory'}`} aria-label={compact ? 'Local conditions overview' : 'Location and local conditions'}>
+    <header className={compact ? 'pv-section-heading' : 'pv-inventory-heading'}><div>{!compact && <p className="pv-inventory-eyebrow">KNOW WHAT’S CHANGING</p>}{compact ? <h2>Local conditions</h2> : <h1>Location<span>.</span></h1>}<p>{compact ? location ? `${locationName(location)} · Your planning area` : 'Set a location for weather and official warnings.' : 'Your places, weather, official warnings and travel plans.'}</p></div><div className="pv-location-actions">{!local && (compact ? location && <button type="button" className="pv-text-link" onClick={() => { setAddingDestination(false); setEditing(value => !value); }}>Change location</button> : <button type="button" className="pv-inventory-button pv-inventory-button-secondary" disabled={places.locations.length >= MAX_WATCHED_LOCATIONS || Boolean(places.error)} onClick={() => { setAddingDestination(false); setEditing(value => !value); }}><Icon name="plus" size={15}/>Add city</button>)}{targets.length > 0 && !local && !compact && <button type="button" className="pv-text-link" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{busy ? 'Refreshing…' : compact ? 'Refresh' : 'Refresh conditions'}</button>}{compact && onOpen && <button type="button" className="pv-text-link" onClick={onOpen}>Location details<Icon name="arrow" size={15}/></button>}</div></header>
+    {(error || (!compact && places.error)) && <p role="alert" className="pv-location-error">{error || places.error}</p>}
+    {notice && !compact && <p className="pv-location-notice" role="status">{notice}{removed && <button type="button" onClick={undo}>Undo</button>}</p>}
+    {local && <div className="pv-location-surface"><p>Live forecasts and warnings need the online site. Your saved cities and planning area remain in your backup.</p></div>}
+    {!local && (compact || !places.error) && (editing || (compact ? !location : targets.length === 0)) && <div ref={pickerRef} className="pv-location-surface pv-location-picker-surface"><LocationPicker onChoose={choose} onCancel={editing ? () => { setEditing(false); setAddingDestination(false); } : undefined}/></div>}
+    {!compact && <section className="pv-location-watchlist" aria-label="Watched cities"><div className="pv-location-subheading"><h2>Your places</h2><span>{places.locations.length} / {MAX_WATCHED_LOCATIONS}</span></div>{targets.length > 0 ? <div className="pv-location-city-grid">{targets.map(value => { const key = locationWatchKey(value); return <CityCard key={key} location={value} row={rows[key]} selected={key === activeKey} primary={key === primaryKey} now={now} local={local} onSelect={() => { setSelectedKey(key); setDetailsOpen(false); }}/>; })}</div> : <p className="pv-location-empty">Add a city to follow its weather and official warnings.</p>}</section>}
+    {compact && localDetail && <CompactConditions location={location} row={rows[activeKey]} now={now}/>}
+    {!compact && !local && location && <SelectedConditions location={location} row={rows[activeKey]} now={now} onDetails={openWeather}/>}
+    {!compact && localDetail && <details ref={weatherRef} className="pv-location-detail-disclosure" open={detailsOpen} onToggle={event => setDetailsOpen(event.currentTarget.open)}><summary><span>Weather &amp; city settings · {location.name}</span><Icon name="chevron" size={16}/></summary>{localDetail}</details>}
+    {!compact && <details className="pv-location-travel-disclosure"><summary><span><Icon name="map" size={17}/>Destination &amp; travel planning</span><Icon name="chevron" size={16}/></summary><LocationTravel home={places.primary} locations={targets} onAddLocation={places.error ? undefined : () => { setAddingDestination(true); setEditing(true); }} onSignIn={onSignIn} onOpenMaps={onOpenMaps}/></details>}
+
+
+  </section>;
+}

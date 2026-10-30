@@ -1,0 +1,34 @@
+import { useState } from 'react';
+import { Icon } from './brand.jsx';
+import DefenseAssignments from './DefenseAssignments.jsx';
+import './inventory.css';
+import './specialist.css';
+
+export default function PropertyView({ propSub, setPropSub, items = [], pins = [], defenseTypes, defensePinTypes, positionRecords = [], members = [], sampleRoles = [], showProperties, onSaveAssignment, onOpenPropertyMap, trapStatus, setTrapStatus, map, systems, onSetup }) {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const defenseItems = items.filter(item => item.category === 'defense');
+  const defensePins = pins.filter(pin => pin.layer === 'defense');
+  const obstacles = [
+    ...defenseItems.filter(item => ['tripWire', 'roadSpikes', 'trap', 'barricade'].includes(item.subType)).map(item => ({ id: item.id, name: item.name, type: defenseTypes[item.subType]?.label || item.subType, detail: [`Quantity: ${item.quantity}`, item.fields?.wireLength ? `${item.fields.wireLength} ft wire` : '', item.location].filter(Boolean).join(' · ') })),
+    ...defensePins.filter(pin => ['alarm_trip', 'obstacle'].includes(pin.type)).map(pin => ({ id: pin.id, name: pin.label, type: defensePinTypes.find(type => type.v === pin.type)?.l || 'Map marker', detail: [pin.notes || 'Map marker', pin.assignee].filter(Boolean).join(' · ') })),
+  ];
+  const positions = positionRecords;
+  const rows = Object.entries(defenseTypes).map(([key, type]) => ({ key, name: type.label, items: defenseItems.filter(item => item.subType === key) }));
+  const visible = rows.filter(row => (filter !== 'stocked' || row.items.length > 0) && (filter !== 'missing' || row.items.length === 0) && [row.name, ...row.items.flatMap(item => [item.name, item.location])].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
+  return <section className="pv-inventory pv-specialist" aria-labelledby="property-title">
+    <header className="pv-inventory-heading"><div><p className="pv-inventory-eyebrow">KNOW YOUR PLACE</p><h1 id="property-title">Your property<span>.</span></h1><p className="pv-inventory-intro">Maps, routes, recorded defenses, and the systems you rely on.</p></div>{onSetup && <button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={onSetup}><Icon name="settings" size={17}/>Household setup</button>}</header>
+    <div className="pv-inventory-overview"><div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><Icon name="map" size={22}/></span><div><span className="pv-inventory-stat-value">{pins.length}<small>map markers</small></span><p>Places recorded in this view</p></div></div><div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><Icon name="shield" size={22}/></span><div><span className="pv-inventory-stat-value">{defenseItems.length}<small>defense entries</small></span><p>From the selected inventory</p></div></div><div className="pv-inventory-stat"><span className="pv-inventory-stat-icon"><Icon name="home" size={22}/></span><div><span className="pv-inventory-stat-value">{positions.length}<small>recorded positions</small></span><p>Assignments and reference notes</p></div></div></div>
+    <nav className="pv-specialist-tabs" aria-label="Property sections">{[['map', 'Map & routes', 'map'], ['defenses', 'Defenses', 'shield'], ['systems', 'Systems', 'home']].map(([id, label, icon]) => <button key={id} type="button" aria-pressed={propSub === id} onClick={() => setPropSub(id)}><Icon name={icon} size={17}/>{label}</button>)}</nav>
+    {propSub === 'map' && map}
+    {propSub === 'systems' && <div className="pv-quiet-legacy">{systems}</div>}
+    {propSub === 'defenses' && <>
+      <DefenseAssignments records={positionRecords} pinTypes={defensePinTypes} members={members} sampleRoles={sampleRoles} showProperties={showProperties} onSave={onSaveAssignment} onMap={onOpenPropertyMap}/>
+      <div className="pv-inventory-workspace pv-property-section"><header><div><h2>Defense inventory</h2><p>Equipment types and the entries you have recorded.</p></div><span>{defenseItems.length} entries</span></header><div className="pv-inventory-toolbar"><div className="pv-inventory-search"><Icon name="search" size={18}/><input type="search" aria-label="Search defense inventory" placeholder="Search equipment or locations…" value={query} onChange={event => setQuery(event.target.value)}/></div><label className="pv-inventory-select"><span className="pv-inventory-sr-only">Defense inventory status</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">All equipment types</option><option value="stocked">Recorded in inventory</option><option value="missing">Not recorded</option></select></label></div>
+        {visible.length ? <table className="pv-inventory-table pv-specialist-table"><thead><tr><th scope="col">Equipment type</th><th scope="col">Recorded entries</th><th scope="col">Locations</th></tr></thead><tbody>{visible.map(row => <tr key={row.key}><td><strong>{row.name}</strong></td><td data-label="Recorded entries">{row.items.length ? row.items.map(item => <div key={item.id}>{item.name} <small>Quantity: {item.quantity}</small></div>) : 'Not recorded'}</td><td data-label="Locations">{row.items.length ? row.items.map(item => <div key={item.id}>{item.location || 'Not recorded'}</div>) : '—'}</td></tr>)}</tbody></table> : <div className="pv-inventory-empty"><h2>No equipment matches</h2><button type="button" className="pv-inventory-button pv-inventory-button-secondary" onClick={() => { setQuery(''); setFilter('all'); }}>Clear filters</button></div>}
+      </div>
+      <section className="pv-inventory-workspace pv-property-section"><header><div><h2>Traps & obstacles</h2><p>Recorded states on this device. Update an entry after checking it in person.</p></div><span>{obstacles.length} entries</span></header>{obstacles.length ? <div className="pv-property-rows">{obstacles.map(item => <div key={item.id}><div><strong>{item.name}</strong><small>{item.type}</small><p>{item.detail}</p></div><span className="pv-property-record-state">Recorded: {trapStatus[item.id] ? 'Armed' : 'Disarmed'}</span><div className="pv-property-actions"><button type="button" className="pv-inventory-button pv-inventory-button-secondary" aria-pressed={Boolean(trapStatus[item.id])} onClick={() => setTrapStatus(previous => ({ ...previous, [item.id]: true }))}>Record armed</button><button type="button" className="pv-inventory-button pv-inventory-button-secondary" aria-pressed={!trapStatus[item.id]} onClick={() => setTrapStatus(previous => ({ ...previous, [item.id]: false }))}>Record disarmed</button></div></div>)}</div> : <div className="pv-inventory-empty"><Icon name="shield" size={26}/><h2>No traps or obstacles recorded</h2><p>Entries from your defense inventory and map appear here.</p></div>}</section>
+
+    </>}
+  </section>;
+}

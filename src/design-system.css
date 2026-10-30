@@ -1,0 +1,118 @@
+/* PrepVault interface foundations. See docs/design-system.md. */
+:root {
+  --pv-ink: #24262a;
+  --pv-muted: #65686f;
+  --pv-accent: #ad4618;
+  --pv-accent-hover: #92390f;
+  --pv-surface: #ffffff;
+  --pv-canvas: #f5f5f6;
+  --pv-subtle: #eeeef0;
+  --pv-border: #d8d9dd;
+  --pv-focus: #b64d1c;
+  --pv-on-accent: #ffffff;
+  --pv-link: #a54114;
+  --pv-success: #3c6949;
+  --pv-info: #315c73;
+  --pv-danger-surface: #fcf0ec;
+  --pv-danger-action: #a43e34;
+  --pv-warning-surface: #faf5e9;
+  --green-soft: var(--pv-subtle);
+  --pv-danger: #a43e34;
+  --pv-warning: #8b641b;
+  --pv-radius: 10px;
+  --pv-control-radius: 7px;
+  --pv-control-height: 42px;
+  --pv-space-1: 4px;
+  --pv-space-2: 8px;
+  --pv-space-3: 12px;
+  --pv-space-4: 16px;
+  --pv-space-5: 24px;
+  --pv-space-6: 32px;
+  --ink: var(--pv-ink);
+  --muted: var(--pv-muted);
+  --green: var(--pv-accent);
+  --paper: var(--pv-surface);
+  --canvas: var(--pv-canvas);
+  --line: var(--pv-border);
+}
+
+.pv-workspace { color: var(--pv-ink); background: var(--pv-canvas); }
+.pv-main { min-width: 0; }
+.pv-main > section, .pv-main > div { min-width: 0; }
+.pv-page-intro h1, .pv-inventory-heading h1 { font-size: clamp(27px, 2.6vw, 34px); line-height: 1.2; font-weight: 550; letter-spacing: -1px; color: var(--pv-ink); }
+.pv-page-intro p, .pv-inventory-intro { color: var(--pv-muted); font-size: 13px; line-height: 1.7; }
+.pv-eyebrow, .pv-inventory-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.4px; color: var(--pv-muted); }
+.pv-button, .pv-inventory-button { min-height: var(--pv-control-height); border-radius: var(--pv-control-radius); font-size: 12px; font-weight: 550; line-height: 1.4; }
+.pv-primary, .pv-inventory-button-primary { color: var(--pv-on-accent); background: var(--pv-accent); border-color: var(--pv-accent); }
+.pv-primary:hover, .pv-inventory-button-primary:hover { background: var(--pv-accent-hover); }
+.pv-secondary, .pv-inventory-button-secondary { color: var(--pv-ink); background: var(--pv-surface); border-color: var(--pv-border); }
+.pv-secondary:hover, .pv-inventory-button-secondary:hover { background: var(--pv-subtle); }
+.pv-icon-button { min-width: 36px; min-height: 36px; }
+.pv-save-state.is-error .pv-status-dot { background: var(--pv-danger); }
+.pv-inventory-workspace, .pv-specialist-panel, .pv-dialog { border-color: var(--pv-border); background: var(--pv-surface); border-radius: var(--pv-radius); }
+.pv-inventory-table th { font-size: 10px; font-weight: 600; letter-spacing: .7px; }
+.pv-inventory-table td { font-size: 13px; line-height: 1.6; }
+.pv-inventory-item-name { overflow-wrap: anywhere; }
+.pv-dialog-heading h2 { font-size: 24px; font-weight: 550; line-height: 1.25; letter-spacing: -.6px; color: var(--pv-ink); }
+.pv-dialog-heading .pv-muted { margin-bottom: 20px; }
+.pv-field { color: var(--pv-ink); font-size: 12px; font-weight: 550; line-height: 1.5; }
+.pv-field :is(input, select, textarea) { display: block; width: 100%; min-height: var(--pv-control-height); margin-top: 6px; padding: 10px 12px; border: 1px solid var(--pv-border); border-radius: var(--pv-control-radius); background: var(--pv-surface); color: var(--pv-ink); font: inherit; font-weight: 400; }
+.pv-field textarea { resize: vertical; min-height: 90px; }
+.pv-field-help { display: block; font-size: 11px; line-height: 1.7; font-weight: 400; color: var(--pv-muted); margin: 7px 0 0; }
+.pv-item-dialog { max-width: 650px; }
+.pv-item-dialog .pv-dialog-heading { gap: 16px; }
+.pv-item-dialog .pv-dialog-heading > div { min-width: 0; }
+.pv-item-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; }
+.pv-item-details { min-width: 0; margin: 4px 0 20px; padding: 16px 16px 0; border: 1px solid var(--pv-border); border-radius: var(--pv-control-radius); }
+.pv-item-details legend { padding: 0 6px; font-size: 12px; color: var(--pv-muted); }
+.pv-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--pv-border); }
+.pv-form-error { color: var(--pv-danger); font-size: 13px; line-height: 1.6; }
+.pv-inventory-empty { color: var(--pv-muted); }
+.pv-inventory-empty h2 { font-size: 21px; font-weight: 550; color: var(--pv-ink); }
+.pv-main :is(button, a, summary):focus-visible, .pv-dialog :is(button, a):focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 3px; }
+
+@media (max-width: 760px) {
+  .pv-page-intro, .pv-inventory-heading { align-items: flex-start; gap: 16px; }
+  .pv-inventory-heading { flex-wrap: wrap; }
+  .pv-modal-backdrop { padding: 12px; }
+  .pv-dialog { max-height: calc(100dvh - 24px); padding: 22px; }
+  .pv-field :is(input, select, textarea) { font-size: 16px; }
+  .pv-main select, .pv-main textarea, .pv-main input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]) { font-size: 16px; }
+  .pv-account-field input, .pv-setup-field input, .pv-backups-field input:not([type=file]), .pv-backups-file input { font-size: 16px; }
+  .barcode-dialog input:not([type=file]), .barcode-dialog select { font-size: 16px; }
+  .pv-board .pv-board-field :is(input, select, textarea) { font-size: 16px !important; }
+  .pv-dialog-actions .pv-button { flex: 1; }
+}
+@media (max-width: 440px) {
+  .pv-item-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .pv-item-details { padding: 12px 12px 0; }
+}
+
+/* Persistent workspace controls. */
+.pv-theme-toggle { width: 38px; height: 38px; color: var(--pv-ink); border: 1px solid var(--pv-border); background: var(--pv-surface); }
+.pv-theme-toggle:hover { background: var(--pv-subtle); }
+.pv-sidebar-profile { margin: -5px 0 14px; }
+.pv-profile-trigger { padding-top: 12px; padding-bottom: 12px; border-radius: var(--pv-control-radius); text-align: left; }
+.pv-profile-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-profile-trigger > svg { flex-shrink: 0; }
+.pv-profile-trigger > svg:last-child { margin-left: auto; transition: transform .15s; }
+.pv-profile-trigger[aria-expanded=true] > svg:last-child { transform: rotate(90deg); }
+.pv-profile-trigger:hover, .pv-profile-trigger[aria-expanded=true] { color: var(--pv-ink); background: var(--pv-subtle); }
+.pv-profile-panel { padding: 14px 12px; margin-top: 2px; border: 1px solid var(--pv-border); border-radius: var(--pv-control-radius); background: var(--pv-surface); }
+.pv-profile-panel strong { display: block; font-size: 12px; font-weight: 550; overflow-wrap: anywhere; }
+.pv-profile-email { display: block; margin-top: 4px; color: var(--pv-muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.pv-profile-panel p { margin: 7px 0 12px; color: var(--pv-muted); font-size: 11px; line-height: 1.6; }
+.pv-profile-panel > button { width: 100%; min-height: 38px; padding: 9px 6px; text-align: left; font-size: 12px; color: var(--pv-ink); background: transparent; border: 0; border-radius: 5px; }
+.pv-profile-panel > button:hover { background: var(--pv-subtle); }
+.pv-site-links { display: flex; gap: 18px; padding: 0 11px 18px; color: var(--pv-muted); font-size: 11px; }
+.pv-site-links a { text-underline-offset: 4px; }
+.pv-site-links a:hover { color: var(--pv-ink); }
+.pv-sidebar :is(button, select):focus-visible, .pv-topbar :is(button, input):focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
+@media (max-width: 440px) {
+  .pv-topbar { gap: 9px; padding-inline: 12px; }
+  .pv-breadcrumb { min-width: 0; overflow: hidden; }
+  .pv-breadcrumb strong { overflow: hidden; text-overflow: ellipsis; }
+  .pv-global-search { flex: 1; max-width: 140px; }
+  .pv-global-search input { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .pv-profile-trigger > svg:last-child { transition: none; } }

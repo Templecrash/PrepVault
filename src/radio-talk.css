@@ -1,0 +1,51 @@
+.pv-radio-services-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:28px;padding:26px}
+.pv-radio-services-heading .pv-inventory-eyebrow{margin:0 0 9px;font-size:10px}
+.pv-radio-services-heading h2{margin:0 0 10px;font-size:20px;line-height:1.4;font-weight:550;letter-spacing:-.4px;color:#294d37}
+.pv-radio-talk p,.pv-radio-talk li{font-size:12px;line-height:1.75;color:var(--comms-muted)}
+.pv-radio-services-heading p:last-child{margin:0;max-width:620px}
+.pv-radio-services-heading label{min-width:200px;flex-shrink:0}
+.pv-radio-services-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--comms-line)}
+.pv-radio-service{display:flex;flex-direction:column;min-width:0;padding:25px}
+.pv-radio-service+.pv-radio-service{border-left:1px solid var(--comms-line)}
+.pv-radio-service-title{display:flex;align-items:center;gap:13px}
+.pv-radio-talk-icon{display:grid;place-items:center;flex-shrink:0;width:43px;height:43px;border:1px solid var(--comms-line);border-radius:10px;color:#497356;background:#fafbf8}
+.pv-radio-talk h3{margin:0 0 6px;font-size:16px;font-weight:600;color:#354b36;letter-spacing:-.2px}
+.pv-radio-service-title p{margin:0;font-size:10px}
+.pv-radio-service>p{margin:17px 0}
+.pv-radio-service-guidance{padding:15px 0;border-top:1px solid var(--comms-line);margin-bottom:4px;flex:1}
+.pv-radio-service-guidance p{margin:0 0 8px}
+.pv-radio-talk a:not(.pv-inventory-button){font-size:11px;line-height:1.7;color:#42633a;text-underline-offset:3px}
+.pv-radio-service-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.pv-radio-talk .pv-inventory-button{text-decoration:none}
+.pv-radio-service .pv-radio-service-account{margin:13px 0 0;font-size:11px}
+.pv-radio-service-account a{display:inline-block}
+.pv-radio-services-note{display:flex;align-items:flex-start;gap:10px;padding:16px 25px;border-top:1px solid var(--comms-line);background:#fafbf8}
+.pv-radio-services-note svg{flex-shrink:0;color:#687660;margin-top:3px}
+.pv-radio-services-note p{margin:0;font-size:11px;max-width:930px}
+.pv-radio-provider-panel .pv-comms-section-heading{border-bottom:1px solid var(--comms-line)}
+.pv-radio-embed-help{margin:0;padding:14px 23px;background:#fafbf8}
+.pv-radio-provider-panel iframe{display:block;width:100%;height:700px;border:0;background:white}
+.pv-radio-provider-panel h2:focus{outline:2px solid #80aa91;outline-offset:5px;border-radius:2px}
+.pv-radio-talk-detail{padding:0 23px 23px}
+.pv-radio-talk-detail ol{padding-left:18px;margin:0 0 15px}
+.pv-radio-talk-detail li+li{margin-top:9px}
+.pv-radio-talk-detail p{margin:0 0 12px}
+.pv-comms-talk-shortcut{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:19px 23px}
+.pv-comms-talk-shortcut h2{margin:0 0 5px;font-size:14px;font-weight:600}
+.pv-comms-talk-shortcut p{margin:0;font-size:12px;color:var(--comms-muted);line-height:1.6}
+.pv-comms-talk-shortcut button{flex-shrink:0}
+.pv-radio-talk a:focus-visible{outline:3px solid #80aa91;outline-offset:4px}
+@media(max-width:1000px){.pv-radio-services-list{grid-template-columns:1fr}.pv-radio-service+.pv-radio-service{border-left:0;border-top:1px solid var(--comms-line)}}
+@media(max-width:680px){
+  .pv-radio-services-heading{padding:20px;gap:19px;flex-direction:column}
+  .pv-radio-services-heading h2{font-size:19px}
+  .pv-radio-services-heading label{min-width:0;width:100%}
+  .pv-radio-service{padding:20px}
+  .pv-radio-service-actions{flex-direction:column;align-items:stretch}
+  .pv-radio-service-actions>*{justify-content:center}
+  .pv-radio-services-note{padding:16px 20px}
+  .pv-radio-talk-detail{padding:0 19px 19px}
+  .pv-radio-embed-help{padding:14px 19px}
+  .pv-radio-provider-panel iframe{height:720px}
+  .pv-comms-talk-shortcut{flex-direction:column;align-items:stretch;gap:14px;padding:19px}
+}
