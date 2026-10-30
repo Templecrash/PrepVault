@@ -127,6 +127,8 @@ class HostedGateway:
                 "context_too_large": "This conversation and app context exceed the model's token budget. Start a new chat or narrow the assessment.",
                 "timeout": "The survival model took too long. Try a shorter question.",
                 "incomplete_answer": "The survival model did not finish an answer. Try a more focused question.",
+                "reference_unavailable": "The model could not open a supporting library reference. Try a more specific topic; no reference-backed answer was returned.",
+                "reference_unverified": "The model returned an unsupported reference claim. Please retry; that answer was not shown.",
             }
             code = result.get("code") if isinstance(result, dict) else None
             return 200, {"status": "error", "error": known_errors.get(code, "The survival model could not finish this assessment. Try again."),

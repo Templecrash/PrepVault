@@ -14,6 +14,46 @@ from urllib import parse, request
 from .security import MODEL, MAX_REPLY, SurvivalError, encoded_json, strict_json, network_opener, model_messages
 
 
+REFERENCE_REQUEST = re.compile(
+    r"\b(?:librar(?:y|ies)|references?|cit(?:e|ed|ations?)|manuals?|handbooks?|research|fact.check)\b"
+    r"|\blook(?:\s+(?:it|this|that))?\s+up\b"
+    r"|\b(?:supporting|credible|reliable|authoritative|published|external|verified)\s+sources?\b"
+    r"|\bsources?\s+for\b"
+    r"|\b(?:provide|include|show|give|find|list)\s+(?:me\s+)?(?:the\s+)?sources?\b"
+    r"(?!\s+of\s+(?:water|power|fuel|food|energy)\b)", re.I)
+INTERNAL_REFERENCE = re.compile(r"\b(?:search_library|read_article|show_article)\b|\[\s*id\s+\d+\s*\]", re.I)
+READ_CLAIM = re.compile(
+    r"\b(?:I|we)\s+(?:(?:have|already|just)\s+)*(?:read|opened|consulted|looked\s+up)\b"
+    r"(?!\s+(?:(?:your|our|the)\s+(?:(?:current|recorded|saved|existing)\s+)*"
+    r"(?:inventor(?:y|ies)|plans?|app|context|notes|records)|this\s+conversation)\b)"
+    r"|\b(?:the|our)\s+(?:library|handbook|manual)\s+(?:says|states|recommends)\b", re.I)
+
+
+class ReferenceState:
+    """Evidence comes from executed library events, never the model's prose."""
+    def __init__(self, question):
+        self.required = bool(REFERENCE_REQUEST.search(question))
+        self.searched = False
+        self.has_results = False
+        self.read_ids = {}
+
+    def observe(self, event):
+        if event.get("type") == "search":
+            self.searched = True
+            self.has_results = self.has_results or bool(event.get("results"))
+        elif event.get("type") == "read" and type(event.get("id")) is int and event["id"] > 0:
+            self.read_ids[event["id"]] = {"id": event["id"]}
+        # show_article only opens the desktop reader. It does not give the
+        # model article text and is deliberately not offered in the hosted UI.
+
+    def tool_choice(self, names):
+        if self.required and not self.searched and "search_library" in names:
+            return {"type": "function", "function": {"name": "search_library"}}
+        if self.has_results and not self.read_ids and "read_article" in names:
+            return {"type": "function", "function": {"name": "read_article"}}
+        return "auto"
+
+
 def openai_messages(messages):
     """Translate the bundled core's Ollama tool turns without losing call IDs."""
     output, pending = [], []
@@ -48,9 +88,10 @@ def openai_messages(messages):
 
 class VllmAdapter:
     """One-request adapter; neither endpoint nor model can come from the client."""
-    def __init__(self, timeout=240, opener=None, clock=time.monotonic):
+    def __init__(self, timeout=240, opener=None, clock=time.monotonic, references=None):
         self.opener, self.clock = opener or network_opener(), clock
         self.deadline = clock() + timeout
+        self.references = references
 
     def post(self, path, body, limit=512 * 1024):
         if path not in ("/tokenize", "/v1/chat/completions"):
@@ -70,10 +111,14 @@ class VllmAdapter:
         if model != MODEL:
             raise SurvivalError(503, "invalid_model_request", "The configured survival model is required.")
         converted = openai_messages(messages)
+        tools = [item for item in tools or []
+                 if item.get("function", {}).get("name") in {"search_library", "read_article"}]
         body = {"model": MODEL, "messages": converted, "stream": False, "max_tokens": 4096,
                 "temperature": 1.0, "top_p": 0.95, "chat_template_kwargs": {"enable_thinking": False}}
         if tools:
-            body.update(tools=tools, tool_choice="auto", parallel_tool_calls=False)
+            names = {item["function"]["name"] for item in tools}
+            choice = self.references.tool_choice(names) if self.references else "auto"
+            body.update(tools=tools, tool_choice=choice, parallel_tool_calls=False)
         try:
             # Count the *actual* rendered prompt with the serving tokenizer,
             # including tool definitions and template. Never truncate context.
@@ -148,7 +193,8 @@ def assess(payload, source_root="/opt/survival-llm", library_root="/data/library
     sys.path.insert(0, source_root)
     core = importlib.import_module("core")
     library = load_library(source_root, library_root)
-    adapter = VllmAdapter()
+    references = ReferenceState(payload["messages"][-1]["content"])
+    adapter = VllmAdapter(references=references)
     core._stream = adapter.stream
     core.capabilities = lambda _model: {"tools"}
     core.MAX_TOOL_ROUNDS = 4
@@ -158,7 +204,7 @@ def assess(payload, source_root="/opt/survival-llm", library_root="/data/library
 
     core._post = no_other_http
     try:
-        for event in chat_events(core, library, {"model": MODEL}, payload):
+        for event in chat_events(core, library, {"model": MODEL}, payload, references=references):
             if event["type"] == "done":
                 return {key: event[key] for key in ("reply", "model", "sources")}
         raise SurvivalError(503, "incomplete_answer", "The survival model did not return an answer.")
@@ -198,7 +244,7 @@ def final_reply(value):
 
 
 def retrieved_sources(library, items):
-    sources, seen = [], set()
+    sources, seen, articles = [], set(), set()
     for item in items if isinstance(items, list) else []:
         if len(sources) == 8:
             break
@@ -210,6 +256,10 @@ def retrieved_sources(library, items):
             article = library.read(pid, max_chars=700)
             if not article:
                 continue
+            identity = (article.get("title"), article.get("source"), article.get("url"))
+            if identity in articles:
+                continue
+            articles.add(identity)
             row = library.db.execute("SELECT s.key FROM passages p JOIN docs d ON d.id=p.doc_id JOIN sources s ON s.id=d.source_id WHERE p.id=?", (pid,)).fetchone()
             license_text = library.license(row[0]) if row else ""
             sources.append({"title": str(article.get("title", ""))[:300],
@@ -222,12 +272,14 @@ def retrieved_sources(library, items):
     return sources
 
 
-def chat_events(core, library, config, payload):
+def chat_events(core, library, config, payload, references=None):
     # Do not call core.system_prompt: the attached app's permissive prompt does
     # not meet PrepVault's accuracy, safety or untrusted-data requirements.
     messages = model_messages(payload)
+    references = references or ReferenceState(payload["messages"][-1]["content"])
     for event in core.chat_events(config["model"], library, messages, reasoning="off",
                                   caps=core.capabilities(config["model"]), length="normal", memory=None):
+        references.observe(event)
         kind = event.get("type")
         if kind in ("search", "read", "show", "retry"):
             yield {"type": "progress", "message": "Checking the reference library."}
@@ -235,8 +287,17 @@ def chat_events(core, library, config, payload):
             reply = final_reply(event.get("answer"))
             if not reply or len(reply) > MAX_REPLY or event.get("unfinished") or event.get("cut_off"):
                 raise SurvivalError(503, "incomplete_answer", "The server model did not finish an answer. Try a more focused question.")
+            # Only read events are emitted after an actual successful tool
+            # read. A model-named source, search hit or desktop 'show' event is
+            # not proof that the model was given the reference text.
+            sources = retrieved_sources(library, list(references.read_ids.values()))
+            if references.required and not sources:
+                raise SurvivalError(503, "reference_unavailable", "The model could not open a supporting library reference. Try a more specific topic; no reference-backed answer was returned.")
+            if (INTERNAL_REFERENCE.search(reply) or event.get("unopened") or
+                    (not sources and READ_CLAIM.search(reply))):
+                raise SurvivalError(503, "reference_unverified", "The model returned an unsupported reference claim. Please retry; that answer was not shown.")
             yield {"type": "done", "reply": reply, "model": config["model"],
-                   "sources": retrieved_sources(library, event.get("sources"))}
+                   "sources": sources}
             return
         # token, thinking and all other internal events deliberately stay local.
     raise SurvivalError(503, "incomplete_answer", "The server model did not return an answer. Try again.")

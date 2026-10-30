@@ -218,6 +218,16 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response["code"], "context_too_large")
         self.assertNotIn("stack trace", response["error"])
 
+    async def test_reference_failure_codes_reach_client_with_fixed_safe_messages(self):
+        for code in ("reference_unavailable", "reference_unverified"):
+            _, result = await self.call("chat", CHAT)
+            self.poll.return_value = {"error": "private reference response must not leak", "code": code}
+            response = (await self.call("result", {"jobId": result["jobId"]}))[1]
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["code"], code)
+            self.assertIn("reference", response["error"])
+            self.assertNotIn("private reference response", response["error"])
+
     async def test_disconnect_during_spawn_cancels_accepted_remote_job(self):
         entered, release = asyncio.Event(), asyncio.Event()
         async def delayed_spawn(_payload):
@@ -364,6 +374,7 @@ class AdapterTests(unittest.TestCase):
     def test_rag_uses_safe_prompt_no_memory_and_actual_sources(self):
         core, library = Mock(), Mock()
         core.chat_events.return_value = iter([{"type": "thinking", "text": "hidden"},
+            {"type": "read", "id": 1},
             {"type": "done", "answer": "<think>hidden</think>Store water.", "sources": [{"id": 1}]}])
         library.read.return_value = {"title": "Water", "source": "Ready.gov", "url": "https://ready.gov/water", "text": "Reference"}
         library.db.execute.return_value.fetchone.return_value = ("ready-gov",)
@@ -374,6 +385,75 @@ class AdapterTests(unittest.TestCase):
         self.assertIsNone(core.chat_events.call_args.kwargs["memory"])
         self.assertEqual(core.chat_events.call_args.args[2][0]["content"], security.SYSTEM_PROMPT)
         core.system_prompt.assert_not_called()
+
+    def test_reference_request_forces_search_then_actual_read(self):
+        references = runtime.ReferenceState("Search your reference library and assess my supplies.")
+        self.assertTrue(references.required)
+        definitions = [{"type": "function", "function": {"name": name}} for name in
+                       ("search_library", "read_article", "show_article")]
+        opener = self.opener()
+        list(runtime.VllmAdapter(opener=opener, references=references).stream(
+            security.MODEL, security.model_messages(CHAT), definitions, False, {}))
+        first = json.loads(opener.open.call_args_list[-1].args[0].data)
+        self.assertEqual(first["tool_choice"], {"type": "function", "function": {"name": "search_library"}})
+        self.assertEqual([item["function"]["name"] for item in first["tools"]], ["search_library", "read_article"])
+        references.observe({"type": "search", "results": [{"id": 42}]})
+        opener = self.opener()
+        list(runtime.VllmAdapter(opener=opener, references=references).stream(
+            security.MODEL, security.model_messages(CHAT), definitions, False, {}))
+        second = json.loads(opener.open.call_args_list[-1].args[0].data)
+        self.assertEqual(second["tool_choice"], {"type": "function", "function": {"name": "read_article"}})
+        references.observe({"type": "read", "id": 42})
+        self.assertEqual(references.tool_choice({"search_library", "read_article"}), "auto")
+
+    def test_inventory_sources_and_reading_app_context_do_not_require_external_references(self):
+        for question in ("What are my water sources?", "Assess my power sources.", "List sources of water."):
+            self.assertFalse(runtime.ReferenceState(question).required)
+        for question in ("Find sources for your recommendation.", "Include supporting sources.",
+                         "Search your reference library."):
+            self.assertTrue(runtime.ReferenceState(question).required)
+        for answer in ("I read your plans.", "I read your current inventory.", "I read the recorded context."):
+            core, library = Mock(), Mock()
+            core.chat_events.return_value = iter([{"type": "done", "answer": answer}])
+            self.assertEqual(list(runtime.chat_events(core, library, {"model": security.MODEL}, CHAT))[-1]["reply"], answer)
+
+    def test_done_sources_cannot_invent_read_provenance(self):
+        core, library = Mock(), Mock()
+        core.chat_events.return_value = iter([
+            {"type": "done", "answer": "Your stock has not been recorded.", "sources": [{"id": 5}]}])
+        events = list(runtime.chat_events(core, library, {"model": security.MODEL}, CHAT))
+        self.assertEqual(events[-1]["sources"], [])
+        library.read.assert_not_called()
+
+    def test_reference_request_fails_if_only_search_results_or_show_event(self):
+        payload = {**CHAT, "messages": [{"role": "user", "content": "Search your reference library."}]}
+        for evidence in ([{"type": "search", "results": [{"id": 5}]}], [{"type": "show", "id": 5}]):
+            core, library = Mock(), Mock()
+            core.chat_events.return_value = iter([*evidence,
+                {"type": "done", "answer": "Store water.", "sources": [{"id": 5}]}])
+            with self.assertRaises(security.SurvivalError) as caught:
+                list(runtime.chat_events(core, library, {"model": security.MODEL}, payload))
+            self.assertEqual(caught.exception.code, "reference_unavailable")
+            library.read.assert_not_called()
+
+    def test_unsupported_claim_or_internal_tool_instruction_is_not_returned(self):
+        for answer in ("I read FEMA's Are You Ready? (2020).", "Use show_article id 5 to view it.",
+                       "Read [id 5] for instructions."):
+            core, library = Mock(), Mock()
+            core.chat_events.return_value = iter([{"type": "done", "answer": answer, "sources": []}])
+            with self.assertRaises(security.SurvivalError) as caught:
+                list(runtime.chat_events(core, library, {"model": security.MODEL}, CHAT))
+            self.assertEqual(caught.exception.code, "reference_unverified")
+
+    def test_unopened_named_source_rejected_even_with_another_actual_read(self):
+        core, library = Mock(), Mock()
+        library.read.return_value = {"title": "Water", "source": "Ready.gov", "text": "Store water."}
+        library.db.execute.return_value.fetchone.return_value = None
+        core.chat_events.return_value = iter([{"type": "read", "id": 1},
+            {"type": "done", "answer": "Store water.", "unopened": ["Invented source"]}])
+        with self.assertRaises(security.SurvivalError) as caught:
+            list(runtime.chat_events(core, library, {"model": security.MODEL}, CHAT))
+        self.assertEqual(caught.exception.code, "reference_unverified")
 
     def test_modal_configuration_has_one_private_h200_and_no_local_runtime(self):
         path = Path(__file__).resolve().parents[1] / "server/survival/modal_app.py"
