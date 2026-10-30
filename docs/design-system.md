@@ -46,6 +46,8 @@ Reuse `pv-inventory-heading`, `pv-inventory-workspace`, `pv-inventory-toolbar`, 
 
 ## Forms and interactions
 
+Single-line native selects use `src/select-controls.css`, loaded after the theme styles: a 16px chevron inset 12px from the end edge, with 38px of end padding reserved for it. Keep this shared treatment across filters, dialogs and the property switcher; do not add another arrow. Preserve native keyboard and touch menus. Multiple-selection lists retain native styling, and forced-colors mode restores the native arrow.
+
 Use visible labels, 42px minimum primary controls, clear selected states, and specific action names. Optional details say “Not recorded”; missing measurements are never shown as zero. Use `InventoryItemDialog` for common inventory creation and editing. Dialogs include a visible close control, focus containment, Escape handling, and a consistent Cancel/Save footer. Preserve existing record IDs and unedited fields.
 
 Vehicle records share the normal inventory and backup paths. Fuel and spare parts remain single inventory records linked to a vehicle when known. Service dates, odometer units, engine hours, and next due thresholds must be explicit. EMP protection is a recorded claim or installation detail, never an automatic guarantee that a vehicle will survive an EMP.

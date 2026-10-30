@@ -7,6 +7,7 @@ import LocationSharingPage from './LocationSharingPage.jsx'
 import './design-system.css'
 import './dark-mode.css'
 import './stealth.css'
+import './select-controls.css'
 import { applyTheme, preferredTheme } from './theme.js'
 import { isLocalEdition } from './runtime-mode.js'
 
