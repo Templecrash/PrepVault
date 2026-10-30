@@ -18,6 +18,7 @@ import shutil
 import sqlite3
 import stat
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -397,11 +398,35 @@ def repair_library_stamp(destination='/data/library', *, progress=None):
         stats = _library_stats(destination)
         if any(stats[key] != receipt.get(key) for key in ('articles', 'sources')):
             raise AssetError('Library source or article counts changed; receipt was preserved.')
-        _emit(progress, 'library-repair-integrity-check')
-        _quick_check_library(destination)
+        # SQLite quick_check performs small random reads. Run it on an ephemeral
+        # copy so a remote Volume does not turn those reads into minutes of I/O.
+        # The copy and final original must hash identically before any receipt is
+        # changed. Neither the copy nor its temporary files enter the Volume.
+        _emit(progress, 'library-repair-copying-index')
+        with tempfile.TemporaryDirectory(prefix='prepvault-library-check-') as temporary_dir:
+            temporary_path = Path(temporary_dir)
+            if shutil.disk_usage(temporary_path).free < stamp['bytes'] + 1_000_000_000:
+                raise AssetError('Insufficient ephemeral storage for index validation; receipt was preserved.')
+            index = destination / 'index.sqlite'
+            with index.open('rb') as source:
+                os.fsync(source.fileno())
+                copy_stamp = _file_stamp(index)
+                copied_digest = hashlib.sha256()
+                with (temporary_path / 'index.sqlite').open('xb') as output:
+                    for block in iter(lambda: source.read(CHUNK), b''):
+                        copied_digest.update(block)
+                        output.write(block)
+            if copy_stamp != _file_stamp(index):
+                raise AssetError('Library index changed while copying; receipt was preserved.')
+            _emit(progress, 'library-repair-integrity-check')
+            _quick_check_library(temporary_path)
+            copy_hash = copied_digest.hexdigest()
+        _emit(progress, 'library-repair-verifying-source')
         stamp, digest = _verified_index_stamp(destination)
         if stamp['bytes'] != receipt['index']['bytes']:
             raise AssetError('Library index changed during verification; receipt was preserved.')
+        if digest != copy_hash:
+            raise AssetError('Library index differs from its validated copy; receipt was preserved.')
         if receipt.get('indexSha256') and digest != receipt['indexSha256']:
             raise AssetError('Library index digest changed; receipt was preserved.')
         updated = {**receipt, 'index': stamp, 'indexSha256': digest}

@@ -263,7 +263,8 @@ class AssetsTest(unittest.TestCase):
         self.change_index_mtime(destination)
         with patch.object(assets, '_require_remote'), patch.object(assets, '_quick_check_library', wraps=assets._quick_check_library) as check:
             self.assertTrue(assets.repair_library_stamp(destination, progress=self.events.append)['ready'])
-            check.assert_called_once_with(destination)
+            check.assert_called_once()
+            self.assertNotEqual(check.call_args.args[0], destination)
         repaired = json.loads(receipt_path.read_text())
         self.assertEqual(repaired['indexSha256'], hashlib.sha256(before).hexdigest())
         self.assertEqual((destination / 'index.sqlite').read_bytes(), before)
@@ -292,6 +293,19 @@ class AssetsTest(unittest.TestCase):
             with self.assertRaisesRegex(assets.AssetError, 'counts changed'):
                 assets.repair_library_stamp(destination, progress=self.events.append)
         self.assertEqual(receipt_path.read_bytes(), before)
+
+    def test_repair_rejects_original_changing_after_local_copy(self):
+        destination = self.installed_library()
+        before = (destination / assets.RECEIPT).read_bytes()
+        original_check = assets._quick_check_library
+        def check_then_change(path):
+            original_check(path)
+            with sqlite3.connect(destination / 'index.sqlite') as database:
+                database.execute("UPDATE metadata SET value='modified'")
+        with patch.object(assets, '_require_remote'), patch.object(assets, '_quick_check_library', side_effect=check_then_change):
+            with self.assertRaisesRegex(assets.AssetError, 'differs from its validated copy'):
+                assets.repair_library_stamp(destination, progress=self.events.append)
+        self.assertEqual((destination / assets.RECEIPT).read_bytes(), before)
 
     def test_model_pin_verification_and_status(self):
         body = b'safetensor fixture'; code = b'config fixture'
