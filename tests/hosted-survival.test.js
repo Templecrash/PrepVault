@@ -223,6 +223,13 @@ test('separate poll allowance keeps a long-running job usable after chat rate li
   assert.equal((await service.assess(input, owner)).status, 'pending');
 });
 
+test('reference verification failures stay distinct from an unavailable model without exposing provider text', async () => {
+  for (const code of ['reference_unavailable', 'reference_unverified']) {
+    const service = createHostedSurvivalService({ env, fetch: async () => json({ status: 'error', code, error: 'private-provider-details' }) });
+    await assert.rejects(service.result(jobId, owner), error => error.status === 503 && error.code === code && /reference/.test(error.message) && !error.message.includes('private-provider-details'));
+  }
+});
+
 test('proxy timeouts release request slots and surface a retryable error', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let blocked = true;

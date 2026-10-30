@@ -59,6 +59,8 @@ async function readResponse(response) {
 }
 
 function remoteFailure(data, status) {
+  if (data?.code === 'reference_unavailable') return new AdvisorError(503, 'reference_unavailable', 'Survival LLM could not find and open a supporting reference. Try asking about a more specific topic.');
+  if (data?.code === 'reference_unverified') return new AdvisorError(503, 'reference_unverified', 'Survival LLM could not verify the references in its answer, so that answer was not shown. Please try again.');
   if (status === 429 || data?.code === 'request_in_progress') return new AdvisorError(429, 'server_busy', 'Your private server is busy. Please wait and try again.', 5);
   if (data?.code === 'context_too_large') return new AdvisorError(413, 'context_too_large', 'This conversation and app context exceed the model’s input budget. Start a new chat or narrow the assessment.');
   if (['job_not_found', 'job_expired', 'not_found'].includes(data?.code)) return new AdvisorError(404, 'job_expired', 'This Survival LLM request has expired. Please ask again.');
