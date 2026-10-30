@@ -118,8 +118,88 @@ test('cancellation rejects late responses even if the transport ignores the abor
   const controller = new AbortController();
   const pending = askAdvisor([{ role: 'user', content: 'Question' }], {}, { signal: controller.signal });
   controller.abort();
-  release(response({ reply: 'Stale private response' }));
   await assert.rejects(pending, error => error.name === 'AbortError');
+  release(response({ reply: 'Stale private response' }));
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+});
+
+test('Stop during job creation returns immediately and cancels the late job without resending context', async t => {
+  let release;
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, options, body: JSON.parse(options.body) });
+    if (calls.length === 1) return new Promise(resolve => { release = resolve; });
+    return response({ status: 'cancelled' });
+  });
+  const controller = new AbortController();
+  const onProgress = t.mock.fn();
+  const pending = askAdvisor([{ role: 'user', content: 'Private question' }], { inventory: [] }, { signal: controller.signal, onProgress });
+  controller.abort();
+  await assert.rejects(pending, error => error.name === 'AbortError');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.signal.aborted, false);
+  release(response({ status: 'pending', jobId: 'late-created-job' }, 202));
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].url, '/api/advisor');
+  assert.deepEqual(calls[1].body, { jobId: 'late-created-job', action: 'cancel' });
+  assert.equal(calls[1].options.credentials, 'same-origin');
+  assert.equal(calls[1].options.keepalive, true);
+  assert.equal(calls[1].options.signal, undefined);
+  assert.equal(onProgress.mock.callCount(), 0);
+});
+
+test('Stop while reading the creation response still cancels its late job ID', async t => {
+  let releaseBody;
+  const bodies = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    bodies.push(JSON.parse(options.body));
+    if (bodies.length > 1) return response({ status: 'cancelled' });
+    return { ok: true, status: 202, json: () => new Promise(resolve => { releaseBody = resolve; }) };
+  });
+  const controller = new AbortController();
+  const pending = askAdvisor([{ role: 'user', content: 'Private question' }], {}, { signal: controller.signal });
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  controller.abort();
+  await assert.rejects(pending, error => error.name === 'AbortError');
+  releaseBody({ status: 'pending', jobId: 'late-parsed-job' });
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  assert.deepEqual(bodies[1], { jobId: 'late-parsed-job', action: 'cancel' });
+  assert.equal(bodies.length, 2);
+});
+
+test('abandoned creation retains its 35-second transport bound and handles a late failure', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let transportSignal;
+  const fetch = t.mock.method(globalThis, 'fetch', async (_url, options) => new Promise((_resolve, reject) => {
+    transportSignal = options.signal;
+    transportSignal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')), { once: true });
+  }));
+  const controller = new AbortController();
+  const pending = askAdvisor([{ role: 'user', content: 'Question' }], {}, { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, error => error.name === 'AbortError');
+  t.mock.timers.tick(34999);
+  assert.equal(transportSignal.aborted, false);
+  t.mock.timers.tick(1);
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  assert.equal(transportSignal.aborted, true);
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
+test('abandoned creation never cancels an invalid late ID or retries an authorization failure', async t => {
+  for (const lateResponse of [response({ status: 'pending', jobId: '../admin' }, 202), response({ error: 'Owner sign-in required.' }, 401)]) {
+    let release;
+    const fetch = t.mock.method(globalThis, 'fetch', async () => new Promise(resolve => { release = resolve; }));
+    const controller = new AbortController();
+    const pending = askAdvisor([{ role: 'user', content: 'Question' }], {}, { signal: controller.signal });
+    controller.abort();
+    await assert.rejects(pending, error => error.name === 'AbortError');
+    release(lateResponse);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    assert.equal(fetch.mock.callCount(), 1);
+    fetch.mock.restore();
+  }
 });
 
 test('cancellation while parsing also rejects the response', async t => {

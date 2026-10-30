@@ -6,6 +6,7 @@ const TIMEOUT_MS = 35_000;
 const JOB_TIMEOUT_MS = 14 * 60_000;
 const safeText = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
 const abortError = () => new DOMException('The Survival LLM request was cancelled.', 'AbortError');
+const validJobId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{8,160}$/.test(value);
 
 async function advisorRequest(body, { signal } = {}) {
   const controller = new AbortController();
@@ -81,6 +82,30 @@ function cancelJob(jobId) {
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId, action: 'cancel' }) }).catch(() => {});
 }
 
+function createAdvisorJob(body, signal) {
+  if (signal?.aborted) return Promise.reject(abortError());
+  if (!signal) return advisorRequest(body);
+  return new Promise((resolve, reject) => {
+    let abandoned = false;
+    const cancel = () => { abandoned = true; reject(abortError()); };
+    signal.addEventListener('abort', cancel, { once: true });
+    // Stop dismisses the UI immediately, but the server may already be
+    // creating a job. Keep this one request alive, with its 35-second bound,
+    // so a late job ID can be cancelled instead of losing track of the work.
+    void advisorRequest(body).then(data => {
+      signal.removeEventListener('abort', cancel);
+      if (abandoned) {
+        if (data.status === 'pending' && validJobId(data.jobId)) cancelJob(data.jobId);
+        return;
+      }
+      resolve(data);
+    }, error => {
+      signal.removeEventListener('abort', cancel);
+      if (!abandoned) reject(error);
+    });
+  });
+}
+
 export async function askAdvisor(messages, context, options = {}) {
   // Keep recent completed exchanges and the newest question within the API limit.
   // A fresh context object is serialized for every request, including retries.
@@ -93,12 +118,13 @@ export async function askAdvisor(messages, context, options = {}) {
   }
   let jobId;
   try {
-    let data = await advisorRequest({ messages: history, context }, options);
+    let data = await createAdvisorJob({ messages: history, context }, options.signal);
     const started = Date.now();
     if (data.status === 'pending') {
-      if (typeof data.jobId !== 'string' || !/^[a-zA-Z0-9_-]{8,160}$/.test(data.jobId)) throw new Error('Survival LLM returned an invalid job. Please try again.');
+      if (!validJobId(data.jobId)) throw new Error('Survival LLM returned an invalid job. Please try again.');
       jobId = data.jobId;
     }
+    if (options.signal?.aborted) throw abortError();
     while (data.status === 'pending') {
       if (Date.now() - started >= JOB_TIMEOUT_MS) throw new Error('Your private server took too long to answer. Please try again.');
       options.onProgress?.(Date.now() - started < 30000 ? 'Waiting for your private server…' : 'Still waiting for your answer. The model may be starting after idle…');
