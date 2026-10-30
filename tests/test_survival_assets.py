@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import sqlite3
 import stat
@@ -40,6 +41,8 @@ class AssetsTest(unittest.TestCase):
         with sqlite3.connect(dbpath) as database:
             database.execute('CREATE TABLE sources (docs INTEGER, done INTEGER)')
             database.execute('INSERT INTO sources VALUES (42, 1)')
+            database.execute('CREATE TABLE metadata (value TEXT)')
+            database.execute("INSERT INTO metadata VALUES ('original')")
         body = io.BytesIO()
         with zipfile.ZipFile(body, 'w') as archive:
             archive.writestr('index.sqlite', dbpath.read_bytes())
@@ -226,6 +229,69 @@ class AssetsTest(unittest.TestCase):
             with (dest / 'index.sqlite').open('ab') as target:
                 target.write(b'changed')
             self.assertFalse(assets.library_status(dest)['ready'])
+
+    def installed_library(self):
+        destination = self.root / 'library'
+        assets._extract_library(self.split(self.library_zip()), destination, self.events.append)
+        stats = assets._library_stats(destination)
+        stamp, digest = assets._verified_index_stamp(destination)
+        receipt = {'kind': 'library', 'pinDigest': assets._pin_digest('library'), 'index': stamp, 'indexSha256': digest, **stats}
+        (destination / assets.RECEIPT).write_text(json.dumps(receipt))
+        return destination
+
+    def change_index_mtime(self, destination):
+        index = destination / 'index.sqlite'; before = index.stat()
+        os.utime(index, ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000_000))
+
+    def test_timestamp_drift_still_fails_readiness_until_explicit_verified_repair(self):
+        destination = self.installed_library()
+        before = (destination / 'index.sqlite').read_bytes()
+        self.change_index_mtime(destination)
+        self.assertFalse(assets.library_status(destination)['ready'])
+        with patch.object(assets, '_require_remote'):
+            result = assets.repair_library_stamp(destination, progress=self.events.append)
+        self.assertTrue(result['ready'])
+        self.assertEqual((destination / 'index.sqlite').read_bytes(), before)
+        self.assertFalse((self.root / '.library-install.lock').exists())
+
+    def test_legacy_repair_checks_sqlite_and_adds_digest_without_changing_data(self):
+        destination = self.installed_library()
+        receipt_path = destination / assets.RECEIPT
+        receipt = json.loads(receipt_path.read_text()); del receipt['indexSha256']
+        receipt_path.write_text(json.dumps(receipt))
+        before = (destination / 'index.sqlite').read_bytes()
+        self.change_index_mtime(destination)
+        with patch.object(assets, '_require_remote'), patch.object(assets, '_quick_check_library', wraps=assets._quick_check_library) as check:
+            self.assertTrue(assets.repair_library_stamp(destination, progress=self.events.append)['ready'])
+            check.assert_called_once_with(destination)
+        repaired = json.loads(receipt_path.read_text())
+        self.assertEqual(repaired['indexSha256'], hashlib.sha256(before).hexdigest())
+        self.assertEqual((destination / 'index.sqlite').read_bytes(), before)
+
+    def test_repair_rejects_real_same_size_valid_sqlite_changes(self):
+        destination = self.installed_library()
+        before = (destination / assets.RECEIPT).read_bytes()
+        with sqlite3.connect(destination / 'index.sqlite') as database:
+            database.execute("UPDATE metadata SET value='modified'")
+        self.assertEqual((destination / 'index.sqlite').stat().st_size, json.loads(before)['index']['bytes'])
+        self.assertEqual(assets._library_stats(destination), {'sources': 1, 'articles': 42})
+        with patch.object(assets, '_require_remote'):
+            with self.assertRaisesRegex(assets.AssetError, 'digest changed'):
+                assets.repair_library_stamp(destination, progress=self.events.append)
+        self.assertEqual((destination / assets.RECEIPT).read_bytes(), before)
+        self.assertFalse(assets.library_status(destination)['ready'])
+
+    def test_legacy_repair_rejects_changed_source_counts(self):
+        destination = self.installed_library()
+        receipt_path = destination / assets.RECEIPT
+        receipt = json.loads(receipt_path.read_text()); del receipt['indexSha256']
+        receipt_path.write_text(json.dumps(receipt)); before = receipt_path.read_bytes()
+        with sqlite3.connect(destination / 'index.sqlite') as database:
+            database.execute('UPDATE sources SET docs=43')
+        with patch.object(assets, '_require_remote'):
+            with self.assertRaisesRegex(assets.AssetError, 'counts changed'):
+                assets.repair_library_stamp(destination, progress=self.events.append)
+        self.assertEqual(receipt_path.read_bytes(), before)
 
     def test_model_pin_verification_and_status(self):
         body = b'safetensor fixture'; code = b'config fixture'

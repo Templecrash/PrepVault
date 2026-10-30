@@ -28,7 +28,9 @@ Installation acquires an atomic directory lock (`.library-install.lock` or `.mod
 
 An existing directory with missing or different verification metadata is preserved and reported as unverified. Unexpected installation errors report their errno and keep verified staging for retry. An interrupted download can also be retried. Run at most one provisioning function against this private Volume at a time, and commit the Volume on both success and failure so resumable data survives. Never provision into a Volume while inference is reading or writing a replacement asset version.
 
-Readiness checks read receipts, file metadata and SQLite source counts; they do not download or rehash 75 GB per request. The Volume must remain private and writable only by the owner's deployment. Tamper-resistant storage is not implied by these checks.
+Readiness checks read receipts, file metadata and SQLite source counts; they do not download or rehash 75 GB per request. Index mtime/size and model file stamps must still match. New library receipts also record the index SHA256 after fsync and a stable full-file read, preventing a deferred final-write mtime from making a fresh installation appear invalid. The Volume must remain private and writable only by the owner's deployment. Tamper-resistant storage is not implied by these checks.
+
+For an explicitly investigated library-only timestamp mismatch, `repair_library_stamp('/data/library')` is a remote CPU maintenance operation, never part of a status request. Under the installation lock it requires the pinned receipt, exact index size, unchanged recorded article/source counts, SQLite `quick_check`, and a stable full index hash. When the receipt contains an index digest, that digest must match; a real content change is rejected even if the SQLite file is valid and has the same size. The initial legacy receipt can be upgraded only through this explicit authorized repair. It atomically replaces only the receipt; it does not modify library data. Commit and reload the Volume afterward and verify `asset_status()` again.
 
 ## Python interface
 

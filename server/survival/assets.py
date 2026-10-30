@@ -120,6 +120,30 @@ def _library_stats(path):
     return {'sources': sources, 'articles': articles}
 
 
+def _verified_index_stamp(path):
+    """Flush and hash the index, accepting a stamp only if the read was stable."""
+    index = path / 'index.sqlite'
+    for _ in range(3):
+        with index.open('rb') as source:
+            os.fsync(source.fileno())
+        before = _file_stamp(index)
+        digest = _digest_file(index)
+        with index.open('rb') as source:
+            os.fsync(source.fileno())
+        after = _file_stamp(index)
+        if before == after:
+            return after, digest
+    raise AssetError('Library index did not settle during verification; receipt was preserved.')
+
+
+def _quick_check_library(path):
+    uri = (path / 'index.sqlite').resolve().as_uri() + '?mode=ro&immutable=1'
+    with contextlib.closing(sqlite3.connect(uri, uri=True)) as database:
+        database.execute('PRAGMA trusted_schema=OFF')
+        if database.execute('PRAGMA quick_check').fetchall() != [('ok',)]:
+            raise AssetError('Library SQLite integrity check failed; receipt was preserved.')
+
+
 def library_status(destination='/data/library'):
     path = Path(destination)
     try:
@@ -289,6 +313,9 @@ def _extract_library(paths, staging, progress):
                 target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 with archive.open(entry) as source, target.open('xb') as output:
                     shutil.copyfileobj(source, output, CHUNK)
+                    if entry.filename == 'index.sqlite':
+                        output.flush()
+                        os.fsync(output.fileno())
                 target.chmod(0o600)
             if number % 1000 == 0:
                 _emit(progress, 'library-extracting', completed=number + 1, total=len(entries))
@@ -314,9 +341,8 @@ def _rename_exclusive(staging, destination):
         raise OSError(code, os.strerror(code))
 
 
-def _install(staging, destination):
-    # Modal Volume v2 may reject renameat2 flags. All provisioners serialize the
-    # existence check and standard rename with the same atomic mkdir lock.
+@contextlib.contextmanager
+def _installation_lock(destination):
     lock = destination.parent / ('.' + destination.name + '-install.lock')
     try:
         lock.mkdir(mode=0o700)
@@ -325,23 +351,75 @@ def _install(staging, destination):
     except OSError as exc:
         raise AssetError(f'Installation lock failed (errno {exc.errno}); staging was preserved.') from None
     try:
+        yield
+    finally:
+        lock.rmdir()
+
+
+def _install(staging, destination):
+    # Modal Volume v2 may reject renameat2 flags. All provisioners serialize the
+    # existence check and standard rename with the same atomic mkdir lock.
+    with _installation_lock(destination):
         if os.path.lexists(destination):
             raise AssetError('Destination already exists; staging and existing assets were preserved.')
         try:
-            _rename_exclusive(staging, destination)
+            try:
+                _rename_exclusive(staging, destination)
+            except OSError as exc:
+                unsupported = {errno.ENOSYS, errno.EINVAL, errno.EOPNOTSUPP, errno.ENOTSUP}
+                if exc.errno not in unsupported:
+                    raise
+                # The private Volume has a single writer; other installers must use
+                # this lock. Recheck after the rejected syscall before plain rename.
+                if os.path.lexists(destination):
+                    raise AssetError('Destination already exists; staging and existing assets were preserved.')
+                os.rename(staging, destination)
         except OSError as exc:
-            unsupported = {errno.ENOSYS, errno.EINVAL, errno.EOPNOTSUPP, errno.ENOTSUP}
-            if exc.errno not in unsupported:
-                raise
-            # The private Volume has a single writer; other installers must use
-            # this lock. Recheck after the rejected syscall before plain rename.
-            if os.path.lexists(destination):
-                raise AssetError('Destination already exists; staging and existing assets were preserved.')
-            os.rename(staging, destination)
-    except OSError as exc:
-        raise AssetError(f'Asset installation failed (errno {exc.errno}); staging and existing assets were preserved.') from None
-    finally:
-        lock.rmdir()
+            raise AssetError(f'Asset installation failed (errno {exc.errno}); staging and existing assets were preserved.') from None
+
+
+def repair_library_stamp(destination='/data/library', *, progress=None):
+    """Explicit CPU repair for a verified index whose final-write mtime settled.
+
+    This never runs from a readiness request. Legacy receipts without an index
+    digest require an explicitly authorized repair; all later repairs must also
+    match the recorded digest. Only the receipt is replaced, never library data.
+    """
+    _require_remote()
+    destination = Path(destination)
+    with _installation_lock(destination):
+        if destination.is_symlink():
+            raise AssetError('Library directory cannot be a symlink.')
+        receipt = _read_receipt(destination, 'library')
+        stamp = _file_stamp(destination / 'index.sqlite')
+        if stamp['bytes'] != receipt.get('index', {}).get('bytes'):
+            raise AssetError('Library index size changed; receipt was preserved.')
+        stats = _library_stats(destination)
+        if any(stats[key] != receipt.get(key) for key in ('articles', 'sources')):
+            raise AssetError('Library source or article counts changed; receipt was preserved.')
+        _emit(progress, 'library-repair-integrity-check')
+        _quick_check_library(destination)
+        stamp, digest = _verified_index_stamp(destination)
+        if stamp['bytes'] != receipt['index']['bytes']:
+            raise AssetError('Library index changed during verification; receipt was preserved.')
+        if receipt.get('indexSha256') and digest != receipt['indexSha256']:
+            raise AssetError('Library index digest changed; receipt was preserved.')
+        updated = {**receipt, 'index': stamp, 'indexSha256': digest}
+        temporary = destination / ('.prepvault-receipt-' + uuid.uuid4().hex + '.tmp')
+        try:
+            with temporary.open('x') as output:
+                json.dump(updated, output)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temporary, destination / RECEIPT)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+        result = library_status(destination)
+        if not result['ready']:
+            raise AssetError('Library index changed after repair; readiness remains false.')
+        _emit(progress, 'library-repair-ready', **stats)
+        return result
 
 
 def ensure_library(destination='/data/library', *, progress=None):
@@ -380,7 +458,8 @@ def ensure_library(destination='/data/library', *, progress=None):
     try:
         _extract_library(paths, staging, progress)
         stats = _library_stats(staging)
-        receipt = {'kind': 'library', 'pinDigest': _pin_digest('library'), 'index': _file_stamp(staging / 'index.sqlite'), **stats}
+        stamp, digest = _verified_index_stamp(staging)
+        receipt = {'kind': 'library', 'pinDigest': _pin_digest('library'), 'index': stamp, 'indexSha256': digest, **stats}
         (staging / 'pack.json').write_text(json.dumps({'id': 'full', 'version': pack['version']}))
         (staging / RECEIPT).write_text(json.dumps(receipt))
     except BaseException:
