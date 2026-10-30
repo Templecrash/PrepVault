@@ -41,6 +41,8 @@ All calls require the verified owner session. Responses use private, no-store ca
 
 Closing the panel or pressing Stop stops the UI immediately and requests cancellation when the job ID is known. If job creation is still in flight, that request keeps its 35-second browser deadline so a late job ID can be cancelled as soon as it arrives. Cancellation during page unload remains best effort; the remote job timeout is the final bound.
 
+Cancelling a request is not confirmation that its GPU has already been released. With model loading in `@modal.enter`, Modal may finish startup before the worker becomes idle and scales down, so GPU costs can continue during that interval. This differs from cancelling an input that is already generating an answer. See [Modal lifecycle hooks](https://modal.com/docs/guide/lifecycle-functions) and [FunctionCall cancellation](https://modal.com/docs/sdk/py/latest/FunctionCall#cancel).
+
 Additional Vercel per-process guards permit six chat starts and sixty status/poll/cancel requests per owner per minute, with bounded simultaneous requests. The public ticket verifier permits 240 requests per process per minute. These guards are not distributed account spending limits. Modal's deployment limits and account budget controls remain necessary for bounding infrastructure usage.
 
 ## Validation before release
