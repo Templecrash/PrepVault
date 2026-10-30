@@ -1,5 +1,6 @@
 export function Icon({ name = 'box', size = 20, ...props }) {
   const paths = {
+    news: <><path d="M5 4h16v14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8h2Z"/><path d="M5 8v10a1 1 0 0 0 2 0V4M11 8h6M11 12h6M11 16h6"/></>,
     home: <><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></>,
     vehicle: <><path d="m5 7 2-4h10l2 4 2 3v8H3v-8Z"/><path d="M5 7h14M3 13h18M6 18v3m12-3v3M6 10h2m8 0h2"/></>,
     box: <><path d="m3 7 9-4 9 4v10l-9 4-9-4Z"/><path d="m3 7 9 5 9-5M12 12v9M7 5l10 5"/></>,

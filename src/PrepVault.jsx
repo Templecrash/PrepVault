@@ -38,7 +38,7 @@ import PreparednessCalendar from "./PreparednessCalendar.jsx";
 import SkillsLibrary from "./SkillsLibrary.jsx";
 import OfflineMaps from "./OfflineMaps.jsx";
 import LocationView from "./LocationView.jsx";
-import WeatherNews from "./WeatherNews.jsx";
+import NewsView from "./NewsView.jsx";
 import ScenarioView from "./ScenarioView.jsx";
 import "./legacy-details.css";
 import ResourcePlanningView from "./ResourcePlanningView.jsx";
@@ -1492,7 +1492,10 @@ function DashboardTab({ items, setSelCat, openAdd, people, climate, allAlerts, s
         );
       })()}
 
-      <WeatherNews />
+      <div className="pv-location-actions">
+        <button type="button" className="pv-button pv-secondary" onClick={() => setActiveTab("location")}><Icon name="compass" size={16}/>Weather &amp; locations</button>
+        <button type="button" className="pv-button pv-secondary" onClick={() => setActiveTab("news")}><Icon name="news" size={16}/>News</button>
+      </div>
 
       {/* ── Action Bar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, padding: "4px 0" }} onClick={(e) => e.stopPropagation()}>
@@ -3070,6 +3073,8 @@ export default function PrepVault() {
         return <OfflineMaps key={restoreVersion} onOpenPropertyMap={() => { setPropSub("map"); navigate("property"); }} onSignIn={() => setShowAuth(true)}/>;
       case "location":
         return <LocationView items={propItems} onCategory={openCategory} onSignIn={() => { setAuthMode("login"); setShowAuth(true); }} onOpenMaps={() => navigate("offline-maps")}/>;
+      case "news":
+        return <NewsView onOpenLocation={() => navigate("location")}/>;
       case "dependencies":
         return <DependenciesView items={propItems} onSupplies={() => navigate("preps")} onSetup={openSetup} />;
       case "vehicles":
