@@ -42,7 +42,7 @@ class ReferenceState:
             self.searched = True
             self.has_results = self.has_results or bool(event.get("results"))
         elif event.get("type") == "read" and type(event.get("id")) is int and event["id"] > 0:
-            self.read_ids[event["id"]] = {"id": event["id"]}
+            self.read_ids[event["id"]] = {"id": event["id"], "title": event.get("title")}
         # show_article only opens the desktop reader. It does not give the
         # model article text and is deliberately not offered in the hosted UI.
 
@@ -272,6 +272,76 @@ def retrieved_sources(library, items):
     return sources
 
 
+def verified_source_navigation(paragraph, read_ids):
+    """Recognize only a standalone source-opening instruction for a read ID."""
+    subject = r"(?:it|(?:the\s+)?(?:full\s+)?(?:article|source|reference|instructions))"
+    tool = (r"`?(?:show_article|read_article)`?(?:\(\s*(?:id\s*=\s*)?\d+\s*\)"
+            r"|\s+(?:(?:with\s+)?id\s*[:=]?\s*)?\d+)")
+    target = r"(?:" + tool + r"|\[\s*id\s+\d+\s*\])"
+    pattern = (r"\s*(?:[-*]\s*)?(?:to\s+(?:view|read|open|see)\s+" + subject + r",?\s+)?"
+               r"(?:you can\s+)?(?:use|call|run|open|read)\s+" + target +
+               r"(?:\s+(?:to\s+(?:view|read|open|see)\s+" + subject + r"|for\s+" + subject + r"))?[.!]?\s*")
+    if not re.fullmatch(pattern, paragraph, re.I):
+        return False
+    ids = re.findall(r"\d+", paragraph)
+    return len(ids) == 1 and int(ids[0]) in read_ids
+
+
+def present_verified_sources(core, reply, sources, read_ids):
+    """Source cards own the bibliography; do not repeat model-written footers."""
+    parse_footer = getattr(core, "_sources_block", None)
+    block = parse_footer(reply) if callable(parse_footer) else None
+    if (isinstance(block, tuple) and len(block) == 3 and
+            type(block[0]) is int and type(block[1]) is int and 0 <= block[0] < block[1] <= len(reply)):
+        reply = (reply[:block[0]].rstrip() + "\n\n" + reply[block[1]:].lstrip()).strip()
+    if sources:
+        paragraphs = []
+        for paragraph in reply.split("\n\n"):
+            if verified_source_navigation(paragraph, read_ids):
+                paragraph = "See the verified references below."
+            paragraphs.append(paragraph)
+        reply = "\n\n".join(paragraphs)
+        titles = {source["title"] for source in sources}
+
+        def reference_label(match):
+            observed = read_ids.get(int(match[1]))
+            if observed is None:
+                return match[0]
+            title = observed.get("title")
+            return title[:300] if isinstance(title, str) and title[:300] in titles else "the verified reference"
+
+        # Replace only IDs actually read, using a verified display title. An
+        # unknown passage marker remains visible to the rejection check.
+        reply = re.sub(r"\[\s*id\s+(\d+)\s*\]", reference_label, reply, flags=re.I)
+    return reply.strip()
+
+
+def unsupported_body_source(reply, unopened, sources):
+    """Ignore stale footer flags; reject a still-named unsupported body source."""
+    normalize = lambda value: re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+    body = " " + normalize(reply) + " "
+    verified = [" " + normalize(source["source"] + " " + source["title"]) + " " for source in sources]
+    verified += [" " + normalize(source["title"] + " " + source["source"]) + " " for source in sources]
+    for name in unopened if isinstance(unopened, list) else []:
+        if not isinstance(name, str):
+            continue
+        key = normalize(name)
+        if len(key) >= 3 and " " + key + " " in body and not any(" " + key + " " in item for item in verified):
+            return True
+    return False
+
+
+def reference_error(reason):
+    # Finite diagnostics survive in the private worker error without recording
+    # any question, answer, source name or other personal information.
+    messages = {
+        "internal_reference": "The model included an internal reference instruction. Please retry. [reference_reason=internal_reference]",
+        "unsupported_body_source": "The model named an unsupported reference in its answer. Please retry. [reference_reason=unsupported_body_source]",
+        "unread_claim": "The model claimed to read a reference that was not opened. Please retry. [reference_reason=unread_claim]",
+    }
+    return SurvivalError(503, "reference_unverified", messages[reason])
+
+
 def chat_events(core, library, config, payload, references=None):
     # Do not call core.system_prompt: the attached app's permissive prompt does
     # not meet PrepVault's accuracy, safety or untrusted-data requirements.
@@ -293,9 +363,17 @@ def chat_events(core, library, config, payload, references=None):
             sources = retrieved_sources(library, list(references.read_ids.values()))
             if references.required and not sources:
                 raise SurvivalError(503, "reference_unavailable", "The model could not open a supporting library reference. Try a more specific topic; no reference-backed answer was returned.")
-            if (INTERNAL_REFERENCE.search(reply) or event.get("unopened") or
-                    (not sources and READ_CLAIM.search(reply))):
-                raise SurvivalError(503, "reference_unverified", "The model returned an unsupported reference claim. Please retry; that answer was not shown.")
+            reply = present_verified_sources(core, reply, sources, references.read_ids)
+            if not reply:
+                raise SurvivalError(503, "incomplete_answer", "The model returned references without an answer. Try a more focused question.")
+            if INTERNAL_REFERENCE.search(reply):
+                raise reference_error("internal_reference")
+            # core.unopened describes the model's original footer, *before*
+            # the core corrected it. It is not an unconditional rejection flag.
+            if unsupported_body_source(reply, event.get("unopened"), sources):
+                raise reference_error("unsupported_body_source")
+            if not sources and READ_CLAIM.search(reply):
+                raise reference_error("unread_claim")
             yield {"type": "done", "reply": reply, "model": config["model"],
                    "sources": sources}
             return

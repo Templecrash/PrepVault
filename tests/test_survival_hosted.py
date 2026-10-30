@@ -445,15 +445,59 @@ class AdapterTests(unittest.TestCase):
                 list(runtime.chat_events(core, library, {"model": security.MODEL}, CHAT))
             self.assertEqual(caught.exception.code, "reference_unverified")
 
-    def test_unopened_named_source_rejected_even_with_another_actual_read(self):
+    def test_corrected_footer_does_not_reject_verified_answer(self):
         core, library = Mock(), Mock()
         library.read.return_value = {"title": "Water", "source": "Ready.gov", "text": "Store water."}
         library.db.execute.return_value.fetchone.return_value = None
+        answer = "Store water.\n\nSources: Water (Ready.gov)"
+        core._sources_block.return_value = (answer.index("Sources:"), len(answer), ["Water (Ready.gov)"])
         core.chat_events.return_value = iter([{"type": "read", "id": 1},
-            {"type": "done", "answer": "Store water.", "unopened": ["Invented source"]}])
+            {"type": "done", "answer": answer, "unopened": ["Original incorrect footer"]}])
+        result = list(runtime.chat_events(core, library, {"model": security.MODEL}, CHAT))[-1]
+        self.assertEqual(result["reply"], "Store water.")
+        self.assertEqual(result["sources"][0]["title"], "Water")
+
+    def test_uncorrected_source_in_body_still_rejected(self):
+        core, library = Mock(), Mock()
+        library.read.return_value = {"title": "Water", "source": "Ready.gov", "text": "Store water."}
+        library.db.execute.return_value.fetchone.return_value = None
+        answer = "Invented Source says this is safe.\n\nSources: Water (Ready.gov)"
+        core._sources_block.return_value = (answer.index("Sources:"), len(answer), ["Water (Ready.gov)"])
+        core.chat_events.return_value = iter([{"type": "read", "id": 1},
+            {"type": "done", "answer": answer, "unopened": ["Invented Source"]}])
         with self.assertRaises(security.SurvivalError) as caught:
             list(runtime.chat_events(core, library, {"model": security.MODEL}, CHAT))
         self.assertEqual(caught.exception.code, "reference_unverified")
+        self.assertIn("reference_reason=unsupported_body_source", caught.exception.message)
+        self.assertNotIn("Invented Source", caught.exception.message)
+
+    def test_verified_source_abbreviation_is_not_an_unsupported_body_claim(self):
+        sources = [{"title": "Water", "source": "Ready.gov"}]
+        self.assertFalse(runtime.unsupported_body_source("Ready.gov recommends storing water.", ["Ready.gov"], sources))
+
+    def test_source_navigation_becomes_verified_cards_and_known_ids_become_titles(self):
+        core = Mock()
+        sources = [{"title": "Water storage", "source": "Ready.gov"}]
+        read_ids = {42: {"id": 42, "title": "Water storage"}}
+        for navigation in ("Use show_article id 42 to view it.", "Read [id 42] for instructions.",
+                           "To view the article, use show_article id 42."):
+            answer = "Record your stored water.\n\n" + navigation
+            cleaned = runtime.present_verified_sources(core, answer, sources, read_ids)
+            self.assertEqual(cleaned, "Record your stored water.\n\nSee the verified references below.")
+        self.assertEqual(runtime.present_verified_sources(core, "According to [id 42], store water.", sources, read_ids),
+                         "According to Water storage, store water.")
+        self.assertIn("[id 999]", runtime.present_verified_sources(core, "According to [id 999], store water.", sources, read_ids))
+
+    def test_unknown_or_mixed_source_instructions_are_not_silently_rewritten(self):
+        core = Mock()
+        sources = [{"title": "Water storage", "source": "Ready.gov"}]
+        read_ids = {42: {"id": 42, "title": "Water storage"}}
+        for answer in ("Use show_article id 999 to view it.", "Use [id 999] for instructions.",
+                       "Use clean water on the wound and run show_article id 42.",
+                       "Use show_article id 42, then drink untreated river water."):
+            self.assertFalse(runtime.verified_source_navigation(answer, read_ids))
+            self.assertEqual(runtime.present_verified_sources(core, answer, sources, read_ids), answer)
+            self.assertTrue(runtime.INTERNAL_REFERENCE.search(answer))
 
     def test_modal_configuration_has_one_private_h200_and_no_local_runtime(self):
         path = Path(__file__).resolve().parents[1] / "server/survival/modal_app.py"
